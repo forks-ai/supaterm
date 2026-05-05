@@ -299,6 +299,83 @@ struct TerminalHostStatePinnedTabSharingTests {
   }
 
   @Test
+  func closingSavedMultiPanePinnedTabPreservesEachPaneWorkingDirectory() async throws {
+    try await withDependencies {
+      $0.defaultFileStorage = .inMemory
+      initializeGhosttyForTests()
+    } operation: {
+      let firstPath = FileManager.default.temporaryDirectory
+        .appendingPathComponent(UUID().uuidString, isDirectory: true)
+      let secondPath = FileManager.default.temporaryDirectory
+        .appendingPathComponent(UUID().uuidString, isDirectory: true)
+      try FileManager.default.createDirectory(at: firstPath, withIntermediateDirectories: true)
+      try FileManager.default.createDirectory(at: secondPath, withIntermediateDirectories: true)
+      let firstPathString = GhosttySurfaceView.normalizedWorkingDirectoryPath(
+        firstPath.path(percentEncoded: false)
+      )
+      let secondPathString = GhosttySurfaceView.normalizedWorkingDirectoryPath(
+        secondPath.path(percentEncoded: false)
+      )
+      defer {
+        try? FileManager.default.removeItem(at: firstPath)
+        try? FileManager.default.removeItem(at: secondPath)
+      }
+
+      let host = TerminalHostState()
+      host.handleCommand(.ensureInitialTab(focusing: false, startupCommand: nil))
+      let pinnedTabID = try #require(host.selectedTabID)
+      host.handleCommand(.togglePinned(pinnedTabID))
+      await flushPinnedTabCatalogObservation()
+
+      host.selectedSurfaceView?.bridge.state.pwd = firstPathString
+      let pane = try host.createPane(
+        TerminalCreatePaneRequest(
+          startupCommand: nil,
+          cwd: secondPathString,
+          direction: .right,
+          focus: false,
+          equalize: false,
+          target: .tab(windowIndex: 1, spaceIndex: 1, tabIndex: 1)
+        )
+      )
+      host.surfaces[pane.paneID]?.bridge.state.pwd = secondPathString
+      host.handleCommand(.savePinnedTabLayout(pinnedTabID))
+      await flushPinnedTabCatalogObservation()
+
+      let initialLeaves = try #require(host.trees[pinnedTabID]?.leaves())
+      #expect(initialLeaves.count == 2)
+      host.handleCommand(.closeSurface(initialLeaves[0].id))
+      let remainingSurfaceID = try #require(host.trees[pinnedTabID]?.leaves().first?.id)
+      host.handleCommand(.closeSurface(remainingSurfaceID))
+
+      @Shared(.terminalPinnedTabCatalog) var sharedCatalog = .default
+      let selectedSpaceID = try #require(host.selectedSpaceID)
+      let pinnedTab = try #require(
+        sharedCatalog.tabs(in: selectedSpaceID).first(where: { $0.id == pinnedTabID })
+      )
+      #expect(
+        pinnedTab.session.root
+          == .split(
+            TerminalPaneSplitSession(
+              direction: .horizontal,
+              ratio: 0.5,
+              left: .leaf(TerminalPaneLeafSession(workingDirectoryPath: firstPathString)),
+              right: .leaf(TerminalPaneLeafSession(workingDirectoryPath: secondPathString))
+            )
+          )
+      )
+      #expect(host.trees[pinnedTabID] == nil)
+
+      host.handleCommand(.selectTab(pinnedTabID))
+
+      #expect(
+        host.trees[pinnedTabID]?.leaves().map { $0.bridge.state.pwd }
+          == [firstPathString, secondPathString]
+      )
+    }
+  }
+
+  @Test
   func selectingSuspendedPinnedTabCreatesFreshPane() async throws {
     try await withDependencies {
       $0.defaultFileStorage = .inMemory

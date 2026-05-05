@@ -125,6 +125,7 @@ nonisolated struct TerminalTabSession: Equatable, Codable, Sendable {
     focusedPaneIndex: Int
   ) -> TerminalTabSession {
     guard root.leafCount > 0 else { return self }
+    guard workingDirectoryPaths.count >= root.leafCount else { return self }
     let resolvedFocusedPaneIndex = min(max(focusedPaneIndex, 0), root.leafCount - 1)
     let focusedWorkingDirectoryPath =
       workingDirectoryPaths.indices.contains(focusedPaneIndex)
