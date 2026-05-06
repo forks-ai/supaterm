@@ -509,18 +509,18 @@ struct TerminalSidebarTabSummaryView: View {
     return nil
   }
 
-  struct TitleAccessories: Equatable {
+  struct RowAccessories: Equatable {
     let shortcutHint: String?
     let statusAccessory: StatusAccessory?
   }
 
-  static func titleAccessories(
+  static func rowAccessories(
     shortcutHint: String?,
     showsShortcutHint: Bool,
     isRowHovering: Bool,
     statusAccessory: StatusAccessory?
-  ) -> TitleAccessories {
-    TitleAccessories(
+  ) -> RowAccessories {
+    RowAccessories(
       shortcutHint: showsShortcutHint ? shortcutHint : nil,
       statusAccessory: isRowHovering ? nil : statusAccessory
     )
@@ -550,7 +550,7 @@ struct TerminalSidebarTabSummaryView: View {
   }
 
   var body: some View {
-    let titleAccessories = Self.titleAccessories(
+    let rowAccessories = Self.rowAccessories(
       shortcutHint: shortcutHint,
       showsShortcutHint: showsShortcutHint,
       isRowHovering: isRowHovering,
@@ -565,55 +565,58 @@ struct TerminalSidebarTabSummaryView: View {
       )
     )
 
-    VStack(alignment: .leading, spacing: 2) {
-      HStack(spacing: 6) {
-        if let markPresentation = Self.agentMarkPresentation(
-          for: badgeActivity,
-          showsAgentMarks: showsAgentMarks
-        ) {
-          TerminalSidebarAgentMarkImage(
-            imageName: markPresentation,
-            isSelected: isSelected,
-            palette: palette
-          )
-        }
-
-        Text(tab.title)
-          .font(.system(size: 12, weight: .medium))
-          .foregroundStyle(isSelected ? palette.selectedText : palette.primaryText)
-          .lineLimit(1)
-          .truncationMode(.tail)
-
-        Spacer(minLength: 0)
-
+    HStack(alignment: .center, spacing: 6) {
+      VStack(alignment: .leading, spacing: 2) {
         HStack(spacing: 6) {
-          if let shortcutHint = titleAccessories.shortcutHint {
-            Text(shortcutHint)
-              .font(.system(size: 11, weight: .semibold))
-              .foregroundStyle(
-                isSelected
-                  ? palette.selectedText.opacity(0.72)
-                  : palette.secondaryText
-              )
+          if let markPresentation = Self.agentMarkPresentation(
+            for: badgeActivity,
+            showsAgentMarks: showsAgentMarks
+          ) {
+            TerminalSidebarAgentMarkImage(
+              imageName: markPresentation,
+              isSelected: isSelected,
+              palette: palette
+            )
           }
 
-          if let statusAccessory = titleAccessories.statusAccessory {
-            statusAccessoryView(statusAccessory)
-          }
+          Text(tab.title)
+            .font(.system(size: 12, weight: .medium))
+            .foregroundStyle(isSelected ? palette.selectedText : palette.primaryText)
+            .lineLimit(1)
+            .truncationMode(.tail)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+
+        ForEach(paneWorkingDirectories, id: \.self) { workingDirectory in
+          Text(workingDirectory)
+            .font(.system(size: 11, weight: .regular, design: .monospaced))
+            .foregroundStyle(
+              isSelected
+                ? palette.selectedText.opacity(0.72)
+                : palette.secondaryText
+            )
+            .lineLimit(1)
+            .truncationMode(.middle)
         }
       }
+      .frame(maxWidth: .infinity, alignment: .leading)
 
-      ForEach(paneWorkingDirectories, id: \.self) { workingDirectory in
-        Text(workingDirectory)
-          .font(.system(size: 11, weight: .regular, design: .monospaced))
-          .foregroundStyle(
-            isSelected
-              ? palette.selectedText.opacity(0.72)
-              : palette.secondaryText
-          )
-          .lineLimit(1)
-          .truncationMode(.middle)
+      HStack(spacing: 6) {
+        if let shortcutHint = rowAccessories.shortcutHint {
+          Text(shortcutHint)
+            .font(.system(size: 11, weight: .semibold))
+            .foregroundStyle(
+              isSelected
+                ? palette.selectedText.opacity(0.72)
+                : palette.secondaryText
+            )
+        }
+
+        if let statusAccessory = rowAccessories.statusAccessory {
+          statusAccessoryView(statusAccessory)
+        }
       }
+      .fixedSize(horizontal: true, vertical: false)
     }
     .frame(maxWidth: .infinity, alignment: .leading)
   }

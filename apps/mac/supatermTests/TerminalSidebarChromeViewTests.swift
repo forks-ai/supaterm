@@ -289,8 +289,8 @@ struct TerminalSidebarChromeViewTests {
   }
 
   @Test
-  func titleAccessoriesShowShortcutHintAndPinnedStatusTogether() {
-    let accessories = TerminalSidebarTabSummaryView.titleAccessories(
+  func rowAccessoriesShowShortcutHintAndPinnedStatusTogether() {
+    let accessories = TerminalSidebarTabSummaryView.rowAccessories(
       shortcutHint: "⌘1",
       showsShortcutHint: true,
       isRowHovering: false,
@@ -299,7 +299,7 @@ struct TerminalSidebarChromeViewTests {
 
     #expect(
       accessories
-        == TerminalSidebarTabSummaryView.TitleAccessories(
+        == TerminalSidebarTabSummaryView.RowAccessories(
           shortcutHint: "⌘1",
           statusAccessory: .pinned
         )
@@ -309,13 +309,13 @@ struct TerminalSidebarChromeViewTests {
   @Test
   func rowHoverHidesStatusAccessoryButKeepsShortcutHint() {
     #expect(
-      TerminalSidebarTabSummaryView.titleAccessories(
+      TerminalSidebarTabSummaryView.rowAccessories(
         shortcutHint: "⌘1",
         showsShortcutHint: true,
         isRowHovering: true,
         statusAccessory: .unreadCount(2)
       )
-        == TerminalSidebarTabSummaryView.TitleAccessories(
+        == TerminalSidebarTabSummaryView.RowAccessories(
           shortcutHint: "⌘1",
           statusAccessory: nil
         )
@@ -323,16 +323,16 @@ struct TerminalSidebarChromeViewTests {
   }
 
   @Test
-  func titleAccessoriesShowShortcutHintAndProgressTogether() {
+  func rowAccessoriesShowShortcutHintAndProgressTogether() {
     let progress = TerminalSidebarTerminalProgress(fraction: 0.5, tone: .active)
     #expect(
-      TerminalSidebarTabSummaryView.titleAccessories(
+      TerminalSidebarTabSummaryView.rowAccessories(
         shortcutHint: "⌘1",
         showsShortcutHint: true,
         isRowHovering: false,
         statusAccessory: .terminalProgress(progress)
       )
-        == TerminalSidebarTabSummaryView.TitleAccessories(
+        == TerminalSidebarTabSummaryView.RowAccessories(
           shortcutHint: "⌘1",
           statusAccessory: .terminalProgress(progress)
         )
