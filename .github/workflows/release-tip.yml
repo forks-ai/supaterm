@@ -156,16 +156,7 @@ jobs:
           if-no-files-found: error
           path: apps/mac/build/supaterm.xcarchive/dSYMs/**
       - name: Download Sparkle tools
-        run: |
-          SPARKLE_VERSION=$(awk -F'"' '/sparkle-project\/Sparkle/ { print $4; exit }' apps/mac/Tuist/Package.swift)
-          if [ -z "$SPARKLE_VERSION" ]; then
-            echo "::error::Unable to determine Sparkle version"
-            exit 1
-          fi
-          rm -rf apps/mac/build/sparkle-tools
-          mkdir -p apps/mac/build/sparkle-tools
-          curl -fsSL "https://github.com/sparkle-project/Sparkle/releases/download/$SPARKLE_VERSION/Sparkle-for-Swift-Package-Manager.zip" -o apps/mac/build/sparkle-tools/sparkle.zip
-          unzip -q apps/mac/build/sparkle-tools/sparkle.zip -d apps/mac/build/sparkle-tools
+        run: .github/scripts/download_sparkle_tools.sh
       - name: Generate tip appcast
         run: |
           set -euo pipefail
