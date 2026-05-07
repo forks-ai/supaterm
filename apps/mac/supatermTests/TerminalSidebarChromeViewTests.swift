@@ -461,6 +461,39 @@ struct TerminalSidebarChromeViewTests {
     )
   }
 
+  @Test
+  func regularHoveredTabShowsEnabledCloseButton() {
+    #expect(
+      TerminalSidebarTabRow.closeButtonPresentation(
+        isPinned: false,
+        isHovering: true,
+        showsShortcutHint: false
+      ) == .enabled
+    )
+  }
+
+  @Test
+  func pinnedHoveredTabShowsDisabledCloseButton() {
+    #expect(
+      TerminalSidebarTabRow.closeButtonPresentation(
+        isPinned: true,
+        isHovering: true,
+        showsShortcutHint: false
+      ) == .disabled
+    )
+  }
+
+  @Test
+  func shortcutHintHidesCloseButton() {
+    #expect(
+      TerminalSidebarTabRow.closeButtonPresentation(
+        isPinned: false,
+        isHovering: true,
+        showsShortcutHint: true
+      ) == .hidden
+    )
+  }
+
   @MainActor
   @Test
   func focusedPaneIndeterminateProgressUsesActiveSpinner() {

@@ -860,6 +860,12 @@ struct TerminalSidebarTabRow: View {
     }
   }
 
+  enum CloseButtonPresentation: Equatable {
+    case hidden
+    case enabled
+    case disabled
+  }
+
   private struct AnimatedPresentation: Equatable {
     let badgeActivity: TerminalHostState.AgentActivity?
     let hasTerminalBell: Bool
@@ -908,8 +914,18 @@ struct TerminalSidebarTabRow: View {
     return items
   }
 
+  static func closeButtonPresentation(
+    isPinned: Bool,
+    isHovering: Bool,
+    showsShortcutHint: Bool
+  ) -> CloseButtonPresentation {
+    guard isHovering, !showsShortcutHint else { return .hidden }
+    return isPinned ? .disabled : .enabled
+  }
+
   @Environment(\.accessibilityReduceMotion) private var reduceMotion
   @State private var isHovering = false
+  @State private var isCloseHovering = false
 
   private var isSelected: Bool {
     terminal.selectedTabID == tab.id
@@ -958,6 +974,30 @@ struct TerminalSidebarTabRow: View {
           summary.help(helpText)
         } else {
           summary
+        }
+
+        let closeButtonPresentation = Self.closeButtonPresentation(
+          isPinned: tab.isPinned,
+          isHovering: isHovering,
+          showsShortcutHint: showsShortcutHint
+        )
+        if closeButtonPresentation != .hidden {
+          Button(action: close) {
+            Image(systemName: "xmark")
+              .font(.system(size: 12, weight: .heavy))
+              .foregroundStyle(isSelected ? palette.selectedText : palette.primaryText)
+              .frame(width: 24, height: 24)
+              .accessibilityHidden(true)
+              .background(
+                isCloseHovering
+                  ? (isSelected ? palette.clearFill : palette.rowFill)
+                  : .clear,
+                in: RoundedRectangle(cornerRadius: 6, style: .continuous)
+              )
+          }
+          .buttonStyle(.plain)
+          .disabled(closeButtonPresentation == .disabled)
+          .onHover { isCloseHovering = $0 }
         }
       }
       .padding(.horizontal, TerminalSidebarLayout.tabRowHorizontalPadding)
