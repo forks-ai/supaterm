@@ -16,6 +16,24 @@ type ChangelogEntry = {
 
 const changelogData: ChangelogEntry[] = [
   {
+    version: "v1.2.1",
+    date: "2026-05-08",
+    title: "May fixes",
+    sections: [
+      {
+        category: "fixes",
+        items: [
+          "Pinned tabs now stay pinned when closed, and restore their saved working directories when reopened",
+          "Dormant pinned tabs no longer respawn unexpectedly",
+          "Closing the last pane in a pinned tab no longer tries to close the window",
+          "Image-only pasteboards now paste as a usable temporary PNG path",
+          "Coding-agent state now clears when the foreground command finishes",
+          "Installed coding-agent hooks are refreshed on app launch",
+        ],
+      },
+    ],
+  },
+  {
     version: "v1.2.0",
     date: "2026-05-01",
     title: "Genie",
