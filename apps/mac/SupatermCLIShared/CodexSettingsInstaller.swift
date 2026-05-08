@@ -70,6 +70,10 @@ public struct CodexSettingsInstaller {
       settingsURL: Self.settingsURL(homeDirectoryURL: homeDirectoryURL),
       hookGroupsByEvent: try SupatermCodexHookSettings.hookGroupsByEvent()
     )
+    try hookTrustStore.trustSupatermHooks(
+      settingsURL: Self.settingsURL(homeDirectoryURL: homeDirectoryURL),
+      configURL: Self.configURL(homeDirectoryURL: homeDirectoryURL)
+    )
   }
 
   public func hasSupatermHooks() throws -> Bool {
@@ -79,8 +83,15 @@ public struct CodexSettingsInstaller {
   }
 
   public func removeSupatermHooks() throws {
+    let trustKeys = try hookTrustStore.supatermHookTrustKeys(
+      settingsURL: Self.settingsURL(homeDirectoryURL: homeDirectoryURL)
+    )
     try fileInstaller.removeSupatermHooks(
       settingsURL: Self.settingsURL(homeDirectoryURL: homeDirectoryURL)
+    )
+    try hookTrustStore.removeTrust(
+      for: trustKeys,
+      configURL: Self.configURL(homeDirectoryURL: homeDirectoryURL)
     )
   }
 
@@ -88,6 +99,12 @@ public struct CodexSettingsInstaller {
     homeDirectoryURL
       .appendingPathComponent(".codex", isDirectory: true)
       .appendingPathComponent("hooks.json", isDirectory: false)
+  }
+
+  public static func configURL(homeDirectoryURL: URL) -> URL {
+    homeDirectoryURL
+      .appendingPathComponent(".codex", isDirectory: true)
+      .appendingPathComponent("config.toml", isDirectory: false)
   }
 
   static func checkCodexAvailable() throws -> Bool {
@@ -133,7 +150,7 @@ public struct CodexSettingsInstaller {
 
   static func enableHooksCommandArguments() -> [String] {
     LoginShellCommandAvailability.interactiveCommandArguments(
-      for: "codex features enable codex_hooks"
+      for: "codex features enable hooks"
     )
   }
 
@@ -166,6 +183,10 @@ public struct CodexSettingsInstaller {
       )
     )
   }
+
+  private var hookTrustStore: CodexHookTrustStore {
+    CodexHookTrustStore(fileManager: fileManager)
+  }
 }
 
 public enum CodexSettingsInstallerError: Error, Equatable, LocalizedError {
@@ -173,6 +194,7 @@ public enum CodexSettingsInstallerError: Error, Equatable, LocalizedError {
   case enableHooksFailed(String)
   case invalidEventHooks(String)
   case invalidHooksObject
+  case invalidConfig
   case invalidJSON
   case invalidRootObject
 
@@ -189,6 +211,8 @@ public enum CodexSettingsInstallerError: Error, Equatable, LocalizedError {
       return "Codex hooks use an unsupported shape for \(event)."
     case .invalidHooksObject:
       return "Codex hooks use an unsupported shape."
+    case .invalidConfig:
+      return "Codex config.toml must be valid TOML before Supaterm can trust hooks."
     case .invalidJSON:
       return "Codex hooks must be valid JSON before Supaterm can install hooks."
     case .invalidRootObject:

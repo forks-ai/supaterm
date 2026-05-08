@@ -1,4 +1,5 @@
 import Foundation
+import TOML
 import Testing
 
 @testable import SupatermCLIShared
@@ -19,6 +20,57 @@ struct CodexSettingsInstallerTests {
     let object = try codexSettingsObject(homeDirectoryURL: homeDirectoryURL)
     let hooks = try #require(object["hooks"] as? [String: Any])
     #expect(Set(hooks.keys) == ["PostToolUse", "PreToolUse", "SessionStart", "Stop", "UserPromptSubmit"])
+  }
+
+  @Test
+  func installTrustsSupatermHooksInCodexConfig() throws {
+    let homeDirectoryURL = try temporaryCodexHomeDirectory()
+    defer { try? FileManager.default.removeItem(at: homeDirectoryURL) }
+
+    let installer = CodexSettingsInstaller(
+      homeDirectoryURL: homeDirectoryURL,
+      runEnableHooksCommand: { CodexSettingsInstaller.CommandResult(status: 0, standardError: "") }
+    )
+
+    try installer.installSupatermHooks()
+
+    let state = try codexConfigHookState(homeDirectoryURL: homeDirectoryURL)
+    let hooksPath = CodexSettingsInstaller.settingsURL(homeDirectoryURL: homeDirectoryURL).path
+    let expectedKeys = Set([
+      "\(hooksPath):post_tool_use:0:0",
+      "\(hooksPath):pre_tool_use:0:0",
+      "\(hooksPath):session_start:0:0",
+      "\(hooksPath):stop:0:0",
+      "\(hooksPath):user_prompt_submit:0:0",
+    ])
+
+    #expect(Set(state.keys) == expectedKeys)
+    #expect(state.values.allSatisfy { $0.trusted_hash?.hasPrefix("sha256:") == true })
+  }
+
+  @Test
+  func installPreservesExistingHookEnablementWhenTrusting() throws {
+    let homeDirectoryURL = try temporaryCodexHomeDirectory()
+    defer { try? FileManager.default.removeItem(at: homeDirectoryURL) }
+    let stopKey = "\(CodexSettingsInstaller.settingsURL(homeDirectoryURL: homeDirectoryURL).path):stop:0:0"
+    try writeCodexConfig(
+      """
+      [hooks.state."\((stopKey.replacingOccurrences(of: "\"", with: "\\\"")))"]
+      enabled = false
+      """,
+      homeDirectoryURL: homeDirectoryURL
+    )
+
+    let installer = CodexSettingsInstaller(
+      homeDirectoryURL: homeDirectoryURL,
+      runEnableHooksCommand: { CodexSettingsInstaller.CommandResult(status: 0, standardError: "") }
+    )
+
+    try installer.installSupatermHooks()
+
+    let state = try #require(codexConfigHookState(homeDirectoryURL: homeDirectoryURL)[stopKey])
+    #expect(state.enabled == false)
+    #expect(state.trusted_hash?.hasPrefix("sha256:") == true)
   }
 
   @Test
@@ -440,6 +492,30 @@ struct CodexSettingsInstallerTests {
   }
 
   @Test
+  func removeSupatermHooksRemovesTrustState() throws {
+    let homeDirectoryURL = try temporaryCodexHomeDirectory()
+    defer { try? FileManager.default.removeItem(at: homeDirectoryURL) }
+    try writeCodexConfig(
+      """
+      [hooks.state.external]
+      enabled = false
+      """,
+      homeDirectoryURL: homeDirectoryURL
+    )
+    let installer = CodexSettingsInstaller(
+      homeDirectoryURL: homeDirectoryURL,
+      runEnableHooksCommand: { CodexSettingsInstaller.CommandResult(status: 0, standardError: "") }
+    )
+
+    try installer.installSupatermHooks()
+    try installer.removeSupatermHooks()
+
+    let state = try codexConfigHookState(homeDirectoryURL: homeDirectoryURL)
+    #expect(Set(state.keys) == ["external"])
+    #expect(state["external"]?.enabled == false)
+  }
+
+  @Test
   func installFailsWithoutOverwritingInvalidJSON() throws {
     let homeDirectoryURL = try temporaryCodexHomeDirectory()
     defer { try? FileManager.default.removeItem(at: homeDirectoryURL) }
@@ -512,7 +588,7 @@ struct CodexSettingsInstallerTests {
   func enableHooksCommandArgumentsUseInteractiveLoginShell() {
     #expect(
       CodexSettingsInstaller.enableHooksCommandArguments()
-        == ["-l", "-i", "-c", "codex features enable codex_hooks"]
+        == ["-l", "-i", "-c", "codex features enable hooks"]
     )
   }
 
@@ -541,6 +617,15 @@ private func writeCodexSettings(_ contents: String, homeDirectoryURL: URL) throw
   try contents.write(to: settingsURL, atomically: true, encoding: .utf8)
 }
 
+private func writeCodexConfig(_ contents: String, homeDirectoryURL: URL) throws {
+  let configURL = CodexSettingsInstaller.configURL(homeDirectoryURL: homeDirectoryURL)
+  try FileManager.default.createDirectory(
+    at: configURL.deletingLastPathComponent(),
+    withIntermediateDirectories: true
+  )
+  try contents.write(to: configURL, atomically: true, encoding: .utf8)
+}
+
 private func codexSettingsObject(homeDirectoryURL: URL) throws -> [String: Any] {
   let settingsURL = CodexSettingsInstaller.settingsURL(homeDirectoryURL: homeDirectoryURL)
   let data = try Data(contentsOf: settingsURL)
@@ -550,4 +635,24 @@ private func codexSettingsObject(homeDirectoryURL: URL) throws -> [String: Any] 
 private func codexEventGroupsValue(_ event: String, in object: [String: Any]) throws -> [[String: Any]] {
   let hooks = try #require(object["hooks"] as? [String: Any])
   return try #require(hooks[event] as? [[String: Any]])
+}
+
+private func codexConfigHookState(homeDirectoryURL: URL) throws -> [String: CodexHookStateFixture] {
+  let configURL = CodexSettingsInstaller.configURL(homeDirectoryURL: homeDirectoryURL)
+  let data = try Data(contentsOf: configURL)
+  let config = try TOMLDecoder().decode(CodexConfigFixture.self, from: data)
+  return config.hooks?.state ?? [:]
+}
+
+private struct CodexConfigFixture: Decodable {
+  var hooks: CodexHooksFixture?
+}
+
+private struct CodexHooksFixture: Decodable {
+  var state: [String: CodexHookStateFixture]?
+}
+
+private struct CodexHookStateFixture: Decodable {
+  var enabled: Bool?
+  var trusted_hash: String?
 }
