@@ -42,7 +42,7 @@ Write a proposed changelog entry in the same shape used by `apps/supaterm.com/sr
 The draft must include:
 - version
 - date in `YYYY-MM-DD`
-- title
+- title prefixed with an emoji that represents the release
 - optional description
 - sections with `new`, `improvements`, and `fixes` only when needed
 
@@ -112,3 +112,4 @@ Return:
 - Do not touch unrelated dirty files.
 - Do not use the browser for GitHub work; use `gh`.
 - Keep the website entry and GitHub release notes aligned.
+- Every changelog title must start with an emoji that represents the release.
