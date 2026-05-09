@@ -16,6 +16,19 @@ type ChangelogEntry = {
 
 const changelogData: ChangelogEntry[] = [
   {
+    version: "v1.2.2",
+    date: "2026-05-09",
+    title: "🪝 Fix Codex Hooks",
+    sections: [
+      {
+        category: "fixes",
+        items: [
+          "Installed Codex hooks no longer ask for review again after Supaterm refreshes them on launch",
+        ],
+      },
+    ],
+  },
+  {
     version: "v1.2.1",
     date: "2026-05-08",
     title: "May fixes",
