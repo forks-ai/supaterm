@@ -36,16 +36,20 @@ struct CodexSettingsInstallerTests {
 
     let state = try codexConfigHookState(homeDirectoryURL: homeDirectoryURL)
     let hooksPath = CodexSettingsInstaller.settingsURL(homeDirectoryURL: homeDirectoryURL).path
-    let expectedKeys = Set([
-      "\(hooksPath):post_tool_use:0:0",
-      "\(hooksPath):pre_tool_use:0:0",
-      "\(hooksPath):session_start:0:0",
-      "\(hooksPath):stop:0:0",
-      "\(hooksPath):user_prompt_submit:0:0",
-    ])
+    let expectedTrustedHashes: [String: String?] = [
+      "\(hooksPath):post_tool_use:0:0":
+        "sha256:cac5ef53a0ad14665671bd82e27f5a9515c6935eddff6a0ff9a347d42ca75bc8",
+      "\(hooksPath):pre_tool_use:0:0":
+        "sha256:05a7039a88f9aa8d4b5ace0a162b7cf80b3c3bfa8af05cb1ea1f94f0be7680d0",
+      "\(hooksPath):session_start:0:0":
+        "sha256:7b028ea2888ad0c1846b09a8cfd4902229b96a2e84747ac972e71e179fb78845",
+      "\(hooksPath):stop:0:0":
+        "sha256:4ef1edd2112f1e4cd4dfb954a2d72ec715bc32a8821e07dbb09502bbcff73684",
+      "\(hooksPath):user_prompt_submit:0:0":
+        "sha256:f4f03fdc4aa7a92bcd2b2098a822113f8c7a6ef72904ee25ebf4110b2668308b",
+    ]
 
-    #expect(Set(state.keys) == expectedKeys)
-    #expect(state.values.allSatisfy { $0.trusted_hash?.hasPrefix("sha256:") == true })
+    #expect(state.mapValues(\.trusted_hash) == expectedTrustedHashes)
   }
 
   @Test

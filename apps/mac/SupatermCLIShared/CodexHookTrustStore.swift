@@ -217,7 +217,10 @@ struct CodexHookTrustStore {
       identity["matcher"] = matcher
     }
 
-    let data = try JSONSerialization.data(withJSONObject: identity, options: [.sortedKeys])
+    let data = try JSONSerialization.data(
+      withJSONObject: identity,
+      options: [.sortedKeys, .withoutEscapingSlashes]
+    )
     let digest = SHA256.hash(data: data)
     return "sha256:" + digest.map { String(format: "%02x", $0) }.joined()
   }
