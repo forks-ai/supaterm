@@ -250,7 +250,7 @@ struct TerminalSidebarChromeViewTests {
   }
 
   @Test
-  func trailingAgentBadgesShowForRunningAgentStatus() {
+  func trailingAgentBadgesShowWhenEnabled() {
     let activities: [TerminalHostState.AgentActivity] = [
       .claude(.running),
       .codex(.running),
@@ -259,33 +259,13 @@ struct TerminalSidebarChromeViewTests {
     #expect(
       TerminalSidebarTabSummaryView.trailingAgentBadgeActivities(
         activities,
-        showsAgentMarks: true,
-        isRowHovering: false,
-        statusAccessory: .agentActivity(.claude(.running))
+        showsAgentMarks: true
       ) == activities
     )
   }
 
   @Test
-  func trailingAgentBadgesShowBeforeTerminalProgress() {
-    let activities: [TerminalHostState.AgentActivity] = [
-      .claude(.running),
-      .codex(.running),
-    ]
-    let progress = TerminalSidebarTerminalProgress(fraction: nil, tone: .active)
-
-    #expect(
-      TerminalSidebarTabSummaryView.trailingAgentBadgeActivities(
-        activities,
-        showsAgentMarks: true,
-        isRowHovering: false,
-        statusAccessory: .terminalProgress(progress)
-      ) == activities
-    )
-  }
-
-  @Test
-  func trailingAgentBadgesYieldToStrongerStatusAndHover() {
+  func trailingAgentBadgesHideWhenDisabled() {
     let activities: [TerminalHostState.AgentActivity] = [
       .claude(.running),
       .codex(.running),
@@ -294,25 +274,7 @@ struct TerminalSidebarChromeViewTests {
     #expect(
       TerminalSidebarTabSummaryView.trailingAgentBadgeActivities(
         activities,
-        showsAgentMarks: true,
-        isRowHovering: false,
-        statusAccessory: .unreadCount(1)
-      ).isEmpty
-    )
-    #expect(
-      TerminalSidebarTabSummaryView.trailingAgentBadgeActivities(
-        activities,
-        showsAgentMarks: true,
-        isRowHovering: true,
-        statusAccessory: .agentActivity(.claude(.running))
-      ).isEmpty
-    )
-    #expect(
-      TerminalSidebarTabSummaryView.trailingAgentBadgeActivities(
-        activities,
-        showsAgentMarks: false,
-        isRowHovering: false,
-        statusAccessory: .agentActivity(.claude(.running))
+        showsAgentMarks: false
       ).isEmpty
     )
   }

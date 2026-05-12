@@ -530,19 +530,9 @@ struct TerminalSidebarTabSummaryView: View {
 
   static func trailingAgentBadgeActivities(
     _ activities: [TerminalHostState.AgentActivity],
-    showsAgentMarks: Bool,
-    isRowHovering: Bool,
-    statusAccessory: StatusAccessory?
+    showsAgentMarks: Bool
   ) -> [TerminalHostState.AgentActivity] {
-    guard showsAgentMarks, !isRowHovering else { return [] }
-    switch statusAccessory {
-    case nil, .pinned, .terminalProgress:
-      return activities
-    case .agentActivity(let activity):
-      return activity.phase == .running ? activities : []
-    case .terminalBell, .unreadCount:
-      return []
-    }
+    showsAgentMarks ? activities : []
   }
 
   static func helpText(
@@ -575,9 +565,7 @@ struct TerminalSidebarTabSummaryView: View {
     )
     let trailingAgentBadgeActivities = Self.trailingAgentBadgeActivities(
       badgeActivities,
-      showsAgentMarks: showsAgentMarks,
-      isRowHovering: isRowHovering,
-      statusAccessory: rowAccessories.statusAccessory
+      showsAgentMarks: showsAgentMarks
     )
 
     HStack(alignment: .center, spacing: 6) {
