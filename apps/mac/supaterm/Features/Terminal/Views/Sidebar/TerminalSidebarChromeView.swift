@@ -680,6 +680,10 @@ struct TerminalAgentBadgeGroupView: View {
     max(0, activities.count - maxVisibleCount)
   }
 
+  static func markRenderingMode(isSelected: Bool) -> Image.TemplateRenderingMode {
+    isSelected ? .template : .original
+  }
+
   var body: some View {
     let visibleActivities = Self.visibleActivities(activities)
     let overflowCount = Self.overflowCount(for: activities)
@@ -728,6 +732,7 @@ private struct TerminalAgentBadgeView: View {
 
   var body: some View {
     Image(activity.kind.markImageName)
+      .renderingMode(TerminalAgentBadgeGroupView.markRenderingMode(isSelected: isSelected))
       .resizable()
       .aspectRatio(contentMode: .fit)
       .padding(3)

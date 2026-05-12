@@ -1,5 +1,6 @@
 import Foundation
 import GhosttyKit
+import SwiftUI
 import Testing
 import Textual
 
@@ -240,6 +241,12 @@ struct TerminalSidebarChromeViewTests {
 
     #expect(TerminalAgentBadgeGroupView.visibleActivities(activities).count == 3)
     #expect(TerminalAgentBadgeGroupView.overflowCount(for: activities) == 1)
+  }
+
+  @Test
+  func agentBadgeMarksUseTemplateRenderingWhenSelected() {
+    #expect(TerminalAgentBadgeGroupView.markRenderingMode(isSelected: false) == .original)
+    #expect(TerminalAgentBadgeGroupView.markRenderingMode(isSelected: true) == .template)
   }
 
   @Test
