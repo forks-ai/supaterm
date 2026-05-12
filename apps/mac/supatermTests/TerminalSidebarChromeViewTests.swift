@@ -250,6 +250,56 @@ struct TerminalSidebarChromeViewTests {
   }
 
   @Test
+  func trailingAgentBadgesShowForRunningAgentStatus() {
+    let activities: [TerminalHostState.AgentActivity] = [
+      .claude(.running),
+      .codex(.running),
+    ]
+
+    #expect(
+      TerminalSidebarTabSummaryView.trailingAgentBadgeActivities(
+        activities,
+        showsAgentMarks: true,
+        isRowHovering: false,
+        statusAccessory: .agentActivity(.claude(.running))
+      ) == activities
+    )
+  }
+
+  @Test
+  func trailingAgentBadgesYieldToStrongerStatusAndHover() {
+    let activities: [TerminalHostState.AgentActivity] = [
+      .claude(.running),
+      .codex(.running),
+    ]
+
+    #expect(
+      TerminalSidebarTabSummaryView.trailingAgentBadgeActivities(
+        activities,
+        showsAgentMarks: true,
+        isRowHovering: false,
+        statusAccessory: .unreadCount(1)
+      ).isEmpty
+    )
+    #expect(
+      TerminalSidebarTabSummaryView.trailingAgentBadgeActivities(
+        activities,
+        showsAgentMarks: true,
+        isRowHovering: true,
+        statusAccessory: .agentActivity(.claude(.running))
+      ).isEmpty
+    )
+    #expect(
+      TerminalSidebarTabSummaryView.trailingAgentBadgeActivities(
+        activities,
+        showsAgentMarks: false,
+        isRowHovering: false,
+        statusAccessory: .agentActivity(.claude(.running))
+      ).isEmpty
+    )
+  }
+
+  @Test
   func quietTabShowsNoStatusAccessory() {
     #expect(
       TerminalSidebarTabSummaryView.statusAccessory(

@@ -31,7 +31,7 @@ struct SettingsCodingAgentsView: View {
       Section {
         SettingsToggleRow(
           title: "Show coding agents icons",
-          subtitle: "Display icons before tab titles.",
+          subtitle: "Display icons in tab status accessories.",
           isOn: Binding(
             get: { store.codingAgentsShowIcons },
             set: { _ = store.send(.codingAgentsShowIconsChanged($0)) }

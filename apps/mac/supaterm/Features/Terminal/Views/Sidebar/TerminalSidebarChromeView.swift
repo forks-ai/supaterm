@@ -528,6 +528,23 @@ struct TerminalSidebarTabSummaryView: View {
     )
   }
 
+  static func trailingAgentBadgeActivities(
+    _ activities: [TerminalHostState.AgentActivity],
+    showsAgentMarks: Bool,
+    isRowHovering: Bool,
+    statusAccessory: StatusAccessory?
+  ) -> [TerminalHostState.AgentActivity] {
+    guard showsAgentMarks, !isRowHovering else { return [] }
+    switch statusAccessory {
+    case nil, .pinned:
+      return activities
+    case .agentActivity(let activity):
+      return activity.phase == .running ? activities : []
+    case .terminalBell, .terminalProgress, .unreadCount:
+      return []
+    }
+  }
+
   static func helpText(
     paneWorkingDirectories: [String]
   ) -> String? {
@@ -556,25 +573,21 @@ struct TerminalSidebarTabSummaryView: View {
         showsAgentSpinner: showsAgentSpinner
       )
     )
+    let trailingAgentBadgeActivities = Self.trailingAgentBadgeActivities(
+      badgeActivities,
+      showsAgentMarks: showsAgentMarks,
+      isRowHovering: isRowHovering,
+      statusAccessory: rowAccessories.statusAccessory
+    )
 
     HStack(alignment: .center, spacing: 6) {
       VStack(alignment: .leading, spacing: 2) {
-        HStack(spacing: 6) {
-          if showsAgentMarks && !badgeActivities.isEmpty {
-            TerminalAgentBadgeGroupView(
-              activities: badgeActivities,
-              isSelected: isSelected,
-              palette: palette
-            )
-          }
-
-          Text(tab.title)
-            .font(.system(size: 12, weight: .medium))
-            .foregroundStyle(isSelected ? palette.selectedText : palette.primaryText)
-            .lineLimit(1)
-            .truncationMode(.tail)
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
+        Text(tab.title)
+          .font(.system(size: 12, weight: .medium))
+          .foregroundStyle(isSelected ? palette.selectedText : palette.primaryText)
+          .lineLimit(1)
+          .truncationMode(.tail)
+          .frame(maxWidth: .infinity, alignment: .leading)
 
         ForEach(paneWorkingDirectories, id: \.self) { workingDirectory in
           Text(workingDirectory)
@@ -599,6 +612,14 @@ struct TerminalSidebarTabSummaryView: View {
                 ? palette.selectedText.opacity(0.72)
                 : palette.secondaryText
             )
+        }
+
+        if !trailingAgentBadgeActivities.isEmpty {
+          TerminalAgentBadgeGroupView(
+            activities: trailingAgentBadgeActivities,
+            isSelected: isSelected,
+            palette: palette
+          )
         }
 
         if let statusAccessory = rowAccessories.statusAccessory {
