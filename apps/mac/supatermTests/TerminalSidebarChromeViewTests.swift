@@ -217,37 +217,48 @@ struct TerminalSidebarChromeViewTests {
   }
 
   @Test
-  func agentMarkPresentationUsesAgentKindAssetMapping() {
+  func agentBadgeActivitiesUseAgentKindAssetMapping() {
+    let activities: [TerminalHostState.AgentActivity] = [
+      TerminalHostState.AgentActivity(kind: .pi, phase: .idle),
+      .codex(.running),
+      .claude(.running),
+    ]
+    let imageNames =
+      TerminalSidebarTabSummaryView
+      .agentBadgeActivities(for: activities)
+      .map(\.kind.markImageName)
+
     #expect(
-      TerminalSidebarTabSummaryView.agentMarkPresentation(
-        for: TerminalHostState.AgentActivity(kind: .pi, phase: .idle)
-      ) == "pi-mark-glyph"
-    )
-    #expect(
-      TerminalSidebarTabSummaryView.agentMarkPresentation(
-        for: .codex(.running)
-      ) == "codex-mark"
-    )
-    #expect(
-      TerminalSidebarTabSummaryView.agentMarkPresentation(
-        for: .claude(.running)
-      ) == "claude-code-mark"
+      imageNames == ["pi-mark", "codex-mark", "claude-code-mark"]
     )
   }
 
   @Test
-  func agentMarkPresentationIsNilWithoutAgentActivity() {
-    #expect(TerminalSidebarTabSummaryView.agentMarkPresentation(for: nil) == nil)
+  func agentBadgeActivitiesAreEmptyWithoutAgentActivity() {
+    #expect(TerminalSidebarTabSummaryView.agentBadgeActivities(for: []).isEmpty)
   }
 
   @Test
-  func agentMarkPresentationIsNilWhenAgentMarksAreHidden() {
+  func agentBadgeActivitiesAreEmptyWhenAgentMarksAreHidden() {
     #expect(
-      TerminalSidebarTabSummaryView.agentMarkPresentation(
-        for: .claude(.running),
+      TerminalSidebarTabSummaryView.agentBadgeActivities(
+        for: [.claude(.running)],
         showsAgentMarks: false
-      ) == nil
+      ).isEmpty
     )
+  }
+
+  @Test
+  func agentBadgeGroupStacksThreeVisibleActivitiesThenOverflow() {
+    let activities: [TerminalHostState.AgentActivity] = [
+      .claude(.running),
+      .codex(.running),
+      TerminalHostState.AgentActivity(kind: .pi, phase: .running),
+      .claude(.needsInput),
+    ]
+
+    #expect(TerminalAgentBadgeGroupView.visibleActivities(activities).count == 3)
+    #expect(TerminalAgentBadgeGroupView.overflowCount(for: activities) == 1)
   }
 
   @Test

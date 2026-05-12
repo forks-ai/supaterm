@@ -261,15 +261,18 @@ public struct SupatermAgentHookRequest: Equatable, Sendable, Codable {
   public let agent: SupatermAgentKind
   public let context: SupatermCLIContext?
   public let event: SupatermAgentHookEvent
+  public let processID: Int32?
 
   public init(
     agent: SupatermAgentKind,
     context: SupatermCLIContext? = nil,
-    event: SupatermAgentHookEvent
+    event: SupatermAgentHookEvent,
+    processID: Int32? = nil
   ) {
     self.agent = agent
     self.context = context
     self.event = event
+    self.processID = processID
   }
 }
 

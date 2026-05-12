@@ -185,16 +185,15 @@ final class TerminalHostState {
   }
 
   struct PaneAgentMetadata: Equatable, Sendable {
-    var activity: AgentActivity?
-    var activityRevision: Int?
     var codexHoverMessages: [String] = []
 
     var isEmpty: Bool {
-      activity == nil && codexHoverMessages.isEmpty
+      codexHoverMessages.isEmpty
     }
   }
 
   struct TabAgentPresentation: Equatable, Sendable {
+    let badgeActivities: [AgentActivity]
     let badgeActivity: AgentActivity?
     let badgeActivityIsFocused: Bool
     let detailActivity: AgentActivity?
@@ -239,6 +238,7 @@ final class TerminalHostState {
   var previousFocusedSurfaceIDByTab: [TerminalTabID: UUID] = [:]
   var paneNotifications: [UUID: [PaneNotification]] = [:]
   var paneAgentMetadataBySurfaceID: [UUID: PaneAgentMetadata] = [:]
+  var agentPresenceStore = TerminalAgentPresenceStore()
   var previousSelectedTabIDBySpace: [TerminalSpaceID: TerminalTabID] = [:]
   var previousSelectedSpaceID: TerminalSpaceID?
   var lastEmittedFocusSurfaceID: UUID?
@@ -246,8 +246,6 @@ final class TerminalHostState {
   var suppressesSessionChanges = 0
   @ObservationIgnored
   var recentStructuredNotificationsBySurfaceID: [UUID: RecentStructuredNotification] = [:]
-  @ObservationIgnored
-  var nextAgentActivityRevision = 0
 
   var windowActivity = WindowActivityState.inactive
 
@@ -1049,6 +1047,7 @@ final class TerminalHostState {
     surfaces.removeValue(forKey: surfaceID)
     paneNotifications.removeValue(forKey: surfaceID)
     paneAgentMetadataBySurfaceID.removeValue(forKey: surfaceID)
+    agentPresenceStore.removeSurface(surfaceID)
     recentStructuredNotificationsBySurfaceID.removeValue(forKey: surfaceID)
 
     if newTree.isEmpty {
@@ -1268,11 +1267,11 @@ final class TerminalHostState {
   }
 
   func handleCommandFinished(for surfaceID: UUID) {
+    let removedAgentPresence = clearAgentPresence(for: surfaceID)
     let hadAgentMetadata = paneAgentMetadataBySurfaceID[surfaceID]?.isEmpty == false
-    _ = clearAgentActivity(for: surfaceID)
     _ = clearCodexHoverMessages(for: surfaceID)
     onSurfaceCommandFinished(surfaceID)
-    if hadAgentMetadata {
+    if hadAgentMetadata || removedAgentPresence {
       sessionDidChange()
     }
   }
@@ -1728,6 +1727,7 @@ final class TerminalHostState {
     for surface in tree.leaves() {
       paneNotifications.removeValue(forKey: surface.id)
       paneAgentMetadataBySurfaceID.removeValue(forKey: surface.id)
+      agentPresenceStore.removeSurface(surface.id)
       recentStructuredNotificationsBySurfaceID.removeValue(forKey: surface.id)
       surface.closeSurface()
       surfaces.removeValue(forKey: surface.id)

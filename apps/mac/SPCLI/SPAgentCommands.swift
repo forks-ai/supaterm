@@ -27,6 +27,9 @@ extension SP {
     @Option(name: .long, help: "Agent that emitted the hook payload.")
     var agent: SupatermAgentKind
 
+    @Option(name: .long, help: "Process ID that emitted the hook payload.")
+    var pid: Int32?
+
     @OptionGroup
     var connection: SPConnectionOptions
 
@@ -42,7 +45,8 @@ extension SP {
           .init(
             agent: agent,
             context: SupatermCLIContext.current,
-            event: event
+            event: event,
+            processID: pid
           )
         )
       )

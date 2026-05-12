@@ -280,6 +280,7 @@ private struct TerminalSidebarTabPreviewRow: View {
       isSelected: item.isSelected,
       paneWorkingDirectories: item.paneWorkingDirectories,
       unreadCount: item.unreadCount,
+      badgeActivities: item.agentActivity.map { [$0] } ?? [],
       badgeActivity: item.agentActivity,
       badgeActivityIsFocused: false,
       hasTerminalBell: item.hasTerminalBell,

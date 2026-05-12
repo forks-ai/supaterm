@@ -11,9 +11,14 @@ extension TerminalCommandExecutor {
 
   func handleCommandFinished(for surfaceID: UUID) {
     agentSessionStore.clearSessions(for: surfaceID)
+    for entry in registry.activeEntries() where entry.terminal.clearAgentPresence(for: surfaceID) {
+      entry.terminal.sessionDidChange()
+      break
+    }
   }
 
   func handleAgentHook(_ request: SupatermAgentHookRequest) throws -> TerminalAgentHookResult {
+    pruneDeadAgentProcesses()
     registerAgentHookSession(request)
     let routesToForegroundSession = routesAgentHookToForegroundSession(request)
 
@@ -70,7 +75,7 @@ extension TerminalCommandExecutor {
       sessionID: sessionID,
       context: context
     )
-    _ = updateAgentActivity(
+    _ = updateAgentPresenceActivity(
       TerminalHostState.AgentActivity(
         kind: agent,
         phase: snapshot.status?.isFinal == true ? .idle : .running,
@@ -88,7 +93,7 @@ extension TerminalCommandExecutor {
     sessionID: String,
     context: SupatermCLIContext?
   ) {
-    _ = updateAgentActivity(
+    _ = updateAgentPresenceActivity(
       TerminalHostState.AgentActivity(kind: agent, phase: .idle, detail: nil),
       agent: agent,
       sessionID: sessionID,
@@ -102,14 +107,15 @@ extension TerminalCommandExecutor {
     guard let sessionID = prepareAgentTurn(request) else {
       return TerminalAgentHookResult(desktopNotification: nil)
     }
-    _ = setAgentActivity(
+    _ = setAgentPresenceActivity(
       TerminalHostState.AgentActivity(
         kind: request.agent,
         phase: .running
       ),
       agent: request.agent,
       sessionID: sessionID,
-      context: request.context
+      context: request.context,
+      processID: request.processID
     )
     return TerminalAgentHookResult(desktopNotification: nil)
   }
@@ -126,11 +132,12 @@ extension TerminalCommandExecutor {
         context: request.context
       )
     } else {
-      _ = setAgentActivity(
+      _ = setAgentPresenceActivity(
         TerminalHostState.AgentActivity(kind: request.agent, phase: .running),
         agent: request.agent,
         sessionID: sessionID,
-        context: request.context
+        context: request.context,
+        processID: request.processID
       )
     }
     return TerminalAgentHookResult(desktopNotification: nil)
@@ -145,6 +152,12 @@ extension TerminalCommandExecutor {
     }
     if let sessionID = request.event.sessionID {
       agentSessionStore.cancelRunningTimeout(agent: request.agent, sessionID: sessionID)
+      _ = registerAgentPresence(
+        agent: request.agent,
+        sessionID: sessionID,
+        context: request.context,
+        processID: request.processID
+      )
       if request.agent == .codex {
         _ = agentSessionStore.beginCodexTracking(
           sessionID: sessionID,
@@ -184,11 +197,12 @@ extension TerminalCommandExecutor {
     }
     let event = request.event
     if let sessionID = event.sessionID {
-      _ = setAgentActivity(
+      _ = setAgentPresenceActivity(
         TerminalHostState.AgentActivity(kind: request.agent, phase: .idle),
         agent: request.agent,
         sessionID: sessionID,
-        context: request.context
+        context: request.context,
+        processID: request.processID
       )
       if request.agent == .codex {
         _ = updateCodexHoverMessages(
@@ -224,7 +238,12 @@ extension TerminalCommandExecutor {
     guard let sessionID = request.event.sessionID else {
       return TerminalAgentHookResult(desktopNotification: nil)
     }
-    _ = clearAgentActivity(agent: request.agent, sessionID: sessionID, context: request.context)
+    _ = clearAgentPresence(
+      agent: request.agent,
+      sessionID: sessionID,
+      context: request.context,
+      processID: request.processID
+    )
     if request.agent == .codex {
       _ = clearCodexHoverMessages(
         agent: request.agent,
@@ -245,11 +264,12 @@ extension TerminalCommandExecutor {
     }
     let event = request.event
     if let sessionID = event.sessionID {
-      _ = setAgentActivity(
+      _ = setAgentPresenceActivity(
         TerminalHostState.AgentActivity(kind: request.agent, phase: .needsInput),
         agent: request.agent,
         sessionID: sessionID,
-        context: request.context
+        context: request.context,
+        processID: request.processID
       )
     }
     guard let body = event.notificationMessage(), !body.isEmpty else {
@@ -334,6 +354,16 @@ extension TerminalCommandExecutor {
             sessionID: sessionID,
             surfaceID: surfaceID
           )
+          for entry in registry.activeEntries()
+          where entry.terminal.clearAgentPresence(
+            agent: agent,
+            for: surfaceID,
+            sessionID: sessionID,
+            processID: nil
+          ) {
+            entry.terminal.sessionDidChange()
+            break
+          }
           return TerminalAgentHookResult(desktopNotification: nil)
         }
       }
@@ -355,13 +385,47 @@ extension TerminalCommandExecutor {
   }
 
   @discardableResult
-  func setAgentActivity(
+  func registerAgentPresence(
+    agent: SupatermAgentKind,
+    sessionID: String,
+    context: SupatermCLIContext?,
+    processID: Int32?
+  ) -> Bool {
+    let candidateSurfaceIDs = agentCandidateSurfaceIDs(
+      agent: agent,
+      sessionID: sessionID,
+      context: context
+    )
+    for surfaceID in candidateSurfaceIDs {
+      for entry in registry.activeEntries()
+      where entry.terminal.registerAgentPresence(
+        agent: agent,
+        for: surfaceID,
+        sessionID: sessionID,
+        processID: processID
+      ) {
+        return true
+      }
+    }
+    return false
+  }
+
+  @discardableResult
+  func setAgentPresenceActivity(
     _ activity: TerminalHostState.AgentActivity,
     agent: SupatermAgentKind,
     sessionID: String,
-    context: SupatermCLIContext?
+    context: SupatermCLIContext?,
+    processID: Int32?
   ) -> Bool {
-    guard updateAgentActivity(activity, agent: agent, sessionID: sessionID, context: context)
+    guard
+      updateAgentPresenceActivity(
+        activity,
+        agent: agent,
+        sessionID: sessionID,
+        context: context,
+        processID: processID
+      )
     else {
       return false
     }
@@ -438,22 +502,40 @@ extension TerminalCommandExecutor {
   }
 
   @discardableResult
-  func clearAgentActivity(
+  func clearAgentPresence(
     agent: SupatermAgentKind,
     sessionID: String,
-    context: SupatermCLIContext?
+    context: SupatermCLIContext?,
+    processID: Int32?
   ) -> Bool {
     agentSessionStore.cancelTranscriptMonitor(agent: agent, sessionID: sessionID)
     agentSessionStore.cancelRunningTimeout(agent: agent, sessionID: sessionID)
-    return updateAgentActivity(nil, agent: agent, sessionID: sessionID, context: context)
+    let candidateSurfaceIDs = agentCandidateSurfaceIDs(
+      agent: agent,
+      sessionID: sessionID,
+      context: context
+    )
+    for surfaceID in candidateSurfaceIDs {
+      for entry in registry.activeEntries()
+      where entry.terminal.clearAgentPresence(
+        agent: agent,
+        for: surfaceID,
+        sessionID: sessionID,
+        processID: processID
+      ) {
+        return true
+      }
+    }
+    return false
   }
 
   @discardableResult
-  func updateAgentActivity(
+  func updateAgentPresenceActivity(
     _ activity: TerminalHostState.AgentActivity?,
     agent: SupatermAgentKind,
     sessionID: String,
-    context: SupatermCLIContext?
+    context: SupatermCLIContext?,
+    processID: Int32? = nil
   ) -> Bool {
     let candidateSurfaceIDs = agentCandidateSurfaceIDs(
       agent: agent,
@@ -463,15 +545,31 @@ extension TerminalCommandExecutor {
     for surfaceID in candidateSurfaceIDs {
       for entry in registry.activeEntries() {
         if let activity {
-          if entry.terminal.setAgentActivity(activity, for: surfaceID) {
+          if entry.terminal.setAgentPresenceActivity(
+            activity,
+            for: surfaceID,
+            sessionID: sessionID,
+            processID: processID
+          ) {
             return true
           }
-        } else if entry.terminal.clearAgentActivity(for: surfaceID) {
+        } else if entry.terminal.clearAgentPresence(
+          agent: agent,
+          for: surfaceID,
+          sessionID: sessionID,
+          processID: processID
+        ) {
           return true
         }
       }
     }
     return false
+  }
+
+  func pruneDeadAgentProcesses() {
+    for entry in registry.activeEntries() where entry.terminal.pruneDeadAgentProcesses() {
+      entry.terminal.sessionDidChange()
+    }
   }
 
   func agentCandidateSurfaceIDs(

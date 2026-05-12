@@ -299,6 +299,7 @@ struct TerminalSidebarChromeView: View {
       tab: tab,
       paneWorkingDirectories: paneWorkingDirectories,
       unreadCount: unreadCount,
+      badgeActivities: agentPresentation.badgeActivities,
       badgeActivity: agentPresentation.badgeActivity,
       badgeActivityIsFocused: agentPresentation.badgeActivityIsFocused,
       terminalProgress: terminalProgress,
@@ -463,6 +464,7 @@ struct TerminalSidebarTabSummaryView: View {
   let isSelected: Bool
   let paneWorkingDirectories: [String]
   let unreadCount: Int
+  let badgeActivities: [TerminalHostState.AgentActivity]
   let badgeActivity: TerminalHostState.AgentActivity?
   let badgeActivityIsFocused: Bool
   let hasTerminalBell: Bool
@@ -539,14 +541,14 @@ struct TerminalSidebarTabSummaryView: View {
     return notificationMarkdown
   }
 
-  static func agentMarkPresentation(
-    for agentActivity: TerminalHostState.AgentActivity?,
+  static func agentBadgeActivities(
+    for agentActivities: [TerminalHostState.AgentActivity],
     showsAgentMarks: Bool = true
-  ) -> String? {
+  ) -> [TerminalHostState.AgentActivity] {
     guard showsAgentMarks else {
-      return nil
+      return []
     }
-    return agentActivity?.kind.markImageName
+    return agentActivities
   }
 
   var body: some View {
@@ -568,12 +570,13 @@ struct TerminalSidebarTabSummaryView: View {
     HStack(alignment: .center, spacing: 6) {
       VStack(alignment: .leading, spacing: 2) {
         HStack(spacing: 6) {
-          if let markPresentation = Self.agentMarkPresentation(
-            for: badgeActivity,
+          let badgeActivities = Self.agentBadgeActivities(
+            for: self.badgeActivities,
             showsAgentMarks: showsAgentMarks
-          ) {
-            TerminalSidebarAgentMarkImage(
-              imageName: markPresentation,
+          )
+          if !badgeActivities.isEmpty {
+            TerminalAgentBadgeGroupView(
+              activities: badgeActivities,
               isSelected: isSelected,
               palette: palette
             )
@@ -670,19 +673,96 @@ struct TerminalSidebarTabSummaryView: View {
   }
 }
 
-private struct TerminalSidebarAgentMarkImage: View {
-  let imageName: String
+struct TerminalAgentBadgeGroupView: View {
+  static let maxVisibleCount = 3
+
+  let activities: [TerminalHostState.AgentActivity]
+  let isSelected: Bool
+  let palette: TerminalPalette
+
+  static func visibleActivities(
+    _ activities: [TerminalHostState.AgentActivity],
+    maxVisibleCount: Int = Self.maxVisibleCount
+  ) -> [TerminalHostState.AgentActivity] {
+    Array(activities.prefix(maxVisibleCount))
+  }
+
+  static func overflowCount(
+    for activities: [TerminalHostState.AgentActivity],
+    maxVisibleCount: Int = Self.maxVisibleCount
+  ) -> Int {
+    max(0, activities.count - maxVisibleCount)
+  }
+
+  var body: some View {
+    let visibleActivities = Self.visibleActivities(activities)
+    let overflowCount = Self.overflowCount(for: activities)
+
+    HStack(spacing: -5.5) {
+      ForEach(Array(visibleActivities.enumerated()), id: \.offset) { _, activity in
+        TerminalAgentBadgeView(
+          activity: activity,
+          isSelected: isSelected,
+          palette: palette
+        )
+      }
+
+      if overflowCount > 0 {
+        Text("+\(overflowCount)")
+          .font(.system(size: 7, weight: .bold))
+          .foregroundStyle(isSelected ? palette.selectedIcon : palette.primaryText)
+          .padding(.horizontal, 3)
+          .frame(minWidth: 16, minHeight: 16)
+          .background(badgeFill, in: Capsule(style: .continuous))
+          .overlay {
+            Capsule(style: .continuous)
+              .strokeBorder(badgeStroke, lineWidth: pixelLength)
+          }
+      }
+    }
+    .fixedSize()
+    .accessibilityHidden(true)
+  }
+
+  @Environment(\.pixelLength) private var pixelLength
+
+  private var badgeFill: Color {
+    isSelected ? palette.selectedText.opacity(0.12) : palette.pillFill
+  }
+
+  private var badgeStroke: Color {
+    isSelected ? palette.selectedText.opacity(0.14) : palette.detailStroke
+  }
+}
+
+private struct TerminalAgentBadgeView: View {
+  let activity: TerminalHostState.AgentActivity
   let isSelected: Bool
   let palette: TerminalPalette
 
   var body: some View {
-    Image(imageName)
-      .renderingMode(.template)
+    Image(activity.kind.markImageName)
       .resizable()
       .aspectRatio(contentMode: .fit)
-      .frame(width: 14, height: 14)
+      .padding(3)
+      .frame(width: 16, height: 16)
       .foregroundStyle(isSelected ? palette.selectedIcon : palette.primaryText)
+      .background(badgeFill, in: Circle())
+      .overlay {
+        Circle()
+          .strokeBorder(badgeStroke, lineWidth: pixelLength)
+      }
       .accessibilityHidden(true)
+  }
+
+  @Environment(\.pixelLength) private var pixelLength
+
+  private var badgeFill: Color {
+    isSelected ? palette.selectedText.opacity(0.12) : palette.pillFill
+  }
+
+  private var badgeStroke: Color {
+    isSelected ? palette.selectedText.opacity(0.14) : palette.detailStroke
   }
 }
 
@@ -867,6 +947,7 @@ struct TerminalSidebarTabRow: View {
   }
 
   private struct AnimatedPresentation: Equatable {
+    let badgeActivities: [TerminalHostState.AgentActivity]
     let badgeActivity: TerminalHostState.AgentActivity?
     let hasTerminalBell: Bool
     let paneWorkingDirectories: [String]
@@ -957,6 +1038,7 @@ struct TerminalSidebarTabRow: View {
           isSelected: isSelected,
           paneWorkingDirectories: paneWorkingDirectories,
           unreadCount: unreadCount,
+          badgeActivities: agentPresentation.badgeActivities,
           badgeActivity: agentPresentation.badgeActivity,
           badgeActivityIsFocused: agentPresentation.badgeActivityIsFocused,
           hasTerminalBell: hasTerminalBell,
@@ -1116,6 +1198,7 @@ struct TerminalSidebarTabRow: View {
 
   private var animatedPresentation: AnimatedPresentation {
     AnimatedPresentation(
+      badgeActivities: agentPresentation.badgeActivities,
       badgeActivity: agentPresentation.badgeActivity,
       hasTerminalBell: hasTerminalBell,
       paneWorkingDirectories: paneWorkingDirectories,

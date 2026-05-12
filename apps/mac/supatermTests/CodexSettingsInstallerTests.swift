@@ -38,15 +38,15 @@ struct CodexSettingsInstallerTests {
     let hooksPath = CodexSettingsInstaller.settingsURL(homeDirectoryURL: homeDirectoryURL).path
     let expectedTrustedHashes: [String: String?] = [
       "\(hooksPath):post_tool_use:0:0":
-        "sha256:cac5ef53a0ad14665671bd82e27f5a9515c6935eddff6a0ff9a347d42ca75bc8",
+        "sha256:7f46fa775087e62b0107670dd7bede1edbcfe8a799200e77286fd397d095de95",
       "\(hooksPath):pre_tool_use:0:0":
-        "sha256:05a7039a88f9aa8d4b5ace0a162b7cf80b3c3bfa8af05cb1ea1f94f0be7680d0",
+        "sha256:86ad5f88a51f1bb05f8ea365f5a63ebd6eeba55f6665b6c99a5e1c5d8503a5b2",
       "\(hooksPath):session_start:0:0":
-        "sha256:7b028ea2888ad0c1846b09a8cfd4902229b96a2e84747ac972e71e179fb78845",
+        "sha256:c4d2bd85540ddac1db75f7224ca5a181934be5ccd604fca154eefe3286b26c4e",
       "\(hooksPath):stop:0:0":
-        "sha256:4ef1edd2112f1e4cd4dfb954a2d72ec715bc32a8821e07dbb09502bbcff73684",
+        "sha256:95675e5ca4353d2f4147b8240ebd5ba752225bae1e363523c6ec75c8cd380aa6",
       "\(hooksPath):user_prompt_submit:0:0":
-        "sha256:f4f03fdc4aa7a92bcd2b2098a822113f8c7a6ef72904ee25ebf4110b2668308b",
+        "sha256:5dd630b99cb39a5f72cff53a8e2f3c9534627a0a085116c0aef105315f8e8ad2",
     ]
 
     #expect(state.mapValues(\.trusted_hash) == expectedTrustedHashes)

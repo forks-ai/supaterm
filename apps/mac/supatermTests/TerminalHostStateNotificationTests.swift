@@ -323,7 +323,7 @@ struct TerminalHostStateNotificationTests {
     let tabID = try #require(host.selectedTabID)
     let expectedTitle = try #require(host.tabs.first(where: { $0.id == tabID })?.title)
     let surface = try #require(host.selectedSurfaceView)
-    #expect(host.setAgentActivity(.claude(.running), for: surface.id))
+    #expect(host.setTestAgentActivity(.claude(.running), for: surface.id))
 
     let result = try host.notify(
       TerminalNotifyRequest(
@@ -342,7 +342,7 @@ struct TerminalHostStateNotificationTests {
   }
 
   @Test
-  func setAgentActivityStoresNormalizedDetail() throws {
+  func setAgentPresenceActivityStoresNormalizedDetail() throws {
     initializeGhosttyForTests()
 
     let host = TerminalHostState()
@@ -352,7 +352,7 @@ struct TerminalHostStateNotificationTests {
     let tabID = try #require(host.selectedTabID)
     let surface = try #require(host.selectedSurfaceView)
     #expect(
-      host.setAgentActivity(
+      host.setTestAgentActivity(
         .codex(.running, detail: "  Bash · git status --short  "),
         for: surface.id
       )
@@ -426,7 +426,7 @@ struct TerminalHostStateNotificationTests {
     )
 
     #expect(
-      host.setAgentActivity(
+      host.setTestAgentActivity(
         .codex(.running, detail: "Bash · git status --short"),
         for: firstSurface.id
       )
@@ -463,13 +463,13 @@ struct TerminalHostStateNotificationTests {
     )
 
     #expect(
-      host.setAgentActivity(
+      host.setTestAgentActivity(
         .codex(.running, detail: "Focused detail"),
         for: firstSurface.id
       )
     )
     #expect(host.recordCodexHoverMessages(["Focused hover"], replacing: false, for: firstSurface.id))
-    #expect(host.setAgentActivity(.claude(.needsInput), for: secondPane.paneID))
+    #expect(host.setTestAgentActivity(.claude(.needsInput), for: secondPane.paneID))
     #expect(host.recordCodexHoverMessages(["Background hover"], replacing: false, for: secondPane.paneID))
 
     #expect(host.agentActivity(for: tabID) == .claude(.needsInput))
@@ -489,11 +489,39 @@ struct TerminalHostStateNotificationTests {
     let tabID = try #require(host.selectedTabID)
     let surface = try #require(host.selectedSurfaceView)
 
-    #expect(host.setAgentActivity(.codex(.needsInput), for: surface.id))
+    #expect(host.setTestAgentActivity(.codex(.needsInput), for: surface.id))
 
     let presentation = host.tabAgentPresentation(for: tabID)
     #expect(presentation.badgeActivity == .codex(.needsInput))
     #expect(presentation.badgeActivityIsFocused)
+  }
+
+  @Test
+  func tabAgentPresentationStacksMultipleAgentBadges() throws {
+    initializeGhosttyForTests()
+
+    let host = TerminalHostState()
+    host.windowActivity = WindowActivityState(isKeyWindow: true, isVisible: true)
+    host.handleCommand(.ensureInitialTab(focusing: false, startupCommand: nil))
+
+    let tabID = try #require(host.selectedTabID)
+    let firstSurface = try #require(host.selectedSurfaceView)
+    let secondPane = try host.createPane(
+      TerminalCreatePaneRequest(
+        startupCommand: nil,
+        direction: .right,
+        focus: false,
+        equalize: true,
+        target: .contextPane(firstSurface.id)
+      )
+    )
+
+    #expect(host.setTestAgentActivity(.claude(.running), for: firstSurface.id))
+    #expect(host.setTestAgentActivity(.codex(.running), for: secondPane.paneID))
+
+    #expect(
+      host.tabAgentPresentation(for: tabID).badgeActivities == [.claude(.running), .codex(.running)]
+    )
   }
 
   @Test
@@ -507,7 +535,7 @@ struct TerminalHostStateNotificationTests {
     let firstTabID = try #require(host.selectedTabID)
     let firstSurface = try #require(host.selectedSurfaceView)
 
-    #expect(host.setAgentActivity(.codex(.needsInput), for: firstSurface.id))
+    #expect(host.setTestAgentActivity(.codex(.needsInput), for: firstSurface.id))
 
     host.handleCommand(.createTab(inheritingFromSurfaceID: nil))
 
@@ -536,9 +564,9 @@ struct TerminalHostStateNotificationTests {
       )
     )
 
-    #expect(host.setAgentActivity(.codex(.idle), for: firstSurface.id))
+    #expect(host.setTestAgentActivity(.codex(.idle), for: firstSurface.id))
     #expect(host.recordCodexHoverMessages(["Focused hover"], replacing: false, for: firstSurface.id))
-    #expect(host.setAgentActivity(.codex(.idle), for: secondPane.paneID))
+    #expect(host.setTestAgentActivity(.codex(.idle), for: secondPane.paneID))
     #expect(host.recordCodexHoverMessages(["Background hover"], replacing: false, for: secondPane.paneID))
     #expect(host.codexHoverMarkdown(for: tabID) == "Focused hover")
 
@@ -567,9 +595,9 @@ struct TerminalHostStateNotificationTests {
       )
     )
 
-    #expect(host.setAgentActivity(.codex(.running, detail: "Focused detail"), for: firstSurface.id))
+    #expect(host.setTestAgentActivity(.codex(.running, detail: "Focused detail"), for: firstSurface.id))
     #expect(host.recordCodexHoverMessages(["Focused hover"], replacing: false, for: firstSurface.id))
-    #expect(host.setAgentActivity(.claude(.needsInput), for: secondPane.paneID))
+    #expect(host.setTestAgentActivity(.claude(.needsInput), for: secondPane.paneID))
     #expect(host.agentActivity(for: tabID) == .claude(.needsInput))
 
     host.performCloseSurface(secondPane.paneID)
@@ -589,7 +617,7 @@ struct TerminalHostStateNotificationTests {
 
     let tabID = try #require(host.selectedTabID)
     let surface = try #require(host.selectedSurfaceView)
-    #expect(host.setAgentActivity(.claude(.running, detail: "Thinking"), for: surface.id))
+    #expect(host.setTestAgentActivity(.claude(.running, detail: "Thinking"), for: surface.id))
     #expect(host.recordCodexHoverMessages(["Thinking"], replacing: true, for: surface.id))
 
     surface.bridge.onCommandFinished?()
@@ -836,6 +864,18 @@ struct TerminalHostStateNotificationTests {
       createdAt: Date(timeIntervalSince1970: createdAt),
       subtitle: "",
       title: title
+    )
+  }
+}
+
+extension TerminalHostState {
+  @discardableResult
+  fileprivate func setTestAgentActivity(_ activity: AgentActivity, for surfaceID: UUID) -> Bool {
+    setAgentPresenceActivity(
+      activity,
+      for: surfaceID,
+      sessionID: "test-\(activity.kind.rawValue)",
+      processID: nil
     )
   }
 }

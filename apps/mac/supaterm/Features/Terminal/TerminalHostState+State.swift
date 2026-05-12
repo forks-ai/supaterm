@@ -201,6 +201,7 @@ extension TerminalHostState {
   func tabAgentPresentation(for tabID: TerminalTabID) -> TabAgentPresentation {
     guard let tree = trees[tabID] else {
       return TabAgentPresentation(
+        badgeActivities: [],
         badgeActivity: nil,
         badgeActivityIsFocused: false,
         detailActivity: nil,
@@ -209,12 +210,17 @@ extension TerminalHostState {
     }
 
     let focusedSurfaceID = focusedSurfaceIDByTab[tabID]
-    let detailActivity = focusedSurfaceID.flatMap { paneAgentMetadataBySurfaceID[$0]?.activity }
+    let detailActivity = agentPresenceStore.detailActivity(for: focusedSurfaceID)
     let hoverMarkdown = focusedSurfaceID.flatMap {
       Self.codexHoverMarkdown(
         paneAgentMetadataBySurfaceID[$0]?.codexHoverMessages ?? []
       )
     }
+    let leaves = tree.leaves()
+    let badgeActivities =
+      agentPresenceStore
+      .badgeInstances(across: leaves.map(\.id))
+      .map(\.activity)
 
     var badgeActivity: AgentActivity?
     var badgePriority = Int.min
@@ -223,32 +229,28 @@ extension TerminalHostState {
     var badgeActivityRevision = Int.min
     var badgeLeafIndex = Int.max
 
-    for (leafIndex, surface) in tree.leaves().enumerated() {
-      guard
-        let metadata = paneAgentMetadataBySurfaceID[surface.id],
-        let activity = metadata.activity
-      else {
-        continue
-      }
+    for (leafIndex, surface) in leaves.enumerated() {
+      for instance in agentPresenceStore.statusInstances(for: surface.id, surfaceIndex: leafIndex) {
+        let activity = instance.activity
+        let priority = Self.agentActivityPriority(activity.phase)
+        let isFocused = surface.id == focusedSurfaceID
+        let activityRevision = instance.revision
 
-      let priority = Self.agentActivityPriority(activity.phase)
-      let isFocused = surface.id == focusedSurfaceID
-      let activityRevision = metadata.activityRevision ?? Int.min
-
-      if badgeActivity == nil
-        || priority > badgePriority
-        || (priority == badgePriority && isFocused && !badgeSurfaceIsFocused)
-        || (priority == badgePriority && isFocused == badgeSurfaceIsFocused
-          && activityRevision > badgeActivityRevision)
-        || (priority == badgePriority && isFocused == badgeSurfaceIsFocused
-          && activityRevision == badgeActivityRevision && leafIndex < badgeLeafIndex)
-      {
-        badgeActivity = activity
-        badgePriority = priority
-        badgeSurfaceIsFocused = isFocused
-        badgeSurfaceID = surface.id
-        badgeActivityRevision = activityRevision
-        badgeLeafIndex = leafIndex
+        if badgeActivity == nil
+          || priority > badgePriority
+          || (priority == badgePriority && isFocused && !badgeSurfaceIsFocused)
+          || (priority == badgePriority && isFocused == badgeSurfaceIsFocused
+            && activityRevision > badgeActivityRevision)
+          || (priority == badgePriority && isFocused == badgeSurfaceIsFocused
+            && activityRevision == badgeActivityRevision && leafIndex < badgeLeafIndex)
+        {
+          badgeActivity = activity
+          badgePriority = priority
+          badgeSurfaceIsFocused = isFocused
+          badgeSurfaceID = surface.id
+          badgeActivityRevision = activityRevision
+          badgeLeafIndex = leafIndex
+        }
       }
     }
 
@@ -264,6 +266,7 @@ extension TerminalHostState {
       } ?? false
 
     return TabAgentPresentation(
+      badgeActivities: badgeActivities,
       badgeActivity: badgeActivity,
       badgeActivityIsFocused: badgeActivityIsFocused,
       detailActivity: detailActivity,
@@ -284,24 +287,62 @@ extension TerminalHostState {
   }
 
   @discardableResult
-  func setAgentActivity(_ activity: AgentActivity, for surfaceID: UUID) -> Bool {
+  func registerAgentPresence(
+    agent: SupatermAgentKind,
+    for surfaceID: UUID,
+    sessionID: String?,
+    processID: Int32?
+  ) -> Bool {
     guard tabID(containing: surfaceID) != nil else { return false }
-    var metadata = paneAgentMetadataBySurfaceID[surfaceID] ?? PaneAgentMetadata()
-    metadata.activity = activity
-    metadata.activityRevision = nextAgentActivityRevision
-    nextAgentActivityRevision += 1
-    paneAgentMetadataBySurfaceID[surfaceID] = metadata
-    return true
+    return agentPresenceStore.register(
+      agent: agent,
+      surfaceID: surfaceID,
+      sessionID: sessionID,
+      processID: processID
+    )
   }
 
   @discardableResult
-  func clearAgentActivity(for surfaceID: UUID) -> Bool {
+  func setAgentPresenceActivity(
+    _ activity: AgentActivity,
+    for surfaceID: UUID,
+    sessionID: String?,
+    processID: Int32?
+  ) -> Bool {
     guard tabID(containing: surfaceID) != nil else { return false }
-    guard var metadata = paneAgentMetadataBySurfaceID[surfaceID] else { return true }
-    metadata.activity = nil
-    metadata.activityRevision = nil
-    storePaneAgentMetadata(metadata, for: surfaceID)
-    return true
+    return agentPresenceStore.setActivity(
+      activity,
+      surfaceID: surfaceID,
+      sessionID: sessionID,
+      processID: processID
+    )
+  }
+
+  @discardableResult
+  func clearAgentPresence(
+    agent: SupatermAgentKind,
+    for surfaceID: UUID,
+    sessionID: String?,
+    processID: Int32?
+  ) -> Bool {
+    agentPresenceStore.remove(
+      agent: agent,
+      surfaceID: surfaceID,
+      sessionID: sessionID,
+      processID: processID
+    )
+  }
+
+  @discardableResult
+  func clearAgentPresence(for surfaceID: UUID) -> Bool {
+    agentPresenceStore.removeSurface(surfaceID)
+  }
+
+  @discardableResult
+  func pruneDeadAgentProcesses(
+    isProcessAlive: (Int32) -> Bool = TerminalAgentPresenceStore.isProcessAlive
+  ) -> Bool {
+    !agentPresenceStore.pruneDeadProcesses(isProcessAlive: isProcessAlive).isEmpty
   }
 
   @discardableResult

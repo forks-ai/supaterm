@@ -21,6 +21,7 @@ struct TerminalSidebarDragPreviewItem {
   let tab: TerminalTabItem
   let paneWorkingDirectories: [String]
   let unreadCount: Int
+  let badgeActivities: [TerminalHostState.AgentActivity]
   let badgeActivity: TerminalHostState.AgentActivity?
   let badgeActivityIsFocused: Bool
   let terminalProgress: TerminalSidebarTerminalProgress?
@@ -496,6 +497,7 @@ private struct TerminalSidebarDragPreviewContent: View {
           tab: preview.tab,
           paneWorkingDirectories: preview.paneWorkingDirectories,
           unreadCount: preview.unreadCount,
+          badgeActivities: preview.badgeActivities,
           badgeActivity: preview.badgeActivity,
           badgeActivityIsFocused: preview.badgeActivityIsFocused,
           terminalProgress: preview.terminalProgress,
@@ -520,6 +522,7 @@ private struct TerminalSidebarMorphingPreview: View {
   let tab: TerminalTabItem
   let paneWorkingDirectories: [String]
   let unreadCount: Int
+  let badgeActivities: [TerminalHostState.AgentActivity]
   let badgeActivity: TerminalHostState.AgentActivity?
   let badgeActivityIsFocused: Bool
   let terminalProgress: TerminalSidebarTerminalProgress?
@@ -536,6 +539,7 @@ private struct TerminalSidebarMorphingPreview: View {
       isSelected: false,
       paneWorkingDirectories: paneWorkingDirectories,
       unreadCount: unreadCount,
+      badgeActivities: badgeActivities,
       badgeActivity: badgeActivity,
       badgeActivityIsFocused: badgeActivityIsFocused,
       hasTerminalBell: hasTerminalBell,

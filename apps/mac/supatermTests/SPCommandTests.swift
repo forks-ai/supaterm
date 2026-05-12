@@ -309,7 +309,8 @@ struct SPCommandTests {
         as? SP.ReceiveAgentHook
     )
     let receivePiCommand = try #require(
-      try SP.parseAsRoot(["agent", "receive-agent-hook", "--agent", "pi"]) as? SP.ReceiveAgentHook
+      try SP.parseAsRoot(["agent", "receive-agent-hook", "--agent", "pi", "--pid", "123"])
+        as? SP.ReceiveAgentHook
     )
 
     #expect(type(of: claudeCommand) == SP.InstallAgentHook.Claude.self)
@@ -317,7 +318,9 @@ struct SPCommandTests {
     #expect(type(of: removeClaudeCommand) == SP.RemoveAgentHook.Claude.self)
     #expect(type(of: removeCodexCommand) == SP.RemoveAgentHook.Codex.self)
     #expect(receiveClaudeCommand.agent == .claude)
+    #expect(receiveClaudeCommand.pid == nil)
     #expect(receivePiCommand.agent == .pi)
+    #expect(receivePiCommand.pid == 123)
   }
 
   @Test
