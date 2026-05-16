@@ -47,18 +47,78 @@ nonisolated struct PaneAgentPullRequestStatus: Equatable, Sendable {
   let kind: Kind
   let title: String
   let url: URL?
+  let addedLineCount: Int?
+  let removedLineCount: Int?
+  let checks: PaneAgentPullRequestChecks?
 
   static let unavailable = Self(
     kind: .unavailable,
     title: "Pull request status unavailable",
-    url: nil
+    url: nil,
+    addedLineCount: nil,
+    removedLineCount: nil,
+    checks: nil
   )
 
   static let none = Self(
     kind: .none,
     title: "No pull request",
-    url: nil
+    url: nil,
+    addedLineCount: nil,
+    removedLineCount: nil,
+    checks: nil
   )
+}
+
+nonisolated struct PaneAgentPullRequestChecks: Equatable, Sendable {
+  let totalCount: Int
+  let items: [PaneAgentPullRequestCheck]
+
+  init(items: [PaneAgentPullRequestCheck], totalCount: Int? = nil) {
+    self.totalCount = totalCount ?? items.count
+    self.items = items
+  }
+
+  var title: String {
+    if totalCount == 0 {
+      return "Checks (0)"
+    }
+    let failingCount = items.filter(\.status.isFailing).count
+    if failingCount > 0 {
+      return "Checks failing (\(failingCount)/\(totalCount))"
+    }
+    if items.contains(where: \.status.isPending) {
+      return "Checks pending (\(totalCount))"
+    }
+    return "Checks passed (\(totalCount))"
+  }
+}
+
+nonisolated struct PaneAgentPullRequestCheck: Equatable, Identifiable, Sendable {
+  enum Status: Equatable, Sendable {
+    case pending
+    case passing
+    case failing
+    case skipped
+
+    var isPending: Bool {
+      self == .pending
+    }
+
+    var isFailing: Bool {
+      self == .failing
+    }
+  }
+
+  let id: String
+  let name: String
+  let status: Status
+
+  init(name: String, status: Status) {
+    self.id = name
+    self.name = name
+    self.status = status
+  }
 }
 
 nonisolated struct PaneAgentArtifact: Equatable, Identifiable, Sendable {

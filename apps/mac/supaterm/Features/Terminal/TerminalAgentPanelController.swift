@@ -482,9 +482,82 @@ nonisolated struct TerminalAgentGithubClient: Sendable {
       }
     return PaneAgentPullRequestStatus(
       kind: kind,
-      title: "#\(node.number) \(node.title)",
-      url: URL(string: node.url)
+      title: "PR #\(node.number)",
+      url: URL(string: node.url),
+      addedLineCount: node.additions,
+      removedLineCount: node.deletions,
+      checks: Self.checks(from: node)
     )
+  }
+
+  nonisolated private static func checks(
+    from node: GithubPullRequestNodeResponse
+  ) -> PaneAgentPullRequestChecks {
+    guard
+      let rollup = node.commits.nodes.last?.commit.statusCheckRollup
+    else {
+      return PaneAgentPullRequestChecks(items: [])
+    }
+    let checks = rollup.contexts.nodes.compactMap(Self.check)
+    return PaneAgentPullRequestChecks(items: checks, totalCount: rollup.contexts.totalCount)
+  }
+
+  nonisolated private static func check(
+    from node: GithubPRCheckNodeResponse
+  ) -> PaneAgentPullRequestCheck? {
+    switch node.typename {
+    case "CheckRun":
+      guard let name = normalizedCheckName(node.name) else { return nil }
+      return PaneAgentPullRequestCheck(
+        name: name,
+        status: checkRunStatus(status: node.status, conclusion: node.conclusion)
+      )
+    case "StatusContext":
+      guard let name = normalizedCheckName(node.context) else { return nil }
+      return PaneAgentPullRequestCheck(
+        name: name,
+        status: statusContextStatus(node.state)
+      )
+    default:
+      return nil
+    }
+  }
+
+  nonisolated private static func normalizedCheckName(_ value: String?) -> String? {
+    guard let value else { return nil }
+    let normalized = value.trimmingCharacters(in: .whitespacesAndNewlines)
+    guard !normalized.isEmpty else { return nil }
+    return normalized
+  }
+
+  nonisolated private static func checkRunStatus(
+    status: String?,
+    conclusion: String?
+  ) -> PaneAgentPullRequestCheck.Status {
+    guard status == "COMPLETED" else {
+      return .pending
+    }
+    switch conclusion {
+    case "SUCCESS":
+      return .passing
+    case "NEUTRAL", "SKIPPED":
+      return .skipped
+    default:
+      return .failing
+    }
+  }
+
+  nonisolated private static func statusContextStatus(
+    _ state: String?
+  ) -> PaneAgentPullRequestCheck.Status {
+    switch state {
+    case "SUCCESS":
+      return .passing
+    case "FAILURE", "ERROR":
+      return .failing
+    default:
+      return .pending
+    }
   }
 
   nonisolated private static func host(from urlString: String?) -> String? {
@@ -505,10 +578,34 @@ nonisolated struct TerminalAgentGithubClient: Sendable {
         ) {
           nodes {
             number
-            title
+            additions
+            deletions
             state
             isDraft
             url
+            commits(last: 1) {
+              nodes {
+                commit {
+                  statusCheckRollup {
+                    contexts(first: 20) {
+                      totalCount
+                      nodes {
+                        __typename
+                        ... on CheckRun {
+                          name
+                          status
+                          conclusion
+                        }
+                        ... on StatusContext {
+                          context
+                          state
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
           }
         }
       }
@@ -544,10 +641,51 @@ nonisolated private struct GithubPullRequestConnectionResponse: Decodable {
 
 nonisolated private struct GithubPullRequestNodeResponse: Decodable {
   let number: Int
-  let title: String
+  let additions: Int
+  let deletions: Int
   let state: String
   let isDraft: Bool
   let url: String
+  let commits: GithubPRCommitConnectionResponse
+}
+
+nonisolated private struct GithubPRCommitConnectionResponse: Decodable {
+  let nodes: [GithubPRCommitNodeResponse]
+}
+
+nonisolated private struct GithubPRCommitNodeResponse: Decodable {
+  let commit: GithubPRCommitResponse
+}
+
+nonisolated private struct GithubPRCommitResponse: Decodable {
+  let statusCheckRollup: GithubPRCheckRollupResponse?
+}
+
+nonisolated private struct GithubPRCheckRollupResponse: Decodable {
+  let contexts: GithubPRCheckContextConnectionResponse
+}
+
+nonisolated private struct GithubPRCheckContextConnectionResponse: Decodable {
+  let totalCount: Int
+  let nodes: [GithubPRCheckNodeResponse]
+}
+
+nonisolated private struct GithubPRCheckNodeResponse: Decodable {
+  let typename: String
+  let name: String?
+  let context: String?
+  let status: String?
+  let conclusion: String?
+  let state: String?
+
+  enum CodingKeys: String, CodingKey {
+    case typename = "__typename"
+    case name
+    case context
+    case status
+    case conclusion
+    case state
+  }
 }
 
 @MainActor
@@ -981,8 +1119,8 @@ final class TerminalAgentPanelController {
       )
       branchDetails = PaneAgentBranchDetails(
         branchName: gitSnapshot.branchName,
-        addedLineCount: gitSnapshot.addedLineCount,
-        removedLineCount: gitSnapshot.removedLineCount,
+        addedLineCount: pullRequestStatus.addedLineCount ?? gitSnapshot.addedLineCount,
+        removedLineCount: pullRequestStatus.removedLineCount ?? gitSnapshot.removedLineCount,
         hasWorkingTreeChanges: gitSnapshot.hasWorkingTreeChanges,
         pullRequestStatus: pullRequestStatus
       )

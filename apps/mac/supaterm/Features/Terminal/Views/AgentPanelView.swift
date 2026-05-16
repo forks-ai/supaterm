@@ -33,6 +33,9 @@ struct AgentPanelView: View {
               title: branchDetails.hasWorkingTreeChanges ? "Uncommitted changes" : "Working tree clean"
             )
             pullRequestRow(branchDetails.pullRequestStatus)
+            if let checks = branchDetails.pullRequestStatus.checks {
+              pullRequestChecksRows(checks)
+            }
           }
         }
       }
@@ -152,6 +155,32 @@ struct AgentPanelView: View {
     .accessibilityLabel(title)
   }
 
+  private func pullRequestChecksRows(_ checks: PaneAgentPullRequestChecks) -> some View {
+    VStack(alignment: .leading, spacing: 6) {
+      valueRow(symbol: checksSymbol(checks), title: checks.title)
+      ForEach(checks.items) { item in
+        checkRow(item)
+      }
+    }
+  }
+
+  private func checkRow(_ item: PaneAgentPullRequestCheck) -> some View {
+    HStack(spacing: 7) {
+      Circle()
+        .fill(checkColor(item.status))
+        .frame(width: 6, height: 6)
+        .frame(width: 14)
+        .accessibilityHidden(true)
+      Text(item.name)
+        .font(.system(size: 12, weight: .medium))
+        .foregroundStyle(palette.secondaryText)
+        .lineLimit(1)
+        .truncationMode(.middle)
+    }
+    .padding(.leading, 21)
+    .frame(maxWidth: .infinity, alignment: .leading)
+  }
+
   private func progressSymbol(_ status: PaneAgentProgressRow.Status) -> String {
     switch status {
     case .pending:
@@ -186,6 +215,29 @@ struct AgentPanelView: View {
       return "checkmark.circle.fill"
     case .closed:
       return "xmark.circle"
+    }
+  }
+
+  private func checksSymbol(_ checks: PaneAgentPullRequestChecks) -> String {
+    if checks.items.contains(where: \.status.isFailing) {
+      return "xmark.circle"
+    }
+    if checks.items.contains(where: \.status.isPending) {
+      return "circle.lefthalf.filled"
+    }
+    return "checkmark.circle.fill"
+  }
+
+  private func checkColor(_ status: PaneAgentPullRequestCheck.Status) -> Color {
+    switch status {
+    case .pending:
+      return palette.amber
+    case .passing:
+      return palette.mint
+    case .failing:
+      return palette.coral
+    case .skipped:
+      return palette.secondaryText
     }
   }
 

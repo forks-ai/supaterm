@@ -98,4 +98,71 @@ struct TerminalAgentPanelTests {
 
     #expect(status == .none)
   }
+
+  @Test
+  func githubPullRequestDecoderUsesNumberChangesAndChecks() throws {
+    let status = TerminalAgentGithubClient.decodePullRequestStatus(
+      """
+      {
+        "data": {
+          "repository": {
+            "pullRequests": {
+              "nodes": [
+                {
+                  "number": 39,
+                  "additions": 3040,
+                  "deletions": 29,
+                  "state": "OPEN",
+                  "isDraft": false,
+                  "url": "https://github.com/supabitapp/supaterm/pull/39",
+                  "commits": {
+                    "nodes": [
+                      {
+                        "commit": {
+                          "statusCheckRollup": {
+                            "contexts": {
+                              "totalCount": 2,
+                              "nodes": [
+                                {
+                                  "__typename": "CheckRun",
+                                  "name": "inspect-dependencies",
+                                  "status": "COMPLETED",
+                                  "conclusion": "SUCCESS"
+                                },
+                                {
+                                  "__typename": "StatusContext",
+                                  "context": "test",
+                                  "state": "PENDING"
+                                }
+                              ]
+                            }
+                          }
+                        }
+                      }
+                    ]
+                  }
+                }
+              ]
+            }
+          }
+        }
+      }
+      """
+    )
+
+    #expect(status.kind == .open)
+    #expect(status.title == "PR #39")
+    #expect(status.addedLineCount == 3040)
+    #expect(status.removedLineCount == 29)
+    #expect(
+      status.checks
+        == PaneAgentPullRequestChecks(
+          items: [
+            PaneAgentPullRequestCheck(name: "inspect-dependencies", status: .passing),
+            PaneAgentPullRequestCheck(name: "test", status: .pending),
+          ]
+        )
+    )
+    #expect(status.checks?.title == "Checks pending (2)")
+  }
 }
