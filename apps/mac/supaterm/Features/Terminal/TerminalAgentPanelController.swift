@@ -496,10 +496,14 @@ nonisolated struct TerminalAgentGithubClient: Sendable {
     guard
       let rollup = node.commits.nodes.last?.commit.statusCheckRollup
     else {
-      return PaneAgentPullRequestChecks(items: [])
+      return PaneAgentPullRequestChecks(status: .passing, totalCount: 0, items: [])
     }
     let checks = rollup.contexts.nodes.compactMap(Self.check)
-    return PaneAgentPullRequestChecks(items: checks, totalCount: rollup.contexts.totalCount)
+    return PaneAgentPullRequestChecks(
+      status: rollupStatus(rollup.state),
+      totalCount: rollup.contexts.totalCount,
+      items: checks
+    )
   }
 
   nonisolated private static func check(
@@ -560,6 +564,19 @@ nonisolated struct TerminalAgentGithubClient: Sendable {
     }
   }
 
+  nonisolated private static func rollupStatus(
+    _ state: String
+  ) -> PaneAgentPullRequestChecks.Status {
+    switch state {
+    case "SUCCESS":
+      return .passing
+    case "FAILURE", "ERROR":
+      return .failing
+    default:
+      return .pending
+    }
+  }
+
   nonisolated private static func host(from urlString: String?) -> String? {
     guard let urlString, let url = URL(string: urlString), let host = url.host else {
       return nil
@@ -587,6 +604,7 @@ nonisolated struct TerminalAgentGithubClient: Sendable {
               nodes {
                 commit {
                   statusCheckRollup {
+                    state
                     contexts(first: 20) {
                       totalCount
                       nodes {
@@ -662,6 +680,7 @@ nonisolated private struct GithubPRCommitResponse: Decodable {
 }
 
 nonisolated private struct GithubPRCheckRollupResponse: Decodable {
+  let state: String
   let contexts: GithubPRCheckContextConnectionResponse
 }
 

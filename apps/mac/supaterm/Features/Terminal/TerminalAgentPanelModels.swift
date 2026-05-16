@@ -71,11 +71,27 @@ nonisolated struct PaneAgentPullRequestStatus: Equatable, Sendable {
 }
 
 nonisolated struct PaneAgentPullRequestChecks: Equatable, Sendable {
+  enum Status: Equatable, Sendable {
+    case pending
+    case passing
+    case failing
+
+    var isPending: Bool {
+      self == .pending
+    }
+
+    var isFailing: Bool {
+      self == .failing
+    }
+  }
+
+  let status: Status
   let totalCount: Int
   let items: [PaneAgentPullRequestCheck]
 
-  init(items: [PaneAgentPullRequestCheck], totalCount: Int? = nil) {
-    self.totalCount = totalCount ?? items.count
+  init(status: Status, totalCount: Int, items: [PaneAgentPullRequestCheck]) {
+    self.status = status
+    self.totalCount = totalCount
     self.items = items
   }
 
@@ -83,11 +99,10 @@ nonisolated struct PaneAgentPullRequestChecks: Equatable, Sendable {
     if totalCount == 0 {
       return "Checks (0)"
     }
-    let failingCount = items.filter(\.status.isFailing).count
-    if failingCount > 0 {
-      return "Checks failing (\(failingCount)/\(totalCount))"
+    if status.isFailing {
+      return "Checks failing (\(totalCount))"
     }
-    if items.contains(where: \.status.isPending) {
+    if status.isPending {
       return "Checks pending (\(totalCount))"
     }
     return "Checks passed (\(totalCount))"

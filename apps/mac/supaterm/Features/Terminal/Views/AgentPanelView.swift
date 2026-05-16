@@ -219,10 +219,10 @@ struct AgentPanelView: View {
   }
 
   private func checksSymbol(_ checks: PaneAgentPullRequestChecks) -> String {
-    if checks.items.contains(where: \.status.isFailing) {
+    if checks.status.isFailing {
       return "xmark.circle"
     }
-    if checks.items.contains(where: \.status.isPending) {
+    if checks.status.isPending {
       return "circle.lefthalf.filled"
     }
     return "checkmark.circle.fill"

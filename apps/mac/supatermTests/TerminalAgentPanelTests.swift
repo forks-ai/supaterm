@@ -120,6 +120,7 @@ struct TerminalAgentPanelTests {
                       {
                         "commit": {
                           "statusCheckRollup": {
+                            "state": "PENDING",
                             "contexts": {
                               "totalCount": 2,
                               "nodes": [
@@ -157,6 +158,8 @@ struct TerminalAgentPanelTests {
     #expect(
       status.checks
         == PaneAgentPullRequestChecks(
+          status: .pending,
+          totalCount: 2,
           items: [
             PaneAgentPullRequestCheck(name: "inspect-dependencies", status: .passing),
             PaneAgentPullRequestCheck(name: "test", status: .pending),
@@ -164,5 +167,55 @@ struct TerminalAgentPanelTests {
         )
     )
     #expect(status.checks?.title == "Checks pending (2)")
+  }
+
+  @Test
+  func githubPullRequestDecoderUsesRollupStateForCheckSummary() throws {
+    let status = TerminalAgentGithubClient.decodePullRequestStatus(
+      """
+      {
+        "data": {
+          "repository": {
+            "pullRequests": {
+              "nodes": [
+                {
+                  "number": 39,
+                  "additions": 3040,
+                  "deletions": 29,
+                  "state": "OPEN",
+                  "isDraft": false,
+                  "url": "https://github.com/supabitapp/supaterm/pull/39",
+                  "commits": {
+                    "nodes": [
+                      {
+                        "commit": {
+                          "statusCheckRollup": {
+                            "state": "FAILURE",
+                            "contexts": {
+                              "totalCount": 25,
+                              "nodes": [
+                                {
+                                  "__typename": "CheckRun",
+                                  "name": "first-page-check",
+                                  "status": "COMPLETED",
+                                  "conclusion": "SUCCESS"
+                                }
+                              ]
+                            }
+                          }
+                        }
+                      }
+                    ]
+                  }
+                }
+              ]
+            }
+          }
+        }
+      }
+      """
+    )
+
+    #expect(status.checks?.title == "Checks failing (25)")
   }
 }
