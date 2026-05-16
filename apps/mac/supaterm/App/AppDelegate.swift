@@ -42,6 +42,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate, GhosttyAppActionPerfor
   private let quitConfirmationPresenter: QuitConfirmationPresenter
   private let socketStore: StoreOf<SocketControlFeature>
   private let terminalWindowRegistry: TerminalWindowRegistry
+  private lazy var serviceProvider = SupatermServiceProvider(
+    openTabs: { [weak self] paths in
+      self?.openServiceTabs(workingDirectoryPaths: paths)
+    },
+    openWindows: { [weak self] paths in
+      self?.openServiceWindows(workingDirectoryPaths: paths)
+    }
+  )
   private var settingsWindowController: SettingsWindowController?
   private var terminatingSessionCatalog: TerminalSessionCatalog?
   private var toggleVisibilityState: ToggleVisibilityState?
@@ -88,6 +96,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, GhosttyAppActionPerfor
 
   func applicationDidFinishLaunching(_ notification: Notification) {
     NSWindow.allowsAutomaticWindowTabbing = false
+    NSApp.servicesProvider = serviceProvider
     menuController.install()
     socketStore.send(.task)
     refreshInstalledAgentHooks()
@@ -243,6 +252,36 @@ final class AppDelegate: NSObject, NSApplicationDelegate, GhosttyAppActionPerfor
   private func refreshInstalledAgentHooks() {
     Task.detached {
       StartupAgentHookRefresher.live.refreshInstalledHooks()
+    }
+  }
+
+  private func openServiceTabs(workingDirectoryPaths: [String]) {
+    guard let firstPath = workingDirectoryPaths.first else { return }
+    NSApp.activate(ignoringOtherApps: true)
+
+    guard terminalWindowRegistry.createTabInPreferredWindow(workingDirectoryPath: firstPath) else {
+      let controller = createWindow()
+      controller.terminal.ensureInitialTab(focusing: true, workingDirectoryPath: firstPath)
+      controller.window?.makeKeyAndOrderFront(nil)
+      for path in workingDirectoryPaths.dropFirst() {
+        controller.terminal.createTab(focusing: true, workingDirectoryPath: path)
+      }
+      return
+    }
+
+    for path in workingDirectoryPaths.dropFirst() {
+      terminalWindowRegistry.createTabInPreferredWindow(workingDirectoryPath: path)
+    }
+  }
+
+  private func openServiceWindows(workingDirectoryPaths: [String]) {
+    guard !workingDirectoryPaths.isEmpty else { return }
+    NSApp.activate(ignoringOtherApps: true)
+
+    for path in workingDirectoryPaths {
+      let controller = createWindow()
+      controller.terminal.ensureInitialTab(focusing: true, workingDirectoryPath: path)
+      controller.window?.makeKeyAndOrderFront(nil)
     }
   }
 

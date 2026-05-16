@@ -36,7 +36,7 @@ struct TerminalClient: Sendable {
     case createSpace(String)
     case createTab(inheritingFromSurfaceID: UUID?)
     case deleteSpace(TerminalSpaceID)
-    case ensureInitialTab(focusing: Bool, startupCommand: String?)
+    case ensureInitialTab(focusing: Bool, startupCommand: String?, workingDirectoryPath: String? = nil)
     case navigateSearch(GhosttySearchDirection)
     case moveSidebarTab(
       tabID: TerminalTabID, pinnedOrder: [TerminalTabID], regularOrder: [TerminalTabID])

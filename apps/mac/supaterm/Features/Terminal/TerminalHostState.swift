@@ -379,10 +379,11 @@ final class TerminalHostState {
     switch command {
     case .createTab(let inheritingFromSurfaceID):
       _ = createTab(inheritingFromSurfaceID: inheritingFromSurfaceID)
-    case .ensureInitialTab(let focusing, let startupCommand):
+    case .ensureInitialTab(let focusing, let startupCommand, let workingDirectoryPath):
       ensureInitialTab(
         focusing: focusing,
-        startupCommand: startupCommand
+        startupCommand: startupCommand,
+        workingDirectoryPath: workingDirectoryPath
       )
     case .createSpace(let name):
       _ = try? createSpace(named: name)
@@ -449,12 +450,14 @@ final class TerminalHostState {
 
   func ensureInitialTab(
     focusing: Bool,
-    startupCommand: String? = nil
+    startupCommand: String? = nil,
+    workingDirectoryPath: String? = nil
   ) {
     guard tabs.isEmpty else { return }
     _ = createTab(
       focusing: focusing,
-      startupCommand: startupCommand
+      startupCommand: startupCommand,
+      workingDirectoryPath: workingDirectoryPath
     )
   }
 
@@ -462,6 +465,7 @@ final class TerminalHostState {
   func createTab(
     focusing: Bool = true,
     startupCommand: String? = nil,
+    workingDirectoryPath: String? = nil,
     inheritingFromSurfaceID: UUID? = nil,
     sessionChangesEnabled: Bool = true
   ) -> TerminalTabID? {
@@ -473,6 +477,7 @@ final class TerminalHostState {
       in: target.spaceID,
       focusing: focusing,
       startupCommand: startupCommand,
+      workingDirectory: workingDirectoryPath.map { URL(fileURLWithPath: $0, isDirectory: true) },
       inheritingFromSurfaceID: target.inheritedSurfaceID,
       insertion: resolvedNewTabInsertion(anchorTabID: target.anchorTabID),
       sessionChangesEnabled: sessionChangesEnabled
