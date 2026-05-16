@@ -239,6 +239,32 @@ let project = Project(
         "NSMotionUsageDescription": "A program running within Supaterm would like to access motion data.",
         "NSPhotoLibraryUsageDescription": "A program running within Supaterm would like to access your Photo Library.",
         "NSRemindersUsageDescription": "A program running within Supaterm would like to access your reminders.",
+        "NSServices": [
+          [
+            "NSMenuItem": [
+              "default": "New Supaterm Tab Here",
+            ],
+            "NSMessage": "openTab",
+            "NSRequiredContext": [
+              "NSTextContent": "FilePath",
+            ],
+            "NSSendTypes": [
+              "NSFilenamesPboardType",
+            ],
+          ],
+          [
+            "NSMenuItem": [
+              "default": "New Supaterm Window Here",
+            ],
+            "NSMessage": "openWindow",
+            "NSRequiredContext": [
+              "NSTextContent": "FilePath",
+            ],
+            "NSSendTypes": [
+              "NSFilenamesPboardType",
+            ],
+          ],
+        ],
         "NSSpeechRecognitionUsageDescription": "A program running within Supaterm would like to use speech recognition.",
         "NSSystemAdministrationUsageDescription": "A program running within Supaterm requires elevated privileges.",
         "PostHogAPIKey": "$(POSTHOG_API_KEY)",

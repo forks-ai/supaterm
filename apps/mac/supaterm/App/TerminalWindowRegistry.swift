@@ -161,6 +161,22 @@ final class TerminalWindowRegistry {
     )
   }
 
+  @discardableResult
+  func createTabInPreferredWindow(workingDirectoryPath: String) -> Bool {
+    guard let entry = preferredActiveEntry() else { return false }
+    if let window = entry.windowReference.value {
+      if window.isMiniaturized {
+        window.deminiaturize(nil)
+      }
+      window.makeKeyAndOrderFront(nil)
+    }
+    return entry.terminal.createTab(
+      focusing: true,
+      workingDirectoryPath: workingDirectoryPath,
+      inheritingFromSurfaceID: entry.terminal.selectedSurfaceView?.id
+    ) != nil
+  }
+
   func requestNextTabInKeyWindow() {
     preferredActiveEntry()?.store.send(.terminal(.nextTabMenuItemSelected))
   }

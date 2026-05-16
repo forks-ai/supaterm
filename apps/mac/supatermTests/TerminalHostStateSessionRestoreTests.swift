@@ -8,6 +8,36 @@ import Testing
 @MainActor
 struct TerminalHostStateSessionRestoreTests {
   @Test
+  func ensureInitialTabUsesRequestedWorkingDirectoryPath() async throws {
+    try await withDependencies {
+      $0.defaultFileStorage = .inMemory
+    } operation: {
+      initializeGhosttyForTests()
+
+      let directory = FileManager.default.temporaryDirectory
+        .appendingPathComponent(UUID().uuidString, isDirectory: true)
+      try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+      defer {
+        try? FileManager.default.removeItem(at: directory)
+      }
+      let path = GhosttySurfaceView.normalizedWorkingDirectoryPath(
+        directory.path(percentEncoded: false)
+      )
+      let host = TerminalHostState()
+
+      host.handleCommand(
+        .ensureInitialTab(
+          focusing: false,
+          startupCommand: nil,
+          workingDirectoryPath: path
+        )
+      )
+
+      #expect(host.selectedSurfaceState?.pwd == path)
+    }
+  }
+
+  @Test
   func restorationSnapshotRoundTripsTabsSplitsAndSelections() async throws {
     try await withDependencies {
       $0.defaultFileStorage = .inMemory
