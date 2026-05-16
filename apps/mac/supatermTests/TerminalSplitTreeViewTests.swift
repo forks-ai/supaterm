@@ -155,8 +155,9 @@ struct TerminalSplitTreeViewTests {
   }
 
   @Test
-  func agentPanelShowsOnlyForFocusedPaneWithRoomAndNoSearch() {
+  func agentPanelShowsForPaneWithPresentationRoomAndNoSearch() {
     let focusedID = UUID()
+    let agentPaneID = UUID()
     let presentation = PaneAgentPanelPresentation(
       progressRows: [
         PaneAgentProgressRow(id: "1", title: "Run tests", status: .running)
@@ -173,10 +174,10 @@ struct TerminalSplitTreeViewTests {
       )
     )
     #expect(
-      !TerminalSplitTreeView.LeafView.shouldShowAgentPanel(
+      TerminalSplitTreeView.LeafView.shouldShowAgentPanel(
         presentation: presentation,
         focusedSurfaceID: focusedID,
-        surfaceID: UUID(),
+        surfaceID: agentPaneID,
         searchNeedle: nil,
         size: CGSize(width: 420, height: 260)
       )

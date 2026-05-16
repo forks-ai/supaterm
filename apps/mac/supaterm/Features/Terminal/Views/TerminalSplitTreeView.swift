@@ -549,10 +549,6 @@ struct TerminalSplitTreeView: View {
         }
         return false
       }
-      guard focusedSurfaceID == surfaceID else {
-        TerminalAgentPanelDiagnostics.log("overlay hidden surface=\(surface) reason=not-focused")
-        return false
-      }
       guard searchNeedle == nil else {
         TerminalAgentPanelDiagnostics.log("overlay hidden surface=\(surface) reason=search")
         return false
@@ -563,6 +559,7 @@ struct TerminalSplitTreeView: View {
           "overlay evaluated",
           "surface=\(surface)",
           "show=\(hasRoom)",
+          "focused=\(focusedSurfaceID == surfaceID)",
           "size=\(Int(size.width))x\(Int(size.height))",
           "progress=\(presentation.progressRows.count)",
           "branch=\(presentation.branchDetails != nil)",
