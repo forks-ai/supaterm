@@ -86,7 +86,7 @@ extension TerminalCommandExecutor {
       sessionID: sessionID,
       context: context
     )
-    _ = updateCodexPanelSnapshot(
+    _ = updateAgentPanelSnapshot(
       progressRows: snapshot.progressRows,
       sources: snapshot.sources,
       agent: agent,
@@ -99,6 +99,31 @@ extension TerminalCommandExecutor {
         phase: snapshot.status?.isFinal == true ? .idle : .running,
         detail: snapshot.status?.isFinal == true ? nil : snapshot.detail
       ),
+      sessionID: sessionID,
+      context: context
+    )
+  }
+
+  func terminalAgentSessionStore(
+    _ store: TerminalAgentSessionStore,
+    didReceiveAgentPanelSnapshot snapshot: AgentPanelSnapshot,
+    agent: SupatermAgentKind,
+    sessionID: String,
+    context: SupatermCLIContext?
+  ) {
+    TerminalAgentPanelDiagnostics.log(
+      [
+        "agent panel snapshot",
+        "agent=\(agent)",
+        "session=\(sessionID)",
+        "progress=\(snapshot.progressRows.count)",
+        "sources=\(snapshot.sources.count)",
+      ].joined(separator: " ")
+    )
+    _ = updateAgentPanelSnapshot(
+      progressRows: snapshot.progressRows,
+      sources: snapshot.sources,
+      agent: agent,
       sessionID: sessionID,
       context: context
     )
@@ -141,12 +166,14 @@ extension TerminalCommandExecutor {
     guard let sessionID = prepareAgentTurn(request) else {
       return TerminalAgentHookResult(desktopNotification: nil)
     }
-    if request.agent == .codex {
-      _ = agentSessionStore.beginCodexTracking(
+    if request.agent == .codex || request.agent == .claude {
+      _ = agentSessionStore.beginAgentPanelTracking(
+        agent: request.agent,
         sessionID: sessionID,
         context: request.context
       )
-    } else {
+    }
+    if request.agent != .codex {
       _ = setAgentPresenceActivity(
         TerminalHostState.AgentActivity(kind: request.agent, phase: .running),
         sessionID: sessionID,
@@ -172,8 +199,9 @@ extension TerminalCommandExecutor {
         context: request.context,
         processID: request.processID
       )
-      if request.agent == .codex {
-        _ = agentSessionStore.beginCodexTracking(
+      if request.agent == .codex || request.agent == .claude {
+        _ = agentSessionStore.beginAgentPanelTracking(
+          agent: request.agent,
           sessionID: sessionID,
           context: request.context
         )
@@ -263,7 +291,9 @@ extension TerminalCommandExecutor {
         context: request.context,
         sessionID: sessionID
       )
-      _ = clearCodexPanelSnapshot(
+    }
+    if request.agent == .codex || request.agent == .claude {
+      _ = clearAgentPanelSnapshot(
         agent: request.agent,
         context: request.context,
         sessionID: sessionID
@@ -449,10 +479,14 @@ extension TerminalCommandExecutor {
     case .running where agent == .codex:
       agentSessionStore.cancelRunningTimeout(agent: agent, sessionID: sessionID)
     case .running:
-      agentSessionStore.cancelTranscriptMonitor(agent: agent, sessionID: sessionID)
+      if agent != .claude {
+        agentSessionStore.cancelAgentPanelTracking(agent: agent, sessionID: sessionID)
+      }
       agentSessionStore.armRunningTimeout(agent: agent, sessionID: sessionID, context: context)
     default:
-      agentSessionStore.cancelTranscriptMonitor(agent: agent, sessionID: sessionID)
+      if agent != .claude {
+        agentSessionStore.cancelAgentPanelTracking(agent: agent, sessionID: sessionID)
+      }
       agentSessionStore.cancelRunningTimeout(agent: agent, sessionID: sessionID)
     }
     return true
@@ -518,12 +552,12 @@ extension TerminalCommandExecutor {
   }
 
   @discardableResult
-  func clearCodexPanelSnapshot(
+  func clearAgentPanelSnapshot(
     agent: SupatermAgentKind,
     context: SupatermCLIContext?,
     sessionID: String
   ) -> Bool {
-    updateCodexPanelSnapshot(
+    updateAgentPanelSnapshot(
       progressRows: [],
       sources: [],
       agent: agent,
@@ -533,7 +567,7 @@ extension TerminalCommandExecutor {
   }
 
   @discardableResult
-  func updateCodexPanelSnapshot(
+  func updateAgentPanelSnapshot(
     progressRows: [PaneAgentProgressRow],
     sources: [PaneAgentSource],
     agent: SupatermAgentKind,
@@ -557,7 +591,7 @@ extension TerminalCommandExecutor {
     )
     for surfaceID in candidateSurfaceIDs {
       for entry in registry.activeEntries()
-      where entry.terminal.recordCodexPanelSnapshot(
+      where entry.terminal.recordAgentPanelSnapshot(
         progressRows: progressRows,
         sources: sources,
         for: surfaceID
@@ -581,7 +615,7 @@ extension TerminalCommandExecutor {
     context: SupatermCLIContext?,
     processID: Int32?
   ) -> Bool {
-    agentSessionStore.cancelTranscriptMonitor(agent: agent, sessionID: sessionID)
+    agentSessionStore.cancelAgentPanelTracking(agent: agent, sessionID: sessionID)
     agentSessionStore.cancelRunningTimeout(agent: agent, sessionID: sessionID)
     let candidateSurfaceIDs = agentCandidateSurfaceIDs(
       agent: agent,

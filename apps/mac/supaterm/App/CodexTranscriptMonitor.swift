@@ -637,14 +637,14 @@ struct CodexConversationState: Equatable {
     }
     let rows: [PaneAgentProgressRow] = plan.enumerated().compactMap { index, value in
       guard let item = value.objectValue,
-        let title = normalizedMessage(item["step"]?.stringValue)
+        let title = AgentProgressParsing.normalizedTitle(item["step"]?.stringValue)
       else {
         return nil
       }
       return PaneAgentProgressRow(
         id: "\(index):\(title)",
         title: title,
-        status: progressStatus(item["status"]?.stringValue)
+        status: AgentProgressParsing.status(item["status"]?.stringValue)
       )
     }
     return rows
@@ -662,17 +662,6 @@ struct CodexConversationState: Equatable {
       return name == "web.run" || name.contains("search") ? [.webSearch] : []
     default:
       return []
-    }
-  }
-
-  private static func progressStatus(_ rawValue: String?) -> PaneAgentProgressRow.Status {
-    switch rawValue?.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() {
-    case "completed", "complete", "done":
-      return .completed
-    case "in_progress", "in-progress", "running", "active":
-      return .running
-    default:
-      return .pending
     }
   }
 

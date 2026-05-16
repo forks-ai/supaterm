@@ -146,6 +146,152 @@ struct TerminalAgentSessionStoreTests {
     #expect(delegate.transcriptSnapshots.first?.detail == nil)
   }
 
+  @Test
+  func beginClaudePanelTrackingPublishesTaskSnapshot() throws {
+    let homeDirectoryURL = try ClaudeProgressFixtures.makeHomeDirectory()
+    defer { try? FileManager.default.removeItem(at: homeDirectoryURL) }
+    let delegate = SessionStoreDelegateSpy()
+    let store = TerminalAgentSessionStore(
+      agentRunningTimeout: .seconds(5),
+      transcriptPollInterval: .seconds(1),
+      claudeTasksHomeDirectoryURL: homeDirectoryURL,
+      sleep: { _ in }
+    )
+    store.delegate = delegate
+    let context = SupatermCLIContext(surfaceID: UUID(), tabID: UUID())
+    try ClaudeProgressFixtures.writeTask(
+      id: "task-1",
+      subject: "Read task files",
+      status: "in_progress",
+      sessionID: "session-1",
+      homeDirectoryURL: homeDirectoryURL
+    )
+    store.beginSession(
+      agent: .claude,
+      sessionID: "session-1",
+      context: context,
+      transcriptPath: nil
+    )
+
+    #expect(store.beginAgentPanelTracking(agent: .claude, sessionID: "session-1", context: context))
+    #expect(
+      delegate.panelSnapshots == [
+        AgentPanelSnapshot(
+          progressRows: [
+            PaneAgentProgressRow(
+              id: "claude-task:task-1",
+              title: "Read task files",
+              status: .running
+            )
+          ]
+        )
+      ]
+    )
+  }
+
+  @Test
+  func beginClaudePanelTrackingPollsTaskChanges() async throws {
+    let clock = TestClock()
+    let homeDirectoryURL = try ClaudeProgressFixtures.makeHomeDirectory()
+    defer { try? FileManager.default.removeItem(at: homeDirectoryURL) }
+    let delegate = SessionStoreDelegateSpy()
+    let store = TerminalAgentSessionStore(
+      agentRunningTimeout: .seconds(5),
+      transcriptPollInterval: .seconds(1),
+      claudeTasksHomeDirectoryURL: homeDirectoryURL,
+      sleep: { duration in
+        try await clock.sleep(for: duration)
+      }
+    )
+    store.delegate = delegate
+    let context = SupatermCLIContext(surfaceID: UUID(), tabID: UUID())
+    store.beginSession(
+      agent: .claude,
+      sessionID: "session-1",
+      context: context,
+      transcriptPath: nil
+    )
+
+    #expect(store.beginAgentPanelTracking(agent: .claude, sessionID: "session-1", context: context))
+    #expect(delegate.panelSnapshots == [AgentPanelSnapshot()])
+
+    try ClaudeProgressFixtures.writeTask(
+      id: "task-1",
+      subject: "Refresh tasks",
+      status: "completed",
+      sessionID: "session-1",
+      homeDirectoryURL: homeDirectoryURL
+    )
+
+    await flushEffects()
+    await clock.advance(by: .seconds(1))
+    await flushEffects()
+
+    #expect(
+      delegate.panelSnapshots.last
+        == AgentPanelSnapshot(
+          progressRows: [
+            PaneAgentProgressRow(
+              id: "claude-task:task-1",
+              title: "Refresh tasks",
+              status: .completed
+            )
+          ]
+        )
+    )
+  }
+
+  @Test
+  func beginClaudePanelTrackingUsesTasksBeforeTodoTranscript() throws {
+    let homeDirectoryURL = try ClaudeProgressFixtures.makeHomeDirectory()
+    defer { try? FileManager.default.removeItem(at: homeDirectoryURL) }
+    let transcriptURL = try ClaudeProgressFixtures.makeTranscript()
+    defer { try? FileManager.default.removeItem(at: transcriptURL.deletingLastPathComponent()) }
+    let delegate = SessionStoreDelegateSpy()
+    let store = TerminalAgentSessionStore(
+      agentRunningTimeout: .seconds(5),
+      transcriptPollInterval: .seconds(1),
+      claudeTasksHomeDirectoryURL: homeDirectoryURL,
+      sleep: { _ in }
+    )
+    store.delegate = delegate
+    let context = SupatermCLIContext(surfaceID: UUID(), tabID: UUID())
+    try ClaudeProgressFixtures.appendTodoWrite(
+      [
+        ["content": "Transcript row", "status": "in_progress"]
+      ],
+      to: transcriptURL
+    )
+    try ClaudeProgressFixtures.writeTask(
+      id: "task-1",
+      subject: "Task row",
+      status: "pending",
+      sessionID: "session-1",
+      homeDirectoryURL: homeDirectoryURL
+    )
+    store.beginSession(
+      agent: .claude,
+      sessionID: "session-1",
+      context: context,
+      transcriptPath: transcriptURL.path
+    )
+
+    #expect(store.beginAgentPanelTracking(agent: .claude, sessionID: "session-1", context: context))
+    #expect(
+      delegate.panelSnapshots == [
+        AgentPanelSnapshot(
+          progressRows: [
+            PaneAgentProgressRow(
+              id: "claude-task:task-1",
+              title: "Task row",
+              status: .pending
+            )
+          ]
+        )
+      ]
+    )
+  }
+
   private func flushEffects() async {
     for _ in 0..<5 {
       await Task.yield()
@@ -156,6 +302,7 @@ struct TerminalAgentSessionStoreTests {
 @MainActor
 private final class SessionStoreDelegateSpy: TerminalAgentSessionStoreDelegate {
   var expirations: [(SupatermAgentKind, String)] = []
+  var panelSnapshots: [AgentPanelSnapshot] = []
   var transcriptSnapshots: [CodexSidebarSnapshot] = []
 
   func terminalAgentSessionStore(
@@ -166,6 +313,16 @@ private final class SessionStoreDelegateSpy: TerminalAgentSessionStoreDelegate {
     context: SupatermCLIContext?
   ) {
     transcriptSnapshots.append(snapshot)
+  }
+
+  func terminalAgentSessionStore(
+    _ store: TerminalAgentSessionStore,
+    didReceiveAgentPanelSnapshot snapshot: AgentPanelSnapshot,
+    agent: SupatermAgentKind,
+    sessionID: String,
+    context: SupatermCLIContext?
+  ) {
+    panelSnapshots.append(snapshot)
   }
 
   func terminalAgentSessionStore(

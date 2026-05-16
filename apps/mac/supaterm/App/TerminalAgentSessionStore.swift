@@ -13,6 +13,14 @@ protocol TerminalAgentSessionStoreDelegate: AnyObject {
 
   func terminalAgentSessionStore(
     _ store: TerminalAgentSessionStore,
+    didReceiveAgentPanelSnapshot snapshot: AgentPanelSnapshot,
+    agent: SupatermAgentKind,
+    sessionID: String,
+    context: SupatermCLIContext?
+  )
+
+  func terminalAgentSessionStore(
+    _ store: TerminalAgentSessionStore,
     didExpireRunningTimeoutFor agent: SupatermAgentKind,
     sessionID: String,
     context: SupatermCLIContext?
@@ -46,25 +54,28 @@ final class TerminalAgentSessionStore {
   weak var delegate: TerminalAgentSessionStoreDelegate?
 
   private let agentRunningTimeout: Duration
+  private let claudeTasksHomeDirectoryURL: URL
   private let sleep: (Duration) async throws -> Void
   private let transcriptPollInterval: Duration
   private var foregroundSessionsBySurface: [SurfaceKey: String] = [:]
   private var sessions: [SessionKey: Session] = [:]
-  private var transcriptMonitorTasks: [SessionKey: Task<Void, Never>] = [:]
+  private var agentPanelMonitorTasks: [SessionKey: Task<Void, Never>] = [:]
   private var runningTimeoutTasks: [SessionKey: Task<Void, Never>] = [:]
 
   init(
     agentRunningTimeout: Duration,
     transcriptPollInterval: Duration,
+    claudeTasksHomeDirectoryURL: URL = FileManager.default.homeDirectoryForCurrentUser,
     sleep: @escaping (Duration) async throws -> Void
   ) {
     self.agentRunningTimeout = agentRunningTimeout
+    self.claudeTasksHomeDirectoryURL = claudeTasksHomeDirectoryURL
     self.transcriptPollInterval = transcriptPollInterval
     self.sleep = sleep
   }
 
   deinit {
-    for task in transcriptMonitorTasks.values {
+    for task in agentPanelMonitorTasks.values {
       task.cancel()
     }
     for task in runningTimeoutTasks.values {
@@ -147,7 +158,7 @@ final class TerminalAgentSessionStore {
     sessionID: String
   ) {
     let key = SessionKey(agent: agent, sessionID: sessionID)
-    cancelTranscriptMonitor(agent: agent, sessionID: sessionID)
+    cancelAgentPanelTracking(agent: agent, sessionID: sessionID)
     cancelRunningTimeout(agent: agent, sessionID: sessionID)
     removeForegroundSessionIfNeeded(for: key)
     sessions.removeValue(forKey: key)
@@ -193,7 +204,7 @@ final class TerminalAgentSessionStore {
     var cursor = initialCursor
     let interval = transcriptPollInterval
     let sleep = self.sleep
-    transcriptMonitorTasks[key]?.cancel()
+    agentPanelMonitorTasks[key]?.cancel()
     cancelRunningTimeout(agent: key.agent, sessionID: sessionID)
     if let snapshot = sidebarSnapshot(for: key),
       snapshot.status?.isFinal == false
@@ -205,7 +216,7 @@ final class TerminalAgentSessionStore {
         context: context
       )
     }
-    transcriptMonitorTasks[key] = Task { [weak self] in
+    agentPanelMonitorTasks[key] = Task { [weak self] in
       while !Task.isCancelled {
         try? await sleep(interval)
         guard !Task.isCancelled else { return }
@@ -241,13 +252,83 @@ final class TerminalAgentSessionStore {
     return true
   }
 
-  func cancelTranscriptMonitor(
+  @discardableResult
+  func beginAgentPanelTracking(
+    agent: SupatermAgentKind,
+    sessionID: String,
+    context: SupatermCLIContext?
+  ) -> Bool {
+    switch agent {
+    case .codex:
+      return beginCodexTracking(sessionID: sessionID, context: context)
+    case .claude:
+      return beginClaudePanelTracking(sessionID: sessionID, context: context)
+    default:
+      return false
+    }
+  }
+
+  @discardableResult
+  func beginClaudePanelTracking(
+    sessionID: String,
+    context: SupatermCLIContext?
+  ) -> Bool {
+    let key = SessionKey(agent: .claude, sessionID: sessionID)
+    guard let session = sessions[key] else { return false }
+    let initialTaskRows = claudeTaskProgressRows(sessionID: sessionID)
+    var initialCursor = ClaudeProgressCursor(transcriptOffset: 0)
+    if let transcriptPath = session.transcriptPath {
+      let start = ClaudeTodoTranscriptMonitor.start(at: transcriptPath)
+      initialCursor = start.0
+    }
+    var todoRows = initialCursor.todoRows
+    var currentSnapshot = AgentPanelSnapshot(
+      progressRows: initialTaskRows.isEmpty ? todoRows : initialTaskRows
+    )
+    agentPanelMonitorTasks[key]?.cancel()
+    handleAgentPanelSnapshot(currentSnapshot, key: key, sessionID: sessionID, context: context)
+    let interval = transcriptPollInterval
+    let sleep = self.sleep
+    agentPanelMonitorTasks[key] = Task { [weak self] in
+      var cursor = initialCursor
+      while !Task.isCancelled {
+        try? await sleep(interval)
+        guard !Task.isCancelled else { return }
+        guard let self, self.sessions[key] != nil else { return }
+        if let transcriptPath = self.sessions[key]?.transcriptPath,
+          let result = ClaudeTodoTranscriptMonitor.advance(cursor, at: transcriptPath)
+        {
+          cursor = result.0
+          if let snapshot = result.1 {
+            todoRows = snapshot.progressRows
+          }
+        }
+        let taskRows = self.claudeTaskProgressRows(sessionID: sessionID)
+        let nextSnapshot = AgentPanelSnapshot(
+          progressRows: taskRows.isEmpty ? todoRows : taskRows
+        )
+        guard nextSnapshot != currentSnapshot else {
+          continue
+        }
+        currentSnapshot = nextSnapshot
+        self.handleAgentPanelSnapshot(
+          nextSnapshot,
+          key: key,
+          sessionID: sessionID,
+          context: context
+        )
+      }
+    }
+    return true
+  }
+
+  func cancelAgentPanelTracking(
     agent: SupatermAgentKind,
     sessionID: String
   ) {
     let key = SessionKey(agent: agent, sessionID: sessionID)
-    transcriptMonitorTasks[key]?.cancel()
-    transcriptMonitorTasks.removeValue(forKey: key)
+    agentPanelMonitorTasks[key]?.cancel()
+    agentPanelMonitorTasks.removeValue(forKey: key)
   }
 
   func armRunningTimeout(
@@ -287,12 +368,27 @@ final class TerminalAgentSessionStore {
     context: SupatermCLIContext?
   ) {
     if snapshot.status?.isFinal == true {
-      transcriptMonitorTasks.removeValue(forKey: key)
+      agentPanelMonitorTasks.removeValue(forKey: key)
       cancelRunningTimeout(agent: key.agent, sessionID: sessionID)
     }
     delegate?.terminalAgentSessionStore(
       self,
       didReceiveCodexSidebarSnapshot: snapshot,
+      agent: key.agent,
+      sessionID: sessionID,
+      context: context
+    )
+  }
+
+  private func handleAgentPanelSnapshot(
+    _ snapshot: AgentPanelSnapshot,
+    key: SessionKey,
+    sessionID: String,
+    context: SupatermCLIContext?
+  ) {
+    delegate?.terminalAgentSessionStore(
+      self,
+      didReceiveAgentPanelSnapshot: snapshot,
       agent: key.agent,
       sessionID: sessionID,
       context: context
@@ -356,5 +452,14 @@ final class TerminalAgentSessionStore {
     guard var session = sessions[key] else { return }
     session.codexConversation = CodexConversationState()
     sessions[key] = session
+  }
+
+  private func claudeTaskProgressRows(
+    sessionID: String
+  ) -> [PaneAgentProgressRow] {
+    ClaudeTaskProgressReader.progressRows(
+      sessionID: sessionID,
+      homeDirectoryURL: claudeTasksHomeDirectoryURL
+    )
   }
 }

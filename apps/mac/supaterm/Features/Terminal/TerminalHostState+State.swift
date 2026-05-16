@@ -524,7 +524,7 @@ extension TerminalHostState {
   }
 
   @discardableResult
-  func recordCodexPanelSnapshot(
+  func recordAgentPanelSnapshot(
     progressRows: [PaneAgentProgressRow],
     sources: [PaneAgentSource],
     for surfaceID: UUID
