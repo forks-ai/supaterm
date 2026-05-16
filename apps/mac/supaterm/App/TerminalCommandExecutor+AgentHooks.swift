@@ -68,6 +68,17 @@ extension TerminalCommandExecutor {
     sessionID: String,
     context: SupatermCLIContext?
   ) {
+    TerminalAgentPanelDiagnostics.log(
+      [
+        "transcript snapshot",
+        "agent=\(agent)",
+        "session=\(sessionID)",
+        "status=\(String(describing: snapshot.status))",
+        "detail=\(snapshot.detail ?? "nil")",
+        "progress=\(snapshot.progressRows.count)",
+        "sources=\(snapshot.sources.count)",
+      ].joined(separator: " ")
+    )
     _ = updateCodexHoverMessages(
       snapshot.hoverMessages,
       replacing: true,
@@ -534,6 +545,16 @@ extension TerminalCommandExecutor {
       sessionID: sessionID,
       context: context
     )
+    TerminalAgentPanelDiagnostics.log(
+      [
+        "panel snapshot candidates",
+        "agent=\(agent)",
+        "session=\(sessionID)",
+        "progress=\(progressRows.count)",
+        "sources=\(sources.count)",
+        "candidates=\(candidateSurfaceIDs.map(TerminalAgentPanelDiagnostics.surface).joined(separator: ","))",
+      ].joined(separator: " ")
+    )
     for surfaceID in candidateSurfaceIDs {
       for entry in registry.activeEntries()
       where entry.terminal.recordCodexPanelSnapshot(
@@ -541,9 +562,15 @@ extension TerminalCommandExecutor {
         sources: sources,
         for: surfaceID
       ) {
+        TerminalAgentPanelDiagnostics.log(
+          "panel snapshot stored surface=\(TerminalAgentPanelDiagnostics.surface(surfaceID))"
+        )
         return true
       }
     }
+    TerminalAgentPanelDiagnostics.log(
+      "panel snapshot not stored agent=\(agent) session=\(sessionID)"
+    )
     return false
   }
 

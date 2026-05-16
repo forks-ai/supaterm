@@ -97,19 +97,26 @@ nonisolated struct TerminalAgentGitClient: Sendable {
   }
 
   nonisolated func snapshot(workingDirectoryPath: String) async -> TerminalAgentGitSnapshot? {
+    TerminalAgentPanelDiagnostics.log("git snapshot start pwd=\(workingDirectoryPath)")
     let workingDirectoryURL = URL(fileURLWithPath: workingDirectoryPath, isDirectory: true)
-    guard let repoRoot = await repoRoot(for: workingDirectoryURL) else { return nil }
+    guard let repoRoot = await repoRoot(for: workingDirectoryURL) else {
+      TerminalAgentPanelDiagnostics.log("git snapshot missing repo pwd=\(workingDirectoryPath)")
+      return nil
+    }
     guard
       let status = try? await runGit(
         arguments: ["-C", repoRoot.path(percentEncoded: false), "status", "--porcelain=v2", "--branch"]
       ), status.status == 0
     else {
+      TerminalAgentPanelDiagnostics.log(
+        "git snapshot status failed repo=\(repoRoot.path(percentEncoded: false))"
+      )
       return nil
     }
     let headURL = Self.headURL(for: repoRoot, fileManager: .default)
     let branchName = Self.branchName(headURL: headURL) ?? "HEAD"
     let changes = await lineChanges(repoRoot: repoRoot, headURL: headURL) ?? (added: 0, removed: 0)
-    return TerminalAgentGitSnapshot(
+    let snapshot = TerminalAgentGitSnapshot(
       repoRoot: repoRoot,
       headURL: headURL,
       branchName: branchName,
@@ -117,6 +124,17 @@ nonisolated struct TerminalAgentGitClient: Sendable {
       removedLineCount: changes.removed,
       hasWorkingTreeChanges: Self.hasWorkingTreeChanges(status.stdout)
     )
+    TerminalAgentPanelDiagnostics.log(
+      [
+        "git snapshot",
+        "repo=\(repoRoot.path(percentEncoded: false))",
+        "branch=\(snapshot.branchName)",
+        "added=\(snapshot.addedLineCount)",
+        "removed=\(snapshot.removedLineCount)",
+        "dirty=\(snapshot.hasWorkingTreeChanges)",
+      ].joined(separator: " ")
+    )
+    return snapshot
   }
 
   nonisolated func repoRoot(for workingDirectoryURL: URL) async -> URL? {
@@ -142,6 +160,9 @@ nonisolated struct TerminalAgentGitClient: Sendable {
     headURL: URL?
   ) async -> (added: Int, removed: Int)? {
     guard !Self.isIndexLocked(headURL: headURL, fileManager: .default) else {
+      TerminalAgentPanelDiagnostics.log(
+        "git diff skipped repo=\(repoRoot.path(percentEncoded: false)) reason=index-lock"
+      )
       return nil
     }
     guard
@@ -155,6 +176,9 @@ nonisolated struct TerminalAgentGitClient: Sendable {
         ]
       ), result.status == 0
     else {
+      TerminalAgentPanelDiagnostics.log(
+        "git diff failed repo=\(repoRoot.path(percentEncoded: false))"
+      )
       return nil
     }
     return Self.parseShortstat(result.stdout)
@@ -332,7 +356,13 @@ nonisolated struct TerminalAgentGithubClient: Sendable {
     repoRoot: URL,
     branchName: String
   ) async -> PaneAgentPullRequestStatus {
+    TerminalAgentPanelDiagnostics.log(
+      "gh pr status start repo=\(repoRoot.path(percentEncoded: false)) branch=\(branchName)"
+    )
     guard let remote = await remoteInfo(repoRoot: repoRoot) else {
+      TerminalAgentPanelDiagnostics.log(
+        "gh pr status unavailable repo=\(repoRoot.path(percentEncoded: false)) reason=no-remote"
+      )
       return .unavailable
     }
     guard
@@ -354,9 +384,29 @@ nonisolated struct TerminalAgentGithubClient: Sendable {
         repoRoot: nil
       ), output.status == 0
     else {
+      TerminalAgentPanelDiagnostics.log(
+        [
+          "gh pr status unavailable",
+          "owner=\(remote.owner)",
+          "repo=\(remote.repo)",
+          "branch=\(branchName)",
+          "reason=query-failed",
+        ].joined(separator: " ")
+      )
       return .unavailable
     }
-    return Self.decodePullRequestStatus(output.stdout)
+    let status = Self.decodePullRequestStatus(output.stdout)
+    TerminalAgentPanelDiagnostics.log(
+      [
+        "gh pr status",
+        "owner=\(remote.owner)",
+        "repo=\(remote.repo)",
+        "branch=\(branchName)",
+        "kind=\(status.kind)",
+        "title=\(status.title)",
+      ].joined(separator: " ")
+    )
+    return status
   }
 
   nonisolated private func remoteInfo(repoRoot: URL) async -> TerminalAgentGithubRemote? {
@@ -366,6 +416,9 @@ nonisolated struct TerminalAgentGithubClient: Sendable {
         repoRoot: repoRoot
       ), output.status == 0
     else {
+      TerminalAgentPanelDiagnostics.log(
+        "gh remote unavailable repo=\(repoRoot.path(percentEncoded: false)) reason=repo-view-failed"
+      )
       return nil
     }
     guard
@@ -374,9 +427,15 @@ nonisolated struct TerminalAgentGithubClient: Sendable {
         from: Data(output.stdout.utf8)
       )
     else {
+      TerminalAgentPanelDiagnostics.log(
+        "gh remote unavailable repo=\(repoRoot.path(percentEncoded: false)) reason=decode-failed"
+      )
       return nil
     }
     guard !response.owner.login.isEmpty, !response.name.isEmpty else {
+      TerminalAgentPanelDiagnostics.log(
+        "gh remote unavailable repo=\(repoRoot.path(percentEncoded: false)) reason=empty-owner-or-name"
+      )
       return nil
     }
     return TerminalAgentGithubRemote(
@@ -520,9 +579,20 @@ final class PaneAgentPortScanner {
   ) {
     let normalizedProcessIDs = Set(processIDs.map(Int.init).filter { $0 > 0 })
     let revision = nextRevision(for: surfaceID)
+    TerminalAgentPanelDiagnostics.log(
+      [
+        "ports update",
+        "surface=\(TerminalAgentPanelDiagnostics.surface(surfaceID))",
+        "roots=\(normalizedProcessIDs.sorted())",
+        "revision=\(revision)",
+      ].joined(separator: " ")
+    )
     cancelBurst(surfaceID)
     periodicTasks.removeValue(forKey: surfaceID)?.cancel()
     guard !normalizedProcessIDs.isEmpty else {
+      TerminalAgentPanelDiagnostics.log(
+        "ports cleared surface=\(TerminalAgentPanelDiagnostics.surface(surfaceID)) reason=no-processes"
+      )
       deliver(surfaceID, [])
       return
     }
@@ -553,6 +623,9 @@ final class PaneAgentPortScanner {
     nextRevision(for: surfaceID)
     cancelBurst(surfaceID)
     periodicTasks.removeValue(forKey: surfaceID)?.cancel()
+    TerminalAgentPanelDiagnostics.log(
+      "ports cleared surface=\(TerminalAgentPanelDiagnostics.surface(surfaceID))"
+    )
     deliver?(surfaceID, [])
   }
 
@@ -589,7 +662,15 @@ final class PaneAgentPortScanner {
   ) async {
     let ports = await Self.scanPorts(rootProcessIDs: processIDs, runner: runner)
     let artifacts = Self.artifacts(for: ports)
-    guard revisions[surfaceID] == revision else { return }
+    guard revisions[surfaceID] == revision else {
+      TerminalAgentPanelDiagnostics.log(
+        "ports ignored surface=\(TerminalAgentPanelDiagnostics.surface(surfaceID)) reason=stale revision=\(revision)"
+      )
+      return
+    }
+    TerminalAgentPanelDiagnostics.log(
+      "ports delivered surface=\(TerminalAgentPanelDiagnostics.surface(surfaceID)) ports=\(ports)"
+    )
     deliver(surfaceID, artifacts)
   }
 
@@ -610,7 +691,11 @@ final class PaneAgentPortScanner {
     rootProcessIDs: Set<Int>,
     runner: TerminalAgentPanelCommandRunner
   ) async -> [Int] {
-    guard !rootProcessIDs.isEmpty else { return [] }
+    guard !rootProcessIDs.isEmpty else {
+      TerminalAgentPanelDiagnostics.log("port scan skipped reason=no-roots")
+      return []
+    }
+    TerminalAgentPanelDiagnostics.log("port scan start roots=\(rootProcessIDs.sorted())")
     guard
       let psResult = try? await runner.run(
         URL(fileURLWithPath: "/bin/ps"),
@@ -618,13 +703,17 @@ final class PaneAgentPortScanner {
         nil
       )
     else {
+      TerminalAgentPanelDiagnostics.log("port scan failed reason=ps")
       return []
     }
     let processIDs = expandProcessTree(
       rootProcessIDs: rootProcessIDs,
       parentByPID: parentMap(fromPSOutput: psResult.stdout)
     )
-    guard !processIDs.isEmpty else { return [] }
+    guard !processIDs.isEmpty else {
+      TerminalAgentPanelDiagnostics.log("port scan empty-process-tree roots=\(rootProcessIDs.sorted())")
+      return []
+    }
     let pids = processIDs.sorted().map(String.init).joined(separator: ",")
     guard
       let lsofResult = try? await runner.run(
@@ -633,9 +722,12 @@ final class PaneAgentPortScanner {
         nil
       )
     else {
+      TerminalAgentPanelDiagnostics.log("port scan failed reason=lsof pids=\(pids)")
       return []
     }
-    return Array(ports(fromLsofOutput: lsofResult.stdout).values.flatMap { $0 }).sorted()
+    let ports = Array(ports(fromLsofOutput: lsofResult.stdout).values.flatMap { $0 }).sorted()
+    TerminalAgentPanelDiagnostics.log("port scan result pids=\(pids) ports=\(ports)")
+    return ports
   }
 
   nonisolated static func artifacts(for ports: [Int]) -> [PaneAgentArtifact] {
@@ -754,6 +846,9 @@ final class TerminalAgentPanelController {
   }
 
   func surfaceFocused(_ surfaceID: UUID) {
+    TerminalAgentPanelDiagnostics.log(
+      "surface focused surface=\(TerminalAgentPanelDiagnostics.surface(surfaceID))"
+    )
     for id in periodicTasks.keys where id != surfaceID {
       periodicTasks.removeValue(forKey: id)?.cancel()
     }
@@ -761,6 +856,9 @@ final class TerminalAgentPanelController {
     let context = terminal?.agentPanelRefreshContext(for: surfaceID)
     updatePortTracking(surfaceID, context: context)
     guard context != nil else {
+      TerminalAgentPanelDiagnostics.log(
+        "surface focused no context surface=\(TerminalAgentPanelDiagnostics.surface(surfaceID))"
+      )
       cancelRefreshTracking(surfaceID)
       return
     }
@@ -769,15 +867,24 @@ final class TerminalAgentPanelController {
   }
 
   func surfacePathChanged(_ surfaceID: UUID) {
+    TerminalAgentPanelDiagnostics.log(
+      "surface path changed surface=\(TerminalAgentPanelDiagnostics.surface(surfaceID))"
+    )
     touch(surfaceID)
     scheduleRefresh(surfaceID, delay: .milliseconds(200))
   }
 
   func surfaceAgentStateChanged(_ surfaceID: UUID) {
+    TerminalAgentPanelDiagnostics.log(
+      "surface agent state changed surface=\(TerminalAgentPanelDiagnostics.surface(surfaceID))"
+    )
     touch(surfaceID)
     let context = terminal?.agentPanelRefreshContext(for: surfaceID)
     updatePortTracking(surfaceID, context: context)
     guard context != nil else {
+      TerminalAgentPanelDiagnostics.log(
+        "surface agent state no context surface=\(TerminalAgentPanelDiagnostics.surface(surfaceID))"
+      )
       cancelRefreshTracking(surfaceID)
       stopHeadWatcher(surfaceID)
       _ = terminal?.clearAgentPanelMetadata(for: surfaceID)
@@ -788,10 +895,16 @@ final class TerminalAgentPanelController {
   }
 
   func surfaceCommandFinished(_ surfaceID: UUID) {
+    TerminalAgentPanelDiagnostics.log(
+      "surface command finished surface=\(TerminalAgentPanelDiagnostics.surface(surfaceID))"
+    )
     clearSurface(surfaceID)
   }
 
   func surfaceRemoved(_ surfaceID: UUID) {
+    TerminalAgentPanelDiagnostics.log(
+      "surface removed surface=\(TerminalAgentPanelDiagnostics.surface(surfaceID))"
+    )
     clearSurface(surfaceID)
   }
 
@@ -808,6 +921,9 @@ final class TerminalAgentPanelController {
 
   private func schedulePeriodicRefresh(_ surfaceID: UUID) {
     guard periodicTasks[surfaceID] == nil else { return }
+    TerminalAgentPanelDiagnostics.log(
+      "periodic refresh scheduled surface=\(TerminalAgentPanelDiagnostics.surface(surfaceID))"
+    )
     periodicTasks[surfaceID] = Task { [weak self] in
       while !Task.isCancelled {
         try? await Task.sleep(for: .seconds(30))
@@ -823,6 +939,14 @@ final class TerminalAgentPanelController {
   ) {
     refreshTasks.removeValue(forKey: surfaceID)?.cancel()
     let revision = surfaceRevisions[surfaceID, default: 0]
+    TerminalAgentPanelDiagnostics.log(
+      [
+        "refresh scheduled",
+        "surface=\(TerminalAgentPanelDiagnostics.surface(surfaceID))",
+        "revision=\(revision)",
+        "delay=\(delay)",
+      ].joined(separator: " ")
+    )
     refreshTasks[surfaceID] = Task { [weak self] in
       if delay != .zero {
         try? await Task.sleep(for: delay)
@@ -836,9 +960,15 @@ final class TerminalAgentPanelController {
     surfaceID: UUID,
     revision: UInt64
   ) async {
+    TerminalAgentPanelDiagnostics.log(
+      "refresh start surface=\(TerminalAgentPanelDiagnostics.surface(surfaceID)) revision=\(revision)"
+    )
     guard let context = terminal?.agentPanelRefreshContext(for: surfaceID),
       let workingDirectoryPath = context.workingDirectoryPath
     else {
+      TerminalAgentPanelDiagnostics.log(
+        "refresh no context or pwd surface=\(TerminalAgentPanelDiagnostics.surface(surfaceID)) revision=\(revision)"
+      )
       storeBranchDetails(nil, surfaceID: surfaceID, revision: revision)
       return
     }
@@ -857,10 +987,25 @@ final class TerminalAgentPanelController {
         pullRequestStatus: pullRequestStatus
       )
     } else {
+      TerminalAgentPanelDiagnostics.log(
+        [
+          "refresh no git snapshot",
+          "surface=\(TerminalAgentPanelDiagnostics.surface(surfaceID))",
+          "pwd=\(workingDirectoryPath)",
+        ].joined(separator: " ")
+      )
       branchDetails = nil
     }
     await MainActor.run {
-      guard self.surfaceRevisions[surfaceID, default: 0] == revision else { return }
+      guard self.surfaceRevisions[surfaceID, default: 0] == revision else {
+        TerminalAgentPanelDiagnostics.log(
+          "refresh ignored stale surface=\(TerminalAgentPanelDiagnostics.surface(surfaceID)) revision=\(revision)"
+        )
+        return
+      }
+      TerminalAgentPanelDiagnostics.log(
+        "refresh store surface=\(TerminalAgentPanelDiagnostics.surface(surfaceID)) hasBranch=\(branchDetails != nil)"
+      )
       self.storeBranchDetails(branchDetails, surfaceID: surfaceID, revision: revision)
       self.configureHeadWatcher(surfaceID: surfaceID, headURL: gitSnapshot?.headURL)
     }
@@ -871,12 +1016,25 @@ final class TerminalAgentPanelController {
     context: TerminalAgentPanelRefreshContext?
   ) {
     guard let context else {
+      TerminalAgentPanelDiagnostics.log(
+        "port tracking clear surface=\(TerminalAgentPanelDiagnostics.surface(surfaceID)) reason=no-context"
+      )
       portScanner.clear(surfaceID: surfaceID) { [weak self] surfaceID, artifacts in
         self?.storeArtifacts(artifacts, surfaceID: surfaceID)
       }
       return
     }
-    portScanner.update(surfaceID: surfaceID, processIDs: context.processIDs) { [weak self] surfaceID, artifacts in
+    TerminalAgentPanelDiagnostics.log(
+      [
+        "port tracking update",
+        "surface=\(TerminalAgentPanelDiagnostics.surface(surfaceID))",
+        "processIDs=\(context.processIDs.sorted())",
+      ].joined(separator: " ")
+    )
+    portScanner.update(
+      surfaceID: surfaceID,
+      processIDs: context.processIDs
+    ) { [weak self] surfaceID, artifacts in
       self?.storeArtifacts(artifacts, surfaceID: surfaceID)
     }
   }
@@ -886,15 +1044,35 @@ final class TerminalAgentPanelController {
     surfaceID: UUID,
     revision: UInt64
   ) {
-    guard surfaceRevisions[surfaceID, default: 0] == revision else { return }
-    guard terminal?.storeAgentPanelBranchDetails(branchDetails, for: surfaceID) == true else { return }
+    guard surfaceRevisions[surfaceID, default: 0] == revision else {
+      TerminalAgentPanelDiagnostics.log(
+        [
+          "branch details ignored",
+          "surface=\(TerminalAgentPanelDiagnostics.surface(surfaceID))",
+          "reason=stale",
+          "revision=\(revision)",
+        ].joined(separator: " ")
+      )
+      return
+    }
+    guard terminal?.storeAgentPanelBranchDetails(branchDetails, for: surfaceID) == true else {
+      TerminalAgentPanelDiagnostics.log(
+        "branch details unchanged surface=\(TerminalAgentPanelDiagnostics.surface(surfaceID))"
+      )
+      return
+    }
   }
 
   private func storeArtifacts(
     _ artifacts: [PaneAgentArtifact],
     surfaceID: UUID
   ) {
-    guard terminal?.storeAgentPanelArtifacts(artifacts, for: surfaceID) == true else { return }
+    guard terminal?.storeAgentPanelArtifacts(artifacts, for: surfaceID) == true else {
+      TerminalAgentPanelDiagnostics.log(
+        "artifacts unchanged surface=\(TerminalAgentPanelDiagnostics.surface(surfaceID)) count=\(artifacts.count)"
+      )
+      return
+    }
   }
 
   @discardableResult
@@ -905,6 +1083,9 @@ final class TerminalAgentPanelController {
   }
 
   private func clearSurface(_ surfaceID: UUID) {
+    TerminalAgentPanelDiagnostics.log(
+      "surface cleared surface=\(TerminalAgentPanelDiagnostics.surface(surfaceID))"
+    )
     touch(surfaceID)
     cancelRefreshTracking(surfaceID)
     stopHeadWatcher(surfaceID)
@@ -920,6 +1101,9 @@ final class TerminalAgentPanelController {
 
   private func configureHeadWatcher(surfaceID: UUID, headURL: URL?) {
     guard let headURL else {
+      TerminalAgentPanelDiagnostics.log(
+        "head watcher stopped surface=\(TerminalAgentPanelDiagnostics.surface(surfaceID)) reason=no-head"
+      )
       stopHeadWatcher(surfaceID)
       return
     }
@@ -930,6 +1114,9 @@ final class TerminalAgentPanelController {
     let path = headURL.path(percentEncoded: false)
     let descriptor = open(path, O_EVTONLY)
     guard descriptor >= 0 else {
+      TerminalAgentPanelDiagnostics.log(
+        "head watcher failed surface=\(TerminalAgentPanelDiagnostics.surface(surfaceID)) path=\(path)"
+      )
       return
     }
     let source = DispatchSource.makeFileSystemObjectSource(
@@ -949,12 +1136,18 @@ final class TerminalAgentPanelController {
     }
     source.resume()
     headWatchers[surfaceID] = HeadWatcher(headURL: headURL, source: source)
+    TerminalAgentPanelDiagnostics.log(
+      "head watcher started surface=\(TerminalAgentPanelDiagnostics.surface(surfaceID)) path=\(path)"
+    )
   }
 
   private func handleHeadEvent(
     surfaceID: UUID,
     event: DispatchSource.FileSystemEvent
   ) {
+    TerminalAgentPanelDiagnostics.log(
+      "head changed surface=\(TerminalAgentPanelDiagnostics.surface(surfaceID)) event=\(event.rawValue)"
+    )
     if event.contains(.delete) || event.contains(.rename) {
       stopHeadWatcher(surfaceID)
     }

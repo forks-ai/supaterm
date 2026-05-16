@@ -542,10 +542,35 @@ struct TerminalSplitTreeView: View {
       searchNeedle: String?,
       size: CGSize
     ) -> Bool {
-      guard let presentation, !presentation.isEmpty else { return false }
-      guard focusedSurfaceID == surfaceID else { return false }
-      guard searchNeedle == nil else { return false }
-      return size.width >= 360 && size.height >= 220
+      let surface = TerminalAgentPanelDiagnostics.surface(surfaceID)
+      guard let presentation, !presentation.isEmpty else {
+        if focusedSurfaceID == surfaceID {
+          TerminalAgentPanelDiagnostics.log("overlay hidden surface=\(surface) reason=no-presentation")
+        }
+        return false
+      }
+      guard focusedSurfaceID == surfaceID else {
+        TerminalAgentPanelDiagnostics.log("overlay hidden surface=\(surface) reason=not-focused")
+        return false
+      }
+      guard searchNeedle == nil else {
+        TerminalAgentPanelDiagnostics.log("overlay hidden surface=\(surface) reason=search")
+        return false
+      }
+      let hasRoom = size.width >= 360 && size.height >= 220
+      TerminalAgentPanelDiagnostics.log(
+        [
+          "overlay evaluated",
+          "surface=\(surface)",
+          "show=\(hasRoom)",
+          "size=\(Int(size.width))x\(Int(size.height))",
+          "progress=\(presentation.progressRows.count)",
+          "branch=\(presentation.branchDetails != nil)",
+          "artifacts=\(presentation.artifacts.count)",
+          "sources=\(presentation.sources.count)",
+        ].joined(separator: " ")
+      )
+      return hasRoom
     }
 
     static func shouldTriggerNotificationPulse(
