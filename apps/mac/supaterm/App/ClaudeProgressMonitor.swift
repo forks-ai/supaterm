@@ -2,7 +2,6 @@ import Foundation
 
 struct ClaudeProgressCursor {
   var transcriptOffset: UInt64
-  var todoRows: [PaneAgentProgressRow] = []
 }
 
 enum ClaudeTaskProgressReader {
@@ -67,24 +66,21 @@ enum ClaudeTaskProgressReader {
 enum ClaudeTodoTranscriptMonitor {
   static func start(
     at path: String
-  ) -> (ClaudeProgressCursor, AgentPanelSnapshot?) {
+  ) -> (cursor: ClaudeProgressCursor, rows: [PaneAgentProgressRow]?) {
     guard let data = read(path: path, from: 0) else {
       return (ClaudeProgressCursor(transcriptOffset: 0), nil)
     }
     let (consumedBytes, rows) = parse(data)
     return (
-      ClaudeProgressCursor(
-        transcriptOffset: UInt64(consumedBytes),
-        todoRows: rows ?? []
-      ),
-      rows.map { AgentPanelSnapshot(progressRows: $0) }
+      ClaudeProgressCursor(transcriptOffset: UInt64(consumedBytes)),
+      rows
     )
   }
 
   static func advance(
     _ cursor: ClaudeProgressCursor,
     at path: String
-  ) -> (ClaudeProgressCursor, AgentPanelSnapshot?)? {
+  ) -> (cursor: ClaudeProgressCursor, rows: [PaneAgentProgressRow]?)? {
     let fileURL = URL(fileURLWithPath: path)
     guard
       let values = try? fileURL.resourceValues(forKeys: [.fileSizeKey]),
@@ -99,11 +95,7 @@ enum ClaudeTodoTranscriptMonitor {
     let (consumedBytes, rows) = parse(data)
     var updatedCursor = cursor
     updatedCursor.transcriptOffset += UInt64(consumedBytes)
-    if let rows {
-      updatedCursor.todoRows = rows
-      return (updatedCursor, AgentPanelSnapshot(progressRows: rows))
-    }
-    return (updatedCursor, nil)
+    return (updatedCursor, rows)
   }
 
   private static func read(path: String, from offset: UInt64) -> Data? {

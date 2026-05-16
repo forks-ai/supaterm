@@ -275,22 +275,17 @@ final class TerminalAgentSessionStore {
   ) -> Bool {
     let key = SessionKey(agent: .claude, sessionID: sessionID)
     guard let session = sessions[key] else { return false }
-    let initialTaskRows = claudeTaskProgressRows(sessionID: sessionID)
-    var initialCursor = ClaudeProgressCursor(transcriptOffset: 0)
-    if let transcriptPath = session.transcriptPath {
-      let start = ClaudeTodoTranscriptMonitor.start(at: transcriptPath)
-      initialCursor = start.0
-    }
-    var todoRows = initialCursor.todoRows
-    var currentSnapshot = AgentPanelSnapshot(
-      progressRows: initialTaskRows.isEmpty ? todoRows : initialTaskRows
-    )
+    let initialProgress =
+      session.transcriptPath.map { ClaudeTodoTranscriptMonitor.start(at: $0) }
+      ?? (cursor: ClaudeProgressCursor(transcriptOffset: 0), rows: nil)
+    var todoRows = initialProgress.rows ?? []
+    var currentSnapshot = claudePanelSnapshot(sessionID: sessionID, todoRows: todoRows)
     agentPanelMonitorTasks[key]?.cancel()
     handleAgentPanelSnapshot(currentSnapshot, key: key, sessionID: sessionID, context: context)
     let interval = transcriptPollInterval
     let sleep = self.sleep
     agentPanelMonitorTasks[key] = Task { [weak self] in
-      var cursor = initialCursor
+      var cursor = initialProgress.cursor
       while !Task.isCancelled {
         try? await sleep(interval)
         guard !Task.isCancelled else { return }
@@ -298,15 +293,12 @@ final class TerminalAgentSessionStore {
         if let transcriptPath = self.sessions[key]?.transcriptPath,
           let result = ClaudeTodoTranscriptMonitor.advance(cursor, at: transcriptPath)
         {
-          cursor = result.0
-          if let snapshot = result.1 {
-            todoRows = snapshot.progressRows
+          cursor = result.cursor
+          if let rows = result.rows {
+            todoRows = rows
           }
         }
-        let taskRows = self.claudeTaskProgressRows(sessionID: sessionID)
-        let nextSnapshot = AgentPanelSnapshot(
-          progressRows: taskRows.isEmpty ? todoRows : taskRows
-        )
+        let nextSnapshot = self.claudePanelSnapshot(sessionID: sessionID, todoRows: todoRows)
         guard nextSnapshot != currentSnapshot else {
           continue
         }
@@ -461,5 +453,13 @@ final class TerminalAgentSessionStore {
       sessionID: sessionID,
       homeDirectoryURL: claudeTasksHomeDirectoryURL
     )
+  }
+
+  private func claudePanelSnapshot(
+    sessionID: String,
+    todoRows: [PaneAgentProgressRow]
+  ) -> AgentPanelSnapshot {
+    let taskRows = claudeTaskProgressRows(sessionID: sessionID)
+    return AgentPanelSnapshot(progressRows: taskRows.isEmpty ? todoRows : taskRows)
   }
 }

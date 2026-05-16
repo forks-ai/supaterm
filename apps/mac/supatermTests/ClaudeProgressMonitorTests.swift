@@ -71,7 +71,7 @@ struct ClaudeProgressMonitorTests {
     let result = ClaudeTodoTranscriptMonitor.start(at: transcriptURL.path)
 
     #expect(
-      result.1?.progressRows == [
+      result.rows == [
         PaneAgentProgressRow(
           id: "claude-todo:0:Read transcript",
           title: "Read transcript",
@@ -102,9 +102,9 @@ struct ClaudeProgressMonitorTests {
     try handle.seekToEnd()
     try handle.write(contentsOf: Data(#"{"type":"assistant"}"#.utf8))
 
-    let result = try #require(ClaudeTodoTranscriptMonitor.advance(start.0, at: transcriptURL.path))
+    let result = try #require(ClaudeTodoTranscriptMonitor.advance(start.cursor, at: transcriptURL.path))
 
-    #expect(result.0.transcriptOffset == start.0.transcriptOffset)
-    #expect(result.1 == nil)
+    #expect(result.cursor.transcriptOffset == start.cursor.transcriptOffset)
+    #expect(result.rows == nil)
   }
 }
