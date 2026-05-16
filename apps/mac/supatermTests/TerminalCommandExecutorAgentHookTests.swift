@@ -38,6 +38,34 @@ struct TerminalCommandExecutorAgentHookTests {
     #expect(harness.host.agentActivity(for: harness.tabID) == nil)
   }
   @Test
+  func claudeSessionStartStoresTaskProgressRows() throws {
+    let homeDirectoryURL = try ClaudeProgressFixtures.makeHomeDirectory()
+    defer { try? FileManager.default.removeItem(at: homeDirectoryURL) }
+    try ClaudeProgressFixtures.writeTask(
+      id: "task-1",
+      subject: "Wire progress rows",
+      status: "in_progress",
+      sessionID: ClaudeHookFixtures.sessionID,
+      homeDirectoryURL: homeDirectoryURL
+    )
+    let harness = try makeClaudeHookHarness(claudeTasksHomeDirectoryURL: homeDirectoryURL)
+
+    _ = try harness.commandExecutor.handleAgentHook(
+      ClaudeHookFixtures.request(ClaudeHookFixtures.sessionStart, context: harness.context)
+    )
+
+    #expect(harness.host.agentActivity(for: harness.tabID) == nil)
+    #expect(
+      harness.host.agentPanelPresentation(for: harness.context.surfaceID)?.progressRows == [
+        PaneAgentProgressRow(
+          id: "claude-task:task-1",
+          title: "Wire progress rows",
+          status: .running
+        )
+      ]
+    )
+  }
+  @Test
   func claudePreToolUseMarksTabRunning() throws {
     let harness = try makeClaudeHookHarness()
 
@@ -254,6 +282,30 @@ struct TerminalCommandExecutorAgentHookTests {
     #expect(harness.host.unreadNotificationCount(for: harness.tabID) == 1)
     #expect(harness.host.unreadNotifiedSurfaceIDs(in: harness.tabID) == Set([harness.context.surfaceID]))
     #expect(harness.host.latestNotificationText(for: harness.tabID) == "Done.")
+  }
+  @Test
+  func claudeSessionEndClearsTaskProgressRows() throws {
+    let homeDirectoryURL = try ClaudeProgressFixtures.makeHomeDirectory()
+    defer { try? FileManager.default.removeItem(at: homeDirectoryURL) }
+    try ClaudeProgressFixtures.writeTask(
+      id: "task-1",
+      subject: "Wire progress rows",
+      status: "completed",
+      sessionID: ClaudeHookFixtures.sessionID,
+      homeDirectoryURL: homeDirectoryURL
+    )
+    let harness = try makeClaudeHookHarness(claudeTasksHomeDirectoryURL: homeDirectoryURL)
+
+    _ = try harness.commandExecutor.handleAgentHook(
+      ClaudeHookFixtures.request(ClaudeHookFixtures.sessionStart, context: harness.context)
+    )
+    #expect(harness.host.agentPanelPresentation(for: harness.context.surfaceID) != nil)
+
+    _ = try harness.commandExecutor.handleAgentHook(
+      ClaudeHookFixtures.request(ClaudeHookFixtures.sessionEnd)
+    )
+
+    #expect(harness.host.agentPanelPresentation(for: harness.context.surfaceID) == nil)
   }
   @Test
   func staleStoredClaudeSessionIsClearedAfterContextPaneDisappears() throws {

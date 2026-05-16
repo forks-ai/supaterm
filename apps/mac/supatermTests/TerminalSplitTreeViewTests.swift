@@ -155,6 +155,54 @@ struct TerminalSplitTreeViewTests {
   }
 
   @Test
+  func agentPanelShowsForPaneWithPresentationRoomAndNoSearch() {
+    let focusedID = UUID()
+    let agentPaneID = UUID()
+    let presentation = PaneAgentPanelPresentation(
+      progressRows: [
+        PaneAgentProgressRow(id: "1", title: "Run tests", status: .running)
+      ]
+    )
+
+    #expect(
+      TerminalSplitTreeView.LeafView.shouldShowAgentPanel(
+        presentation: presentation,
+        focusedSurfaceID: focusedID,
+        surfaceID: focusedID,
+        searchNeedle: nil,
+        size: CGSize(width: 420, height: 260)
+      )
+    )
+    #expect(
+      TerminalSplitTreeView.LeafView.shouldShowAgentPanel(
+        presentation: presentation,
+        focusedSurfaceID: focusedID,
+        surfaceID: agentPaneID,
+        searchNeedle: nil,
+        size: CGSize(width: 420, height: 260)
+      )
+    )
+    #expect(
+      !TerminalSplitTreeView.LeafView.shouldShowAgentPanel(
+        presentation: presentation,
+        focusedSurfaceID: focusedID,
+        surfaceID: focusedID,
+        searchNeedle: "query",
+        size: CGSize(width: 420, height: 260)
+      )
+    )
+    #expect(
+      !TerminalSplitTreeView.LeafView.shouldShowAgentPanel(
+        presentation: presentation,
+        focusedSurfaceID: focusedID,
+        surfaceID: focusedID,
+        searchNeedle: nil,
+        size: CGSize(width: 320, height: 260)
+      )
+    )
+  }
+
+  @Test
   func horizontalSplitDropsInnerLeadingAndTrailingEdges() {
     let outerEdges: TerminalSplitTreeView.OuterEdges = .all
 

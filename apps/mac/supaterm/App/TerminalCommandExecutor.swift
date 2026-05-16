@@ -16,6 +16,7 @@ final class TerminalCommandExecutor: TerminalAgentSessionStoreDelegate {
     registry: TerminalWindowRegistry,
     agentRunningTimeout: Duration = .seconds(15),
     transcriptPollInterval: Duration = .seconds(1),
+    claudeTasksHomeDirectoryURL: URL = FileManager.default.homeDirectoryForCurrentUser,
     clock: C = ContinuousClock()
   ) {
     self.registry = registry
@@ -25,6 +26,7 @@ final class TerminalCommandExecutor: TerminalAgentSessionStoreDelegate {
     agentSessionStore = TerminalAgentSessionStore(
       agentRunningTimeout: agentRunningTimeout,
       transcriptPollInterval: transcriptPollInterval,
+      claudeTasksHomeDirectoryURL: claudeTasksHomeDirectoryURL,
       sleep: sleep
     )
     agentSessionStore.delegate = self
