@@ -8,15 +8,15 @@ let ghosttyBuildScriptPath: Path = "scripts/build-ghostty.sh"
 
 func tuistInspectScript(_ action: String) -> String {
   """
-  if [ -x "$HOME/.local/bin/mise" ]; then
-    "$HOME/.local/bin/mise" x -C "$SRCROOT" -- tuist inspect \(action)
-  elif [ -x "/opt/homebrew/bin/mise" ]; then
-    /opt/homebrew/bin/mise x -C "$SRCROOT" -- tuist inspect \(action)
-  elif [ -x "/usr/local/bin/mise" ]; then
-    /usr/local/bin/mise x -C "$SRCROOT" -- tuist inspect \(action)
-  else
-    mise x -C "$SRCROOT" -- tuist inspect \(action)
-  fi
+  for mise in "$HOME/.local/bin/mise" /opt/homebrew/bin/mise /usr/local/bin/mise mise; do
+    if command -v "$mise" >/dev/null 2>&1; then
+      "$mise" x -C "$SRCROOT" -- tuist inspect \(action)
+      exit $?
+    fi
+  done
+
+  echo "mise not found" >&2
+  exit 127
   """
 }
 
