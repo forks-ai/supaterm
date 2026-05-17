@@ -62,7 +62,7 @@ struct TerminalHostStateSessionRestoreTests {
       host.selectedSurfaceView?.bridge.state.pwd = restoredPathString
 
       _ = try host.createPane(
-      TerminalCreatePaneRequest(
+        TerminalCreatePaneRequest(
           startupCommand: nil,
           direction: .right,
           focus: true,
@@ -78,7 +78,7 @@ struct TerminalHostStateSessionRestoreTests {
       host.handleCommand(.togglePinned(secondSpaceInitialTabID))
 
       _ = try host.createTab(
-      TerminalCreateTabRequest(
+        TerminalCreateTabRequest(
           startupCommand: nil,
           cwd: restoredPathString,
           focus: false,

@@ -181,21 +181,31 @@ struct GhosttyRuntimeTests {
       app.delegate = previousDelegate
     }
 
-    #expect(GhosttyRuntime.dispatchAppAction(ghostty_action_s(
-      tag: GHOSTTY_ACTION_NEW_WINDOW,
-      action: ghostty_action_u())))
-    #expect(GhosttyRuntime.dispatchAppAction(ghostty_action_s(
-      tag: GHOSTTY_ACTION_CLOSE_ALL_WINDOWS,
-      action: ghostty_action_u())))
-    #expect(GhosttyRuntime.dispatchAppAction(ghostty_action_s(
-      tag: GHOSTTY_ACTION_CHECK_FOR_UPDATES,
-      action: ghostty_action_u())))
-    #expect(GhosttyRuntime.dispatchAppAction(ghostty_action_s(
-      tag: GHOSTTY_ACTION_OPEN_CONFIG,
-      action: ghostty_action_u())))
-    #expect(GhosttyRuntime.dispatchAppAction(ghostty_action_s(
-      tag: GHOSTTY_ACTION_TOGGLE_VISIBILITY,
-      action: ghostty_action_u())))
+    #expect(
+      GhosttyRuntime.dispatchAppAction(
+        ghostty_action_s(
+          tag: GHOSTTY_ACTION_NEW_WINDOW,
+          action: ghostty_action_u())))
+    #expect(
+      GhosttyRuntime.dispatchAppAction(
+        ghostty_action_s(
+          tag: GHOSTTY_ACTION_CLOSE_ALL_WINDOWS,
+          action: ghostty_action_u())))
+    #expect(
+      GhosttyRuntime.dispatchAppAction(
+        ghostty_action_s(
+          tag: GHOSTTY_ACTION_CHECK_FOR_UPDATES,
+          action: ghostty_action_u())))
+    #expect(
+      GhosttyRuntime.dispatchAppAction(
+        ghostty_action_s(
+          tag: GHOSTTY_ACTION_OPEN_CONFIG,
+          action: ghostty_action_u())))
+    #expect(
+      GhosttyRuntime.dispatchAppAction(
+        ghostty_action_s(
+          tag: GHOSTTY_ACTION_TOGGLE_VISIBILITY,
+          action: ghostty_action_u())))
     #expect(GhosttyRuntime.dispatchAppAction(ghostty_action_s(tag: GHOSTTY_ACTION_QUIT, action: ghostty_action_u())))
 
     #expect(delegate.newWindowCount == 1)
@@ -208,9 +218,11 @@ struct GhosttyRuntimeTests {
 
   @Test
   func dispatchAppActionReturnsFalseForUnsupportedActions() {
-    #expect(!GhosttyRuntime.dispatchAppAction(ghostty_action_s(
-      tag: GHOSTTY_ACTION_PRESENT_TERMINAL,
-      action: ghostty_action_u())))
+    #expect(
+      !GhosttyRuntime.dispatchAppAction(
+        ghostty_action_s(
+          tag: GHOSTTY_ACTION_PRESENT_TERMINAL,
+          action: ghostty_action_u())))
   }
 
   @Test

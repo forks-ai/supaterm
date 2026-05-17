@@ -18,7 +18,7 @@ struct TerminalHostStatePaneCreationTests {
       let paneID = try #require(host.selectedSurfaceView?.id)
 
       _ = try host.createPane(
-      TerminalCreatePaneRequest(
+        TerminalCreatePaneRequest(
           startupCommand: nil,
           direction: .right,
           focus: false,
@@ -46,7 +46,7 @@ struct TerminalHostStatePaneCreationTests {
       let paneID = try #require(host.selectedSurfaceView?.id)
 
       _ = try host.createPane(
-      TerminalCreatePaneRequest(
+        TerminalCreatePaneRequest(
           startupCommand: nil,
           direction: .right,
           focus: false,
