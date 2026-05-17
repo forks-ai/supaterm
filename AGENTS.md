@@ -42,6 +42,7 @@ make web-build          # production build
 
 - When logic changes in a Reducer, always add tests
 - Only spawned a new worktree if the user asked for it, run make worktree-create WORKTREE="name-of-the-work-tree" to create it.
+- Lucide icons may be used in the macOS app; fetch them with `apps/mac/scripts/fetch-lucide-icon.sh <icon-name>`.
 
 ## Terminology
 

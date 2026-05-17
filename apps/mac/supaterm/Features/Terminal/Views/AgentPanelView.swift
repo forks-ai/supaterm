@@ -23,7 +23,7 @@ struct AgentPanelView: View {
         section("Branch details") {
           VStack(alignment: .leading, spacing: 6) {
             valueRow(
-              symbol: "arrow.triangle.branch",
+              icon: .asset("git-branch"),
               title: branchDetails.branchName
             )
             changesRow(
@@ -42,7 +42,7 @@ struct AgentPanelView: View {
         section("Artifacts") {
           VStack(alignment: .leading, spacing: 6) {
             ForEach(presentation.artifacts) { artifact in
-              linkRow(symbol: "network", title: artifact.title, url: artifact.url)
+              linkRow(icon: .system("network"), title: artifact.title, url: artifact.url)
             }
           }
         }
@@ -52,7 +52,7 @@ struct AgentPanelView: View {
         section("Sources") {
           VStack(alignment: .leading, spacing: 6) {
             ForEach(presentation.sources) { source in
-              valueRow(symbol: sourceSymbol(source), title: source.title)
+              valueRow(icon: .system(sourceSymbol(source)), title: source.title)
             }
           }
         }
@@ -103,16 +103,12 @@ struct AgentPanelView: View {
   }
 
   private func valueRow(
-    symbol: String,
+    icon: AgentPanelIcon,
     title: String,
-    symbolColor: Color? = nil
+    iconColor: Color? = nil
   ) -> some View {
     HStack(spacing: 7) {
-      Image(systemName: symbol)
-        .font(.system(size: 11, weight: .medium))
-        .foregroundStyle(symbolColor ?? palette.secondaryText)
-        .frame(width: 14)
-        .accessibilityHidden(true)
+      rowIcon(icon, color: iconColor ?? palette.secondaryText)
       Text(title)
         .font(.system(size: 12, weight: .medium))
         .foregroundStyle(palette.primaryText)
@@ -143,29 +139,26 @@ struct AgentPanelView: View {
 
   @ViewBuilder
   private func pullRequestRow(_ status: PaneAgentPullRequestStatus) -> some View {
-    let symbol = pullRequestSymbol(status.kind)
+    let icon = pullRequestIcon(status.kind)
     let color = pullRequestColor(status.kind)
     if let url = status.url {
-      linkRow(symbol: symbol, title: status.title, url: url, symbolColor: color)
+      linkRow(icon: icon, title: status.title, url: url, iconColor: color)
     } else {
-      valueRow(symbol: symbol, title: status.title, symbolColor: color)
+      valueRow(icon: icon, title: status.title, iconColor: color)
     }
   }
 
   private func linkRow(
-    symbol: String,
+    icon: AgentPanelIcon,
     title: String,
     url: URL,
-    symbolColor: Color? = nil
+    iconColor: Color? = nil
   ) -> some View {
     Button {
       openURL(url)
     } label: {
       HStack(spacing: 7) {
-        Image(systemName: symbol)
-          .font(.system(size: 11, weight: .medium))
-          .foregroundStyle(symbolColor ?? palette.secondaryText)
-          .frame(width: 14)
+        rowIcon(icon, color: iconColor ?? palette.secondaryText)
         Text(title)
           .font(.system(size: 12, weight: .medium))
           .foregroundStyle(palette.primaryText)
@@ -181,6 +174,31 @@ struct AgentPanelView: View {
     }
     .buttonStyle(.plain)
     .accessibilityLabel(title)
+  }
+
+  @ViewBuilder
+  private func rowIcon(
+    _ icon: AgentPanelIcon,
+    color: Color
+  ) -> some View {
+    switch icon {
+    case .asset(let name):
+      Image(name)
+        .renderingMode(.template)
+        .resizable()
+        .aspectRatio(contentMode: .fit)
+        .frame(width: 13, height: 13)
+        .frame(width: 14)
+        .foregroundStyle(color)
+        .accessibilityHidden(true)
+
+    case .system(let name):
+      Image(systemName: name)
+        .font(.system(size: 11, weight: .medium))
+        .foregroundStyle(color)
+        .frame(width: 14)
+        .accessibilityHidden(true)
+    }
   }
 
   private func pullRequestChecksRows(_ checks: PaneAgentPullRequestChecks) -> some View {
@@ -261,18 +279,14 @@ struct AgentPanelView: View {
     }
   }
 
-  private func pullRequestSymbol(_ kind: PaneAgentPullRequestStatus.Kind) -> String {
+  private func pullRequestIcon(_ kind: PaneAgentPullRequestStatus.Kind) -> AgentPanelIcon {
     switch kind {
     case .unavailable:
-      return "exclamationmark.circle"
+      return .system("exclamationmark.circle")
     case .none:
-      return "plus.circle"
-    case .open, .draft:
-      return "arrow.up.right.circle"
-    case .merged:
-      return "checkmark.circle.fill"
-    case .closed:
-      return "xmark.circle"
+      return .system("plus.circle")
+    case .open, .draft, .merged, .closed:
+      return .asset("git-pull-request-arrow")
     }
   }
 
@@ -312,6 +326,11 @@ struct AgentPanelView: View {
       return "globe"
     }
   }
+}
+
+private enum AgentPanelIcon {
+  case asset(String)
+  case system(String)
 }
 
 private struct PullRequestChecksRingView: View {
