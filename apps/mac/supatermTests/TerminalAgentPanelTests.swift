@@ -592,6 +592,18 @@ struct TerminalAgentPanelTests {
     ]
     #expect(checks.itemCounts == expectedCounts)
     #expect(checks.title == "Checks pending (7)")
+    #expect(!checks.isEmpty)
+  }
+
+  @Test
+  func pullRequestChecksIsEmptyWhenTotalCountIsZero() {
+    let checks = PaneAgentPullRequestChecks(
+      status: .passing,
+      totalCount: 0,
+      items: []
+    )
+
+    #expect(checks.isEmpty)
   }
 
   @Test

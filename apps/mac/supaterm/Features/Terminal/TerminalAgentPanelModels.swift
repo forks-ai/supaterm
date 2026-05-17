@@ -105,6 +105,10 @@ nonisolated struct PaneAgentPullRequestChecks: Equatable, Sendable {
     self.items = items
   }
 
+  var isEmpty: Bool {
+    totalCount == 0
+  }
+
   var title: String {
     if totalCount == 0 {
       return "Checks (0)"
