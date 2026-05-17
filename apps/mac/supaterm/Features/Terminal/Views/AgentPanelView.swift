@@ -30,10 +30,6 @@ struct AgentPanelView: View {
               addedLineCount: branchDetails.addedLineCount,
               removedLineCount: branchDetails.removedLineCount
             )
-            valueRow(
-              symbol: branchDetails.hasWorkingTreeChanges ? "circle.fill" : "checkmark.circle",
-              title: branchDetails.hasWorkingTreeChanges ? "Uncommitted changes" : "Working tree clean"
-            )
             pullRequestRow(branchDetails.pullRequestStatus)
             if let checks = branchDetails.pullRequestStatus.checks {
               pullRequestChecksRows(checks)

@@ -30,7 +30,6 @@ nonisolated struct PaneAgentBranchDetails: Equatable, Sendable {
   let branchName: String
   let addedLineCount: Int
   let removedLineCount: Int
-  let hasWorkingTreeChanges: Bool
   let pullRequestStatus: PaneAgentPullRequestStatus
 }
 

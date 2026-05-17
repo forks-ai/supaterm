@@ -47,8 +47,7 @@ struct TerminalAgentPanelTests {
           headURL: nil,
           branchName: "main",
           addedLineCount: 1,
-          removedLineCount: 1,
-          hasWorkingTreeChanges: true
+          removedLineCount: 1
         )
       }
       let githubClient = TerminalAgentGithubClient { _, branchName in
@@ -114,8 +113,7 @@ struct TerminalAgentPanelTests {
           headURL: nil,
           branchName: "main",
           addedLineCount: 12,
-          removedLineCount: 3,
-          hasWorkingTreeChanges: true
+          removedLineCount: 3
         )
       }
       let githubClient = TerminalAgentGithubClient { _, branchName in
@@ -176,27 +174,6 @@ struct TerminalAgentPanelTests {
   @Test
   func shortstatParserHandlesEmptyDiff() {
     #expect(TerminalAgentGitClient.parseShortstat("") == (added: 0, removed: 0))
-  }
-
-  @Test
-  func porcelainStatusDetectsWorkingTreeChanges() {
-    #expect(
-      TerminalAgentGitClient.hasWorkingTreeChanges(
-        """
-        # branch.oid abc
-        # branch.head main
-        1 .M N... 100644 100644 100644 abc abc file.swift
-        """
-      )
-    )
-    #expect(
-      !TerminalAgentGitClient.hasWorkingTreeChanges(
-        """
-        # branch.oid abc
-        # branch.head main
-        """
-      )
-    )
   }
 
   @Test

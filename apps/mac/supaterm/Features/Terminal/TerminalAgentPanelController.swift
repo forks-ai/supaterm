@@ -105,7 +105,6 @@ nonisolated struct TerminalAgentGitSnapshot: Equatable, Sendable {
   let branchName: String
   let addedLineCount: Int
   let removedLineCount: Int
-  let hasWorkingTreeChanges: Bool
 }
 
 nonisolated struct TerminalAgentGitClient: Sendable {
@@ -132,16 +131,6 @@ nonisolated struct TerminalAgentGitClient: Sendable {
       TerminalAgentPanelDiagnostics.log("git snapshot missing repo pwd=\(workingDirectoryPath)")
       return nil
     }
-    guard
-      let status = try? await runGit(
-        arguments: ["-C", repoRoot.path(percentEncoded: false), "status", "--porcelain=v2", "--branch"]
-      ), status.status == 0
-    else {
-      TerminalAgentPanelDiagnostics.log(
-        "git snapshot status failed repo=\(repoRoot.path(percentEncoded: false))"
-      )
-      return nil
-    }
     let headURL = Self.headURL(for: repoRoot, fileManager: .default)
     let branchName = Self.branchName(headURL: headURL) ?? "HEAD"
     let changes = await lineChanges(repoRoot: repoRoot, headURL: headURL) ?? (added: 0, removed: 0)
@@ -150,8 +139,7 @@ nonisolated struct TerminalAgentGitClient: Sendable {
       headURL: headURL,
       branchName: branchName,
       addedLineCount: changes.added,
-      removedLineCount: changes.removed,
-      hasWorkingTreeChanges: Self.hasWorkingTreeChanges(status.stdout)
+      removedLineCount: changes.removed
     )
     TerminalAgentPanelDiagnostics.log(
       [
@@ -160,7 +148,6 @@ nonisolated struct TerminalAgentGitClient: Sendable {
         "branch=\(snapshot.branchName)",
         "added=\(snapshot.addedLineCount)",
         "removed=\(snapshot.removedLineCount)",
-        "dirty=\(snapshot.hasWorkingTreeChanges)",
       ].joined(separator: " ")
     )
     return snapshot
@@ -233,12 +220,6 @@ nonisolated struct TerminalAgentGitClient: Sendable {
       removed = Int(match.1) ?? 0
     }
     return (added, removed)
-  }
-
-  nonisolated static func hasWorkingTreeChanges(_ statusOutput: String) -> Bool {
-    statusOutput
-      .split(whereSeparator: \.isNewline)
-      .contains { !$0.hasPrefix("#") }
   }
 
   nonisolated static func branchName(headURL: URL?) -> String? {
@@ -1211,7 +1192,6 @@ final class TerminalAgentPanelController {
         branchName: gitSnapshot.branchName,
         addedLineCount: pullRequestStatus.addedLineCount ?? gitSnapshot.addedLineCount,
         removedLineCount: pullRequestStatus.removedLineCount ?? gitSnapshot.removedLineCount,
-        hasWorkingTreeChanges: gitSnapshot.hasWorkingTreeChanges,
         pullRequestStatus: pullRequestStatus
       )
     } else {
