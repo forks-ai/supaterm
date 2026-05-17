@@ -431,6 +431,13 @@ let project = Project(
         targets: [
           .target("supaterm"),
         ],
+        postActions: [
+          .executionAction(
+            title: "Push build insights",
+            scriptText: "$HOME/.local/bin/mise x -C $SRCROOT -- tuist inspect build",
+            target: .target("supaterm")
+          ),
+        ],
         runPostActionsOnFailure: true
       ),
       testAction: .targets(
@@ -438,7 +445,14 @@ let project = Project(
           .testableTarget(target: .target("supatermTests")),
         ],
         configuration: .debug,
-        expandVariableFromTarget: .target("supaterm")
+        expandVariableFromTarget: .target("supaterm"),
+        postActions: [
+          .executionAction(
+            title: "Push test insights",
+            scriptText: "$HOME/.local/bin/mise x -C $SRCROOT -- tuist inspect test",
+            target: .target("supatermTests")
+          ),
+        ]
       ),
       runAction: .runAction(
         configuration: .debug,
