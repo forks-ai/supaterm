@@ -91,6 +91,8 @@ jobs:
       - run: make mac-export-archive
       - name: Re-sign frameworks
         run: bash ./.github/scripts/resign_exported_app.sh apps/mac/build/export
+      - run: make mac-tuist-auth
+      - run: make mac-inspect-bundle BUNDLE_INSPECTION_BUNDLE=build/export/supaterm.app BUNDLE_INSPECTION_FLAGS=
       - name: Store notarization credentials
         run: |
           echo "$APPLE_NOTARIZATION_KEY" > notarization_key.p8
