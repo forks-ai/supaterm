@@ -7,6 +7,25 @@ nonisolated struct TerminalAgentPanelRefreshContext: Equatable, Sendable {
   let processIDs: Set<Int32>
 }
 
+nonisolated struct TerminalAgentPanelWorkspaceKey: Equatable, Hashable, Sendable {
+  let workingDirectoryPath: String
+
+  init?(workingDirectoryPath: String?) {
+    guard
+      let workingDirectoryPath = workingDirectoryPath?.trimmingCharacters(in: .whitespacesAndNewlines),
+      !workingDirectoryPath.isEmpty
+    else {
+      return nil
+    }
+    self.workingDirectoryPath = URL(
+      fileURLWithPath: workingDirectoryPath,
+      isDirectory: true
+    )
+    .standardizedFileURL
+    .path(percentEncoded: false)
+  }
+}
+
 nonisolated struct TerminalAgentPanelCommandResult: Equatable, Sendable {
   let status: Int32
   let stdout: String
@@ -91,12 +110,22 @@ nonisolated struct TerminalAgentGitSnapshot: Equatable, Sendable {
 
 nonisolated struct TerminalAgentGitClient: Sendable {
   let runner: TerminalAgentPanelCommandRunner
+  private let snapshotProvider: (@Sendable (String) async -> TerminalAgentGitSnapshot?)?
 
   init(runner: TerminalAgentPanelCommandRunner = .live) {
     self.runner = runner
+    snapshotProvider = nil
+  }
+
+  init(snapshot: @escaping @Sendable (String) async -> TerminalAgentGitSnapshot?) {
+    runner = .live
+    snapshotProvider = snapshot
   }
 
   nonisolated func snapshot(workingDirectoryPath: String) async -> TerminalAgentGitSnapshot? {
+    if let snapshotProvider {
+      return await snapshotProvider(workingDirectoryPath)
+    }
     TerminalAgentPanelDiagnostics.log("git snapshot start pwd=\(workingDirectoryPath)")
     let workingDirectoryURL = URL(fileURLWithPath: workingDirectoryPath, isDirectory: true)
     guard let repoRoot = await repoRoot(for: workingDirectoryURL) else {
@@ -343,6 +372,7 @@ actor TerminalAgentGithubExecutableResolver {
 nonisolated struct TerminalAgentGithubClient: Sendable {
   let runner: TerminalAgentPanelCommandRunner
   let resolver: TerminalAgentGithubExecutableResolver
+  private let pullRequestStatusProvider: (@Sendable (URL, String) async -> PaneAgentPullRequestStatus)?
 
   init(
     runner: TerminalAgentPanelCommandRunner = .live,
@@ -350,12 +380,24 @@ nonisolated struct TerminalAgentGithubClient: Sendable {
   ) {
     self.runner = runner
     self.resolver = resolver
+    pullRequestStatusProvider = nil
+  }
+
+  init(
+    pullRequestStatus: @escaping @Sendable (URL, String) async -> PaneAgentPullRequestStatus
+  ) {
+    runner = .live
+    resolver = TerminalAgentGithubExecutableResolver()
+    pullRequestStatusProvider = pullRequestStatus
   }
 
   nonisolated func pullRequestStatus(
     repoRoot: URL,
     branchName: String
   ) async -> PaneAgentPullRequestStatus {
+    if let pullRequestStatusProvider {
+      return await pullRequestStatusProvider(repoRoot, branchName)
+    }
     TerminalAgentPanelDiagnostics.log(
       "gh pr status start repo=\(repoRoot.path(percentEncoded: false)) branch=\(branchName)"
     )
@@ -983,12 +1025,15 @@ final class TerminalAgentPanelController {
   private let gitClient: TerminalAgentGitClient
   private let githubClient: TerminalAgentGithubClient
   private let portScanner: PaneAgentPortScanner
-  private var surfaceRevisions: [UUID: UInt64] = [:]
-  private var refreshTasks: [UUID: Task<Void, Never>] = [:]
-  private var periodicTasks: [UUID: Task<Void, Never>] = [:]
-  private var branchDebounceTasks: [UUID: Task<Void, Never>] = [:]
-  private var filesDebounceTasks: [UUID: Task<Void, Never>] = [:]
-  private var headWatchers: [UUID: HeadWatcher] = [:]
+  private var workspaceKeysBySurfaceID: [UUID: TerminalAgentPanelWorkspaceKey] = [:]
+  private var surfaceIDsByWorkspaceKey: [TerminalAgentPanelWorkspaceKey: Set<UUID>] = [:]
+  private var workspaceRevisions: [TerminalAgentPanelWorkspaceKey: UInt64] = [:]
+  private var branchDetailsByWorkspaceKey: [TerminalAgentPanelWorkspaceKey: PaneAgentBranchDetails] = [:]
+  private var refreshTasks: [TerminalAgentPanelWorkspaceKey: Task<Void, Never>] = [:]
+  private var periodicTasks: [TerminalAgentPanelWorkspaceKey: Task<Void, Never>] = [:]
+  private var branchDebounceTasks: [TerminalAgentPanelWorkspaceKey: Task<Void, Never>] = [:]
+  private var filesDebounceTasks: [TerminalAgentPanelWorkspaceKey: Task<Void, Never>] = [:]
+  private var headWatchers: [TerminalAgentPanelWorkspaceKey: HeadWatcher] = [:]
 
   init(
     terminal: TerminalHostState,
@@ -1006,49 +1051,54 @@ final class TerminalAgentPanelController {
     TerminalAgentPanelDiagnostics.log(
       "surface focused surface=\(TerminalAgentPanelDiagnostics.surface(surfaceID))"
     )
-    for id in periodicTasks.keys where id != surfaceID {
-      periodicTasks.removeValue(forKey: id)?.cancel()
-    }
-    touch(surfaceID)
     let context = terminal?.agentPanelRefreshContext(for: surfaceID)
     updatePortTracking(surfaceID, context: context)
-    guard context != nil else {
+    guard let workspaceKey = updateWorkspaceTracking(surfaceID, context: context) else {
       TerminalAgentPanelDiagnostics.log(
         "surface focused no context surface=\(TerminalAgentPanelDiagnostics.surface(surfaceID))"
       )
-      cancelRefreshTracking(surfaceID)
+      _ = terminal?.storeAgentPanelBranchDetails(nil, for: surfaceID)
       return
     }
-    scheduleRefresh(surfaceID, delay: .zero)
-    schedulePeriodicRefresh(surfaceID)
+    scheduleRefresh(workspaceKey, delay: .zero)
+    schedulePeriodicRefresh(workspaceKey)
   }
 
   func surfacePathChanged(_ surfaceID: UUID) {
     TerminalAgentPanelDiagnostics.log(
       "surface path changed surface=\(TerminalAgentPanelDiagnostics.surface(surfaceID))"
     )
-    touch(surfaceID)
-    scheduleRefresh(surfaceID, delay: .milliseconds(200))
+    guard
+      let workspaceKey = updateWorkspaceTracking(
+        surfaceID,
+        context: terminal?.agentPanelRefreshContext(for: surfaceID)
+      )
+    else {
+      _ = terminal?.storeAgentPanelBranchDetails(nil, for: surfaceID)
+      return
+    }
+    scheduleRefresh(workspaceKey, delay: .milliseconds(200))
+    schedulePeriodicRefresh(workspaceKey)
   }
 
   func surfaceAgentStateChanged(_ surfaceID: UUID) {
     TerminalAgentPanelDiagnostics.log(
       "surface agent state changed surface=\(TerminalAgentPanelDiagnostics.surface(surfaceID))"
     )
-    touch(surfaceID)
     let context = terminal?.agentPanelRefreshContext(for: surfaceID)
     updatePortTracking(surfaceID, context: context)
-    guard context != nil else {
+    guard let workspaceKey = updateWorkspaceTracking(surfaceID, context: context) else {
       TerminalAgentPanelDiagnostics.log(
         "surface agent state no context surface=\(TerminalAgentPanelDiagnostics.surface(surfaceID))"
       )
-      cancelRefreshTracking(surfaceID)
-      stopHeadWatcher(surfaceID)
-      _ = terminal?.clearAgentPanelMetadata(for: surfaceID)
+      _ = terminal?.storeAgentPanelBranchDetails(nil, for: surfaceID)
+      if context == nil {
+        _ = terminal?.clearAgentPanelMetadata(for: surfaceID)
+      }
       return
     }
-    scheduleRefresh(surfaceID, delay: .milliseconds(200))
-    schedulePeriodicRefresh(surfaceID)
+    scheduleRefresh(workspaceKey, delay: .milliseconds(200))
+    schedulePeriodicRefresh(workspaceKey)
   }
 
   func surfaceCommandFinished(_ surfaceID: UUID) {
@@ -1066,69 +1116,65 @@ final class TerminalAgentPanelController {
   }
 
   func stop() {
-    for surfaceID in Set(surfaceRevisions.keys)
+    for surfaceID in Set(workspaceKeysBySurfaceID.keys) {
+      clearSurface(surfaceID)
+    }
+    for workspaceKey in Set(workspaceRevisions.keys)
       .union(refreshTasks.keys)
       .union(periodicTasks.keys)
       .union(headWatchers.keys)
     {
-      clearSurface(surfaceID)
+      clearWorkspace(workspaceKey)
     }
     portScanner.stop()
   }
 
-  private func schedulePeriodicRefresh(_ surfaceID: UUID) {
-    guard periodicTasks[surfaceID] == nil else { return }
+  private func schedulePeriodicRefresh(_ workspaceKey: TerminalAgentPanelWorkspaceKey) {
+    guard periodicTasks[workspaceKey] == nil else { return }
     TerminalAgentPanelDiagnostics.log(
-      "periodic refresh scheduled surface=\(TerminalAgentPanelDiagnostics.surface(surfaceID))"
+      "periodic refresh scheduled pwd=\(workspaceKey.workingDirectoryPath)"
     )
-    periodicTasks[surfaceID] = Task { [weak self] in
+    periodicTasks[workspaceKey] = Task { [weak self] in
       while !Task.isCancelled {
         try? await Task.sleep(for: .seconds(30))
         guard !Task.isCancelled else { return }
-        self?.scheduleRefresh(surfaceID, delay: .zero)
+        self?.scheduleRefresh(workspaceKey, delay: .zero)
       }
     }
   }
 
   private func scheduleRefresh(
-    _ surfaceID: UUID,
+    _ workspaceKey: TerminalAgentPanelWorkspaceKey,
     delay: Duration
   ) {
-    refreshTasks.removeValue(forKey: surfaceID)?.cancel()
-    let revision = surfaceRevisions[surfaceID, default: 0]
+    guard surfaceIDsByWorkspaceKey[workspaceKey]?.isEmpty == false else { return }
+    refreshTasks.removeValue(forKey: workspaceKey)?.cancel()
+    let revision = touch(workspaceKey)
     TerminalAgentPanelDiagnostics.log(
       [
         "refresh scheduled",
-        "surface=\(TerminalAgentPanelDiagnostics.surface(surfaceID))",
+        "pwd=\(workspaceKey.workingDirectoryPath)",
         "revision=\(revision)",
         "delay=\(delay)",
       ].joined(separator: " ")
     )
-    refreshTasks[surfaceID] = Task { [weak self] in
+    refreshTasks[workspaceKey] = Task { [weak self] in
       if delay != .zero {
         try? await Task.sleep(for: delay)
       }
       guard !Task.isCancelled else { return }
-      await self?.refresh(surfaceID: surfaceID, revision: revision)
+      await self?.refresh(workspaceKey: workspaceKey, revision: revision)
     }
   }
 
   private func refresh(
-    surfaceID: UUID,
+    workspaceKey: TerminalAgentPanelWorkspaceKey,
     revision: UInt64
   ) async {
     TerminalAgentPanelDiagnostics.log(
-      "refresh start surface=\(TerminalAgentPanelDiagnostics.surface(surfaceID)) revision=\(revision)"
+      "refresh start pwd=\(workspaceKey.workingDirectoryPath) revision=\(revision)"
     )
-    guard let context = terminal?.agentPanelRefreshContext(for: surfaceID),
-      let workingDirectoryPath = context.workingDirectoryPath
-    else {
-      TerminalAgentPanelDiagnostics.log(
-        "refresh no context or pwd surface=\(TerminalAgentPanelDiagnostics.surface(surfaceID)) revision=\(revision)"
-      )
-      storeBranchDetails(nil, surfaceID: surfaceID, revision: revision)
-      return
-    }
+    let workingDirectoryPath = workspaceKey.workingDirectoryPath
     let gitSnapshot = await gitClient.snapshot(workingDirectoryPath: workingDirectoryPath)
     let branchDetails: PaneAgentBranchDetails?
     if let gitSnapshot {
@@ -1147,24 +1193,23 @@ final class TerminalAgentPanelController {
       TerminalAgentPanelDiagnostics.log(
         [
           "refresh no git snapshot",
-          "surface=\(TerminalAgentPanelDiagnostics.surface(surfaceID))",
           "pwd=\(workingDirectoryPath)",
         ].joined(separator: " ")
       )
       branchDetails = nil
     }
     await MainActor.run {
-      guard self.surfaceRevisions[surfaceID, default: 0] == revision else {
+      guard self.workspaceRevisions[workspaceKey] == revision else {
         TerminalAgentPanelDiagnostics.log(
-          "refresh ignored stale surface=\(TerminalAgentPanelDiagnostics.surface(surfaceID)) revision=\(revision)"
+          "refresh ignored stale pwd=\(workspaceKey.workingDirectoryPath) revision=\(revision)"
         )
         return
       }
       TerminalAgentPanelDiagnostics.log(
-        "refresh store surface=\(TerminalAgentPanelDiagnostics.surface(surfaceID)) hasBranch=\(branchDetails != nil)"
+        "refresh store pwd=\(workspaceKey.workingDirectoryPath) hasBranch=\(branchDetails != nil)"
       )
-      self.storeBranchDetails(branchDetails, surfaceID: surfaceID, revision: revision)
-      self.configureHeadWatcher(surfaceID: surfaceID, headURL: gitSnapshot?.headURL)
+      self.storeBranchDetails(branchDetails, workspaceKey: workspaceKey, revision: revision)
+      self.configureHeadWatcher(workspaceKey: workspaceKey, headURL: gitSnapshot?.headURL)
     }
   }
 
@@ -1198,25 +1243,32 @@ final class TerminalAgentPanelController {
 
   private func storeBranchDetails(
     _ branchDetails: PaneAgentBranchDetails?,
-    surfaceID: UUID,
+    workspaceKey: TerminalAgentPanelWorkspaceKey,
     revision: UInt64
   ) {
-    guard surfaceRevisions[surfaceID, default: 0] == revision else {
+    guard workspaceRevisions[workspaceKey] == revision else {
       TerminalAgentPanelDiagnostics.log(
         [
           "branch details ignored",
-          "surface=\(TerminalAgentPanelDiagnostics.surface(surfaceID))",
+          "pwd=\(workspaceKey.workingDirectoryPath)",
           "reason=stale",
           "revision=\(revision)",
         ].joined(separator: " ")
       )
       return
     }
-    guard terminal?.storeAgentPanelBranchDetails(branchDetails, for: surfaceID) == true else {
-      TerminalAgentPanelDiagnostics.log(
-        "branch details unchanged surface=\(TerminalAgentPanelDiagnostics.surface(surfaceID))"
-      )
-      return
+    if let branchDetails {
+      branchDetailsByWorkspaceKey[workspaceKey] = branchDetails
+    } else {
+      branchDetailsByWorkspaceKey.removeValue(forKey: workspaceKey)
+    }
+    for surfaceID in surfaceIDsByWorkspaceKey[workspaceKey] ?? [] {
+      guard terminal?.storeAgentPanelBranchDetails(branchDetails, for: surfaceID) == true else {
+        TerminalAgentPanelDiagnostics.log(
+          "branch details unchanged surface=\(TerminalAgentPanelDiagnostics.surface(surfaceID))"
+        )
+        continue
+      }
     }
   }
 
@@ -1233,9 +1285,9 @@ final class TerminalAgentPanelController {
   }
 
   @discardableResult
-  private func touch(_ surfaceID: UUID) -> UInt64 {
-    let revision = surfaceRevisions[surfaceID, default: 0] &+ 1
-    surfaceRevisions[surfaceID] = revision
+  private func touch(_ workspaceKey: TerminalAgentPanelWorkspaceKey) -> UInt64 {
+    let revision = (workspaceRevisions[workspaceKey] ?? 0) &+ 1
+    workspaceRevisions[workspaceKey] = revision
     return revision
   }
 
@@ -1243,84 +1295,135 @@ final class TerminalAgentPanelController {
     TerminalAgentPanelDiagnostics.log(
       "surface cleared surface=\(TerminalAgentPanelDiagnostics.surface(surfaceID))"
     )
-    touch(surfaceID)
-    cancelRefreshTracking(surfaceID)
-    stopHeadWatcher(surfaceID)
+    removeWorkspaceTracking(surfaceID)
     portScanner.clear(surfaceID: surfaceID)
   }
 
-  private func cancelRefreshTracking(_ surfaceID: UUID) {
-    refreshTasks.removeValue(forKey: surfaceID)?.cancel()
-    periodicTasks.removeValue(forKey: surfaceID)?.cancel()
-    branchDebounceTasks.removeValue(forKey: surfaceID)?.cancel()
-    filesDebounceTasks.removeValue(forKey: surfaceID)?.cancel()
+  @discardableResult
+  private func updateWorkspaceTracking(
+    _ surfaceID: UUID,
+    context: TerminalAgentPanelRefreshContext?
+  ) -> TerminalAgentPanelWorkspaceKey? {
+    guard
+      let workspaceKey = TerminalAgentPanelWorkspaceKey(
+        workingDirectoryPath: context?.workingDirectoryPath
+      )
+    else {
+      removeWorkspaceTracking(surfaceID)
+      return nil
+    }
+    if workspaceKeysBySurfaceID[surfaceID] == workspaceKey {
+      surfaceIDsByWorkspaceKey[workspaceKey, default: []].insert(surfaceID)
+      if let branchDetails = branchDetailsByWorkspaceKey[workspaceKey] {
+        _ = terminal?.storeAgentPanelBranchDetails(branchDetails, for: surfaceID)
+      }
+      return workspaceKey
+    }
+    if workspaceKeysBySurfaceID[surfaceID] != nil {
+      _ = terminal?.storeAgentPanelBranchDetails(nil, for: surfaceID)
+    }
+    removeWorkspaceTracking(surfaceID)
+    workspaceKeysBySurfaceID[surfaceID] = workspaceKey
+    surfaceIDsByWorkspaceKey[workspaceKey, default: []].insert(surfaceID)
+    if workspaceRevisions[workspaceKey] == nil {
+      workspaceRevisions[workspaceKey] = 0
+    }
+    if let branchDetails = branchDetailsByWorkspaceKey[workspaceKey] {
+      _ = terminal?.storeAgentPanelBranchDetails(branchDetails, for: surfaceID)
+    }
+    return workspaceKey
   }
 
-  private func configureHeadWatcher(surfaceID: UUID, headURL: URL?) {
+  private func removeWorkspaceTracking(_ surfaceID: UUID) {
+    guard let workspaceKey = workspaceKeysBySurfaceID.removeValue(forKey: surfaceID) else {
+      return
+    }
+    surfaceIDsByWorkspaceKey[workspaceKey]?.remove(surfaceID)
+    guard surfaceIDsByWorkspaceKey[workspaceKey]?.isEmpty != false else {
+      return
+    }
+    surfaceIDsByWorkspaceKey.removeValue(forKey: workspaceKey)
+    clearWorkspace(workspaceKey)
+  }
+
+  private func clearWorkspace(_ workspaceKey: TerminalAgentPanelWorkspaceKey) {
+    workspaceRevisions.removeValue(forKey: workspaceKey)
+    branchDetailsByWorkspaceKey.removeValue(forKey: workspaceKey)
+    refreshTasks.removeValue(forKey: workspaceKey)?.cancel()
+    periodicTasks.removeValue(forKey: workspaceKey)?.cancel()
+    branchDebounceTasks.removeValue(forKey: workspaceKey)?.cancel()
+    filesDebounceTasks.removeValue(forKey: workspaceKey)?.cancel()
+    stopHeadWatcher(workspaceKey)
+  }
+
+  private func configureHeadWatcher(
+    workspaceKey: TerminalAgentPanelWorkspaceKey,
+    headURL: URL?
+  ) {
     guard let headURL else {
       TerminalAgentPanelDiagnostics.log(
-        "head watcher stopped surface=\(TerminalAgentPanelDiagnostics.surface(surfaceID)) reason=no-head"
+        "head watcher stopped pwd=\(workspaceKey.workingDirectoryPath) reason=no-head"
       )
-      stopHeadWatcher(surfaceID)
+      stopHeadWatcher(workspaceKey)
       return
     }
-    if headWatchers[surfaceID]?.headURL == headURL {
+    if headWatchers[workspaceKey]?.headURL == headURL {
       return
     }
-    stopHeadWatcher(surfaceID)
+    stopHeadWatcher(workspaceKey)
     let path = headURL.path(percentEncoded: false)
     let descriptor = open(path, O_EVTONLY)
     guard descriptor >= 0 else {
       TerminalAgentPanelDiagnostics.log(
-        "head watcher failed surface=\(TerminalAgentPanelDiagnostics.surface(surfaceID)) path=\(path)"
+        "head watcher failed pwd=\(workspaceKey.workingDirectoryPath) path=\(path)"
       )
       return
     }
     let source = DispatchSource.makeFileSystemObjectSource(
       fileDescriptor: descriptor,
       eventMask: [.write, .rename, .delete, .attrib],
-      queue: DispatchQueue(label: "terminal-agent-panel-head.\(surfaceID.uuidString)")
+      queue: DispatchQueue(label: "terminal-agent-panel-head.\(workspaceKey.hashValue)")
     )
     source.setEventHandler { @Sendable [weak self, weak source] in
       guard let source else { return }
       let event = source.data
       Task { @MainActor in
-        self?.handleHeadEvent(surfaceID: surfaceID, event: event)
+        self?.handleHeadEvent(workspaceKey: workspaceKey, event: event)
       }
     }
     source.setCancelHandler { @Sendable in
       close(descriptor)
     }
     source.resume()
-    headWatchers[surfaceID] = HeadWatcher(headURL: headURL, source: source)
+    headWatchers[workspaceKey] = HeadWatcher(headURL: headURL, source: source)
     TerminalAgentPanelDiagnostics.log(
-      "head watcher started surface=\(TerminalAgentPanelDiagnostics.surface(surfaceID)) path=\(path)"
+      "head watcher started pwd=\(workspaceKey.workingDirectoryPath) path=\(path)"
     )
   }
 
   private func handleHeadEvent(
-    surfaceID: UUID,
+    workspaceKey: TerminalAgentPanelWorkspaceKey,
     event: DispatchSource.FileSystemEvent
   ) {
     TerminalAgentPanelDiagnostics.log(
-      "head changed surface=\(TerminalAgentPanelDiagnostics.surface(surfaceID)) event=\(event.rawValue)"
+      "head changed pwd=\(workspaceKey.workingDirectoryPath) event=\(event.rawValue)"
     )
     if event.contains(.delete) || event.contains(.rename) {
-      stopHeadWatcher(surfaceID)
+      stopHeadWatcher(workspaceKey)
     }
-    branchDebounceTasks.removeValue(forKey: surfaceID)?.cancel()
-    branchDebounceTasks[surfaceID] = Task { [weak self] in
+    branchDebounceTasks.removeValue(forKey: workspaceKey)?.cancel()
+    branchDebounceTasks[workspaceKey] = Task { [weak self] in
       try? await Task.sleep(for: .milliseconds(200))
-      self?.surfacePathChanged(surfaceID)
+      self?.scheduleRefresh(workspaceKey, delay: .zero)
     }
-    filesDebounceTasks.removeValue(forKey: surfaceID)?.cancel()
-    filesDebounceTasks[surfaceID] = Task { [weak self] in
+    filesDebounceTasks.removeValue(forKey: workspaceKey)?.cancel()
+    filesDebounceTasks[workspaceKey] = Task { [weak self] in
       try? await Task.sleep(for: .seconds(5))
-      self?.surfacePathChanged(surfaceID)
+      self?.scheduleRefresh(workspaceKey, delay: .zero)
     }
   }
 
-  private func stopHeadWatcher(_ surfaceID: UUID) {
-    headWatchers.removeValue(forKey: surfaceID)?.source.cancel()
+  private func stopHeadWatcher(_ workspaceKey: TerminalAgentPanelWorkspaceKey) {
+    headWatchers.removeValue(forKey: workspaceKey)?.source.cancel()
   }
 }

@@ -1,9 +1,96 @@
+import ComposableArchitecture
 import Foundation
 import Testing
 
+@testable import SupatermCLIShared
 @testable import supaterm
 
 struct TerminalAgentPanelTests {
+  @Test
+  func workspaceKeyNormalizesEquivalentPaths() {
+    let root = FileManager.default.temporaryDirectory.appending(path: UUID().uuidString, directoryHint: .isDirectory)
+    let path = root.appending(path: "child/..", directoryHint: .isDirectory).path(percentEncoded: false)
+
+    #expect(
+      TerminalAgentPanelWorkspaceKey(workingDirectoryPath: " \(path) ")?
+        .workingDirectoryPath == root.path(percentEncoded: false)
+    )
+    #expect(TerminalAgentPanelWorkspaceKey(workingDirectoryPath: " ") == nil)
+  }
+
+  @Test
+  @MainActor
+  func sharedWorkspaceRefreshFansOutToUnfocusedPane() async throws {
+    try await withDependencies {
+      $0.defaultFileStorage = .inMemory
+    } operation: {
+      initializeGhosttyForTests()
+
+      let repoRoot = FileManager.default.temporaryDirectory.appending(
+        path: UUID().uuidString,
+        directoryHint: .isDirectory
+      )
+      try FileManager.default.createDirectory(at: repoRoot, withIntermediateDirectories: true)
+      defer { try? FileManager.default.removeItem(at: repoRoot) }
+
+      let recorder = AgentPanelRefreshRecorder()
+      let gitClient = TerminalAgentGitClient { workingDirectoryPath in
+        await recorder.recordGit(workingDirectoryPath)
+        return TerminalAgentGitSnapshot(
+          repoRoot: repoRoot,
+          headURL: nil,
+          branchName: "main",
+          addedLineCount: 12,
+          removedLineCount: 3,
+          hasWorkingTreeChanges: true
+        )
+      }
+      let githubClient = TerminalAgentGithubClient { _, branchName in
+        await recorder.recordPullRequest(branchName)
+        return PaneAgentPullRequestStatus(
+          kind: .open,
+          title: "PR #1",
+          url: nil,
+          addedLineCount: 34,
+          removedLineCount: 5,
+          checks: nil
+        )
+      }
+      let host = TerminalHostState()
+      let controller = TerminalAgentPanelController(
+        terminal: host,
+        gitClient: gitClient,
+        githubClient: githubClient
+      )
+      host.agentPanelController = controller
+      defer { controller.stop() }
+
+      let surfaceIDs = try restoreSplitHost(
+        host,
+        workingDirectoryPath: repoRoot.path(percentEncoded: false)
+      )
+      for (index, surfaceID) in surfaceIDs.enumerated() {
+        _ = host.registerAgentPresence(
+          agent: .codex,
+          for: surfaceID,
+          sessionID: "session-\(index)",
+          processID: nil
+        )
+      }
+
+      controller.surfaceFocused(surfaceIDs[0])
+
+      #expect(await waitForBranchDetails(host: host, surfaceIDs: surfaceIDs, branchName: "main"))
+      let firstDetails = try #require(host.agentPanelPresentation(for: surfaceIDs[0])?.branchDetails)
+      let secondDetails = try #require(host.agentPanelPresentation(for: surfaceIDs[1])?.branchDetails)
+      #expect(firstDetails == secondDetails)
+      #expect(firstDetails.addedLineCount == 34)
+      #expect(firstDetails.removedLineCount == 5)
+      #expect(await recorder.gitPaths() == [repoRoot.path(percentEncoded: false)])
+      #expect(await recorder.pullRequestBranches() == ["main"])
+    }
+  }
+
   @Test
   func shortstatParserHandlesInsertionsAndDeletions() {
     #expect(
@@ -218,4 +305,81 @@ struct TerminalAgentPanelTests {
 
     #expect(status.checks?.title == "Checks failing (25)")
   }
+}
+
+private actor AgentPanelRefreshRecorder {
+  private var recordedGitPaths: [String] = []
+  private var recordedPullRequestBranches: [String] = []
+
+  func recordGit(_ workingDirectoryPath: String) {
+    recordedGitPaths.append(workingDirectoryPath)
+  }
+
+  func recordPullRequest(_ branchName: String) {
+    recordedPullRequestBranches.append(branchName)
+  }
+
+  func gitPaths() -> [String] {
+    recordedGitPaths
+  }
+
+  func pullRequestBranches() -> [String] {
+    recordedPullRequestBranches
+  }
+}
+
+@MainActor
+private func restoreSplitHost(
+  _ host: TerminalHostState,
+  workingDirectoryPath: String
+) throws -> [UUID] {
+  let spaceID = try #require(host.spaces.first?.id)
+  let tabSession = TerminalTabSession(
+    isPinned: false,
+    lockedTitle: nil,
+    focusedPaneIndex: 0,
+    root: .split(
+      TerminalPaneSplitSession(
+        direction: .horizontal,
+        ratio: 0.5,
+        left: .leaf(TerminalPaneLeafSession(workingDirectoryPath: workingDirectoryPath)),
+        right: .leaf(TerminalPaneLeafSession(workingDirectoryPath: workingDirectoryPath))
+      )
+    )
+  )
+  let session = TerminalWindowSession(
+    selectedSpaceID: spaceID,
+    spaces: [
+      TerminalWindowSpaceSession(
+        id: spaceID,
+        selectedTabIndex: 0,
+        tabs: [tabSession]
+      )
+    ]
+  )
+
+  #expect(host.restore(from: session))
+  let tabID = try #require(host.selectedTabID)
+  let leaves = try #require(host.trees[tabID]?.leaves())
+  #expect(leaves.count == 2)
+  return leaves.map(\.id)
+}
+
+@MainActor
+private func waitForBranchDetails(
+  host: TerminalHostState,
+  surfaceIDs: [UUID],
+  branchName: String
+) async -> Bool {
+  let clock = ContinuousClock()
+  let deadline = clock.now.advanced(by: .seconds(1))
+  while clock.now < deadline {
+    if surfaceIDs.allSatisfy({
+      host.agentPanelPresentation(for: $0)?.branchDetails?.branchName == branchName
+    }) {
+      return true
+    }
+    try? await Task.sleep(for: .milliseconds(10))
+  }
+  return false
 }
