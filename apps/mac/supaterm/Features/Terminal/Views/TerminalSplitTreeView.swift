@@ -741,16 +741,6 @@ struct TerminalSplitTreeView: View {
           .font(.system(size: 14, weight: .medium))
           .foregroundStyle(foregroundStyle)
           .frame(width: AgentPanelMetrics.collapsedLength, height: AgentPanelMetrics.collapsedLength)
-          .background(backgroundStyle, in: .rect(cornerRadius: AgentPanelMetrics.collapsedCornerRadius))
-          .overlay {
-            if isVisible {
-              RoundedRectangle(
-                cornerRadius: AgentPanelMetrics.collapsedCornerRadius,
-                style: .continuous
-              )
-              .stroke(Color.accentColor.opacity(isHovering ? 0.32 : 0.22), lineWidth: 1)
-            }
-          }
           .accessibilityHidden(true)
       }
       .buttonStyle(.plain)
@@ -764,13 +754,6 @@ struct TerminalSplitTreeView: View {
         return Color.accentColor
       }
       return isHovering ? palette.secondaryText.opacity(0.8) : palette.secondaryText
-    }
-
-    private var backgroundStyle: Color {
-      if isVisible {
-        return Color.accentColor.opacity(isHovering ? 0.18 : 0.12)
-      }
-      return isHovering ? palette.secondaryText.opacity(0.2) : .clear
     }
   }
 
