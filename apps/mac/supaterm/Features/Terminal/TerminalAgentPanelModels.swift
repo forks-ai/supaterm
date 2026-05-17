@@ -31,6 +31,11 @@ nonisolated struct PaneAgentBranchDetails: Equatable, Sendable {
   let addedLineCount: Int
   let removedLineCount: Int
   let pullRequestStatus: PaneAgentPullRequestStatus
+
+  var displayedPullRequestStatus: PaneAgentPullRequestStatus? {
+    guard !(branchName == "main" && pullRequestStatus.kind == .none) else { return nil }
+    return pullRequestStatus
+  }
 }
 
 nonisolated struct PaneAgentPullRequestStatus: Equatable, Sendable {

@@ -30,9 +30,11 @@ struct AgentPanelView: View {
               addedLineCount: branchDetails.addedLineCount,
               removedLineCount: branchDetails.removedLineCount
             )
-            pullRequestRow(branchDetails.pullRequestStatus)
-            if let checks = branchDetails.pullRequestStatus.checks, !checks.isEmpty {
-              pullRequestChecksRows(checks)
+            if let pullRequestStatus = branchDetails.displayedPullRequestStatus {
+              pullRequestRow(pullRequestStatus)
+              if let checks = pullRequestStatus.checks, !checks.isEmpty {
+                pullRequestChecksRows(checks)
+              }
             }
           }
         }

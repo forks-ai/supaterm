@@ -20,6 +20,43 @@ struct TerminalAgentPanelTests {
   }
 
   @Test
+  func mainBranchHidesEmptyPullRequestAction() throws {
+    let createStatus = PaneAgentPullRequestStatus.createPullRequest(
+      url: try #require(URL(string: "https://github.com/supabitapp/supaterm/compare/main?expand=1"))
+    )
+    let mainBranchDetails = PaneAgentBranchDetails(
+      branchName: "main",
+      addedLineCount: 0,
+      removedLineCount: 0,
+      pullRequestStatus: createStatus
+    )
+    let featureBranchDetails = PaneAgentBranchDetails(
+      branchName: "khoi/agent-panel",
+      addedLineCount: 0,
+      removedLineCount: 0,
+      pullRequestStatus: createStatus
+    )
+    let openStatus = PaneAgentPullRequestStatus(
+      kind: .open,
+      title: "PR #1",
+      url: nil,
+      addedLineCount: nil,
+      removedLineCount: nil,
+      checks: nil
+    )
+    let mainBranchOpenDetails = PaneAgentBranchDetails(
+      branchName: "main",
+      addedLineCount: 0,
+      removedLineCount: 0,
+      pullRequestStatus: openStatus
+    )
+
+    #expect(mainBranchDetails.displayedPullRequestStatus == nil)
+    #expect(featureBranchDetails.displayedPullRequestStatus == createStatus)
+    #expect(mainBranchOpenDetails.displayedPullRequestStatus == openStatus)
+  }
+
+  @Test
   @MainActor
   func disabledPanelSkipsWorkspaceRefresh() async throws {
     try await withDependencies {
