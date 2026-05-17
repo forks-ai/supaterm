@@ -67,22 +67,18 @@ struct TerminalDetailView: View {
     .terminalPaneChrome(palette: palette)
   }
 
-  private var agentPanelToggleState: AgentPanelToggleState {
+  private var agentPanelToggleState: AgentPanelToggleState? {
     guard let surfaceID = terminal.selectedSurfaceView?.id,
       terminal.agentPanelPresentation(for: surfaceID) != nil
     else {
-      return AgentPanelToggleState(isVisible: false, isEnabled: false)
+      return nil
     }
-    return AgentPanelToggleState(
-      isVisible: !store.hiddenAgentPanelSurfaceIDs.contains(surfaceID),
-      isEnabled: true
-    )
+    return AgentPanelToggleState(isVisible: !store.hiddenAgentPanelSurfaceIDs.contains(surfaceID))
   }
 }
 
 private struct AgentPanelToggleState: Equatable {
   let isVisible: Bool
-  let isEnabled: Bool
 }
 
 private struct TerminalDetailTopBar: View {
@@ -90,7 +86,7 @@ private struct TerminalDetailTopBar: View {
   let canSplit: Bool
   let isPaneZoomed: Bool
   let isSidebarCollapsed: Bool
-  let agentPanelToggleState: AgentPanelToggleState
+  let agentPanelToggleState: AgentPanelToggleState?
   let showsSidebarAttentionIndicator: Bool
   let palette: TerminalPalette
   let backgroundColor: Color
@@ -129,11 +125,13 @@ private struct TerminalDetailTopBar: View {
 
       Spacer(minLength: 8)
       HStack(spacing: 4) {
-        AgentPanelVisibilityButton(
-          state: agentPanelToggleState,
-          palette: palette,
-          action: toggleAgentPanel
-        )
+        if let agentPanelToggleState {
+          AgentPanelVisibilityButton(
+            state: agentPanelToggleState,
+            palette: palette,
+            action: toggleAgentPanel
+          )
+        }
 
         ToolbarIconButton(
           symbol: "square.split.2x1",
@@ -194,16 +192,10 @@ private struct AgentPanelVisibilityButton: View {
   @State private var isHovering = false
 
   private var helpText: String {
-    if !state.isEnabled {
-      return "No Agent Panel"
-    }
     return state.isVisible ? "Hide Agent Panel" : "Show Agent Panel"
   }
 
   private var accessibilityLabel: String {
-    if !state.isEnabled {
-      return "No agent panel"
-    }
     return state.isVisible ? "Hide agent panel" : "Show agent panel"
   }
 
@@ -215,7 +207,7 @@ private struct AgentPanelVisibilityButton: View {
         .frame(width: 30, height: 30)
         .background(backgroundStyle, in: .rect(cornerRadius: 6))
         .overlay {
-          if state.isVisible && state.isEnabled {
+          if state.isVisible {
             RoundedRectangle(cornerRadius: 6, style: .continuous)
               .stroke(Color.accentColor.opacity(isHovering ? 0.32 : 0.22), lineWidth: 1)
           }
@@ -225,20 +217,18 @@ private struct AgentPanelVisibilityButton: View {
     .buttonStyle(.plain)
     .help(helpText)
     .accessibilityLabel(accessibilityLabel)
-    .disabled(!state.isEnabled)
-    .opacity(state.isEnabled ? 1 : 0.45)
     .onHover { isHovering = $0 }
   }
 
   private var foregroundStyle: Color {
-    if state.isVisible && state.isEnabled {
+    if state.isVisible {
       return Color.accentColor
     }
     return isHovering ? palette.secondaryText.opacity(0.8) : palette.secondaryText
   }
 
   private var backgroundStyle: Color {
-    if state.isVisible && state.isEnabled {
+    if state.isVisible {
       return Color.accentColor.opacity(isHovering ? 0.18 : 0.12)
     }
     return isHovering ? palette.secondaryText.opacity(0.2) : .clear
