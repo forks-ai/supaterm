@@ -276,6 +276,9 @@ extension TerminalHostState {
   }
 
   func agentPanelPresentations(for tabID: TerminalTabID) -> [UUID: PaneAgentPanelPresentation] {
+    guard agentPanelIsEnabled else {
+      return [:]
+    }
     guard let tree = trees[tabID] else {
       TerminalAgentPanelDiagnostics.log("presentations tab=\(tabID) reason=no-tree")
       return [:]
@@ -302,6 +305,9 @@ extension TerminalHostState {
   }
 
   func agentPanelPresentation(for surfaceID: UUID) -> PaneAgentPanelPresentation? {
+    guard agentPanelIsEnabled else {
+      return nil
+    }
     guard agentPanelIsActive(for: surfaceID) else {
       return nil
     }
@@ -321,6 +327,12 @@ extension TerminalHostState {
   }
 
   func agentPanelRefreshContext(for surfaceID: UUID) -> TerminalAgentPanelRefreshContext? {
+    guard agentPanelIsEnabled else {
+      TerminalAgentPanelDiagnostics.log(
+        "refresh context missing surface=\(TerminalAgentPanelDiagnostics.surface(surfaceID)) reason=disabled"
+      )
+      return nil
+    }
     guard let surface = surfaces[surfaceID] else {
       TerminalAgentPanelDiagnostics.log(
         "refresh context missing surface=\(TerminalAgentPanelDiagnostics.surface(surfaceID)) reason=no-surface"
@@ -355,8 +367,15 @@ extension TerminalHostState {
     )
   }
 
+  var agentPanelIsEnabled: Bool {
+    supatermSettings.codingAgentsShowPanel
+  }
+
   func agentPanelIsActive(for surfaceID: UUID) -> Bool {
-    agentPresenceStore.hasInstances(for: surfaceID)
+    guard agentPanelIsEnabled else {
+      return false
+    }
+    return agentPresenceStore.hasInstances(for: surfaceID)
       || paneAgentMetadataBySurfaceID[surfaceID]?.hasStructuredPanelContent == true
   }
 
@@ -529,6 +548,9 @@ extension TerminalHostState {
     sources: [PaneAgentSource],
     for surfaceID: UUID
   ) -> Bool {
+    guard agentPanelIsEnabled || progressRows.isEmpty && sources.isEmpty else {
+      return false
+    }
     guard tabID(containing: surfaceID) != nil else {
       TerminalAgentPanelDiagnostics.log(
         "record snapshot skipped surface=\(TerminalAgentPanelDiagnostics.surface(surfaceID)) reason=no-tab"
@@ -560,6 +582,9 @@ extension TerminalHostState {
     _ branchDetails: PaneAgentBranchDetails?,
     for surfaceID: UUID
   ) -> Bool {
+    guard agentPanelIsEnabled || branchDetails == nil else {
+      return false
+    }
     guard tabID(containing: surfaceID) != nil else {
       TerminalAgentPanelDiagnostics.log(
         "branch details skipped surface=\(TerminalAgentPanelDiagnostics.surface(surfaceID)) reason=no-tab"
@@ -587,6 +612,9 @@ extension TerminalHostState {
     _ artifacts: [PaneAgentArtifact],
     for surfaceID: UUID
   ) -> Bool {
+    guard agentPanelIsEnabled || artifacts.isEmpty else {
+      return false
+    }
     guard tabID(containing: surfaceID) != nil else {
       TerminalAgentPanelDiagnostics.log(
         "artifacts skipped surface=\(TerminalAgentPanelDiagnostics.surface(surfaceID)) reason=no-tab"

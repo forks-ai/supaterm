@@ -1,5 +1,6 @@
 import ComposableArchitecture
 import Foundation
+import Sharing
 import Testing
 
 @testable import SupatermCLIShared
@@ -16,6 +17,78 @@ struct TerminalAgentPanelTests {
         .workingDirectoryPath == root.path(percentEncoded: false)
     )
     #expect(TerminalAgentPanelWorkspaceKey(workingDirectoryPath: " ") == nil)
+  }
+
+  @Test
+  @MainActor
+  func disabledPanelSkipsWorkspaceRefresh() async throws {
+    try await withDependencies {
+      $0.defaultFileStorage = .inMemory
+    } operation: {
+      @Shared(.supatermSettings) var supatermSettings = .default
+      $supatermSettings.withLock {
+        $0.codingAgentsShowPanel = false
+      }
+
+      initializeGhosttyForTests()
+
+      let repoRoot = FileManager.default.temporaryDirectory.appending(
+        path: UUID().uuidString,
+        directoryHint: .isDirectory
+      )
+      try FileManager.default.createDirectory(at: repoRoot, withIntermediateDirectories: true)
+      defer { try? FileManager.default.removeItem(at: repoRoot) }
+
+      let recorder = AgentPanelRefreshRecorder()
+      let gitClient = TerminalAgentGitClient { workingDirectoryPath in
+        await recorder.recordGit(workingDirectoryPath)
+        return TerminalAgentGitSnapshot(
+          repoRoot: repoRoot,
+          headURL: nil,
+          branchName: "main",
+          addedLineCount: 1,
+          removedLineCount: 1,
+          hasWorkingTreeChanges: true
+        )
+      }
+      let githubClient = TerminalAgentGithubClient { _, branchName in
+        await recorder.recordPullRequest(branchName)
+        return PaneAgentPullRequestStatus(
+          kind: .none,
+          title: "",
+          url: nil,
+          addedLineCount: nil,
+          removedLineCount: nil,
+          checks: nil
+        )
+      }
+      let host = TerminalHostState()
+      let controller = TerminalAgentPanelController(
+        terminal: host,
+        gitClient: gitClient,
+        githubClient: githubClient
+      )
+      host.agentPanelController = controller
+      defer { controller.stop() }
+
+      let surfaceIDs = try restoreSplitHost(
+        host,
+        workingDirectoryPath: repoRoot.path(percentEncoded: false)
+      )
+      _ = host.registerAgentPresence(
+        agent: .codex,
+        for: surfaceIDs[0],
+        sessionID: "session-0",
+        processID: nil
+      )
+
+      controller.surfaceFocused(surfaceIDs[0])
+      try? await Task.sleep(for: .milliseconds(300))
+
+      #expect(host.agentPanelPresentation(for: surfaceIDs[0]) == nil)
+      #expect(await recorder.gitPaths().isEmpty)
+      #expect(await recorder.pullRequestBranches().isEmpty)
+    }
   }
 
   @Test

@@ -1147,6 +1147,10 @@ final class TerminalAgentPanelController {
     _ workspaceKey: TerminalAgentPanelWorkspaceKey,
     delay: Duration
   ) {
+    guard terminal?.agentPanelIsEnabled == true else {
+      clearDisabledWorkspace(workspaceKey)
+      return
+    }
     guard surfaceIDsByWorkspaceKey[workspaceKey]?.isEmpty == false else { return }
     refreshTasks.removeValue(forKey: workspaceKey)?.cancel()
     let revision = touch(workspaceKey)
@@ -1171,6 +1175,10 @@ final class TerminalAgentPanelController {
     workspaceKey: TerminalAgentPanelWorkspaceKey,
     revision: UInt64
   ) async {
+    guard terminal?.agentPanelIsEnabled == true else {
+      clearDisabledWorkspace(workspaceKey)
+      return
+    }
     TerminalAgentPanelDiagnostics.log(
       "refresh start pwd=\(workspaceKey.workingDirectoryPath) revision=\(revision)"
     )
@@ -1354,6 +1362,14 @@ final class TerminalAgentPanelController {
     branchDebounceTasks.removeValue(forKey: workspaceKey)?.cancel()
     filesDebounceTasks.removeValue(forKey: workspaceKey)?.cancel()
     stopHeadWatcher(workspaceKey)
+  }
+
+  private func clearDisabledWorkspace(_ workspaceKey: TerminalAgentPanelWorkspaceKey) {
+    for surfaceID in surfaceIDsByWorkspaceKey[workspaceKey] ?? [] {
+      _ = terminal?.storeAgentPanelBranchDetails(nil, for: surfaceID)
+      _ = terminal?.storeAgentPanelArtifacts([], for: surfaceID)
+    }
+    clearWorkspace(workspaceKey)
   }
 
   private func configureHeadWatcher(

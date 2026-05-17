@@ -81,6 +81,7 @@ public struct SettingsFeature {
     var claudeIntegration = SettingsAgentIntegrationState(
       settingsPath: SupatermAgentKind.claude.settingsPathDescription
     )
+    var codingAgentsShowPanel = SupatermSettings.default.codingAgentsShowPanel
     var codingAgentsShowIcons = SupatermSettings.default.codingAgentsShowIcons
     var codingAgentsShowSpinner = SupatermSettings.default.codingAgentsShowSpinner
     var codexIntegration = SettingsAgentIntegrationState(
@@ -112,6 +113,7 @@ public struct SettingsFeature {
     case appearanceModeSelected(AppearanceMode)
     case analyticsEnabledChanged(Bool)
     case checkForUpdatesButtonTapped
+    case codingAgentsShowPanelChanged(Bool)
     case codingAgentsShowIconsChanged(Bool)
     case codingAgentsShowSpinnerChanged(Bool)
     case crashReportsEnabledChanged(Bool)
@@ -232,6 +234,10 @@ public struct SettingsFeature {
         state.selectedTab = tab
         return .none
 
+      case .codingAgentsShowPanelChanged(let isEnabled):
+        state.codingAgentsShowPanel = isEnabled
+        return persist(state)
+
       case .codingAgentsShowIconsChanged(let isEnabled):
         state.codingAgentsShowIcons = isEnabled
         return persist(state)
@@ -305,6 +311,7 @@ public struct SettingsFeature {
   ) {
     state.appearanceMode = supatermSettings.appearanceMode
     state.analyticsEnabled = supatermSettings.analyticsEnabled
+    state.codingAgentsShowPanel = supatermSettings.codingAgentsShowPanel
     state.codingAgentsShowIcons = supatermSettings.codingAgentsShowIcons
     state.codingAgentsShowSpinner = supatermSettings.codingAgentsShowSpinner
     state.crashReportsEnabled = supatermSettings.crashReportsEnabled
@@ -325,6 +332,7 @@ public struct SettingsFeature {
     let supatermSettings = SupatermSettings(
       appearanceMode: state.appearanceMode,
       analyticsEnabled: state.analyticsEnabled,
+      codingAgentsShowPanel: state.codingAgentsShowPanel,
       codingAgentsShowIcons: state.codingAgentsShowIcons,
       codingAgentsShowSpinner: state.codingAgentsShowSpinner,
       crashReportsEnabled: state.crashReportsEnabled,

@@ -45,6 +45,7 @@ struct SupatermSettingsTests {
 
     #expect(prefs.appearanceMode == .dark)
     #expect(prefs.analyticsEnabled)
+    #expect(prefs.codingAgentsShowPanel)
     #expect(prefs.codingAgentsShowIcons)
     #expect(prefs.codingAgentsShowSpinner)
     #expect(prefs.crashReportsEnabled)
@@ -71,6 +72,7 @@ struct SupatermSettingsTests {
 
     #expect(prefs.appearanceMode == .dark)
     #expect(prefs.analyticsEnabled)
+    #expect(prefs.codingAgentsShowPanel)
     #expect(prefs.codingAgentsShowIcons)
     #expect(prefs.codingAgentsShowSpinner)
     #expect(prefs.crashReportsEnabled)
@@ -116,6 +118,7 @@ struct SupatermSettingsTests {
       SupatermSettings(
         appearanceMode: .dark,
         analyticsEnabled: true,
+        codingAgentsShowPanel: false,
         codingAgentsShowIcons: false,
         codingAgentsShowSpinner: false,
         crashReportsEnabled: true,
@@ -129,6 +132,7 @@ struct SupatermSettingsTests {
         == """
         [coding_agents]
         show_icons = false
+        show_panel = false
         show_spinner = false
         """
     )
@@ -140,6 +144,7 @@ struct SupatermSettingsTests {
       SupatermSettings(
         appearanceMode: .dark,
         analyticsEnabled: false,
+        codingAgentsShowPanel: false,
         codingAgentsShowIcons: false,
         codingAgentsShowSpinner: false,
         crashReportsEnabled: false,
@@ -157,6 +162,7 @@ struct SupatermSettingsTests {
         == SupatermSettings(
           appearanceMode: .dark,
           analyticsEnabled: false,
+          codingAgentsShowPanel: false,
           codingAgentsShowIcons: false,
           codingAgentsShowSpinner: false,
           crashReportsEnabled: false,
@@ -182,6 +188,7 @@ struct SupatermSettingsTests {
 
     #expect(prefs.appearanceMode == .light)
     #expect(prefs.analyticsEnabled)
+    #expect(prefs.codingAgentsShowPanel)
     #expect(prefs.codingAgentsShowIcons)
     #expect(prefs.codingAgentsShowSpinner)
     #expect(prefs.crashReportsEnabled)

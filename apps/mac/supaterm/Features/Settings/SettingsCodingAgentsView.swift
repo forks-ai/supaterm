@@ -30,6 +30,15 @@ struct SettingsCodingAgentsView: View {
     Form {
       Section {
         SettingsToggleRow(
+          title: "Show agent panel",
+          subtitle: "Display the coding-agent panel inside terminal panes.",
+          isOn: Binding(
+            get: { store.codingAgentsShowPanel },
+            set: { _ = store.send(.codingAgentsShowPanelChanged($0)) }
+          )
+        )
+
+        SettingsToggleRow(
           title: "Show coding agents icons",
           subtitle: "Display icons in tab status accessories.",
           isOn: Binding(

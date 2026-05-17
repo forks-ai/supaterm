@@ -9,6 +9,24 @@ import Testing
 @MainActor
 struct SettingsFeatureCodingAgentsTests {
   @Test
+  func showPanelSettingPersistsPrefs() async {
+    await withDependencies {
+      $0.defaultFileStorage = .inMemory
+    } operation: {
+      let store = TestStore(initialState: SettingsFeature.State()) {
+        SettingsFeature()
+      }
+
+      await store.send(.codingAgentsShowPanelChanged(false)) {
+        $0.codingAgentsShowPanel = false
+      }
+
+      @Shared(.supatermSettings) var supatermSettings = .default
+      #expect(!supatermSettings.codingAgentsShowPanel)
+    }
+  }
+
+  @Test
   func showIconsSettingPersistsPrefs() async {
     await withDependencies {
       $0.defaultFileStorage = .inMemory
