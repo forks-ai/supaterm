@@ -175,6 +175,26 @@ struct TerminalWindowFeatureTests {
   }
 
   @Test
+  func agentPanelVisibilityToggleScopesToSurface() async {
+    let firstSurfaceID = UUID()
+    let secondSurfaceID = UUID()
+
+    let store = TestStore(initialState: TerminalWindowFeature.State()) {
+      TerminalWindowFeature()
+    }
+
+    await store.send(.agentPanelVisibilityToggled(firstSurfaceID)) {
+      $0.hiddenAgentPanelSurfaceIDs = [firstSurfaceID]
+    }
+    await store.send(.agentPanelVisibilityToggled(secondSurfaceID)) {
+      $0.hiddenAgentPanelSurfaceIDs = [firstSurfaceID, secondSurfaceID]
+    }
+    await store.send(.agentPanelVisibilityToggled(firstSurfaceID)) {
+      $0.hiddenAgentPanelSurfaceIDs = [secondSurfaceID]
+    }
+  }
+
+  @Test
   func spaceCreateButtonTappedOpensEditorWithoutSendingCommand() async {
     let analyticsRecorder = AnalyticsEventRecorder()
     let recorder = TerminalCommandRecorder()

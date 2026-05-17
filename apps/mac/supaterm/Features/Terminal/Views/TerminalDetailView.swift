@@ -19,6 +19,7 @@ struct TerminalDetailView: View {
         canSplit: terminal.selectedSurfaceView != nil,
         isPaneZoomed: terminal.selectedPaneIsZoomed,
         isSidebarCollapsed: store.isSidebarCollapsed,
+        agentPanelToggleState: agentPanelToggleState,
         showsSidebarAttentionIndicator: store.isSidebarCollapsed
           && terminal.hasUnreadSidebarNotifications,
         palette: palette,
@@ -41,6 +42,10 @@ struct TerminalDetailView: View {
         splitRight: {
           _ = store.send(.bindingMenuItemSelected(.newSplit(.right)))
         },
+        toggleAgentPanel: {
+          guard let surfaceID = terminal.selectedSurfaceView?.id else { return }
+          _ = store.send(.agentPanelVisibilityToggled(surfaceID))
+        },
         togglePaneZoom: {
           _ = store.send(.bindingMenuItemSelected(.toggleSplitZoom))
         }
@@ -61,6 +66,23 @@ struct TerminalDetailView: View {
     .compositingGroup()
     .terminalPaneChrome(palette: palette)
   }
+
+  private var agentPanelToggleState: AgentPanelToggleState {
+    guard let surfaceID = terminal.selectedSurfaceView?.id,
+      terminal.agentPanelPresentation(for: surfaceID) != nil
+    else {
+      return AgentPanelToggleState(isVisible: false, isEnabled: false)
+    }
+    return AgentPanelToggleState(
+      isVisible: !store.hiddenAgentPanelSurfaceIDs.contains(surfaceID),
+      isEnabled: true
+    )
+  }
+}
+
+private struct AgentPanelToggleState: Equatable {
+  let isVisible: Bool
+  let isEnabled: Bool
 }
 
 private struct TerminalDetailTopBar: View {
@@ -68,6 +90,7 @@ private struct TerminalDetailTopBar: View {
   let canSplit: Bool
   let isPaneZoomed: Bool
   let isSidebarCollapsed: Bool
+  let agentPanelToggleState: AgentPanelToggleState
   let showsSidebarAttentionIndicator: Bool
   let palette: TerminalPalette
   let backgroundColor: Color
@@ -76,6 +99,7 @@ private struct TerminalDetailTopBar: View {
   let title: String
   let splitDown: () -> Void
   let splitRight: () -> Void
+  let toggleAgentPanel: () -> Void
   let togglePaneZoom: () -> Void
 
   private var sidebarAccessibilityLabel: String {
@@ -105,6 +129,12 @@ private struct TerminalDetailTopBar: View {
 
       Spacer(minLength: 8)
       HStack(spacing: 4) {
+        AgentPanelVisibilityButton(
+          state: agentPanelToggleState,
+          palette: palette,
+          action: toggleAgentPanel
+        )
+
         ToolbarIconButton(
           symbol: "square.split.2x1",
           palette: palette,
@@ -153,6 +183,65 @@ private struct TerminalDetailTopBar: View {
         .fill(palette.detailStroke)
         .frame(height: 1)
     }
+  }
+}
+
+private struct AgentPanelVisibilityButton: View {
+  let state: AgentPanelToggleState
+  let palette: TerminalPalette
+  let action: () -> Void
+
+  @State private var isHovering = false
+
+  private var helpText: String {
+    if !state.isEnabled {
+      return "No Agent Panel"
+    }
+    return state.isVisible ? "Hide Agent Panel" : "Show Agent Panel"
+  }
+
+  private var accessibilityLabel: String {
+    if !state.isEnabled {
+      return "No agent panel"
+    }
+    return state.isVisible ? "Hide agent panel" : "Show agent panel"
+  }
+
+  var body: some View {
+    Button(action: action) {
+      Image(systemName: "sidebar.right")
+        .font(.system(size: 14, weight: .medium))
+        .foregroundStyle(foregroundStyle)
+        .frame(width: 30, height: 30)
+        .background(backgroundStyle, in: .rect(cornerRadius: 6))
+        .overlay {
+          if state.isVisible && state.isEnabled {
+            RoundedRectangle(cornerRadius: 6, style: .continuous)
+              .stroke(Color.accentColor.opacity(isHovering ? 0.32 : 0.22), lineWidth: 1)
+          }
+        }
+        .accessibilityHidden(true)
+    }
+    .buttonStyle(.plain)
+    .help(helpText)
+    .accessibilityLabel(accessibilityLabel)
+    .disabled(!state.isEnabled)
+    .opacity(state.isEnabled ? 1 : 0.45)
+    .onHover { isHovering = $0 }
+  }
+
+  private var foregroundStyle: Color {
+    if state.isVisible && state.isEnabled {
+      return Color.accentColor
+    }
+    return isHovering ? palette.secondaryText.opacity(0.8) : palette.secondaryText
+  }
+
+  private var backgroundStyle: Color {
+    if state.isVisible && state.isEnabled {
+      return Color.accentColor.opacity(isHovering ? 0.18 : 0.12)
+    }
+    return isHovering ? palette.secondaryText.opacity(0.2) : .clear
   }
 }
 
@@ -249,7 +338,7 @@ private struct TerminalSurfacePaneView: View {
 
   var body: some View {
     TerminalSplitTreeAXContainer(
-      agentPanelPresentations: terminal.agentPanelPresentations(for: tabID),
+      agentPanelPresentations: agentPanelPresentations,
       dimmingColor: dimmingColor,
       dimmingOpacity: dimmingOpacity,
       focusedSurfaceID: focusedSurfaceID,
@@ -268,5 +357,11 @@ private struct TerminalSurfacePaneView: View {
       }
     }
     .frame(maxWidth: .infinity, maxHeight: .infinity)
+  }
+
+  private var agentPanelPresentations: [UUID: PaneAgentPanelPresentation] {
+    terminal.agentPanelPresentations(for: tabID).filter {
+      !store.hiddenAgentPanelSurfaceIDs.contains($0.key)
+    }
   }
 }

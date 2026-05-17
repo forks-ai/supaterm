@@ -71,6 +71,7 @@ struct TerminalWindowFeature {
     var startupCommand: String?
     var isFloatingSidebarVisible = false
     var isSidebarCollapsed = false
+    var hiddenAgentPanelSurfaceIDs: Set<UUID> = []
     var pendingCloseRequest: PendingCloseRequest?
     var pendingSpaceDeleteRequest: TerminalSpaceDeleteRequest?
     var sidebarFraction: CGFloat = 0.2
@@ -143,6 +144,7 @@ struct TerminalWindowFeature {
     case collapseSidebarButtonTapped
     case floatingSidebarVisibilityChanged(Bool)
     case agentPanelURLTapped(URL)
+    case agentPanelVisibilityToggled(UUID)
     case navigateSearchMenuItemSelected(GhosttySearchDirection)
     case newTabButtonTapped(inheritingFromSurfaceID: UUID?)
     case nextSpaceRequested
@@ -326,6 +328,14 @@ struct TerminalWindowFeature {
         return .run { [externalNavigationClient] _ in
           _ = await externalNavigationClient.open(url)
         }
+
+      case .agentPanelVisibilityToggled(let surfaceID):
+        if state.hiddenAgentPanelSurfaceIDs.contains(surfaceID) {
+          state.hiddenAgentPanelSurfaceIDs.remove(surfaceID)
+        } else {
+          state.hiddenAgentPanelSurfaceIDs.insert(surfaceID)
+        }
+        return .none
 
       case .navigateSearchMenuItemSelected(let direction):
         return sendCommand(.navigateSearch(direction))
