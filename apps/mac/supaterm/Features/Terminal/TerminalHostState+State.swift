@@ -280,10 +280,9 @@ extension TerminalHostState {
       return [:]
     }
     guard let tree = trees[tabID] else {
-      TerminalAgentPanelDiagnostics.log("presentations tab=\(tabID) reason=no-tree")
       return [:]
     }
-    let presentations: [UUID: PaneAgentPanelPresentation] = Dictionary(
+    return Dictionary(
       uniqueKeysWithValues: tree.leaves().compactMap { surface in
         guard let presentation = agentPanelPresentation(for: surface.id) else {
           return nil
@@ -291,17 +290,6 @@ extension TerminalHostState {
         return (surface.id, presentation)
       }
     )
-    if !presentations.isEmpty {
-      TerminalAgentPanelDiagnostics.log(
-        [
-          "presentations",
-          "tab=\(tabID)",
-          "count=\(presentations.count)",
-          "surfaces=\(presentations.keys.map(TerminalAgentPanelDiagnostics.surface).joined(separator: ","))",
-        ].joined(separator: " ")
-      )
-    }
-    return presentations
   }
 
   func agentPanelPresentation(for surfaceID: UUID) -> PaneAgentPanelPresentation? {
@@ -312,15 +300,9 @@ extension TerminalHostState {
       return nil
     }
     guard let presentation = paneAgentMetadataBySurfaceID[surfaceID]?.panelPresentation else {
-      TerminalAgentPanelDiagnostics.log(
-        "presentation missing surface=\(TerminalAgentPanelDiagnostics.surface(surfaceID)) reason=no-metadata"
-      )
       return nil
     }
     guard !presentation.isEmpty else {
-      TerminalAgentPanelDiagnostics.log(
-        "presentation missing surface=\(TerminalAgentPanelDiagnostics.surface(surfaceID)) reason=empty"
-      )
       return nil
     }
     return presentation
@@ -328,39 +310,19 @@ extension TerminalHostState {
 
   func agentPanelRefreshContext(for surfaceID: UUID) -> TerminalAgentPanelRefreshContext? {
     guard agentPanelIsEnabled else {
-      TerminalAgentPanelDiagnostics.log(
-        "refresh context missing surface=\(TerminalAgentPanelDiagnostics.surface(surfaceID)) reason=disabled"
-      )
       return nil
     }
     guard let surface = surfaces[surfaceID] else {
-      TerminalAgentPanelDiagnostics.log(
-        "refresh context missing surface=\(TerminalAgentPanelDiagnostics.surface(surfaceID)) reason=no-surface"
-      )
       return nil
     }
     guard tabID(containing: surfaceID) != nil else {
-      TerminalAgentPanelDiagnostics.log(
-        "refresh context missing surface=\(TerminalAgentPanelDiagnostics.surface(surfaceID)) reason=no-tab"
-      )
       return nil
     }
     guard agentPanelIsActive(for: surfaceID) else {
-      TerminalAgentPanelDiagnostics.log(
-        "refresh context missing surface=\(TerminalAgentPanelDiagnostics.surface(surfaceID)) reason=inactive"
-      )
       return nil
     }
     let pwd = surface.bridge.state.pwd?.trimmingCharacters(in: .whitespacesAndNewlines)
     let processIDs = agentPresenceStore.processIDs(for: surfaceID)
-    TerminalAgentPanelDiagnostics.log(
-      [
-        "refresh context",
-        "surface=\(TerminalAgentPanelDiagnostics.surface(surfaceID))",
-        "pwd=\(pwd ?? "nil")",
-        "processIDs=\(processIDs.sorted())",
-      ].joined(separator: " ")
-    )
     return TerminalAgentPanelRefreshContext(
       workingDirectoryPath: pwd,
       processIDs: processIDs
@@ -391,14 +353,6 @@ extension TerminalHostState {
     processID: Int32?
   ) -> Bool {
     guard tabID(containing: surfaceID) != nil else {
-      TerminalAgentPanelDiagnostics.log(
-        [
-          "presence register skipped",
-          "surface=\(TerminalAgentPanelDiagnostics.surface(surfaceID))",
-          "agent=\(agent)",
-          "reason=no-tab",
-        ].joined(separator: " ")
-      )
       return false
     }
     let changed = agentPresenceStore.register(
@@ -406,16 +360,6 @@ extension TerminalHostState {
       surfaceID: surfaceID,
       sessionID: sessionID,
       processID: processID
-    )
-    TerminalAgentPanelDiagnostics.log(
-      [
-        "presence register",
-        "surface=\(TerminalAgentPanelDiagnostics.surface(surfaceID))",
-        "agent=\(agent)",
-        "session=\(sessionID ?? "nil")",
-        "processID=\(processID?.description ?? "nil")",
-        "changed=\(changed)",
-      ].joined(separator: " ")
     )
     if changed {
       agentPanelController?.surfaceAgentStateChanged(surfaceID)
@@ -431,14 +375,6 @@ extension TerminalHostState {
     processID: Int32?
   ) -> Bool {
     guard tabID(containing: surfaceID) != nil else {
-      TerminalAgentPanelDiagnostics.log(
-        [
-          "presence activity skipped",
-          "surface=\(TerminalAgentPanelDiagnostics.surface(surfaceID))",
-          "agent=\(activity.kind)",
-          "reason=no-tab",
-        ].joined(separator: " ")
-      )
       return false
     }
     let changed = agentPresenceStore.setActivity(
@@ -446,17 +382,6 @@ extension TerminalHostState {
       surfaceID: surfaceID,
       sessionID: sessionID,
       processID: processID
-    )
-    TerminalAgentPanelDiagnostics.log(
-      [
-        "presence activity",
-        "surface=\(TerminalAgentPanelDiagnostics.surface(surfaceID))",
-        "agent=\(activity.kind)",
-        "phase=\(activity.phase)",
-        "session=\(sessionID ?? "nil")",
-        "processID=\(processID?.description ?? "nil")",
-        "changed=\(changed)",
-      ].joined(separator: " ")
     )
     if changed {
       agentPanelController?.surfaceAgentStateChanged(surfaceID)
@@ -477,16 +402,6 @@ extension TerminalHostState {
       sessionID: sessionID,
       processID: processID
     )
-    TerminalAgentPanelDiagnostics.log(
-      [
-        "presence clear",
-        "surface=\(TerminalAgentPanelDiagnostics.surface(surfaceID))",
-        "agent=\(agent)",
-        "session=\(sessionID ?? "nil")",
-        "processID=\(processID?.description ?? "nil")",
-        "changed=\(changed)",
-      ].joined(separator: " ")
-    )
     if changed {
       agentPanelController?.surfaceAgentStateChanged(surfaceID)
     }
@@ -496,9 +411,6 @@ extension TerminalHostState {
   @discardableResult
   func clearAgentPresence(for surfaceID: UUID) -> Bool {
     let changed = agentPresenceStore.removeSurface(surfaceID)
-    TerminalAgentPanelDiagnostics.log(
-      "presence clear surface=\(TerminalAgentPanelDiagnostics.surface(surfaceID)) changed=\(changed)"
-    )
     if changed {
       agentPanelController?.surfaceAgentStateChanged(surfaceID)
     }
@@ -552,9 +464,6 @@ extension TerminalHostState {
       return false
     }
     guard tabID(containing: surfaceID) != nil else {
-      TerminalAgentPanelDiagnostics.log(
-        "record snapshot skipped surface=\(TerminalAgentPanelDiagnostics.surface(surfaceID)) reason=no-tab"
-      )
       return false
     }
     var metadata = paneAgentMetadataBySurfaceID[surfaceID] ?? PaneAgentMetadata()
@@ -562,15 +471,6 @@ extension TerminalHostState {
     metadata.progressRows = progressRows
     metadata.sources = sources
     storePaneAgentMetadata(metadata, for: surfaceID)
-    TerminalAgentPanelDiagnostics.log(
-      [
-        "record snapshot",
-        "surface=\(TerminalAgentPanelDiagnostics.surface(surfaceID))",
-        "progress=\(progressRows.count)",
-        "sources=\(sources.count)",
-        "changed=\(metadata != original)",
-      ].joined(separator: " ")
-    )
     if metadata != original {
       agentPanelController?.surfaceAgentStateChanged(surfaceID)
     }
@@ -586,24 +486,12 @@ extension TerminalHostState {
       return false
     }
     guard tabID(containing: surfaceID) != nil else {
-      TerminalAgentPanelDiagnostics.log(
-        "branch details skipped surface=\(TerminalAgentPanelDiagnostics.surface(surfaceID)) reason=no-tab"
-      )
       return false
     }
     var metadata = paneAgentMetadataBySurfaceID[surfaceID] ?? PaneAgentMetadata()
     guard metadata.branchDetails != branchDetails else { return false }
     metadata.branchDetails = branchDetails
     storePaneAgentMetadata(metadata, for: surfaceID)
-    TerminalAgentPanelDiagnostics.log(
-      [
-        "branch details stored",
-        "surface=\(TerminalAgentPanelDiagnostics.surface(surfaceID))",
-        "branch=\(branchDetails?.branchName ?? "nil")",
-        "added=\(branchDetails?.addedLineCount.description ?? "nil")",
-        "removed=\(branchDetails?.removedLineCount.description ?? "nil")",
-      ].joined(separator: " ")
-    )
     return true
   }
 
@@ -616,33 +504,18 @@ extension TerminalHostState {
       return false
     }
     guard tabID(containing: surfaceID) != nil else {
-      TerminalAgentPanelDiagnostics.log(
-        "artifacts skipped surface=\(TerminalAgentPanelDiagnostics.surface(surfaceID)) reason=no-tab"
-      )
       return false
     }
     var metadata = paneAgentMetadataBySurfaceID[surfaceID] ?? PaneAgentMetadata()
     guard metadata.artifacts != artifacts else { return false }
     metadata.artifacts = artifacts
     storePaneAgentMetadata(metadata, for: surfaceID)
-    TerminalAgentPanelDiagnostics.log(
-      [
-        "artifacts stored",
-        "surface=\(TerminalAgentPanelDiagnostics.surface(surfaceID))",
-        "count=\(artifacts.count)",
-        "titles=\(artifacts.map(\.title).joined(separator: ","))",
-      ].joined(separator: " ")
-    )
     return true
   }
 
   @discardableResult
   func clearAgentPanelMetadata(for surfaceID: UUID) -> Bool {
-    let removed = paneAgentMetadataBySurfaceID.removeValue(forKey: surfaceID) != nil
-    TerminalAgentPanelDiagnostics.log(
-      "metadata cleared surface=\(TerminalAgentPanelDiagnostics.surface(surfaceID)) removed=\(removed)"
-    )
-    return removed
+    paneAgentMetadataBySurfaceID.removeValue(forKey: surfaceID) != nil
   }
 
   static func agentActivityPriority(_ phase: AgentActivityPhase) -> Int {

@@ -575,48 +575,18 @@ struct TerminalSplitTreeView: View {
 
     static func agentPanelOverlayState(
       presentation: PaneAgentPanelPresentation?,
-      focusedSurfaceID: UUID?,
-      surfaceID: UUID,
+      focusedSurfaceID _: UUID?,
+      surfaceID _: UUID,
       size: CGSize,
       isCollapsed: Bool
     ) -> AgentPanelOverlayState {
-      let surface = TerminalAgentPanelDiagnostics.surface(surfaceID)
       guard let presentation, !presentation.isEmpty else {
-        if focusedSurfaceID == surfaceID {
-          TerminalAgentPanelDiagnostics.log("overlay hidden surface=\(surface) reason=no-presentation")
-        }
         return .hidden
       }
       if isCollapsed {
-        TerminalAgentPanelDiagnostics.log(
-          [
-            "overlay evaluated",
-            "surface=\(surface)",
-            "state=collapsed",
-            "focused=\(focusedSurfaceID == surfaceID)",
-            "size=\(Int(size.width))x\(Int(size.height))",
-            "progress=\(presentation.progressRows.count)",
-            "branch=\(presentation.branchDetails != nil)",
-            "artifacts=\(presentation.artifacts.count)",
-            "sources=\(presentation.sources.count)",
-          ].joined(separator: " ")
-        )
         return .collapsedIcon
       }
       let hasRoom = size.width >= 360 && size.height >= 220
-      TerminalAgentPanelDiagnostics.log(
-        [
-          "overlay evaluated",
-          "surface=\(surface)",
-          "state=\(hasRoom ? "expanded" : "hidden")",
-          "focused=\(focusedSurfaceID == surfaceID)",
-          "size=\(Int(size.width))x\(Int(size.height))",
-          "progress=\(presentation.progressRows.count)",
-          "branch=\(presentation.branchDetails != nil)",
-          "artifacts=\(presentation.artifacts.count)",
-          "sources=\(presentation.sources.count)",
-        ].joined(separator: " ")
-      )
       return hasRoom ? .expandedPanel : .hidden
     }
 

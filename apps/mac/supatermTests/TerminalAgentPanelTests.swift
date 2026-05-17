@@ -226,6 +226,121 @@ struct TerminalAgentPanelTests {
   }
 
   @Test
+  @MainActor
+  func portScannerBatchesSurfacesIntoSingleScan() async throws {
+    let firstSurfaceID = try #require(UUID(uuidString: "00000000-0000-0000-0000-000000000001"))
+    let secondSurfaceID = try #require(UUID(uuidString: "00000000-0000-0000-0000-000000000002"))
+    let recorder = AgentPanelCommandRecorder(
+      psOutput: """
+        10 1
+        11 10
+        20 1
+        21 20
+        """,
+      lsofOutput: """
+        p11
+        n*:5173
+        p21
+        n127.0.0.1:8080
+        """
+    )
+    let scanner = PaneAgentPortScanner(runner: await recorder.runner())
+    var deliveries: [(UUID, [String])] = []
+    let deliver: PaneAgentPortScanner.Delivery = { surfaceID, artifacts in
+      deliveries.append((surfaceID, artifacts.map(\.title)))
+    }
+
+    scanner.update(surfaceID: firstSurfaceID, processIDs: [10], deliver: deliver)
+    scanner.update(surfaceID: secondSurfaceID, processIDs: [20], deliver: deliver)
+
+    #expect(await scanner.scanOnce())
+    #expect(await recorder.commandPaths() == ["/bin/ps", "/usr/sbin/lsof"])
+    #expect(await recorder.arguments(for: "/usr/sbin/lsof").first?.contains("10,11,20,21") == true)
+    #expect(deliveries.count == 2)
+    #expect(deliveries[0].0 == firstSurfaceID)
+    #expect(deliveries[0].1 == ["localhost:5173"])
+    #expect(deliveries[1].0 == secondSurfaceID)
+    #expect(deliveries[1].1 == ["localhost:8080"])
+  }
+
+  @Test
+  @MainActor
+  func portScannerDeliversOnlyChangedArtifacts() async throws {
+    let surfaceID = try #require(UUID(uuidString: "00000000-0000-0000-0000-000000000010"))
+    let recorder = AgentPanelCommandRecorder(
+      psOutput: """
+        10 1
+        11 10
+        """,
+      lsofOutput: """
+        p11
+        n*:5173
+        """
+    )
+    let scanner = PaneAgentPortScanner(runner: await recorder.runner())
+    var deliveries: [[String]] = []
+    let deliver: PaneAgentPortScanner.Delivery = { _, artifacts in
+      deliveries.append(artifacts.map(\.title))
+    }
+
+    scanner.update(surfaceID: surfaceID, processIDs: [10], deliver: deliver)
+
+    #expect(await scanner.scanOnce())
+    #expect(await scanner.scanOnce() == false)
+
+    scanner.update(surfaceID: surfaceID, processIDs: [10], deliver: deliver)
+
+    #expect(await scanner.scanOnce() == false)
+
+    scanner.clear(surfaceID: surfaceID, deliver: deliver)
+    scanner.clear(surfaceID: surfaceID, deliver: deliver)
+
+    #expect(deliveries == [["localhost:5173"], []])
+  }
+
+  @Test
+  @MainActor
+  func portScannerRemovesClearedSurfaceFromBatch() async throws {
+    let firstSurfaceID = try #require(UUID(uuidString: "00000000-0000-0000-0000-000000000001"))
+    let secondSurfaceID = try #require(UUID(uuidString: "00000000-0000-0000-0000-000000000002"))
+    let recorder = AgentPanelCommandRecorder(
+      psOutput: """
+        10 1
+        11 10
+        20 1
+        21 20
+        """,
+      lsofOutput: """
+        p11
+        n*:5173
+        p21
+        n127.0.0.1:8080
+        """
+    )
+    let scanner = PaneAgentPortScanner(runner: await recorder.runner())
+    var deliveries: [(UUID, [String])] = []
+    let deliver: PaneAgentPortScanner.Delivery = { surfaceID, artifacts in
+      deliveries.append((surfaceID, artifacts.map(\.title)))
+    }
+
+    scanner.update(surfaceID: firstSurfaceID, processIDs: [10], deliver: deliver)
+    scanner.update(surfaceID: secondSurfaceID, processIDs: [20], deliver: deliver)
+    await scanner.scanOnce()
+    scanner.clear(surfaceID: firstSurfaceID, deliver: deliver)
+    await recorder.reset()
+
+    #expect(await scanner.scanOnce() == false)
+    #expect(await recorder.arguments(for: "/usr/sbin/lsof").first?.contains("20,21") == true)
+
+    scanner.clear(surfaceID: secondSurfaceID, deliver: deliver)
+    await recorder.reset()
+
+    #expect(await scanner.scanOnce() == false)
+    #expect(await recorder.commandPaths().isEmpty)
+    #expect(deliveries.contains { $0.0 == firstSurfaceID && $0.1.isEmpty })
+  }
+
+  @Test
   func githubPullRequestDecoderHandlesNoPullRequest() {
     let status = TerminalAgentGithubClient.decodePullRequestStatus(
       """
@@ -532,6 +647,58 @@ struct TerminalAgentPanelTests {
 
 private func isoDate(_ value: String) throws -> Date {
   try #require(ISO8601DateFormatter().date(from: value))
+}
+
+private actor AgentPanelCommandRecorder {
+  private let psOutput: String
+  private let lsofOutput: String
+  private var commands: [(path: String, arguments: [String])] = []
+
+  init(psOutput: String, lsofOutput: String) {
+    self.psOutput = psOutput
+    self.lsofOutput = lsofOutput
+  }
+
+  func runner() -> TerminalAgentPanelCommandRunner {
+    TerminalAgentPanelCommandRunner(
+      run: { executableURL, arguments, _ in
+        await self.run(executableURL: executableURL, arguments: arguments)
+      },
+      runLoginCommand: { _, _ in
+        TerminalAgentPanelCommandResult(status: 1, stdout: "")
+      }
+    )
+  }
+
+  func reset() {
+    commands = []
+  }
+
+  func commandPaths() -> [String] {
+    commands.map(\.path)
+  }
+
+  func arguments(for path: String) -> [[String]] {
+    commands.compactMap { command in
+      command.path == path ? command.arguments : nil
+    }
+  }
+
+  private func run(
+    executableURL: URL,
+    arguments: [String]
+  ) -> TerminalAgentPanelCommandResult {
+    let path = executableURL.path
+    commands.append((path, arguments))
+    switch path {
+    case "/bin/ps":
+      return TerminalAgentPanelCommandResult(status: 0, stdout: psOutput)
+    case "/usr/sbin/lsof":
+      return TerminalAgentPanelCommandResult(status: 0, stdout: lsofOutput)
+    default:
+      return TerminalAgentPanelCommandResult(status: 1, stdout: "")
+    }
+  }
 }
 
 private actor AgentPanelRefreshRecorder {
