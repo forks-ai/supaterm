@@ -68,6 +68,17 @@ nonisolated struct PaneAgentPullRequestStatus: Equatable, Sendable {
     removedLineCount: nil,
     checks: nil
   )
+
+  static func createPullRequest(url: URL?) -> Self {
+    Self(
+      kind: .none,
+      title: "Create pull request",
+      url: url,
+      addedLineCount: nil,
+      removedLineCount: nil,
+      checks: nil
+    )
+  }
 }
 
 nonisolated struct PaneAgentPullRequestChecks: Equatable, Sendable {

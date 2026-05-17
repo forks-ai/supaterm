@@ -260,6 +260,59 @@ struct TerminalAgentPanelTests {
   }
 
   @Test
+  func githubPullRequestStatusBuildsCreateURLWhenNoPullRequestExists() async {
+    let runner = TerminalAgentPanelCommandRunner(
+      run: { executableURL, arguments, _ in
+        if executableURL.path == "/usr/bin/which" {
+          return TerminalAgentPanelCommandResult(status: 0, stdout: "/usr/bin/gh\n")
+        }
+        if arguments.starts(with: ["repo", "view"]) {
+          return TerminalAgentPanelCommandResult(
+            status: 0,
+            stdout: """
+              {
+                "name": "supaterm",
+                "owner": {
+                  "login": "supabitapp"
+                },
+                "url": "https://github.com/supabitapp/supaterm"
+              }
+              """
+          )
+        }
+        if arguments.starts(with: ["api", "graphql"]) {
+          return TerminalAgentPanelCommandResult(
+            status: 0,
+            stdout: """
+              {"data":{"repository":{"pullRequests":{"nodes":[]}}}}
+              """
+          )
+        }
+        return TerminalAgentPanelCommandResult(status: 1, stdout: "")
+      },
+      runLoginCommand: { _, _ in
+        TerminalAgentPanelCommandResult(status: 1, stdout: "")
+      }
+    )
+    let client = TerminalAgentGithubClient(
+      runner: runner,
+      resolver: TerminalAgentGithubExecutableResolver()
+    )
+
+    let status = await client.pullRequestStatus(
+      repoRoot: URL(fileURLWithPath: "/tmp/repo", isDirectory: true),
+      branchName: "khoi/agent-panel"
+    )
+
+    #expect(status.kind == .none)
+    #expect(status.title == "Create pull request")
+    #expect(
+      status.url?.absoluteString
+        == "https://github.com/supabitapp/supaterm/compare/khoi/agent-panel?expand=1"
+    )
+  }
+
+  @Test
   func githubPullRequestDecoderUsesNumberChangesAndChecks() throws {
     let status = TerminalAgentGithubClient.decodePullRequestStatus(
       """

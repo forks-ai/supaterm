@@ -254,7 +254,7 @@ struct AgentPanelView: View {
     case .unavailable:
       return "exclamationmark.circle"
     case .none:
-      return "circle"
+      return "plus.circle"
     case .open, .draft:
       return "arrow.up.right.circle"
     case .merged:

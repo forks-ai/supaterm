@@ -310,6 +310,15 @@ nonisolated struct TerminalAgentGithubRemote: Equatable, Sendable {
   let host: String
   let owner: String
   let repo: String
+
+  func createPullRequestURL(branchName: String) -> URL? {
+    var components = URLComponents()
+    components.scheme = "https"
+    components.host = host
+    components.path = "/\(owner)/\(repo)/compare/\(branchName)"
+    components.queryItems = [URLQueryItem(name: "expand", value: "1")]
+    return components.url
+  }
 }
 
 actor TerminalAgentGithubExecutableResolver {
@@ -438,17 +447,25 @@ nonisolated struct TerminalAgentGithubClient: Sendable {
       return .unavailable
     }
     let status = Self.decodePullRequestStatus(output.stdout)
+    let resolvedStatus =
+      if status.kind == .none {
+        PaneAgentPullRequestStatus.createPullRequest(
+          url: remote.createPullRequestURL(branchName: branchName)
+        )
+      } else {
+        status
+      }
     TerminalAgentPanelDiagnostics.log(
       [
         "gh pr status",
         "owner=\(remote.owner)",
         "repo=\(remote.repo)",
         "branch=\(branchName)",
-        "kind=\(status.kind)",
-        "title=\(status.title)",
+        "kind=\(resolvedStatus.kind)",
+        "title=\(resolvedStatus.title)",
       ].joined(separator: " ")
     )
-    return status
+    return resolvedStatus
   }
 
   nonisolated private func remoteInfo(repoRoot: URL) async -> TerminalAgentGithubRemote? {
