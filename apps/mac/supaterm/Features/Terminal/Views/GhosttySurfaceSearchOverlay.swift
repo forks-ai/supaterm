@@ -2,6 +2,8 @@ import AppKit
 import SwiftUI
 
 struct GhosttySurfaceSearchOverlay: View {
+  static let topReservedHeight: CGFloat = 60
+
   let surfaceView: GhosttySurfaceView
   @Bindable var state: GhosttySurfaceState
 

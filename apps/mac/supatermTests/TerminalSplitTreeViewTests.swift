@@ -155,7 +155,7 @@ struct TerminalSplitTreeViewTests {
   }
 
   @Test
-  func agentPanelShowsForPaneWithPresentationRoomAndNoSearch() {
+  func agentPanelShowsForPaneWithPresentationRoom() {
     let focusedID = UUID()
     let agentPaneID = UUID()
     let presentation = PaneAgentPanelPresentation(
@@ -169,7 +169,6 @@ struct TerminalSplitTreeViewTests {
         presentation: presentation,
         focusedSurfaceID: focusedID,
         surfaceID: focusedID,
-        searchNeedle: nil,
         size: CGSize(width: 420, height: 260)
       )
     )
@@ -178,7 +177,14 @@ struct TerminalSplitTreeViewTests {
         presentation: presentation,
         focusedSurfaceID: focusedID,
         surfaceID: agentPaneID,
-        searchNeedle: nil,
+        size: CGSize(width: 420, height: 260)
+      )
+    )
+    #expect(
+      TerminalSplitTreeView.LeafView.shouldShowAgentPanel(
+        presentation: presentation,
+        focusedSurfaceID: focusedID,
+        surfaceID: focusedID,
         size: CGSize(width: 420, height: 260)
       )
     )
@@ -187,18 +193,17 @@ struct TerminalSplitTreeViewTests {
         presentation: presentation,
         focusedSurfaceID: focusedID,
         surfaceID: focusedID,
-        searchNeedle: "query",
-        size: CGSize(width: 420, height: 260)
-      )
-    )
-    #expect(
-      !TerminalSplitTreeView.LeafView.shouldShowAgentPanel(
-        presentation: presentation,
-        focusedSurfaceID: focusedID,
-        surfaceID: focusedID,
-        searchNeedle: nil,
         size: CGSize(width: 320, height: 260)
       )
+    )
+  }
+
+  @Test
+  func agentPanelMovesBelowSearchOverlayWhenSearchIsVisible() {
+    #expect(TerminalSplitTreeView.LeafView.agentPanelTopPadding(searchIsVisible: false) == 12)
+    #expect(
+      TerminalSplitTreeView.LeafView.agentPanelTopPadding(searchIsVisible: true)
+        == GhosttySurfaceSearchOverlay.topReservedHeight
     )
   }
 

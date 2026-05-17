@@ -298,6 +298,8 @@ struct TerminalSplitTreeView: View {
     @State private var notificationPulseAnimationGeneration = 0
     @State private var notificationPulseOpacity = 0.0
 
+    private static let agentPanelEdgePadding: CGFloat = 12
+
     private var unreadGlowShape: UnevenRoundedRectangle {
       UnevenRoundedRectangle(
         cornerRadii: outerEdges.cornerRadii(cornerRadius: TerminalChromeMetrics.paneCornerRadius),
@@ -391,11 +393,11 @@ struct TerminalSplitTreeView: View {
 
     @ViewBuilder
     private func agentPanelOverlay(size: CGSize) -> some View {
+      let searchIsVisible = surfaceView.bridge.state.searchNeedle != nil
       if Self.shouldShowAgentPanel(
         presentation: agentPanelPresentation,
         focusedSurfaceID: focusedSurfaceID,
         surfaceID: surfaceView.id,
-        searchNeedle: surfaceView.bridge.state.searchNeedle,
         size: size
       ), let agentPanelPresentation {
         AgentPanelView(
@@ -405,7 +407,8 @@ struct TerminalSplitTreeView: View {
             action(.agentPanelURLTapped(url))
           }
         )
-        .padding(12)
+        .padding(.top, Self.agentPanelTopPadding(searchIsVisible: searchIsVisible))
+        .padding([.leading, .trailing, .bottom], Self.agentPanelEdgePadding)
       }
     }
 
@@ -539,7 +542,6 @@ struct TerminalSplitTreeView: View {
       presentation: PaneAgentPanelPresentation?,
       focusedSurfaceID: UUID?,
       surfaceID: UUID,
-      searchNeedle: String?,
       size: CGSize
     ) -> Bool {
       let surface = TerminalAgentPanelDiagnostics.surface(surfaceID)
@@ -547,10 +549,6 @@ struct TerminalSplitTreeView: View {
         if focusedSurfaceID == surfaceID {
           TerminalAgentPanelDiagnostics.log("overlay hidden surface=\(surface) reason=no-presentation")
         }
-        return false
-      }
-      guard searchNeedle == nil else {
-        TerminalAgentPanelDiagnostics.log("overlay hidden surface=\(surface) reason=search")
         return false
       }
       let hasRoom = size.width >= 360 && size.height >= 220
@@ -568,6 +566,10 @@ struct TerminalSplitTreeView: View {
         ].joined(separator: " ")
       )
       return hasRoom
+    }
+
+    static func agentPanelTopPadding(searchIsVisible: Bool) -> CGFloat {
+      searchIsVisible ? GhosttySurfaceSearchOverlay.topReservedHeight : agentPanelEdgePadding
     }
 
     static func shouldTriggerNotificationPulse(
