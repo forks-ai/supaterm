@@ -396,11 +396,13 @@ struct TerminalAgentPanelTests {
       ]
     )
 
-    #expect(checks.passingCount == 1)
-    #expect(checks.pendingCount == 2)
-    #expect(checks.failingCount == 1)
-    #expect(checks.skippedCount == 1)
-    #expect(checks.knownItemCount == 5)
+    let expectedCounts: [PaneAgentPullRequestCheck.Status: Int] = [
+      .passing: 1,
+      .pending: 2,
+      .failing: 1,
+      .skipped: 1,
+    ]
+    #expect(checks.itemCounts == expectedCounts)
     #expect(checks.title == "Checks pending (7)")
   }
 

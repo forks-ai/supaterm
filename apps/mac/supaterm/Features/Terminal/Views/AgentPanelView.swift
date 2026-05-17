@@ -329,28 +329,25 @@ private struct PullRequestChecksRingView: View {
   private let segmentGapFraction = 0.05
 
   var body: some View {
-    let segments = segments()
-    let applyGap = segments.count > 1
     ZStack {
-      ForEach(segments, id: \.id) { segment in
-        if let segment = trimmed(segment, applyGap: applyGap) {
-          Circle()
-            .trim(from: segment.start, to: segment.end)
-            .stroke(segment.color, style: StrokeStyle(lineWidth: lineWidth, lineCap: .round))
-            .rotationEffect(.degrees(-90))
-        }
+      ForEach(segments(), id: \.id) { segment in
+        Circle()
+          .trim(from: segment.start, to: segment.end)
+          .stroke(segment.color, style: StrokeStyle(lineWidth: lineWidth, lineCap: .round))
+          .rotationEffect(.degrees(-90))
       }
     }
     .frame(width: diameter, height: diameter)
   }
 
   private func segments() -> [Segment] {
-    let total = Double(checks.knownItemCount)
+    let total = Double(checks.items.count)
     guard total > 0 else {
       return []
     }
     var start = 0.0
     var segments: [Segment] = []
+    let counts = checks.itemCounts
     func addSegment(id: String, count: Int, color: Color) {
       guard count > 0 else {
         return
@@ -359,19 +356,19 @@ private struct PullRequestChecksRingView: View {
       segments.append(Segment(id: id, start: start, end: end, color: color))
       start = end
     }
-    addSegment(id: "failing", count: checks.failingCount, color: palette.coral)
-    addSegment(id: "pending", count: checks.pendingCount, color: palette.amber)
-    addSegment(id: "skipped", count: checks.skippedCount, color: palette.secondaryText)
-    addSegment(id: "passing", count: checks.passingCount, color: palette.mint)
-    return segments
+    addSegment(id: "failing", count: counts[.failing, default: 0], color: palette.coral)
+    addSegment(id: "pending", count: counts[.pending, default: 0], color: palette.amber)
+    addSegment(id: "skipped", count: counts[.skipped, default: 0], color: palette.secondaryText)
+    addSegment(id: "passing", count: counts[.passing, default: 0], color: palette.mint)
+    guard segments.count > 1 else {
+      return segments
+    }
+    return segments.compactMap(trimmed)
   }
 
-  private func trimmed(_ segment: Segment, applyGap: Bool) -> Segment? {
+  private func trimmed(_ segment: Segment) -> Segment? {
     let length = segment.end - segment.start
-    guard length > 0 else {
-      return nil
-    }
-    let gap = applyGap ? min(segmentGapFraction, length * 0.45) : 0
+    let gap = min(segmentGapFraction, length * 0.45)
     let start = segment.start + gap
     let end = segment.end - gap
     guard end > start else {

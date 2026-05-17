@@ -119,33 +119,15 @@ nonisolated struct PaneAgentPullRequestChecks: Equatable, Sendable {
     return "Checks passed (\(totalCount))"
   }
 
-  var passingCount: Int {
-    count(.passing)
-  }
-
-  var pendingCount: Int {
-    count(.pending)
-  }
-
-  var failingCount: Int {
-    count(.failing)
-  }
-
-  var skippedCount: Int {
-    count(.skipped)
-  }
-
-  var knownItemCount: Int {
-    items.count
-  }
-
-  private func count(_ status: PaneAgentPullRequestCheck.Status) -> Int {
-    items.filter { $0.status == status }.count
+  var itemCounts: [PaneAgentPullRequestCheck.Status: Int] {
+    items.reduce(into: [:]) { counts, item in
+      counts[item.status, default: 0] += 1
+    }
   }
 }
 
 nonisolated struct PaneAgentPullRequestCheck: Equatable, Identifiable, Sendable {
-  enum Status: Equatable, Sendable {
+  enum Status: Equatable, Hashable, Sendable {
     case pending
     case passing
     case failing
