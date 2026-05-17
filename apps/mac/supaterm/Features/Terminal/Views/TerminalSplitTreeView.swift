@@ -42,6 +42,7 @@ struct TerminalSplitTreeView: View {
   let dimmingColor: Color
   let dimmingOpacity: Double
   let focusedSurfaceID: UUID?
+  let hiddenAgentPanelSurfaceIDs: Set<UUID>
   let notificationColor: Color
   let palette: TerminalPalette
   let showsGlowingPaneRing: Bool
@@ -169,6 +170,7 @@ struct TerminalSplitTreeView: View {
         dimmingColor: dimmingColor,
         dimmingOpacity: dimmingOpacity,
         focusedSurfaceID: focusedSurfaceID,
+        hiddenAgentPanelSurfaceIDs: hiddenAgentPanelSurfaceIDs,
         notificationColor: notificationColor,
         palette: palette,
         showsGlowingPaneRing: showsGlowingPaneRing,
@@ -186,7 +188,14 @@ struct TerminalSplitTreeView: View {
     case resize(node: SplitTree<GhosttySurfaceView>.Node, ratio: Double)
     case drop(payloadId: UUID, destinationId: UUID, zone: DropZone)
     case equalize
+    case agentPanelVisibilityToggled(UUID)
     case agentPanelURLTapped(URL)
+  }
+
+  enum AgentPanelOverlayState: Equatable {
+    case hidden
+    case collapsedIcon
+    case expandedPanel
   }
 
   struct SubtreeView: View {
@@ -195,6 +204,7 @@ struct TerminalSplitTreeView: View {
     let dimmingColor: Color
     let dimmingOpacity: Double
     let focusedSurfaceID: UUID?
+    let hiddenAgentPanelSurfaceIDs: Set<UUID>
     let notificationColor: Color
     let palette: TerminalPalette
     let showsGlowingPaneRing: Bool
@@ -212,6 +222,7 @@ struct TerminalSplitTreeView: View {
           dimmingColor: dimmingColor,
           dimmingOpacity: dimmingOpacity,
           focusedSurfaceID: focusedSurfaceID,
+          isAgentPanelCollapsed: hiddenAgentPanelSurfaceIDs.contains(leafView.id),
           notificationColor: notificationColor,
           palette: palette,
           showsGlowingPaneRing: showsGlowingPaneRing,
@@ -245,6 +256,7 @@ struct TerminalSplitTreeView: View {
               dimmingColor: dimmingColor,
               dimmingOpacity: dimmingOpacity,
               focusedSurfaceID: focusedSurfaceID,
+              hiddenAgentPanelSurfaceIDs: hiddenAgentPanelSurfaceIDs,
               notificationColor: notificationColor,
               palette: palette,
               showsGlowingPaneRing: showsGlowingPaneRing,
@@ -261,6 +273,7 @@ struct TerminalSplitTreeView: View {
               dimmingColor: dimmingColor,
               dimmingOpacity: dimmingOpacity,
               focusedSurfaceID: focusedSurfaceID,
+              hiddenAgentPanelSurfaceIDs: hiddenAgentPanelSurfaceIDs,
               notificationColor: notificationColor,
               palette: palette,
               showsGlowingPaneRing: showsGlowingPaneRing,
@@ -283,6 +296,7 @@ struct TerminalSplitTreeView: View {
     let dimmingColor: Color
     let dimmingOpacity: Double
     let focusedSurfaceID: UUID?
+    let isAgentPanelCollapsed: Bool
     let notificationColor: Color
     let palette: TerminalPalette
     let showsGlowingPaneRing: Bool
@@ -394,21 +408,42 @@ struct TerminalSplitTreeView: View {
     @ViewBuilder
     private func agentPanelOverlay(size: CGSize) -> some View {
       let searchIsVisible = surfaceView.bridge.state.searchNeedle != nil
-      if Self.shouldShowAgentPanel(
+      switch Self.agentPanelOverlayState(
         presentation: agentPanelPresentation,
         focusedSurfaceID: focusedSurfaceID,
         surfaceID: surfaceView.id,
-        size: size
-      ), let agentPanelPresentation {
-        AgentPanelView(
-          presentation: agentPanelPresentation,
+        size: size,
+        isCollapsed: isAgentPanelCollapsed
+      ) {
+      case .hidden:
+        EmptyView()
+      case .collapsedIcon:
+        AgentPanelVisibilityButton(
+          isVisible: false,
           palette: palette,
-          openURL: { url in
-            action(.agentPanelURLTapped(url))
-          }
+          action: { action(.agentPanelVisibilityToggled(surfaceView.id)) }
         )
         .padding(.top, Self.agentPanelTopPadding(searchIsVisible: searchIsVisible))
-        .padding([.leading, .trailing, .bottom], Self.agentPanelEdgePadding)
+        .padding(.trailing, Self.agentPanelEdgePadding)
+      case .expandedPanel:
+        if let agentPanelPresentation {
+          VStack(alignment: .trailing, spacing: 6) {
+            AgentPanelVisibilityButton(
+              isVisible: true,
+              palette: palette,
+              action: { action(.agentPanelVisibilityToggled(surfaceView.id)) }
+            )
+            AgentPanelView(
+              presentation: agentPanelPresentation,
+              palette: palette,
+              openURL: { url in
+                action(.agentPanelURLTapped(url))
+              }
+            )
+          }
+          .padding(.top, Self.agentPanelTopPadding(searchIsVisible: searchIsVisible))
+          .padding([.leading, .trailing, .bottom], Self.agentPanelEdgePadding)
+        }
       }
     }
 
@@ -538,25 +573,42 @@ struct TerminalSplitTreeView: View {
       isSplit && focusedSurfaceID != surfaceID && dimmingOpacity > 0
     }
 
-    static func shouldShowAgentPanel(
+    static func agentPanelOverlayState(
       presentation: PaneAgentPanelPresentation?,
       focusedSurfaceID: UUID?,
       surfaceID: UUID,
-      size: CGSize
-    ) -> Bool {
+      size: CGSize,
+      isCollapsed: Bool
+    ) -> AgentPanelOverlayState {
       let surface = TerminalAgentPanelDiagnostics.surface(surfaceID)
       guard let presentation, !presentation.isEmpty else {
         if focusedSurfaceID == surfaceID {
           TerminalAgentPanelDiagnostics.log("overlay hidden surface=\(surface) reason=no-presentation")
         }
-        return false
+        return .hidden
+      }
+      if isCollapsed {
+        TerminalAgentPanelDiagnostics.log(
+          [
+            "overlay evaluated",
+            "surface=\(surface)",
+            "state=collapsed",
+            "focused=\(focusedSurfaceID == surfaceID)",
+            "size=\(Int(size.width))x\(Int(size.height))",
+            "progress=\(presentation.progressRows.count)",
+            "branch=\(presentation.branchDetails != nil)",
+            "artifacts=\(presentation.artifacts.count)",
+            "sources=\(presentation.sources.count)",
+          ].joined(separator: " ")
+        )
+        return .collapsedIcon
       }
       let hasRoom = size.width >= 360 && size.height >= 220
       TerminalAgentPanelDiagnostics.log(
         [
           "overlay evaluated",
           "surface=\(surface)",
-          "show=\(hasRoom)",
+          "state=\(hasRoom ? "expanded" : "hidden")",
           "focused=\(focusedSurfaceID == surfaceID)",
           "size=\(Int(size.width))x\(Int(size.height))",
           "progress=\(presentation.progressRows.count)",
@@ -565,7 +617,7 @@ struct TerminalSplitTreeView: View {
           "sources=\(presentation.sources.count)",
         ].joined(separator: " ")
       )
-      return hasRoom
+      return hasRoom ? .expandedPanel : .hidden
     }
 
     static func agentPanelTopPadding(searchIsVisible: Bool) -> CGFloat {
@@ -615,6 +667,57 @@ struct TerminalSplitTreeView: View {
           }
         }
       }
+    }
+  }
+
+  private struct AgentPanelVisibilityButton: View {
+    let isVisible: Bool
+    let palette: TerminalPalette
+    let action: () -> Void
+
+    @State private var isHovering = false
+
+    private var helpText: String {
+      isVisible ? "Hide Agent Panel" : "Show Agent Panel"
+    }
+
+    private var accessibilityLabel: String {
+      isVisible ? "Hide agent panel" : "Show agent panel"
+    }
+
+    var body: some View {
+      Button(action: action) {
+        Image(systemName: "info.circle")
+          .font(.system(size: 14, weight: .medium))
+          .foregroundStyle(foregroundStyle)
+          .frame(width: 30, height: 30)
+          .background(backgroundStyle, in: .rect(cornerRadius: 6))
+          .overlay {
+            if isVisible {
+              RoundedRectangle(cornerRadius: 6, style: .continuous)
+                .stroke(Color.accentColor.opacity(isHovering ? 0.32 : 0.22), lineWidth: 1)
+            }
+          }
+          .accessibilityHidden(true)
+      }
+      .buttonStyle(.plain)
+      .help(helpText)
+      .accessibilityLabel(accessibilityLabel)
+      .onHover { isHovering = $0 }
+    }
+
+    private var foregroundStyle: Color {
+      if isVisible {
+        return Color.accentColor
+      }
+      return isHovering ? palette.secondaryText.opacity(0.8) : palette.secondaryText
+    }
+
+    private var backgroundStyle: Color {
+      if isVisible {
+        return Color.accentColor.opacity(isHovering ? 0.18 : 0.12)
+      }
+      return isHovering ? palette.secondaryText.opacity(0.2) : .clear
     }
   }
 
@@ -1012,6 +1115,7 @@ struct TerminalSplitTreeAXContainer: NSViewRepresentable {
   let dimmingColor: Color
   let dimmingOpacity: Double
   let focusedSurfaceID: UUID?
+  let hiddenAgentPanelSurfaceIDs: Set<UUID>
   let notificationColor: Color
   let palette: TerminalPalette
   let showsGlowingPaneRing: Bool
@@ -1034,6 +1138,7 @@ struct TerminalSplitTreeAXContainer: NSViewRepresentable {
           dimmingColor: dimmingColor,
           dimmingOpacity: dimmingOpacity,
           focusedSurfaceID: focusedSurfaceID,
+          hiddenAgentPanelSurfaceIDs: hiddenAgentPanelSurfaceIDs,
           notificationColor: notificationColor,
           palette: palette,
           showsGlowingPaneRing: showsGlowingPaneRing,

@@ -165,36 +165,40 @@ struct TerminalSplitTreeViewTests {
     )
 
     #expect(
-      TerminalSplitTreeView.LeafView.shouldShowAgentPanel(
+      TerminalSplitTreeView.LeafView.agentPanelOverlayState(
         presentation: presentation,
         focusedSurfaceID: focusedID,
         surfaceID: focusedID,
-        size: CGSize(width: 420, height: 260)
-      )
+        size: CGSize(width: 420, height: 260),
+        isCollapsed: false
+      ) == .expandedPanel
     )
     #expect(
-      TerminalSplitTreeView.LeafView.shouldShowAgentPanel(
+      TerminalSplitTreeView.LeafView.agentPanelOverlayState(
         presentation: presentation,
         focusedSurfaceID: focusedID,
         surfaceID: agentPaneID,
-        size: CGSize(width: 420, height: 260)
-      )
+        size: CGSize(width: 420, height: 260),
+        isCollapsed: false
+      ) == .expandedPanel
     )
     #expect(
-      TerminalSplitTreeView.LeafView.shouldShowAgentPanel(
+      TerminalSplitTreeView.LeafView.agentPanelOverlayState(
         presentation: presentation,
         focusedSurfaceID: focusedID,
         surfaceID: focusedID,
-        size: CGSize(width: 420, height: 260)
-      )
+        size: CGSize(width: 420, height: 260),
+        isCollapsed: true
+      ) == .collapsedIcon
     )
     #expect(
-      !TerminalSplitTreeView.LeafView.shouldShowAgentPanel(
+      TerminalSplitTreeView.LeafView.agentPanelOverlayState(
         presentation: presentation,
         focusedSurfaceID: focusedID,
         surfaceID: focusedID,
-        size: CGSize(width: 320, height: 260)
-      )
+        size: CGSize(width: 320, height: 260),
+        isCollapsed: false
+      ) == .hidden
     )
   }
 

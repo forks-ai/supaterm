@@ -1003,6 +1003,9 @@ final class TerminalHostState {
       trees[tabID] = tree.equalized()
       sessionDidChange()
 
+    case .agentPanelVisibilityToggled:
+      break
+
     case .agentPanelURLTapped:
       break
     }
