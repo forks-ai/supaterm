@@ -1,15 +1,43 @@
 import SwiftUI
 
-struct AgentPanelView: View {
-  static let width: CGFloat = 306
+enum AgentPanelMetrics {
+  static let expandedWidth: CGFloat = 306
+  static let collapsedLength: CGFloat = 30
+  static let expandedCornerRadius: CGFloat = 8
+  static let collapsedCornerRadius: CGFloat = 6
+}
 
+struct AgentPanelView<Accessory: View>: View {
   let presentation: PaneAgentPanelPresentation
   let palette: TerminalPalette
   let openURL: (URL) -> Void
+  let accessory: Accessory
 
   @State private var checksAreExpanded = false
 
+  init(
+    presentation: PaneAgentPanelPresentation,
+    palette: TerminalPalette,
+    openURL: @escaping (URL) -> Void,
+    @ViewBuilder accessory: () -> Accessory
+  ) {
+    self.presentation = presentation
+    self.palette = palette
+    self.openURL = openURL
+    self.accessory = accessory()
+  }
+
   var body: some View {
+    HStack(alignment: .top, spacing: 8) {
+      content
+      accessory
+    }
+    .padding(12)
+    .frame(width: AgentPanelMetrics.expandedWidth, alignment: .leading)
+    .accessibilityElement(children: .contain)
+  }
+
+  private var content: some View {
     VStack(alignment: .leading, spacing: 10) {
       if !presentation.progressRows.isEmpty {
         section("Progress") {
@@ -62,18 +90,7 @@ struct AgentPanelView: View {
         }
       }
     }
-    .padding(12)
-    .frame(width: Self.width, alignment: .leading)
-    .background(
-      palette.detailBackground.opacity(0.96),
-      in: .rect(cornerRadius: 8)
-    )
-    .overlay {
-      RoundedRectangle(cornerRadius: 8, style: .continuous)
-        .strokeBorder(palette.detailStroke, lineWidth: 1)
-    }
-    .shadow(color: palette.shadow, radius: 18, y: 10)
-    .accessibilityElement(children: .contain)
+    .frame(maxWidth: .infinity, alignment: .leading)
   }
 
   private func section<Content: View>(
