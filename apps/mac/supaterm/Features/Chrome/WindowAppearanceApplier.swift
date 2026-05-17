@@ -18,37 +18,21 @@ struct WindowAppearanceApplier: NSViewRepresentable {
 final class WindowAppearanceApplierView: NSView {
   var appliedAppearance: NSAppearance? {
     didSet {
-      applyAppearance(reason: "appearanceChanged")
+      applyAppearance()
     }
   }
 
   override func viewDidMoveToWindow() {
     super.viewDidMoveToWindow()
-    applyAppearance(reason: "viewDidMoveToWindow")
+    applyAppearance()
   }
 
-  private func applyAppearance(reason: String) {
+  private func applyAppearance() {
     guard let window else { return }
-    AppearanceDiagnostics.log(
-      [
-        "terminal appearance",
-        "reason=\(reason)",
-        "requested=\(AppearanceDiagnostics.describe(appliedAppearance))",
-        "before=\(AppearanceDiagnostics.describe(window: window))",
-      ].joined(separator: " ")
-    )
     window.appearance = appliedAppearance
     window.contentView?.needsLayout = true
     window.contentView?.needsDisplay = true
     window.contentView?.displayIfNeeded()
     window.invalidateShadow()
-    AppearanceDiagnostics.log(
-      [
-        "terminal appearance applied",
-        "reason=\(reason)",
-        "requested=\(AppearanceDiagnostics.describe(appliedAppearance))",
-        "after=\(AppearanceDiagnostics.describe(window: window))",
-      ].joined(separator: " ")
-    )
   }
 }

@@ -12,23 +12,12 @@ struct GhosttyColorSchemeSyncView<Content: View>: View {
 
   var body: some View {
     content
-      .onChange(of: colorScheme, initial: true) { oldValue, newValue in
-        apply(
-          newValue,
-          reason: oldValue == newValue ? "initialColorScheme" : "colorSchemeChanged"
-        )
+      .onChange(of: colorScheme, initial: true) { _, newValue in
+        apply(newValue)
       }
   }
 
-  private func apply(_ scheme: ColorScheme, reason: String) {
-    AppearanceDiagnostics.log(
-      [
-        "ghostty sync",
-        "reason=\(reason)",
-        "inheritedColorScheme=\(AppearanceDiagnostics.describe(scheme))",
-        "runtimeChromeColorScheme=\(AppearanceDiagnostics.describe(ghostty.chromeColorScheme()))",
-      ].joined(separator: " ")
-    )
+  private func apply(_ scheme: ColorScheme) {
     ghostty.setColorScheme(scheme)
   }
 }
