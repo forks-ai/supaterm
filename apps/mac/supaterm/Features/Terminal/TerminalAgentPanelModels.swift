@@ -118,6 +118,30 @@ nonisolated struct PaneAgentPullRequestChecks: Equatable, Sendable {
     }
     return "Checks passed (\(totalCount))"
   }
+
+  var passingCount: Int {
+    count(.passing)
+  }
+
+  var pendingCount: Int {
+    count(.pending)
+  }
+
+  var failingCount: Int {
+    count(.failing)
+  }
+
+  var skippedCount: Int {
+    count(.skipped)
+  }
+
+  var knownItemCount: Int {
+    items.count
+  }
+
+  private func count(_ status: PaneAgentPullRequestCheck.Status) -> Int {
+    items.filter { $0.status == status }.count
+  }
 }
 
 nonisolated struct PaneAgentPullRequestCheck: Equatable, Identifiable, Sendable {

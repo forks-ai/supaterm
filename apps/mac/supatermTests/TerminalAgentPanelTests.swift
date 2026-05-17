@@ -383,6 +383,28 @@ struct TerminalAgentPanelTests {
   }
 
   @Test
+  func pullRequestChecksCountsKnownItemsByStatus() {
+    let checks = PaneAgentPullRequestChecks(
+      status: .pending,
+      totalCount: 7,
+      items: [
+        PaneAgentPullRequestCheck(name: "lint", status: .passing),
+        PaneAgentPullRequestCheck(name: "test", status: .pending),
+        PaneAgentPullRequestCheck(name: "build", status: .pending),
+        PaneAgentPullRequestCheck(name: "deploy", status: .failing),
+        PaneAgentPullRequestCheck(name: "docs", status: .skipped),
+      ]
+    )
+
+    #expect(checks.passingCount == 1)
+    #expect(checks.pendingCount == 2)
+    #expect(checks.failingCount == 1)
+    #expect(checks.skippedCount == 1)
+    #expect(checks.knownItemCount == 5)
+    #expect(checks.title == "Checks pending (7)")
+  }
+
+  @Test
   func githubPullRequestDecoderUsesRollupStateForCheckSummary() throws {
     let status = TerminalAgentGithubClient.decodePullRequestStatus(
       """

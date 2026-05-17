@@ -664,7 +664,7 @@ nonisolated struct TerminalAgentGithubClient: Sendable {
                 commit {
                   statusCheckRollup {
                     state
-                    contexts(first: 20) {
+                    contexts(first: 100) {
                       totalCount
                       nodes {
                         __typename

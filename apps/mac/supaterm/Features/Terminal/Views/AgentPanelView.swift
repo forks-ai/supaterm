@@ -5,6 +5,8 @@ struct AgentPanelView: View {
   let palette: TerminalPalette
   let openURL: (URL) -> Void
 
+  @State private var checksAreExpanded = false
+
   var body: some View {
     VStack(alignment: .leading, spacing: 10) {
       if !presentation.progressRows.isEmpty {
@@ -187,26 +189,41 @@ struct AgentPanelView: View {
 
   private func pullRequestChecksRows(_ checks: PaneAgentPullRequestChecks) -> some View {
     VStack(alignment: .leading, spacing: 6) {
-      statusCircleRow(color: checksColor(checks.status), title: checks.title)
-      ForEach(checks.items) { item in
-        checkRow(item)
+      Button {
+        checksAreExpanded.toggle()
+      } label: {
+        pullRequestChecksSummaryRow(checks)
+      }
+      .buttonStyle(.plain)
+      .accessibilityLabel(checks.title)
+      .accessibilityValue(checksAreExpanded ? "Expanded" : "Collapsed")
+
+      if checksAreExpanded {
+        ForEach(checks.items) { item in
+          checkRow(item)
+        }
       }
     }
   }
 
-  private func statusCircleRow(color: Color, title: String) -> some View {
+  private func pullRequestChecksSummaryRow(_ checks: PaneAgentPullRequestChecks) -> some View {
     HStack(spacing: 7) {
-      Circle()
-        .fill(color)
-        .frame(width: 8, height: 8)
+      PullRequestChecksRingView(checks: checks, palette: palette)
         .frame(width: 14)
         .accessibilityHidden(true)
-      Text(title)
+      Text(checks.title)
         .font(.system(size: 12, weight: .medium))
         .foregroundStyle(palette.primaryText)
         .lineLimit(1)
         .truncationMode(.middle)
+      Spacer(minLength: 4)
+      Image(systemName: checksAreExpanded ? "chevron.down" : "chevron.right")
+        .font(.system(size: 8, weight: .bold))
+        .foregroundStyle(palette.secondaryText)
+        .frame(width: 10)
+        .accessibilityHidden(true)
     }
+    .contentShape(.rect)
     .frame(maxWidth: .infinity, alignment: .leading)
   }
 
@@ -281,17 +298,6 @@ struct AgentPanelView: View {
     }
   }
 
-  private func checksColor(_ status: PaneAgentPullRequestChecks.Status) -> Color {
-    switch status {
-    case .pending:
-      return palette.amber
-    case .passing:
-      return palette.mint
-    case .failing:
-      return palette.coral
-    }
-  }
-
   private func checkColor(_ status: PaneAgentPullRequestCheck.Status) -> Color {
     switch status {
     case .pending:
@@ -310,5 +316,74 @@ struct AgentPanelView: View {
     case .webSearch:
       return "globe"
     }
+  }
+}
+
+private struct PullRequestChecksRingView: View {
+  let checks: PaneAgentPullRequestChecks
+  let palette: TerminalPalette
+
+  @ScaledMetric(relativeTo: .caption) private var diameter: CGFloat = 12
+  @ScaledMetric(relativeTo: .caption) private var lineWidth: CGFloat = 2
+
+  private let segmentGapFraction = 0.05
+
+  var body: some View {
+    let segments = segments()
+    let applyGap = segments.count > 1
+    ZStack {
+      ForEach(segments, id: \.id) { segment in
+        if let segment = trimmed(segment, applyGap: applyGap) {
+          Circle()
+            .trim(from: segment.start, to: segment.end)
+            .stroke(segment.color, style: StrokeStyle(lineWidth: lineWidth, lineCap: .round))
+            .rotationEffect(.degrees(-90))
+        }
+      }
+    }
+    .frame(width: diameter, height: diameter)
+  }
+
+  private func segments() -> [Segment] {
+    let total = Double(checks.knownItemCount)
+    guard total > 0 else {
+      return []
+    }
+    var start = 0.0
+    var segments: [Segment] = []
+    func addSegment(id: String, count: Int, color: Color) {
+      guard count > 0 else {
+        return
+      }
+      let end = start + Double(count) / total
+      segments.append(Segment(id: id, start: start, end: end, color: color))
+      start = end
+    }
+    addSegment(id: "failing", count: checks.failingCount, color: palette.coral)
+    addSegment(id: "pending", count: checks.pendingCount, color: palette.amber)
+    addSegment(id: "skipped", count: checks.skippedCount, color: palette.secondaryText)
+    addSegment(id: "passing", count: checks.passingCount, color: palette.mint)
+    return segments
+  }
+
+  private func trimmed(_ segment: Segment, applyGap: Bool) -> Segment? {
+    let length = segment.end - segment.start
+    guard length > 0 else {
+      return nil
+    }
+    let gap = applyGap ? min(segmentGapFraction, length * 0.45) : 0
+    let start = segment.start + gap
+    let end = segment.end - gap
+    guard end > start else {
+      return nil
+    }
+    return Segment(id: segment.id, start: start, end: end, color: segment.color)
+  }
+
+  private struct Segment {
+    let id: String
+    let start: Double
+    let end: Double
+    let color: Color
   }
 }
