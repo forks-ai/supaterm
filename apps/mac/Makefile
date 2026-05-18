@@ -21,11 +21,9 @@ TUIST_SOURCE_RELEASE_GENERATION_STAMP := $(TUIST_GENERATION_STAMP_DIR)/none-rele
 TUIST_GENERATION_INPUTS := Project.swift Workspace.swift Tuist.swift Tuist/Package.swift Tuist/Package.resolved Configurations/Project.xcconfig ../../mise.toml
 TUIST_GENERATE_CACHE_PROFILE ?= $(TUIST_BINARY_CACHE_PROFILE)
 TUIST_CACHE_CONFIGURATION ?= Debug
-BUNDLE_INSPECTION_BUNDLE ?= $(APP_SCHEME)
-BUNDLE_INSPECTION_FLAGS ?= --platforms macos --configuration Debug
 XCODEBUILD_FLAGS ?=
 .DEFAULT_GOAL := help
-.PHONY: tuist-install tuist-generate tuist-generate-sources tuist-generate-release tuist-generate-release-cached build-ghostty build-app run-app install-tip archive archive-xcodebuild export-archive format lint check test test-xcodebuild inspect-dependencies inspect-bundle warm-cache
+.PHONY: tuist-install tuist-generate tuist-generate-sources tuist-generate-release tuist-generate-release-cached build-ghostty build-app run-app install-tip archive archive-xcodebuild export-archive format lint check test test-xcodebuild inspect-dependencies warm-cache
 
 ifdef CI
 TUIST_INSTALL_FLAGS := --force-resolved-versions
@@ -130,12 +128,6 @@ lint: # Lint code with swiftlint
 
 inspect-dependencies: $(TUIST_INSTALL_STAMP) # Check for implicit and redundant Tuist dependencies
 	mise exec -- tuist inspect dependencies
-
-inspect-bundle:
-	@if [ -z "$${TUIST_TOKEN:-}" ]; then \
-		mise exec -- tuist auth login; \
-	fi
-	mise exec -- tuist inspect bundle "$(BUNDLE_INSPECTION_BUNDLE)" $(BUNDLE_INSPECTION_FLAGS)
 
 warm-cache: $(TUIST_INSTALL_STAMP) # Warm Tuist module cache for external dependencies
 	mise exec -- tuist cache warm --configuration "$(TUIST_CACHE_CONFIGURATION)" --cache-profile "$(TUIST_BINARY_CACHE_PROFILE)"

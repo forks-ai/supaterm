@@ -27,4 +27,3 @@ jobs:
       - run: make mac-tuist-generate
       - run: make mac-build-ghostty
       - run: make mac-test-xcodebuild
-      - run: make mac-inspect-bundle

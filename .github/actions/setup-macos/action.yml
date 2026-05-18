@@ -15,7 +15,16 @@ runs:
         cache: true
     - name: Authenticate with Tuist
       shell: bash
-      run: mise exec -- tuist auth login
+      run: |
+        for attempt in 1 2 3; do
+          if mise exec -- tuist auth login; then
+            exit 0
+          fi
+          if [ "$attempt" = 3 ]; then
+            exit 1
+          fi
+          sleep $((attempt * 10))
+        done
     - name: Xcode cache key
       shell: bash
       run: |
