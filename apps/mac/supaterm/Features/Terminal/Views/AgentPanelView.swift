@@ -247,7 +247,25 @@ struct AgentPanelView: View {
     .frame(maxWidth: .infinity, alignment: .leading)
   }
 
+  @ViewBuilder
   private func checkRow(_ item: PaneAgentPullRequestCheck) -> some View {
+    if let url = item.url {
+      Button {
+        openURL(url)
+      } label: {
+        checkRowContent(item, showsLink: true)
+      }
+      .buttonStyle(.plain)
+      .accessibilityLabel("\(item.title), \(item.detailText())")
+    } else {
+      checkRowContent(item, showsLink: false)
+    }
+  }
+
+  private func checkRowContent(
+    _ item: PaneAgentPullRequestCheck,
+    showsLink: Bool
+  ) -> some View {
     HStack(spacing: 7) {
       Circle()
         .fill(checkColor(item.status))
@@ -259,7 +277,15 @@ struct AgentPanelView: View {
         .foregroundStyle(palette.secondaryText)
         .lineLimit(1)
         .truncationMode(.middle)
+      if showsLink {
+        Spacer(minLength: 4)
+        Image(systemName: "arrow.up.right")
+          .font(.system(size: 9, weight: .bold))
+          .foregroundStyle(palette.secondaryText)
+          .accessibilityHidden(true)
+      }
     }
+    .contentShape(.rect)
     .frame(maxWidth: .infinity, alignment: .leading)
   }
 

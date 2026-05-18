@@ -254,6 +254,7 @@ nonisolated struct PaneAgentPullRequestCheck: Equatable, Identifiable, Sendable 
   let state: State
   let startedAt: Date?
   let completedAt: Date?
+  let url: URL?
 
   var status: Status {
     state.status
@@ -275,7 +276,8 @@ nonisolated struct PaneAgentPullRequestCheck: Equatable, Identifiable, Sendable 
     state: State,
     workflowName: String? = nil,
     startedAt: Date? = nil,
-    completedAt: Date? = nil
+    completedAt: Date? = nil,
+    url: URL? = nil
   ) {
     let workflowName = Self.normalized(workflowName)
     self.id = [workflowName, name].compactMap(\.self).joined(separator: "/")
@@ -284,6 +286,7 @@ nonisolated struct PaneAgentPullRequestCheck: Equatable, Identifiable, Sendable 
     self.state = state
     self.startedAt = startedAt
     self.completedAt = completedAt
+    self.url = url
   }
 
   func detailText(now: Date = Date()) -> String {

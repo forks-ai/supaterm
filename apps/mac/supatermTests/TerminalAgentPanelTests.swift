@@ -608,6 +608,66 @@ struct TerminalAgentPanelTests {
   }
 
   @Test
+  func githubPullRequestDecoderBuildsCheckURLs() throws {
+    let status = TerminalAgentGithubClient.decodePullRequestStatus(
+      """
+      {
+        "data": {
+          "repository": {
+            "pullRequests": {
+              "nodes": [
+                {
+                  "number": 41,
+                  "additions": 12,
+                  "deletions": 3,
+                  "state": "OPEN",
+                  "isDraft": false,
+                  "url": "https://github.com/supabitapp/supaterm/pull/41",
+                  "commits": {
+                    "nodes": [
+                      {
+                        "commit": {
+                          "statusCheckRollup": {
+                            "state": "PENDING",
+                            "contexts": {
+                              "totalCount": 2,
+                              "nodes": [
+                                {
+                                  "__typename": "CheckRun",
+                                  "name": "build",
+                                  "status": "COMPLETED",
+                                  "conclusion": "SUCCESS",
+                                  "detailsUrl": "https://github.com/supabitapp/supaterm/actions/runs/1/job/2",
+                                  "url": "https://github.com/supabitapp/supaterm/runs/2"
+                                },
+                                {
+                                  "__typename": "StatusContext",
+                                  "context": "ci",
+                                  "state": "PENDING",
+                                  "targetUrl": "https://ci.example.com/supaterm/41"
+                                }
+                              ]
+                            }
+                          }
+                        }
+                      }
+                    ]
+                  }
+                }
+              ]
+            }
+          }
+        }
+      }
+      """
+    )
+    let items = try #require(status.checks?.items)
+
+    #expect(items[0].url?.absoluteString == "https://github.com/supabitapp/supaterm/actions/runs/1/job/2")
+    #expect(items[1].url?.absoluteString == "https://ci.example.com/supaterm/41")
+  }
+
+  @Test
   func pullRequestChecksCountsKnownItemsByStatus() {
     let checks = PaneAgentPullRequestChecks(
       status: .pending,

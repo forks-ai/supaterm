@@ -505,13 +505,15 @@ nonisolated struct TerminalAgentGithubClient: Sendable {
         state: checkRunState(status: node.status, conclusion: node.conclusion),
         workflowName: node.checkSuite?.workflowRun?.workflow?.name,
         startedAt: node.startedAt,
-        completedAt: node.completedAt
+        completedAt: node.completedAt,
+        url: webURL(node.detailsUrl) ?? webURL(node.url)
       )
     case "StatusContext":
       guard let name = normalizedCheckName(node.context) else { return nil }
       return PaneAgentPullRequestCheck(
         name: name,
-        state: statusContextState(node.state)
+        state: statusContextState(node.state),
+        url: webURL(node.targetUrl)
       )
     default:
       return nil
@@ -523,6 +525,11 @@ nonisolated struct TerminalAgentGithubClient: Sendable {
     let normalized = value.trimmingCharacters(in: .whitespacesAndNewlines)
     guard !normalized.isEmpty else { return nil }
     return normalized
+  }
+
+  nonisolated private static func webURL(_ value: String?) -> URL? {
+    guard let value = normalizedCheckName(value) else { return nil }
+    return URL(string: value)
   }
 
   nonisolated private static func checkRunState(
@@ -618,6 +625,8 @@ nonisolated struct TerminalAgentGithubClient: Sendable {
                           conclusion
                           startedAt
                           completedAt
+                          detailsUrl
+                          url
                           checkSuite {
                             workflowRun {
                               workflow {
@@ -629,6 +638,7 @@ nonisolated struct TerminalAgentGithubClient: Sendable {
                         ... on StatusContext {
                           context
                           state
+                          targetUrl
                         }
                       }
                     }
@@ -709,6 +719,9 @@ nonisolated private struct GithubPRCheckNodeResponse: Decodable {
   let conclusion: String?
   let startedAt: Date?
   let completedAt: Date?
+  let detailsUrl: String?
+  let url: String?
+  let targetUrl: String?
   let checkSuite: GithubPRCheckSuiteResponse?
   let state: String?
 
@@ -720,6 +733,9 @@ nonisolated private struct GithubPRCheckNodeResponse: Decodable {
     case conclusion
     case startedAt
     case completedAt
+    case detailsUrl
+    case url
+    case targetUrl
     case checkSuite
     case state
   }
