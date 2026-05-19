@@ -250,10 +250,11 @@ struct TerminalHostStatePinnedTabSharingTests {
       let pinnedTab = try #require(
         sharedCatalog.tabs(in: selectedSpaceID).first(where: { $0.id == pinnedTabID })
       )
-      #expect(
-        pinnedTab.session.root
-          == .leaf(TerminalPaneLeafSession(workingDirectoryPath: restoredPathString))
-      )
+      guard case .leaf(let leaf) = pinnedTab.session.root else {
+        Issue.record("Expected leaf root")
+        return
+      }
+      #expect(leaf.workingDirectoryPath == restoredPathString)
       #expect(host.trees[pinnedTabID] == nil)
 
       host.handleCommand(.selectTab(pinnedTabID))
@@ -353,17 +354,18 @@ struct TerminalHostStatePinnedTabSharingTests {
       let pinnedTab = try #require(
         sharedCatalog.tabs(in: selectedSpaceID).first(where: { $0.id == pinnedTabID })
       )
-      #expect(
-        pinnedTab.session.root
-          == .split(
-            TerminalPaneSplitSession(
-              direction: .horizontal,
-              ratio: 0.5,
-              left: .leaf(TerminalPaneLeafSession(workingDirectoryPath: firstPathString)),
-              right: .leaf(TerminalPaneLeafSession(workingDirectoryPath: secondPathString))
-            )
-          )
-      )
+      guard case .split(let split) = pinnedTab.session.root else {
+        Issue.record("Expected split root")
+        return
+      }
+      #expect(split.direction == .horizontal)
+      #expect(split.ratio == 0.5)
+      guard case .leaf(let left) = split.left, case .leaf(let right) = split.right else {
+        Issue.record("Expected leaf split children")
+        return
+      }
+      #expect(left.workingDirectoryPath == firstPathString)
+      #expect(right.workingDirectoryPath == secondPathString)
       #expect(host.trees[pinnedTabID] == nil)
 
       host.handleCommand(.selectTab(pinnedTabID))

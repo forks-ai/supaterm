@@ -109,4 +109,26 @@ struct TerminalAgentPresenceStoreTests {
         == [.codex(.needsInput), .claude(.running)]
     )
   }
+
+  @Test
+  func snapshotRestoreKeepsLiveProcessRecordsOnly() {
+    var store = TerminalAgentPresenceStore()
+    let surfaceID = UUID()
+    let didSetActivity = store.setActivity(
+      .codex(.running),
+      surfaceID: surfaceID,
+      sessionID: "session",
+      processID: 100
+    )
+    #expect(didSetActivity)
+
+    let snapshot = store.snapshot(for: surfaceID)
+    var restored = TerminalAgentPresenceStore()
+    #expect(restored.restore(snapshot, surfaceID: surfaceID) { $0 == 100 })
+    #expect(restored.statusInstances(for: surfaceID, surfaceIndex: 0).map(\.activity) == [.codex(.running)])
+
+    var dropped = TerminalAgentPresenceStore()
+    #expect(!dropped.restore(snapshot, surfaceID: surfaceID) { _ in false })
+    #expect(dropped.badgeInstances(across: [surfaceID]).isEmpty)
+  }
 }

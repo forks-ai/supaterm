@@ -53,7 +53,7 @@ final class GhosttySurfaceView: NSView, Identifiable {
   private(set) var surface: ghostty_surface_t?
   private var surfaceRef: GhosttyRuntime.SurfaceReference?
   private let workingDirectoryCString: UnsafeMutablePointer<CChar>?
-  private let startupCommandCString: UnsafeMutablePointer<CChar>?
+  private let commandCString: UnsafeMutablePointer<CChar>?
   private let environmentVariables: [SupatermCLIEnvironmentVariable]
   private let fontSize: Float32
   private let context: ghostty_surface_context_e
@@ -237,20 +237,20 @@ final class GhosttySurfaceView: NSView, Identifiable {
   override var acceptsFirstResponder: Bool { true }
 
   init(
+    id: UUID = UUID(),
     runtime: GhosttyRuntime,
     tabID: UUID,
     workingDirectory: URL?,
-    startupCommand: String? = nil,
+    command: String? = nil,
     fontSize: Float32? = nil,
     context: ghostty_surface_context_e,
     managesWindowAppearance: Bool = false
   ) {
-    let surfaceID = UUID()
     self.runtime = runtime
-    self.id = surfaceID
+    self.id = id
     self.bridge = GhosttySurfaceBridge()
     self.environmentVariables = Self.supatermEnvironmentVariables(
-      surfaceID: surfaceID,
+      surfaceID: id,
       tabID: tabID,
       socketPath: SupatermProcessSocketEndpoint.current()?.path,
       cliPath: GhosttySupport.bundledCLIPath(resourcesURL: Bundle.main.resourceURL)
@@ -269,11 +269,10 @@ final class GhosttySurfaceView: NSView, Identifiable {
       initialWorkingDirectoryPath = nil
       workingDirectoryCString = nil
     }
-    if let startupCommand {
-      let ghosttyCommand = SupatermShellCommand.ghosttyStartupCommand(for: startupCommand)
-      startupCommandCString = ghosttyCommand.withCString { strdup($0) }
+    if let command {
+      commandCString = command.withCString { strdup($0) }
     } else {
-      startupCommandCString = nil
+      commandCString = nil
     }
     super.init(frame: NSRect(x: 0, y: 0, width: 800, height: 600))
     wantsLayer = true
@@ -312,8 +311,8 @@ final class GhosttySurfaceView: NSView, Identifiable {
     if let workingDirectoryCString {
       free(workingDirectoryCString)
     }
-    if let startupCommandCString {
-      free(startupCommandCString)
+    if let commandCString {
+      free(commandCString)
     }
   }
 
@@ -1004,7 +1003,7 @@ final class GhosttySurfaceView: NSView, Identifiable {
     config.scale_factor = backingScaleFactor()
     config.font_size = fontSize
     config.working_directory = workingDirectoryCString.map { UnsafePointer($0) }
-    config.command = startupCommandCString.map { UnsafePointer($0) }
+    config.command = commandCString.map { UnsafePointer($0) }
     config.context = context
     Self.withEnvironmentVariables(environmentVariables) { envVars, count in
       config.env_vars = envVars

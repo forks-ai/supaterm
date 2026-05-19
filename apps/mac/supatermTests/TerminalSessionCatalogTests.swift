@@ -115,14 +115,29 @@ struct TerminalSessionCatalogTests {
   }
 
   @Test
-  func catalogEncodingOmitsDerivedTitlesAndPaneIDs() throws {
+  func catalogEncodingKeepsPaneIDsAndOmitsDerivedTitles() throws {
     let spaceID = TerminalSpaceID(rawValue: UUID(uuidString: "AAAAAAAA-AAAA-AAAA-AAAA-AAAAAAAAAAAA")!)
+    let paneID = UUID(uuidString: "BBBBBBBB-BBBB-BBBB-BBBB-BBBBBBBBBBBB")!
     let tabs: [TerminalTabSession] = [
       TerminalTabSession(
         isPinned: false,
         lockedTitle: nil,
         focusedPaneIndex: 0,
-        root: .leaf(TerminalPaneLeafSession(workingDirectoryPath: "/tmp", titleOverride: "Pane"))
+        root: .leaf(
+          TerminalPaneLeafSession(
+            id: paneID,
+            workingDirectoryPath: "/tmp",
+            titleOverride: "Pane",
+            agents: [
+              TerminalPaneAgentRecord(
+                agent: .codex,
+                sessionIDs: ["session-1"],
+                processIDs: [123],
+                activityPhase: .running
+              )
+            ]
+          )
+        )
       ),
       TerminalTabSession(
         isPinned: true,
@@ -148,6 +163,9 @@ struct TerminalSessionCatalogTests {
     let json = try #require(String(bytes: data, encoding: .utf8))
 
     #expect(json.contains(#""selectedTabIndex":1"#))
+    #expect(json.contains(#""id":"BBBBBBBB-BBBB-BBBB-BBBB-BBBBBBBBBBBB""#))
+    #expect(json.contains(#""agent":"codex""#))
+    #expect(json.contains(#""activityPhase":"running""#))
     #expect(json.contains(#""lockedTitle":"Pinned""#))
     #expect(json.contains(#""titleOverride":"Pane""#))
     #expect(!json.contains(#""title":"#))

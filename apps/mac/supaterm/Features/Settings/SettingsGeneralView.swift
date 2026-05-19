@@ -23,6 +23,24 @@ struct SettingsGeneralView: View {
     )
   }
 
+  private var confirmQuitMode: Binding<ConfirmQuitMode> {
+    Binding(
+      get: { store.confirmQuitMode },
+      set: { newValue in
+        _ = store.send(.confirmQuitModeSelected(newValue))
+      }
+    )
+  }
+
+  private var terminateSessionsOnQuit: Binding<Bool> {
+    Binding(
+      get: { store.terminateSessionsOnQuit },
+      set: { newValue in
+        _ = store.send(.terminateSessionsOnQuitChanged(newValue))
+      }
+    )
+  }
+
   private var newTabPosition: Binding<NewTabPosition> {
     Binding(
       get: { store.newTabPosition },
@@ -67,6 +85,23 @@ struct SettingsGeneralView: View {
           title: "Restore Terminal Layout",
           subtitle: "Reopen tabs, splits, and working directories from your last session.",
           isOn: restoreTerminalLayoutEnabled
+        )
+
+        Picker(selection: confirmQuitMode) {
+          ForEach(ConfirmQuitMode.allCases) { mode in
+            Text(mode.title).tag(mode)
+          }
+        } label: {
+          SettingsRowLabel(
+            title: "Confirm Quit",
+            subtitle: "Choose when Supaterm asks before quitting."
+          )
+        }
+
+        SettingsToggleRow(
+          title: "Terminate Sessions on Quit",
+          subtitle: "Stop persisted terminal sessions when Supaterm quits.",
+          isOn: terminateSessionsOnQuit
         )
       }
     }

@@ -7,3 +7,7 @@
 	url = git@github.com:supabitapp/supaterm-skills.git
 	pushurl = git@github.com:supabitapp/supaterm-skills.git
 	branch = main
+[submodule "ThirdParty/zmx"]
+	path = apps/mac/ThirdParty/zmx
+	url = https://github.com/neurosnap/zmx
+	pushurl = https://github.com/neurosnap/zmx

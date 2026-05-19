@@ -36,6 +36,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, GhosttyAppActionPerfor
   private var lastAppLaunchedDate: Date?
   @Shared(.terminalSessionCatalog)
   private var sessionCatalog = TerminalSessionCatalog.default
+  @Shared(.terminalPinnedTabCatalog)
+  private var pinnedTabCatalog = TerminalPinnedTabCatalog.default
 
   private let menuController: SupatermMenuController
   private let globalKeybindManager: GhosttyGlobalKeybindManager
@@ -52,6 +54,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, GhosttyAppActionPerfor
   )
   private var settingsWindowController: SettingsWindowController?
   private var terminatingSessionCatalog: TerminalSessionCatalog?
+  private var isTerminatingAfterSessionTermination = false
   private var toggleVisibilityState: ToggleVisibilityState?
   private var windowControllers: [UUID: TerminalWindowController] = [:]
   private var suppressesSessionSave = false
@@ -100,6 +103,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, GhosttyAppActionPerfor
     menuController.install()
     socketStore.send(.task)
     refreshInstalledAgentHooks()
+    reapOrphanZmxSessions()
     restoreWindowsAtLaunch()
     $lastAppLaunchedDate.withLock {
       $0 = Date()
@@ -145,17 +149,36 @@ final class AppDelegate: NSObject, NSApplicationDelegate, GhosttyAppActionPerfor
   }
 
   func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
+    if isTerminatingAfterSessionTermination {
+      return .terminateNow
+    }
     let reply = Self.terminateReply(
       hasVisibleAppWindows: NSApp.windows.contains(where: \.isVisible),
+      confirmQuitMode: supatermSettings.confirmQuitMode,
+      hasActiveAgentWorkForQuit: terminalWindowRegistry.hasActiveAgentWorkForQuit,
       needsQuitConfirmation: terminalWindowRegistry.needsQuitConfirmation,
-      bypassesQuitConfirmation: terminalWindowRegistry.bypassesQuitConfirmation
+      bypassesQuitConfirmation: terminalWindowRegistry.bypassesQuitConfirmation,
+      terminatesSessionsOnQuit: supatermSettings.terminateSessionsOnQuit
     ) {
-      quitConfirmationPresenter.confirmQuit()
+      quitConfirmationPresenter.confirmQuit(terminatesSessions: supatermSettings.terminateSessionsOnQuit)
     }
     terminatingSessionCatalog = Self.pendingTerminationSessionCatalog(
       for: reply,
-      liveSessionCatalog: terminalWindowRegistry.restorationSnapshot()
+      liveSessionCatalog: terminalWindowRegistry.restorationSnapshot(),
+      terminatesSessionsOnQuit: supatermSettings.terminateSessionsOnQuit
     )
+    if reply == .terminateNow && supatermSettings.terminateSessionsOnQuit {
+      isTerminatingAfterSessionTermination = true
+      Task { @MainActor in
+        await terminalWindowRegistry.terminateLiveTerminalSessionsAndWait()
+        await terminalWindowRegistry.terminateAllZmxSessionsAndWait()
+        NSApp.reply(toApplicationShouldTerminate: true)
+      }
+      return .terminateLater
+    }
+    if reply == .terminateNow {
+      terminalWindowRegistry.setTerminatesTerminalSessionsOnWindowClose(supatermSettings.terminateSessionsOnQuit)
+    }
     return reply
   }
 
@@ -252,6 +275,27 @@ final class AppDelegate: NSObject, NSApplicationDelegate, GhosttyAppActionPerfor
   private func refreshInstalledAgentHooks() {
     Task.detached {
       StartupAgentHookRefresher.live.refreshInstalledHooks()
+    }
+  }
+
+  private func reapOrphanZmxSessions() {
+    let knownSurfaceIDs =
+      supatermSettings.restoreTerminalLayoutEnabled
+      ? sessionCatalog.surfaceIDs.union(pinnedTabCatalog.surfaceIDs)
+      : []
+    let knownSessionIDs = Set(knownSurfaceIDs.map(ZmxSessionID.make(surfaceID:)))
+    let zmxClient = ZmxClient.liveValue
+    Task.detached(priority: .utility) {
+      let orphanSurfaceIDs = await zmxClient.listSessions()
+        .filter { !knownSessionIDs.contains($0) }
+        .compactMap(ZmxSessionID.surfaceID(from:))
+      await withTaskGroup(of: Void.self) { group in
+        for surfaceID in orphanSurfaceIDs {
+          group.addTask {
+            await zmxClient.killSession(surfaceID)
+          }
+        }
+      }
     }
   }
 
@@ -373,21 +417,51 @@ final class AppDelegate: NSObject, NSApplicationDelegate, GhosttyAppActionPerfor
 
   static func terminateReply(
     hasVisibleAppWindows: Bool,
+    confirmQuitMode: ConfirmQuitMode = .auto,
+    hasActiveAgentWorkForQuit: Bool = false,
     needsQuitConfirmation: Bool,
     bypassesQuitConfirmation: Bool,
+    terminatesSessionsOnQuit: Bool = false,
     confirmQuit: () -> Bool
   ) -> NSApplication.TerminateReply {
     guard hasVisibleAppWindows else { return .terminateNow }
     guard !bypassesQuitConfirmation else { return .terminateNow }
-    guard needsQuitConfirmation else { return .terminateNow }
+    guard
+      shouldConfirmQuit(
+        mode: confirmQuitMode,
+        hasActiveAgentWorkForQuit: hasActiveAgentWorkForQuit,
+        needsQuitConfirmation: needsQuitConfirmation,
+        terminatesSessionsOnQuit: terminatesSessionsOnQuit
+      )
+    else {
+      return .terminateNow
+    }
     return confirmQuit() ? .terminateNow : .terminateCancel
+  }
+
+  static func shouldConfirmQuit(
+    mode: ConfirmQuitMode,
+    hasActiveAgentWorkForQuit: Bool,
+    needsQuitConfirmation: Bool,
+    terminatesSessionsOnQuit: Bool
+  ) -> Bool {
+    switch mode {
+    case .always:
+      return true
+    case .never:
+      return false
+    case .auto:
+      return hasActiveAgentWorkForQuit || needsQuitConfirmation || terminatesSessionsOnQuit
+    }
   }
 
   static func pendingTerminationSessionCatalog(
     for reply: NSApplication.TerminateReply,
-    liveSessionCatalog: TerminalSessionCatalog
+    liveSessionCatalog: TerminalSessionCatalog,
+    terminatesSessionsOnQuit: Bool = false
   ) -> TerminalSessionCatalog? {
-    reply == .terminateNow ? liveSessionCatalog : nil
+    guard reply == .terminateNow else { return nil }
+    return terminatesSessionsOnQuit ? .default : liveSessionCatalog
   }
 
   static func persistedSessionCatalog(

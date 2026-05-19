@@ -223,7 +223,7 @@ private struct SupatermSettingsUnknownKeyAudit: Decodable {
       contentsOf: try Self.unknownNestedKeys(
         in: container,
         section: "coding_agents",
-        allowedKeys: ["show_icons", "show_spinner"]
+        allowedKeys: ["show_icons", "show_panel", "show_spinner"]
       )
     )
     warnings.append(
@@ -244,7 +244,7 @@ private struct SupatermSettingsUnknownKeyAudit: Decodable {
       contentsOf: try Self.unknownNestedKeys(
         in: container,
         section: "terminal",
-        allowedKeys: ["new_tab_position", "restore_layout"]
+        allowedKeys: ["confirm_quit", "new_tab_position", "restore_layout", "terminate_sessions_on_quit"]
       )
     )
     warnings.append(contentsOf: try Self.unknownNestedKeys(in: container, section: "updates", allowedKeys: ["channel"]))

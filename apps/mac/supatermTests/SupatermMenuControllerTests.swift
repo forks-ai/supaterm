@@ -735,6 +735,8 @@ struct SupatermMenuControllerTests {
         "Close Tab",
         "Close Window",
         "Close All Windows",
+        "",
+        "Terminate All Terminal Sessions...",
       ])
     #expect(fileMenu.items[0].keyEquivalent == "n")
     #expect(fileMenu.items[0].keyEquivalentModifierMask == [.command])

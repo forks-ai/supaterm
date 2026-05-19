@@ -168,6 +168,60 @@ struct TerminalAgentPresenceStore {
     records.keys.contains { $0.surfaceID == surfaceID }
   }
 
+  var hasActiveWorkForQuit: Bool {
+    records.values.contains { record in
+      switch record.activity?.phase {
+      case .needsInput, .running:
+        return true
+      case .idle, nil:
+        return false
+      }
+    }
+  }
+
+  func snapshot(for surfaceID: UUID) -> [TerminalPaneAgentRecord] {
+    records.compactMap { key, record in
+      guard key.surfaceID == surfaceID else { return nil }
+      return TerminalPaneAgentRecord(
+        agent: key.agent,
+        sessionIDs: Array(record.sessionIDs),
+        processIDs: Array(record.processIDs),
+        activityPhase: record.activity.map { TerminalPaneAgentActivityPhase($0.phase) }
+      )
+    }
+    .sorted {
+      if $0.agent.rawValue != $1.agent.rawValue {
+        return $0.agent.rawValue < $1.agent.rawValue
+      }
+      return $0.sessionIDs.lexicographicallyPrecedes($1.sessionIDs)
+    }
+  }
+
+  @discardableResult
+  mutating func restore(
+    _ agentRecords: [TerminalPaneAgentRecord],
+    surfaceID: UUID,
+    isProcessAlive: (Int32) -> Bool = TerminalAgentPresenceStore.isProcessAlive
+  ) -> Bool {
+    var changed = false
+    for agentRecord in agentRecords {
+      guard let pruned = agentRecord.pruned() else { continue }
+      let processIDs = pruned.processIDs.filter(isProcessAlive)
+      guard !processIDs.isEmpty else { continue }
+      let key = Key(surfaceID: surfaceID, agent: pruned.agent)
+      let activity = pruned.activityPhase.map { phase in
+        TerminalHostState.AgentActivity(kind: pruned.agent, phase: phase.hostPhase)
+      }
+      changed =
+        updateRecord(for: key) { record in
+          record.sessionIDs.formUnion(pruned.sessionIDs)
+          record.processIDs.formUnion(processIDs)
+          record.activity = activity
+        } || changed
+    }
+    return changed
+  }
+
   private func surfaceIndexes(for surfaceIDs: [UUID]) -> [UUID: Int] {
     var surfaceIndexes: [UUID: Int] = [:]
     for (index, surfaceID) in surfaceIDs.enumerated() where surfaceIndexes[surfaceID] == nil {
@@ -239,5 +293,29 @@ struct TerminalAgentPresenceStore {
 
   nonisolated static func isProcessAlive(_ processID: Int32) -> Bool {
     processID > 0 && kill(pid_t(processID), 0) == 0
+  }
+}
+
+extension TerminalPaneAgentActivityPhase {
+  init(_ phase: TerminalHostState.AgentActivityPhase) {
+    switch phase {
+    case .idle:
+      self = .idle
+    case .needsInput:
+      self = .needsInput
+    case .running:
+      self = .running
+    }
+  }
+
+  var hostPhase: TerminalHostState.AgentActivityPhase {
+    switch self {
+    case .idle:
+      return .idle
+    case .needsInput:
+      return .needsInput
+    case .running:
+      return .running
+    }
   }
 }

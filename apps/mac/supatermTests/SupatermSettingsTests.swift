@@ -48,11 +48,13 @@ struct SupatermSettingsTests {
     #expect(prefs.codingAgentsShowPanel)
     #expect(prefs.codingAgentsShowIcons)
     #expect(prefs.codingAgentsShowSpinner)
+    #expect(prefs.confirmQuitMode == .auto)
     #expect(prefs.crashReportsEnabled)
     #expect(prefs.glowingPaneRingEnabled)
     #expect(prefs.newTabPosition == .end)
     #expect(prefs.restoreTerminalLayoutEnabled)
     #expect(!prefs.systemNotificationsEnabled)
+    #expect(!prefs.terminateSessionsOnQuit)
     #expect(prefs.updateChannel == .stable)
   }
 
@@ -147,11 +149,13 @@ struct SupatermSettingsTests {
         codingAgentsShowPanel: false,
         codingAgentsShowIcons: false,
         codingAgentsShowSpinner: false,
+        confirmQuitMode: .always,
         crashReportsEnabled: false,
         glowingPaneRingEnabled: false,
         newTabPosition: .current,
         restoreTerminalLayoutEnabled: false,
         systemNotificationsEnabled: true,
+        terminateSessionsOnQuit: true,
         updateChannel: .tip
       )
     )
@@ -165,11 +169,13 @@ struct SupatermSettingsTests {
           codingAgentsShowPanel: false,
           codingAgentsShowIcons: false,
           codingAgentsShowSpinner: false,
+          confirmQuitMode: .always,
           crashReportsEnabled: false,
           glowingPaneRingEnabled: false,
           newTabPosition: .current,
           restoreTerminalLayoutEnabled: false,
           systemNotificationsEnabled: true,
+          terminateSessionsOnQuit: true,
           updateChannel: .tip
         )
     )
@@ -191,11 +197,13 @@ struct SupatermSettingsTests {
     #expect(prefs.codingAgentsShowPanel)
     #expect(prefs.codingAgentsShowIcons)
     #expect(prefs.codingAgentsShowSpinner)
+    #expect(prefs.confirmQuitMode == .auto)
     #expect(prefs.crashReportsEnabled)
     #expect(prefs.glowingPaneRingEnabled)
     #expect(prefs.newTabPosition == .end)
     #expect(prefs.restoreTerminalLayoutEnabled)
     #expect(!prefs.systemNotificationsEnabled)
+    #expect(!prefs.terminateSessionsOnQuit)
     #expect(prefs.updateChannel == .stable)
   }
 

@@ -41,6 +41,20 @@ public enum SupatermSocketPath {
     .appendingPathComponent(managedSocketFileName(for: processID), isDirectory: false)
   }
 
+  public static func managedSocketURL(
+    instanceName: String,
+    rootDirectory: URL? = nil,
+    environment: [String: String] = ProcessInfo.processInfo.environment,
+    userID: uid_t = getuid()
+  ) -> URL {
+    managedDirectoryURL(
+      rootDirectory: rootDirectory,
+      environment: environment,
+      userID: userID
+    )
+    .appendingPathComponent(managedSocketFileName(forInstanceName: instanceName), isDirectory: false)
+  }
+
   public static func resolveExplicitPath(
     explicitPath: String? = nil,
     environment: [String: String] = ProcessInfo.processInfo.environment
@@ -180,6 +194,18 @@ public enum SupatermSocketPath {
     "pid-\(processID)"
   }
 
+  private static func managedSocketFileName(forInstanceName instanceName: String) -> String {
+    let fallback = "default"
+    let normalizedInstanceName = normalized(instanceName) ?? fallback
+    let allowed = CharacterSet.alphanumerics.union(CharacterSet(charactersIn: "._-"))
+    let sanitized = normalizedInstanceName.unicodeScalars.map { scalar in
+      allowed.contains(scalar) ? String(scalar) : "-"
+    }
+    .joined()
+    .trimmingCharacters(in: CharacterSet(charactersIn: ".-_"))
+    return "instance-\(sanitized.isEmpty ? fallback : sanitized)"
+  }
+
   private static func canonicalizedExistingPrefix(of path: String) -> String {
     let pathComponents = (path as NSString).pathComponents
     guard !pathComponents.isEmpty else {
@@ -259,12 +285,12 @@ public enum SupatermProcessSocketEndpoint {
   ) -> SupatermSocketEndpoint? {
     let name =
       SupatermSocketPath.normalized(environment[SupatermCLIEnvironment.instanceNameKey])
-      ?? "pid-\(processID)"
+      ?? "default"
     return .init(
       id: endpointID,
       name: name,
       path: SupatermSocketPath.managedSocketURL(
-        processID: processID,
+        instanceName: name,
         rootDirectory: rootDirectory,
         environment: environment,
         userID: userID

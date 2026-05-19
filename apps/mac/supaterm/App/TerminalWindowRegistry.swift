@@ -23,6 +23,7 @@ final class TerminalWindowRegistry {
     let hasWindow: Bool
     let hasTab: Bool
     let hasSurface: Bool
+    var hasAnySurface = false
   }
 
   struct MenuContext: Equatable {
@@ -42,6 +43,7 @@ final class TerminalWindowRegistry {
   struct Entry {
     let keyboardShortcutForAction: (String) -> KeyboardShortcut?
     let requestConfirmedWindowClose: @MainActor () -> Void
+    let setTerminatesTerminalSessionsOnClose: @MainActor (Bool) -> Void
     let windowControllerID: UUID
     let store: StoreOf<AppFeature>
     let terminal: TerminalHostState
@@ -61,6 +63,10 @@ final class TerminalWindowRegistry {
     activeEntries().contains { $0.terminal.windowNeedsCloseConfirmation() }
   }
 
+  var hasActiveAgentWorkForQuit: Bool {
+    activeEntries().contains { $0.terminal.hasActiveAgentWorkForQuit }
+  }
+
   var bypassesQuitConfirmation: Bool {
     activeEntries().contains { $0.store.withState(\.update.phase.bypassesQuitConfirmation) }
   }
@@ -70,7 +76,8 @@ final class TerminalWindowRegistry {
     windowControllerID: UUID,
     store: StoreOf<AppFeature>,
     terminal: TerminalHostState,
-    requestConfirmedWindowClose: @escaping @MainActor () -> Void
+    requestConfirmedWindowClose: @escaping @MainActor () -> Void,
+    setTerminatesTerminalSessionsOnClose: @escaping @MainActor (Bool) -> Void = { _ in }
   ) {
     guard !entries.contains(where: { $0.windowControllerID == windowControllerID }) else { return }
     terminal.onSurfaceCommandFinished = { [weak self] surfaceID in
@@ -79,6 +86,7 @@ final class TerminalWindowRegistry {
     let entry = Entry(
       keyboardShortcutForAction: keyboardShortcutForAction,
       requestConfirmedWindowClose: requestConfirmedWindowClose,
+      setTerminatesTerminalSessionsOnClose: setTerminatesTerminalSessionsOnClose,
       windowControllerID: windowControllerID,
       store: store,
       terminal: terminal,
@@ -102,13 +110,14 @@ final class TerminalWindowRegistry {
 
   func commandAvailability() -> CommandAvailability {
     guard let entry = preferredActiveEntry() else {
-      return CommandAvailability(hasWindow: false, hasTab: false, hasSurface: false)
+      return CommandAvailability(hasWindow: false, hasTab: false, hasSurface: false, hasAnySurface: hasAnySurface)
     }
 
     return CommandAvailability(
       hasWindow: true,
       hasTab: entry.terminal.selectedTabID != nil,
-      hasSurface: entry.terminal.selectedSurfaceView != nil
+      hasSurface: entry.terminal.selectedSurfaceView != nil,
+      hasAnySurface: hasAnySurface
     )
   }
 
@@ -116,7 +125,8 @@ final class TerminalWindowRegistry {
     let closesKeyWindowDirectly = closesWindowDirectly(keyWindow)
     guard let entry = preferredActiveEntry() else {
       return MenuContext(
-        availability: CommandAvailability(hasWindow: false, hasTab: false, hasSurface: false),
+        availability: CommandAvailability(
+          hasWindow: false, hasTab: false, hasSurface: false, hasAnySurface: hasAnySurface),
         closesKeyWindowDirectly: closesKeyWindowDirectly,
         hasSearch: false,
         updateMenuItemText: "Check for Updates...",
@@ -133,7 +143,8 @@ final class TerminalWindowRegistry {
       availability: CommandAvailability(
         hasWindow: true,
         hasTab: entry.terminal.selectedTabID != nil,
-        hasSurface: entry.terminal.selectedSurfaceView != nil
+        hasSurface: entry.terminal.selectedSurfaceView != nil,
+        hasAnySurface: hasAnySurface
       ),
       closesKeyWindowDirectly: closesKeyWindowDirectly,
       hasSearch: entry.terminal.selectedSurfaceState?.searchNeedle != nil,
@@ -293,10 +304,53 @@ final class TerminalWindowRegistry {
     }
   }
 
+  func terminateLiveTerminalSessions() {
+    for entry in activeEntries() {
+      entry.terminal.terminateLiveTerminalSessions()
+    }
+  }
+
+  func terminateLiveTerminalSessionsAndWait() async {
+    for entry in activeEntries() {
+      await entry.terminal.terminateLiveTerminalSessionsAndWait()
+    }
+  }
+
+  func setTerminatesTerminalSessionsOnWindowClose(_ terminates: Bool) {
+    for entry in activeEntries() {
+      entry.setTerminatesTerminalSessionsOnClose(terminates)
+    }
+  }
+
+  func terminateAllTerminalSessions() {
+    let windowIDs = activeEntries().compactMap { entry in
+      entry.windowReference.value.map(ObjectIdentifier.init)
+    }
+    Task { @MainActor in
+      await terminateLiveTerminalSessionsAndWait()
+      await terminateAllZmxSessionsAndWait()
+      closeWindows(windowIDs)
+    }
+  }
+
+  func terminateAllZmxSessions() {
+    Task.detached(priority: .utility) {
+      await Self.terminateAllZmxSessions(using: .liveValue)
+    }
+  }
+
+  func terminateAllZmxSessionsAndWait() async {
+    await Self.terminateAllZmxSessions(using: .liveValue)
+  }
+
   func restorationSnapshot() -> TerminalSessionCatalog {
     TerminalSessionCatalog(
       windows: activeEntries().map { $0.terminal.restorationSnapshot() }
     )
+  }
+
+  var hasAnySurface: Bool {
+    activeEntries().contains { !$0.terminal.liveSurfaceIDs().isEmpty }
   }
 
   func commandPaletteSnapshot(windowID: ObjectIdentifier?) -> TerminalCommandPaletteSnapshot {
@@ -442,6 +496,17 @@ final class TerminalWindowRegistry {
 
   private func entry(for window: NSWindow) -> Entry? {
     entries.first { $0.windowReference.value === window }
+  }
+
+  nonisolated private static func terminateAllZmxSessions(using zmxClient: ZmxClient) async {
+    let surfaceIDs = await zmxClient.listSessions().compactMap(ZmxSessionID.surfaceID(from:))
+    await withTaskGroup(of: Void.self) { group in
+      for surfaceID in surfaceIDs {
+        group.addTask {
+          await zmxClient.killSession(surfaceID)
+        }
+      }
+    }
   }
 
   static func rewrite(

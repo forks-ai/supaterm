@@ -84,6 +84,7 @@ public struct SettingsFeature {
     var codingAgentsShowPanel = SupatermSettings.default.codingAgentsShowPanel
     var codingAgentsShowIcons = SupatermSettings.default.codingAgentsShowIcons
     var codingAgentsShowSpinner = SupatermSettings.default.codingAgentsShowSpinner
+    var confirmQuitMode = SupatermSettings.default.confirmQuitMode
     var codexIntegration = SettingsAgentIntegrationState(
       settingsPath: SupatermAgentKind.codex.settingsPathDescription
     )
@@ -98,6 +99,7 @@ public struct SettingsFeature {
     var restoreTerminalLayoutEnabled = SupatermSettings.default.restoreTerminalLayoutEnabled
     public var selectedTab = Tab.general
     var systemNotificationsEnabled = SupatermSettings.default.systemNotificationsEnabled
+    var terminateSessionsOnQuit = SupatermSettings.default.terminateSessionsOnQuit
     var terminal = SettingsTerminalState()
 
     public init() {}
@@ -116,6 +118,7 @@ public struct SettingsFeature {
     case codingAgentsShowPanelChanged(Bool)
     case codingAgentsShowIconsChanged(Bool)
     case codingAgentsShowSpinnerChanged(Bool)
+    case confirmQuitModeSelected(ConfirmQuitMode)
     case crashReportsEnabledChanged(Bool)
     case glowingPaneRingEnabledChanged(Bool)
     case newTabPositionSelected(NewTabPosition)
@@ -125,6 +128,7 @@ public struct SettingsFeature {
     case systemNotificationsAuthorizationResult(
       DesktopNotificationClient.AuthorizationRequestResult)
     case systemNotificationsEnabledChanged(Bool)
+    case terminateSessionsOnQuitChanged(Bool)
     case tabSelected(Tab)
     case task
     case terminalConfirmCloseSurfaceSelected(GhosttyTerminalCloseConfirmation)
@@ -248,10 +252,12 @@ public struct SettingsFeature {
 
       case .appearanceModeSelected,
         .analyticsEnabledChanged,
+        .confirmQuitModeSelected,
         .crashReportsEnabledChanged,
         .glowingPaneRingEnabledChanged,
         .newTabPositionSelected,
-        .restoreTerminalLayoutEnabledChanged:
+        .restoreTerminalLayoutEnabledChanged,
+        .terminateSessionsOnQuitChanged:
         return reduceGeneral(&state, action: action)
 
       case .systemNotificationsEnabledChanged,
@@ -314,11 +320,13 @@ public struct SettingsFeature {
     state.codingAgentsShowPanel = supatermSettings.codingAgentsShowPanel
     state.codingAgentsShowIcons = supatermSettings.codingAgentsShowIcons
     state.codingAgentsShowSpinner = supatermSettings.codingAgentsShowSpinner
+    state.confirmQuitMode = supatermSettings.confirmQuitMode
     state.crashReportsEnabled = supatermSettings.crashReportsEnabled
     state.glowingPaneRingEnabled = supatermSettings.glowingPaneRingEnabled
     state.newTabPosition = supatermSettings.newTabPosition
     state.restoreTerminalLayoutEnabled = supatermSettings.restoreTerminalLayoutEnabled
     state.systemNotificationsEnabled = supatermSettings.systemNotificationsEnabled
+    state.terminateSessionsOnQuit = supatermSettings.terminateSessionsOnQuit
     state.about.updateChannel = supatermSettings.updateChannel
   }
 
@@ -335,11 +343,13 @@ public struct SettingsFeature {
       codingAgentsShowPanel: state.codingAgentsShowPanel,
       codingAgentsShowIcons: state.codingAgentsShowIcons,
       codingAgentsShowSpinner: state.codingAgentsShowSpinner,
+      confirmQuitMode: state.confirmQuitMode,
       crashReportsEnabled: state.crashReportsEnabled,
       glowingPaneRingEnabled: state.glowingPaneRingEnabled,
       newTabPosition: state.newTabPosition,
       restoreTerminalLayoutEnabled: state.restoreTerminalLayoutEnabled,
       systemNotificationsEnabled: state.systemNotificationsEnabled,
+      terminateSessionsOnQuit: state.terminateSessionsOnQuit,
       updateChannel: state.about.updateChannel
     )
     @Shared(.supatermSettings) var sharedSupatermSettings = .default

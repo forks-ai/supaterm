@@ -2,7 +2,7 @@ import Foundation
 import SupatermCLIShared
 
 nonisolated struct TerminalSessionCatalog: Equatable, Codable, Sendable {
-  static let currentVersion = 3
+  static let currentVersion = 4
   static let `default` = Self(windows: [])
 
   let version: Int
@@ -46,6 +46,12 @@ nonisolated struct TerminalSessionCatalog: Equatable, Codable, Sendable {
     encoder.outputFormatting = [.sortedKeys]
     return encoder
   }
+
+  var surfaceIDs: Set<UUID> {
+    windows.reduce(into: Set<UUID>()) { result, window in
+      result.formUnion(window.surfaceIDs)
+    }
+  }
 }
 
 nonisolated struct TerminalWindowSession: Equatable, Codable, Sendable {
@@ -68,6 +74,12 @@ nonisolated struct TerminalWindowSession: Equatable, Codable, Sendable {
       selectedSpaceID: resolvedSelectedSpaceID,
       spaces: spaces
     )
+  }
+
+  var surfaceIDs: Set<UUID> {
+    spaces.reduce(into: Set<UUID>()) { result, space in
+      result.formUnion(space.surfaceIDs)
+    }
   }
 }
 
@@ -98,6 +110,12 @@ nonisolated struct TerminalWindowSpaceSession: Equatable, Codable, Sendable {
       return 0
     }
     return selectedTabIndex
+  }
+
+  var surfaceIDs: Set<UUID> {
+    tabs.reduce(into: Set<UUID>()) { result, tab in
+      result.formUnion(tab.surfaceIDs)
+    }
   }
 }
 
@@ -157,6 +175,10 @@ nonisolated struct TerminalTabSession: Equatable, Codable, Sendable {
     guard (0..<leafCount).contains(focusedPaneIndex) else { return 0 }
     return focusedPaneIndex
   }
+
+  var surfaceIDs: Set<UUID> {
+    root.surfaceIDs
+  }
 }
 
 nonisolated indirect enum TerminalPaneNodeSession: Equatable, Codable, Sendable {
@@ -202,6 +224,15 @@ nonisolated indirect enum TerminalPaneNodeSession: Equatable, Codable, Sendable 
       return 1
     case .split(let split):
       return split.left.leafCount + split.right.leafCount
+    }
+  }
+
+  var surfaceIDs: Set<UUID> {
+    switch self {
+    case .leaf(let leaf):
+      return [leaf.id]
+    case .split(let split):
+      return split.left.surfaceIDs.union(split.right.surfaceIDs)
     }
   }
 
@@ -253,15 +284,21 @@ nonisolated indirect enum TerminalPaneNodeSession: Equatable, Codable, Sendable 
 }
 
 nonisolated struct TerminalPaneLeafSession: Equatable, Codable, Sendable {
+  var id: UUID
   var workingDirectoryPath: String?
   var titleOverride: String?
+  var agents: [TerminalPaneAgentRecord]
 
   init(
+    id: UUID = UUID(),
     workingDirectoryPath: String?,
-    titleOverride: String? = nil
+    titleOverride: String? = nil,
+    agents: [TerminalPaneAgentRecord] = []
   ) {
+    self.id = id
     self.workingDirectoryPath = workingDirectoryPath
     self.titleOverride = titleOverride
+    self.agents = agents
   }
 
   func pruned() -> TerminalPaneLeafSession {
@@ -269,9 +306,64 @@ nonisolated struct TerminalPaneLeafSession: Equatable, Codable, Sendable {
       workingDirectoryPath?
       .trimmingCharacters(in: .whitespacesAndNewlines)
     return TerminalPaneLeafSession(
+      id: id,
       workingDirectoryPath: workingDirectoryPath?.isEmpty == true ? nil : workingDirectoryPath,
-      titleOverride: titleOverride?.isEmpty == true ? nil : titleOverride
+      titleOverride: titleOverride?.isEmpty == true ? nil : titleOverride,
+      agents: agents.compactMap { $0.pruned() }
     )
+  }
+}
+
+nonisolated enum TerminalPaneAgentActivityPhase: String, Codable, Equatable, Sendable {
+  case idle
+  case needsInput = "needs_input"
+  case running
+}
+
+nonisolated struct TerminalPaneAgentRecord: Equatable, Codable, Sendable {
+  var agent: SupatermAgentKind
+  var sessionIDs: [String]
+  var processIDs: [Int32]
+  var activityPhase: TerminalPaneAgentActivityPhase?
+
+  init(
+    agent: SupatermAgentKind,
+    sessionIDs: [String] = [],
+    processIDs: [Int32] = [],
+    activityPhase: TerminalPaneAgentActivityPhase? = nil
+  ) {
+    self.agent = agent
+    self.sessionIDs = Self.normalizedSessionIDs(sessionIDs)
+    self.processIDs = Self.normalizedProcessIDs(processIDs)
+    self.activityPhase = activityPhase
+  }
+
+  func pruned() -> Self? {
+    let sessionIDs = Self.normalizedSessionIDs(sessionIDs)
+    let processIDs = Self.normalizedProcessIDs(processIDs)
+    guard !sessionIDs.isEmpty || !processIDs.isEmpty || activityPhase != nil else { return nil }
+    return Self(
+      agent: agent,
+      sessionIDs: sessionIDs,
+      processIDs: processIDs,
+      activityPhase: activityPhase
+    )
+  }
+
+  private static func normalizedSessionIDs(_ sessionIDs: [String]) -> [String] {
+    Array(
+      Set(
+        sessionIDs.compactMap { sessionID in
+          let sessionID = sessionID.trimmingCharacters(in: .whitespacesAndNewlines)
+          return sessionID.isEmpty ? nil : sessionID
+        }
+      )
+    )
+    .sorted()
+  }
+
+  private static func normalizedProcessIDs(_ processIDs: [Int32]) -> [Int32] {
+    Array(Set(processIDs.filter { $0 > 0 })).sorted()
   }
 }
 

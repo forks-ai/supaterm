@@ -69,6 +69,7 @@ final class TerminalWindowController: NSWindowController {
   private let registry: TerminalWindowRegistry
   private let commandHoldObserver: CommandHoldObserver
   private var isPerformingConfirmedClose = false
+  private var terminatesTerminalSessionsOnClose = true
 
   init(
     registry: TerminalWindowRegistry,
@@ -171,8 +172,12 @@ final class TerminalWindowController: NSWindowController {
       terminal: terminal,
       requestConfirmedWindowClose: { [weak self] in
         self?.performConfirmedWindowClose()
+      },
+      setTerminatesTerminalSessionsOnClose: { [weak self] terminates in
+        self?.terminatesTerminalSessionsOnClose = terminates
       }
     )
+    registry.commandExecutor?.restoreAgentSessions(from: terminal.agentPresenceSnapshotsBySurfaceID())
     registry.updateWindow(window, for: windowControllerID)
     _ = store.send(.terminal(.windowIdentifierChanged(ObjectIdentifier(window))))
   }
@@ -192,6 +197,9 @@ final class TerminalWindowController: NSWindowController {
 
   private func performConfirmedWindowClose() {
     guard let window else { return }
+    if terminatesTerminalSessionsOnClose {
+      terminal.terminateLiveTerminalSessions()
+    }
     isPerformingConfirmedClose = true
     window.close()
   }
@@ -212,7 +220,12 @@ extension TerminalWindowController: NSWindowDelegate {
       isPerformingConfirmedClose = false
       return true
     }
-    guard terminal.windowNeedsCloseConfirmation() else { return true }
+    guard terminal.windowNeedsCloseConfirmation() else {
+      if terminatesTerminalSessionsOnClose {
+        terminal.terminateLiveTerminalSessions()
+      }
+      return true
+    }
     _ = store.send(.terminal(.windowCloseRequested(windowID: ObjectIdentifier(sender))))
     return false
   }

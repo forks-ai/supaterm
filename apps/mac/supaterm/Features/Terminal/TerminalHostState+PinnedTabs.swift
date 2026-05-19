@@ -196,7 +196,7 @@ extension TerminalHostState {
         )
       }
       for restoredTab in tabsToRestore where currentTabsByID[restoredTab.id] != nil {
-        removeTree(for: restoredTab.id)
+        removeTree(for: restoredTab.id, terminateSessions: false)
       }
 
       let updatedTabs = desiredPinnedTabs + convertedRegularTabs + currentRegularTabs

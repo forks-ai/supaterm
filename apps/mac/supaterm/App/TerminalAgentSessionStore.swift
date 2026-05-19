@@ -173,6 +173,32 @@ final class TerminalAgentSessionStore {
     }
   }
 
+  func restoreSessions(
+    from records: [TerminalPaneAgentRecord],
+    surfaceID: UUID
+  ) {
+    for record in records {
+      guard record.processIDs.contains(where: TerminalAgentPresenceStore.isProcessAlive) else { continue }
+      let surfaceKey = SurfaceKey(agent: record.agent, surfaceID: surfaceID)
+      for sessionID in record.sessionIDs {
+        let key = SessionKey(agent: record.agent, sessionID: sessionID)
+        let routing: SessionRouting
+        if let foregroundSessionID = foregroundSessionsBySurface[surfaceKey],
+          foregroundSessionID != sessionID
+        {
+          routing = .background
+        } else {
+          foregroundSessionsBySurface[surfaceKey] = sessionID
+          routing = .foreground
+        }
+        var session = sessions[key] ?? Session(routing: routing, surfaceID: surfaceID, transcriptPath: nil)
+        session.routing = routing
+        session.surfaceID = surfaceID
+        sessions[key] = session
+      }
+    }
+  }
+
   func clearRecordedSessionIfSurfaceMatches(
     agent: SupatermAgentKind,
     sessionID: String,

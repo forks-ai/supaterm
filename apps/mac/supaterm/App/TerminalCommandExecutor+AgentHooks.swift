@@ -17,6 +17,12 @@ extension TerminalCommandExecutor {
     }
   }
 
+  func restoreAgentSessions(from recordsBySurfaceID: [UUID: [TerminalPaneAgentRecord]]) {
+    for (surfaceID, records) in recordsBySurfaceID {
+      agentSessionStore.restoreSessions(from: records, surfaceID: surfaceID)
+    }
+  }
+
   func handleAgentHook(_ request: SupatermAgentHookRequest) throws -> TerminalAgentHookResult {
     pruneDeadAgentProcesses()
     registerAgentHookSession(request)

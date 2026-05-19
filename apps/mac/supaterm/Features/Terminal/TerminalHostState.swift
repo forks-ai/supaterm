@@ -222,6 +222,8 @@ final class TerminalHostState {
   @ObservationIgnored
   let managesTerminalSurfaces: Bool
   @ObservationIgnored
+  let zmxClient: ZmxClient
+  @ObservationIgnored
   @Shared(.supatermSettings)
   var supatermSettings = .default
   @ObservationIgnored
@@ -270,10 +272,12 @@ final class TerminalHostState {
 
   init(
     runtime: GhosttyRuntime? = nil,
-    managesTerminalSurfaces: Bool = true
+    managesTerminalSurfaces: Bool = true,
+    zmxClient: ZmxClient = .liveValue
   ) {
     self.managesTerminalSurfaces = managesTerminalSurfaces
     self.runtime = managesTerminalSurfaces ? (runtime ?? GhosttyRuntime()) : runtime
+    self.zmxClient = zmxClient
 
     let initialSpaceCatalog = TerminalSpaceCatalog.sanitized(spaceCatalog)
     if initialSpaceCatalog != spaceCatalog {
@@ -911,6 +915,7 @@ final class TerminalHostState {
         sessionDidChange()
         return true
       } catch {
+        killZmxSession(for: newSurface.id)
         newSurface.closeSurface()
         surfaces.removeValue(forKey: newSurface.id)
         return false
@@ -1075,6 +1080,7 @@ final class TerminalHostState {
       return
     }
 
+    killZmxSession(for: surfaceID)
     surface.closeSurface()
     agentPanelController?.surfaceRemoved(surfaceID)
     surfaces.removeValue(forKey: surfaceID)
@@ -1120,17 +1126,23 @@ final class TerminalHostState {
     startupCommand: String?,
     inheritingFromSurfaceID: UUID?,
     workingDirectory: URL? = nil,
-    context: ghostty_surface_context_e
+    context: ghostty_surface_context_e,
+    surfaceID: UUID = UUID()
   ) -> GhosttySurfaceView {
     guard let runtime else {
       preconditionFailure("TerminalHostState cannot create surfaces without a GhosttyRuntime")
     }
     let inherited = inheritedSurfaceConfig(fromSurfaceID: inheritingFromSurfaceID, context: context)
+    let command = resolvedSurfaceCommand(
+      startupCommand: startupCommand,
+      surfaceID: surfaceID
+    )
     let view = GhosttySurfaceView(
+      id: surfaceID,
       runtime: runtime,
       tabID: tabID.rawValue,
       workingDirectory: workingDirectory ?? inherited.workingDirectory,
-      startupCommand: startupCommand,
+      command: command,
       fontSize: inherited.fontSize,
       context: context,
       managesWindowAppearance: false
@@ -1139,6 +1151,14 @@ final class TerminalHostState {
     configureSurfaceCallbacks(for: view, tabID: tabID)
     surfaces[view.id] = view
     return view
+  }
+
+  func resolvedSurfaceCommand(
+    startupCommand: String?,
+    surfaceID: UUID
+  ) -> String? {
+    let command = startupCommand.map(SupatermShellCommand.ghosttyStartupCommand(for:))
+    return zmxClient.wrapCommand(surfaceID, command) ?? command
   }
 
   func suspendPinnedTab(_ tabID: TerminalTabID) {
@@ -1150,7 +1170,7 @@ final class TerminalHostState {
       return
     }
     persistPinnedTabWorkingDirectoriesIfNeeded(for: tabID)
-    removeTree(for: tabID)
+    removeTree(for: tabID, terminateSessions: false)
     tabManager.updateDirty(tabID, isDirty: false)
   }
 
@@ -1758,8 +1778,14 @@ final class TerminalHostState {
     )
   }
 
-  func removeTree(for tabID: TerminalTabID) {
+  func removeTree(
+    for tabID: TerminalTabID,
+    terminateSessions: Bool = true
+  ) {
     guard let tree = trees.removeValue(forKey: tabID) else { return }
+    if terminateSessions {
+      killZmxSessions(for: tree.leaves().map(\.id))
+    }
     for surface in tree.leaves() {
       agentPanelController?.surfaceRemoved(surface.id)
       paneNotifications.removeValue(forKey: surface.id)
@@ -2182,10 +2208,61 @@ final class TerminalHostState {
     syncFocus(windowActivity)
   }
 
-  func removeTrees(for tabIDs: [TerminalTabID]) {
+  func removeTrees(
+    for tabIDs: [TerminalTabID],
+    terminateSessions: Bool = true
+  ) {
     for tabID in tabIDs {
-      removeTree(for: tabID)
+      removeTree(for: tabID, terminateSessions: terminateSessions)
     }
+  }
+
+  func liveSurfaceIDs() -> [UUID] {
+    Array(surfaces.keys).sorted { $0.uuidString < $1.uuidString }
+  }
+
+  func killZmxSession(for surfaceID: UUID) {
+    guard zmxClient.isBundled() else { return }
+    let zmxClient = zmxClient
+    Task.detached(priority: .utility) {
+      await zmxClient.killSession(surfaceID)
+    }
+  }
+
+  func killZmxSessions(for surfaceIDs: [UUID]) {
+    let surfaceIDs = Array(Set(surfaceIDs))
+    guard !surfaceIDs.isEmpty, zmxClient.isBundled() else { return }
+    let zmxClient = zmxClient
+    Task.detached(priority: .utility) {
+      await withTaskGroup(of: Void.self) { group in
+        for surfaceID in surfaceIDs {
+          group.addTask {
+            await zmxClient.killSession(surfaceID)
+          }
+        }
+      }
+    }
+  }
+
+  func killZmxSessionsAndWait(for surfaceIDs: [UUID]) async {
+    let surfaceIDs = Array(Set(surfaceIDs))
+    guard !surfaceIDs.isEmpty, zmxClient.isBundled() else { return }
+    let zmxClient = zmxClient
+    await withTaskGroup(of: Void.self) { group in
+      for surfaceID in surfaceIDs {
+        group.addTask {
+          await zmxClient.killSession(surfaceID)
+        }
+      }
+    }
+  }
+
+  func terminateLiveTerminalSessions() {
+    killZmxSessions(for: liveSurfaceIDs())
+  }
+
+  func terminateLiveTerminalSessionsAndWait() async {
+    await killZmxSessionsAndWait(for: liveSurfaceIDs())
   }
 
   func mapSplitDirection(_ direction: GhosttySplitAction.NewDirection)

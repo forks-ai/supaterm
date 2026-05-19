@@ -1,5 +1,6 @@
 import AppKit
 import Foundation
+import SupatermCLIShared
 import Testing
 
 @testable import supaterm
@@ -72,6 +73,51 @@ struct AppDelegateTests {
     }
 
     #expect(reply == .terminateNow)
+  }
+
+  @Test
+  func terminateReplyPromptsWhenQuitModeAlways() {
+    let reply = AppDelegate.terminateReply(
+      hasVisibleAppWindows: true,
+      confirmQuitMode: .always,
+      needsQuitConfirmation: false,
+      bypassesQuitConfirmation: false
+    ) {
+      false
+    }
+
+    #expect(reply == .terminateCancel)
+  }
+
+  @Test
+  func terminateReplySkipsPromptWhenQuitModeNever() {
+    let reply = AppDelegate.terminateReply(
+      hasVisibleAppWindows: true,
+      confirmQuitMode: .never,
+      hasActiveAgentWorkForQuit: true,
+      needsQuitConfirmation: true,
+      bypassesQuitConfirmation: false,
+      terminatesSessionsOnQuit: true
+    ) {
+      Issue.record("confirmation should not be shown")
+      return false
+    }
+
+    #expect(reply == .terminateNow)
+  }
+
+  @Test
+  func terminateReplyPromptsInAutoWhenQuitTerminatesSessions() {
+    let reply = AppDelegate.terminateReply(
+      hasVisibleAppWindows: true,
+      needsQuitConfirmation: false,
+      bypassesQuitConfirmation: false,
+      terminatesSessionsOnQuit: true
+    ) {
+      false
+    }
+
+    #expect(reply == .terminateCancel)
   }
 
   @Test
@@ -191,6 +237,13 @@ struct AppDelegateTests {
         for: .terminateNow,
         liveSessionCatalog: liveSessionCatalog
       ) == liveSessionCatalog
+    )
+    #expect(
+      AppDelegate.pendingTerminationSessionCatalog(
+        for: .terminateNow,
+        liveSessionCatalog: liveSessionCatalog,
+        terminatesSessionsOnQuit: true
+      ) == .default
     )
     #expect(
       AppDelegate.pendingTerminationSessionCatalog(

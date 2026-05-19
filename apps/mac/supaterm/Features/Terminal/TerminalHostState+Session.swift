@@ -156,8 +156,10 @@ extension TerminalHostState {
     case .leaf(let surface):
       return .leaf(
         TerminalPaneLeafSession(
+          id: surface.id,
           workingDirectoryPath: workingDirectoryPath(for: surface),
-          titleOverride: surface.bridge.state.titleOverride
+          titleOverride: surface.bridge.state.titleOverride,
+          agents: agentPresenceStore.snapshot(for: surface.id)
         )
       )
     case .split(let split):
@@ -227,9 +229,11 @@ extension TerminalHostState {
         startupCommand: nil,
         inheritingFromSurfaceID: nil,
         workingDirectory: existingWorkingDirectoryURL(for: leaf.workingDirectoryPath),
-        context: context
+        context: context,
+        surfaceID: leaf.id
       )
       surface.bridge.state.titleOverride = leaf.titleOverride
+      restoreAgentPresence(leaf.agents, for: surface.id)
       return .leaf(view: surface)
 
     case .split(let split):
@@ -248,7 +252,7 @@ extension TerminalHostState {
 
   func clearSessionState() {
     let existingTabIDs = spaces.flatMap { spaceManager.tabs(in: $0.id).map(\.id) }
-    removeTrees(for: existingTabIDs)
+    removeTrees(for: existingTabIDs, terminateSessions: false)
     for space in spaces {
       _ = spaceManager.restoreTabs([], selectedTabID: nil, in: space.id)
     }
@@ -256,6 +260,16 @@ extension TerminalHostState {
     previousSelectedTabIDBySpace.removeAll()
     previousSelectedSpaceID = nil
     lastEmittedFocusSurfaceID = nil
+  }
+
+  func restoreAgentPresence(
+    _ records: [TerminalPaneAgentRecord],
+    for surfaceID: UUID
+  ) {
+    let changed = agentPresenceStore.restore(records, surfaceID: surfaceID)
+    if changed {
+      agentPanelController?.surfaceAgentStateChanged(surfaceID)
+    }
   }
 
   func sessionDidChange() {
