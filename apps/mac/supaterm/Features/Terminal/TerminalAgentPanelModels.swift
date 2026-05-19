@@ -33,8 +33,14 @@ nonisolated struct PaneAgentBranchDetails: Equatable, Sendable {
   let pullRequestStatus: PaneAgentPullRequestStatus
 
   var displayedPullRequestStatus: PaneAgentPullRequestStatus? {
-    guard !(branchName == "main" && pullRequestStatus.kind == .none) else { return nil }
-    return pullRequestStatus
+    switch pullRequestStatus.kind {
+    case .unavailable:
+      nil
+    case .none where branchName == "main":
+      nil
+    case .none, .open, .draft, .merged, .closed:
+      pullRequestStatus
+    }
   }
 }
 

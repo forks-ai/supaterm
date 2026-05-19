@@ -57,6 +57,18 @@ struct TerminalAgentPanelTests {
   }
 
   @Test
+  func branchDetailsHideUnavailablePullRequestStatus() {
+    let branchDetails = PaneAgentBranchDetails(
+      branchName: "khoi/agent-panel",
+      addedLineCount: 0,
+      removedLineCount: 0,
+      pullRequestStatus: .unavailable
+    )
+
+    #expect(branchDetails.displayedPullRequestStatus == nil)
+  }
+
+  @Test
   @MainActor
   func disabledPanelSkipsWorkspaceRefresh() async throws {
     try await withDependencies {
