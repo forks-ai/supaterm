@@ -28,20 +28,6 @@ public enum SupatermSocketPath {
   }
 
   public static func managedSocketURL(
-    processID: Int32,
-    rootDirectory: URL? = nil,
-    environment: [String: String] = ProcessInfo.processInfo.environment,
-    userID: uid_t = getuid()
-  ) -> URL {
-    managedDirectoryURL(
-      rootDirectory: rootDirectory,
-      environment: environment,
-      userID: userID
-    )
-    .appendingPathComponent(managedSocketFileName(for: processID), isDirectory: false)
-  }
-
-  public static func managedSocketURL(
     instanceName: String,
     rootDirectory: URL? = nil,
     environment: [String: String] = ProcessInfo.processInfo.environment,
@@ -188,10 +174,6 @@ public enum SupatermSocketPath {
     }
 
     return "\(managedDirectoryPrefix)\(userID)"
-  }
-
-  private static func managedSocketFileName(for processID: Int32) -> String {
-    "pid-\(processID)"
   }
 
   private static func managedSocketFileName(forInstanceName instanceName: String) -> String {

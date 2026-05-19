@@ -70,7 +70,7 @@ struct SupatermSocketProtocolTests {
   @Test
   func managedSocketURLFitsDarwinSocketLimit() {
     let path = SupatermSocketPath.managedSocketURL(
-      processID: 501,
+      instanceName: "default",
       userID: 501
     ).path
 
@@ -83,7 +83,7 @@ struct SupatermSocketProtocolTests {
 
     #expect(
       SupatermSocketPath.managedSocketURL(
-        processID: 77,
+        instanceName: "main",
         rootDirectory: rootDirectory,
         environment: [
           "XDG_RUNTIME_DIR": "/run/user/501",
@@ -93,7 +93,7 @@ struct SupatermSocketProtocolTests {
       )
         == URL(fileURLWithPath: "/private/tmp/SupatermTests", isDirectory: true)
         .appendingPathComponent("supaterm-501", isDirectory: true)
-        .appendingPathComponent("pid-77", isDirectory: false)
+        .appendingPathComponent("instance-main", isDirectory: false)
     )
   }
 

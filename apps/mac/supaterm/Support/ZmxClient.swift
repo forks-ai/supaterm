@@ -24,16 +24,11 @@ public nonisolated struct ZmxClient: Sendable {
   }
 }
 
-private nonisolated enum ZmxProbeOutcome: Equatable, Sendable {
-  case allow
-  case bypass
-}
-
 extension ZmxClient {
   public nonisolated static let subprocessTimeout: Duration = .seconds(5)
 
   public nonisolated static let live: ZmxClient = {
-    let probed = LockIsolated<ZmxProbeOutcome?>(nil)
+    let probed = LockIsolated<Bool?>(nil)
     let cachedBundledURL = Bundle.main.url(forResource: "zmx", withExtension: nil, subdirectory: "zmx")
 
     @Sendable func bundledExecutable() -> URL? {
@@ -42,13 +37,13 @@ extension ZmxClient {
 
     @Sendable func resolveExecutable() -> URL? {
       guard let url = cachedBundledURL else { return nil }
-      let outcome = probed.withValue { current -> ZmxProbeOutcome in
+      let canUseZmx = probed.withValue { current -> Bool in
         if let current { return current }
-        let computed: ZmxProbeOutcome = ZmxSocketBudget.probe() == nil ? .allow : .bypass
+        let computed = ZmxSocketBudget.probe() == nil
         current = computed
         return computed
       }
-      return outcome == .allow ? url : nil
+      return canUseZmx ? url : nil
     }
 
     @Sendable func runZmx(_ arguments: [String], captureStdout: Bool = false) async -> String? {
@@ -76,14 +71,7 @@ extension ZmxClient {
         process.standardOutput = FileHandle.nullDevice
       }
 
-      let stderrPipe = Pipe()
-      process.standardError = stderrPipe
-      stderrPipe.fileHandleForReading.readabilityHandler = { handle in
-        let chunk = handle.availableData
-        if chunk.isEmpty {
-          handle.readabilityHandler = nil
-        }
-      }
+      process.standardError = FileHandle.nullDevice
 
       let exitStream = AsyncStream<Int32> { continuation in
         process.terminationHandler = { process in
