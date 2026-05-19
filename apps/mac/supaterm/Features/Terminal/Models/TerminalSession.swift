@@ -19,14 +19,14 @@ nonisolated struct TerminalSessionCatalog: Equatable, Codable, Sendable {
   init(from decoder: Decoder) throws {
     let container = try decoder.container(keyedBy: CodingKeys.self)
     let version = try container.decode(Int.self, forKey: .version)
-    guard version == Self.currentVersion else {
+    guard version == Self.currentVersion || version == 3 else {
       throw DecodingError.dataCorruptedError(
         forKey: .version,
         in: container,
         debugDescription: "Unsupported session version: \(version)"
       )
     }
-    self.version = version
+    self.version = Self.currentVersion
     self.windows = try container.decode([TerminalWindowSession].self, forKey: .windows)
   }
 
@@ -289,6 +289,13 @@ nonisolated struct TerminalPaneLeafSession: Equatable, Codable, Sendable {
   var titleOverride: String?
   var agents: [TerminalPaneAgentRecord]
 
+  private enum CodingKeys: String, CodingKey {
+    case id
+    case workingDirectoryPath
+    case titleOverride
+    case agents
+  }
+
   init(
     id: UUID = UUID(),
     workingDirectoryPath: String?,
@@ -299,6 +306,14 @@ nonisolated struct TerminalPaneLeafSession: Equatable, Codable, Sendable {
     self.workingDirectoryPath = workingDirectoryPath
     self.titleOverride = titleOverride
     self.agents = agents
+  }
+
+  init(from decoder: Decoder) throws {
+    let container = try decoder.container(keyedBy: CodingKeys.self)
+    self.id = try container.decodeIfPresent(UUID.self, forKey: .id) ?? UUID()
+    self.workingDirectoryPath = try container.decodeIfPresent(String.self, forKey: .workingDirectoryPath)
+    self.titleOverride = try container.decodeIfPresent(String.self, forKey: .titleOverride)
+    self.agents = try container.decodeIfPresent([TerminalPaneAgentRecord].self, forKey: .agents) ?? []
   }
 
   func pruned() -> TerminalPaneLeafSession {
