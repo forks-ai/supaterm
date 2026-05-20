@@ -43,6 +43,8 @@ final class SupatermMenuController: NSObject {
     static let closeTab = NSUserInterfaceItemIdentifier("app.supabit.supaterm.file.closeTab")
     static let closeWindow = NSUserInterfaceItemIdentifier("app.supabit.supaterm.file.closeWindow")
     static let closeAllWindows = NSUserInterfaceItemIdentifier("app.supabit.supaterm.file.closeAllWindows")
+    static let terminateAllTerminalSessions = NSUserInterfaceItemIdentifier(
+      "app.supabit.supaterm.file.terminateAllTerminalSessions")
     static let openCommandPalette = NSUserInterfaceItemIdentifier("app.supabit.supaterm.file.openCommandPalette")
     static let find = NSUserInterfaceItemIdentifier("app.supabit.supaterm.edit.find")
     static let findNext = NSUserInterfaceItemIdentifier("app.supabit.supaterm.edit.findNext")
@@ -152,6 +154,8 @@ final class SupatermMenuController: NSObject {
     menu.addItem(closeTabItem)
     menu.addItem(closeWindowItem)
     menu.addItem(closeAllWindowsItem)
+    menu.addItem(.separator())
+    menu.addItem(terminateAllTerminalSessionsItem)
     return menu
   }()
 
@@ -339,6 +343,11 @@ final class SupatermMenuController: NSObject {
     title: "Close All Windows",
     action: #selector(closeAllWindows(_:)),
     identifier: MenuItemIdentifier.closeAllWindows
+  )
+  private lazy var terminateAllTerminalSessionsItem = makeItem(
+    title: "Terminate All Terminal Sessions...",
+    action: #selector(terminateAllTerminalSessions(_:)),
+    identifier: MenuItemIdentifier.terminateAllTerminalSessions
   )
   private lazy var openCommandPaletteItem = makeItem(
     title: "Open Command Palette",
@@ -737,6 +746,10 @@ final class SupatermMenuController: NSObject {
     _ = registry.requestCloseAllWindows()
   }
 
+  @objc func terminateAllTerminalSessions(_ sender: Any?) {
+    registry.terminateAllTerminalSessions()
+  }
+
   @objc func openCommandPalette(_ sender: Any?) {
     registry.requestToggleCommandPaletteInKeyWindow()
   }
@@ -995,6 +1008,8 @@ extension SupatermMenuController: NSMenuItemValidation {
       MenuItemIdentifier.closeAllWindows,
       MenuItemIdentifier.toggleSidebar:
       return context.availability.hasWindow
+    case MenuItemIdentifier.terminateAllTerminalSessions:
+      return context.availability.hasAnySurface
     case MenuItemIdentifier.find,
       MenuItemIdentifier.findNext,
       MenuItemIdentifier.findPrevious,

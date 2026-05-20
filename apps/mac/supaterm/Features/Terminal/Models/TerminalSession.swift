@@ -1,8 +1,9 @@
+import CryptoKit
 import Foundation
 import SupatermCLIShared
 
 nonisolated struct TerminalSessionCatalog: Equatable, Codable, Sendable {
-  static let currentVersion = 3
+  static let currentVersion = 4
   static let `default` = Self(windows: [])
 
   let version: Int
@@ -19,14 +20,14 @@ nonisolated struct TerminalSessionCatalog: Equatable, Codable, Sendable {
   init(from decoder: Decoder) throws {
     let container = try decoder.container(keyedBy: CodingKeys.self)
     let version = try container.decode(Int.self, forKey: .version)
-    guard version == Self.currentVersion else {
+    guard version == Self.currentVersion || version == 3 else {
       throw DecodingError.dataCorruptedError(
         forKey: .version,
         in: container,
         debugDescription: "Unsupported session version: \(version)"
       )
     }
-    self.version = version
+    self.version = Self.currentVersion
     self.windows = try container.decode([TerminalWindowSession].self, forKey: .windows)
   }
 
@@ -45,6 +46,12 @@ nonisolated struct TerminalSessionCatalog: Equatable, Codable, Sendable {
     let encoder = JSONEncoder()
     encoder.outputFormatting = [.sortedKeys]
     return encoder
+  }
+
+  var surfaceIDs: Set<UUID> {
+    windows.reduce(into: Set<UUID>()) { result, window in
+      result.formUnion(window.surfaceIDs)
+    }
   }
 }
 
@@ -68,6 +75,12 @@ nonisolated struct TerminalWindowSession: Equatable, Codable, Sendable {
       selectedSpaceID: resolvedSelectedSpaceID,
       spaces: spaces
     )
+  }
+
+  var surfaceIDs: Set<UUID> {
+    spaces.reduce(into: Set<UUID>()) { result, space in
+      result.formUnion(space.surfaceIDs)
+    }
   }
 }
 
@@ -98,6 +111,12 @@ nonisolated struct TerminalWindowSpaceSession: Equatable, Codable, Sendable {
       return 0
     }
     return selectedTabIndex
+  }
+
+  var surfaceIDs: Set<UUID> {
+    tabs.reduce(into: Set<UUID>()) { result, tab in
+      result.formUnion(tab.surfaceIDs)
+    }
   }
 }
 
@@ -157,6 +176,10 @@ nonisolated struct TerminalTabSession: Equatable, Codable, Sendable {
     guard (0..<leafCount).contains(focusedPaneIndex) else { return 0 }
     return focusedPaneIndex
   }
+
+  var surfaceIDs: Set<UUID> {
+    root.surfaceIDs
+  }
 }
 
 nonisolated indirect enum TerminalPaneNodeSession: Equatable, Codable, Sendable {
@@ -202,6 +225,15 @@ nonisolated indirect enum TerminalPaneNodeSession: Equatable, Codable, Sendable 
       return 1
     case .split(let split):
       return split.left.leafCount + split.right.leafCount
+    }
+  }
+
+  var surfaceIDs: Set<UUID> {
+    switch self {
+    case .leaf(let leaf):
+      return [leaf.id]
+    case .split(let split):
+      return split.left.surfaceIDs.union(split.right.surfaceIDs)
     }
   }
 
@@ -253,15 +285,64 @@ nonisolated indirect enum TerminalPaneNodeSession: Equatable, Codable, Sendable 
 }
 
 nonisolated struct TerminalPaneLeafSession: Equatable, Codable, Sendable {
+  var id: UUID
   var workingDirectoryPath: String?
   var titleOverride: String?
+  var agents: [TerminalPaneAgentRecord]
+
+  private enum CodingKeys: String, CodingKey {
+    case id
+    case workingDirectoryPath
+    case titleOverride
+    case agents
+  }
 
   init(
+    id: UUID = UUID(),
     workingDirectoryPath: String?,
-    titleOverride: String? = nil
+    titleOverride: String? = nil,
+    agents: [TerminalPaneAgentRecord] = []
   ) {
+    self.id = id
     self.workingDirectoryPath = workingDirectoryPath
     self.titleOverride = titleOverride
+    self.agents = agents
+  }
+
+  init(from decoder: Decoder) throws {
+    let container = try decoder.container(keyedBy: CodingKeys.self)
+    self.id = try container.decodeIfPresent(UUID.self, forKey: .id) ?? Self.legacyID(codingPath: decoder.codingPath)
+    self.workingDirectoryPath = try container.decodeIfPresent(String.self, forKey: .workingDirectoryPath)
+    self.titleOverride = try container.decodeIfPresent(String.self, forKey: .titleOverride)
+    self.agents = try container.decodeIfPresent([TerminalPaneAgentRecord].self, forKey: .agents) ?? []
+  }
+
+  private static func legacyID(codingPath: [CodingKey]) -> UUID {
+    let seed = codingPath.map { key in
+      key.intValue.map { "[\($0)]" } ?? key.stringValue
+    }
+    .joined(separator: "/")
+    let digest = SHA256.hash(data: Data((seed.isEmpty ? "leaf" : seed).utf8))
+    let bytes = Array(digest.prefix(16))
+    return UUID(
+      uuid: (
+        bytes[0],
+        bytes[1],
+        bytes[2],
+        bytes[3],
+        bytes[4],
+        bytes[5],
+        bytes[6],
+        bytes[7],
+        bytes[8],
+        bytes[9],
+        bytes[10],
+        bytes[11],
+        bytes[12],
+        bytes[13],
+        bytes[14],
+        bytes[15]
+      ))
   }
 
   func pruned() -> TerminalPaneLeafSession {
@@ -269,9 +350,64 @@ nonisolated struct TerminalPaneLeafSession: Equatable, Codable, Sendable {
       workingDirectoryPath?
       .trimmingCharacters(in: .whitespacesAndNewlines)
     return TerminalPaneLeafSession(
+      id: id,
       workingDirectoryPath: workingDirectoryPath?.isEmpty == true ? nil : workingDirectoryPath,
-      titleOverride: titleOverride?.isEmpty == true ? nil : titleOverride
+      titleOverride: titleOverride?.isEmpty == true ? nil : titleOverride,
+      agents: agents.compactMap { $0.pruned() }
     )
+  }
+}
+
+nonisolated enum TerminalPaneAgentActivityPhase: String, Codable, Equatable, Sendable {
+  case idle
+  case needsInput = "needs_input"
+  case running
+}
+
+nonisolated struct TerminalPaneAgentRecord: Equatable, Codable, Sendable {
+  var agent: SupatermAgentKind
+  var sessionIDs: [String]
+  var processIDs: [Int32]
+  var activityPhase: TerminalPaneAgentActivityPhase?
+
+  init(
+    agent: SupatermAgentKind,
+    sessionIDs: [String] = [],
+    processIDs: [Int32] = [],
+    activityPhase: TerminalPaneAgentActivityPhase? = nil
+  ) {
+    self.agent = agent
+    self.sessionIDs = Self.normalizedSessionIDs(sessionIDs)
+    self.processIDs = Self.normalizedProcessIDs(processIDs)
+    self.activityPhase = activityPhase
+  }
+
+  func pruned() -> Self? {
+    let sessionIDs = Self.normalizedSessionIDs(sessionIDs)
+    let processIDs = Self.normalizedProcessIDs(processIDs)
+    guard !sessionIDs.isEmpty || !processIDs.isEmpty || activityPhase != nil else { return nil }
+    return Self(
+      agent: agent,
+      sessionIDs: sessionIDs,
+      processIDs: processIDs,
+      activityPhase: activityPhase
+    )
+  }
+
+  private static func normalizedSessionIDs(_ sessionIDs: [String]) -> [String] {
+    Array(
+      Set(
+        sessionIDs.compactMap { sessionID in
+          let sessionID = sessionID.trimmingCharacters(in: .whitespacesAndNewlines)
+          return sessionID.isEmpty ? nil : sessionID
+        }
+      )
+    )
+    .sorted()
+  }
+
+  private static func normalizedProcessIDs(_ processIDs: [Int32]) -> [Int32] {
+    Array(Set(processIDs.filter { $0 > 0 })).sorted()
   }
 }
 

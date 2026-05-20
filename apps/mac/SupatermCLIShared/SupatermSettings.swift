@@ -6,11 +6,13 @@ public struct SupatermSettings: Codable, Equatable, Sendable {
   public var codingAgentsShowPanel: Bool
   public var codingAgentsShowIcons: Bool
   public var codingAgentsShowSpinner: Bool
+  public var confirmQuitMode: ConfirmQuitMode
   public var crashReportsEnabled: Bool
   public var glowingPaneRingEnabled: Bool
   public var newTabPosition: NewTabPosition
   public var restoreTerminalLayoutEnabled: Bool
   public var systemNotificationsEnabled: Bool
+  public var terminateSessionsOnQuit: Bool
   public var updateChannel: UpdateChannel
 
   public init(
@@ -19,11 +21,13 @@ public struct SupatermSettings: Codable, Equatable, Sendable {
     codingAgentsShowPanel: Bool = true,
     codingAgentsShowIcons: Bool = true,
     codingAgentsShowSpinner: Bool = true,
+    confirmQuitMode: ConfirmQuitMode = .auto,
     crashReportsEnabled: Bool,
     glowingPaneRingEnabled: Bool = true,
     newTabPosition: NewTabPosition = .end,
     restoreTerminalLayoutEnabled: Bool = true,
     systemNotificationsEnabled: Bool = false,
+    terminateSessionsOnQuit: Bool = false,
     updateChannel: UpdateChannel
   ) {
     self.appearanceMode = appearanceMode
@@ -31,11 +35,13 @@ public struct SupatermSettings: Codable, Equatable, Sendable {
     self.codingAgentsShowPanel = codingAgentsShowPanel
     self.codingAgentsShowIcons = codingAgentsShowIcons
     self.codingAgentsShowSpinner = codingAgentsShowSpinner
+    self.confirmQuitMode = confirmQuitMode
     self.crashReportsEnabled = crashReportsEnabled
     self.glowingPaneRingEnabled = glowingPaneRingEnabled
     self.newTabPosition = newTabPosition
     self.restoreTerminalLayoutEnabled = restoreTerminalLayoutEnabled
     self.systemNotificationsEnabled = systemNotificationsEnabled
+    self.terminateSessionsOnQuit = terminateSessionsOnQuit
     self.updateChannel = updateChannel
   }
 
@@ -45,11 +51,13 @@ public struct SupatermSettings: Codable, Equatable, Sendable {
     codingAgentsShowPanel: true,
     codingAgentsShowIcons: true,
     codingAgentsShowSpinner: true,
+    confirmQuitMode: .auto,
     crashReportsEnabled: true,
     glowingPaneRingEnabled: true,
     newTabPosition: .end,
     restoreTerminalLayoutEnabled: true,
     systemNotificationsEnabled: false,
+    terminateSessionsOnQuit: false,
     updateChannel: .stable
   )
 
@@ -91,11 +99,13 @@ public struct SupatermSettings: Codable, Equatable, Sendable {
       codingAgentsShowPanel: codingAgents?.showPanel ?? defaults.codingAgentsShowPanel,
       codingAgentsShowIcons: codingAgents?.showIcons ?? defaults.codingAgentsShowIcons,
       codingAgentsShowSpinner: codingAgents?.showSpinner ?? defaults.codingAgentsShowSpinner,
+      confirmQuitMode: terminal?.confirmQuitMode ?? defaults.confirmQuitMode,
       crashReportsEnabled: privacy?.crashReportsEnabled ?? defaults.crashReportsEnabled,
       glowingPaneRingEnabled: notifications?.glowingPaneRing ?? defaults.glowingPaneRingEnabled,
       newTabPosition: terminal?.newTabPosition ?? defaults.newTabPosition,
       restoreTerminalLayoutEnabled: terminal?.restoreLayout ?? defaults.restoreTerminalLayoutEnabled,
       systemNotificationsEnabled: notifications?.systemNotifications ?? defaults.systemNotificationsEnabled,
+      terminateSessionsOnQuit: terminal?.terminateSessionsOnQuit ?? defaults.terminateSessionsOnQuit,
       updateChannel: updates?.channel ?? defaults.updateChannel
     )
   }
@@ -142,11 +152,15 @@ public struct SupatermSettings: Codable, Equatable, Sendable {
     }
     if newTabPosition != defaults.newTabPosition
       || restoreTerminalLayoutEnabled != defaults.restoreTerminalLayoutEnabled
+      || confirmQuitMode != defaults.confirmQuitMode
+      || terminateSessionsOnQuit != defaults.terminateSessionsOnQuit
     {
       try container.encode(
         PersistedTerminal(
+          confirmQuitMode: confirmQuitMode,
           newTabPosition: newTabPosition,
-          restoreLayout: restoreTerminalLayoutEnabled
+          restoreLayout: restoreTerminalLayoutEnabled,
+          terminateSessionsOnQuit: terminateSessionsOnQuit
         ),
         forKey: .terminal
       )
@@ -314,39 +328,62 @@ extension SupatermSettings {
   }
 
   struct PersistedTerminal: Codable, Equatable, Sendable {
+    let confirmQuitMode: ConfirmQuitMode
     let newTabPosition: NewTabPosition
     let restoreLayout: Bool
+    let terminateSessionsOnQuit: Bool
 
-    init(newTabPosition: NewTabPosition, restoreLayout: Bool) {
+    init(
+      confirmQuitMode: ConfirmQuitMode,
+      newTabPosition: NewTabPosition,
+      restoreLayout: Bool,
+      terminateSessionsOnQuit: Bool
+    ) {
+      self.confirmQuitMode = confirmQuitMode
       self.newTabPosition = newTabPosition
       self.restoreLayout = restoreLayout
+      self.terminateSessionsOnQuit = terminateSessionsOnQuit
     }
 
     init(from decoder: any Decoder) throws {
       let defaults = SupatermSettings.default
       let container = try decoder.container(keyedBy: CodingKeys.self)
+      confirmQuitMode =
+        try container.decodeIfPresent(ConfirmQuitMode.self, forKey: .confirmQuitMode)
+        ?? defaults.confirmQuitMode
       newTabPosition =
         try container.decodeIfPresent(NewTabPosition.self, forKey: .newTabPosition)
         ?? defaults.newTabPosition
       restoreLayout =
         try container.decodeIfPresent(Bool.self, forKey: .restoreLayout)
         ?? defaults.restoreTerminalLayoutEnabled
+      terminateSessionsOnQuit =
+        try container.decodeIfPresent(Bool.self, forKey: .terminateSessionsOnQuit)
+        ?? defaults.terminateSessionsOnQuit
     }
 
     enum CodingKeys: String, CodingKey {
+      case confirmQuitMode = "confirm_quit"
       case newTabPosition = "new_tab_position"
       case restoreLayout = "restore_layout"
+      case terminateSessionsOnQuit = "terminate_sessions_on_quit"
     }
 
     func encode(to encoder: any Encoder) throws {
       let defaults = SupatermSettings.default
       var container = encoder.container(keyedBy: CodingKeys.self)
 
+      if confirmQuitMode != defaults.confirmQuitMode {
+        try container.encode(confirmQuitMode, forKey: .confirmQuitMode)
+      }
       if newTabPosition != defaults.newTabPosition {
         try container.encode(newTabPosition, forKey: .newTabPosition)
       }
       if restoreLayout != defaults.restoreTerminalLayoutEnabled {
         try container.encode(restoreLayout, forKey: .restoreLayout)
+      }
+      if terminateSessionsOnQuit != defaults.terminateSessionsOnQuit {
+        try container.encode(terminateSessionsOnQuit, forKey: .terminateSessionsOnQuit)
       }
     }
   }
@@ -424,11 +461,13 @@ struct LegacySupatermSettingsFile: Decodable, Equatable, Sendable {
       codingAgentsShowPanel: codingAgentsShowPanel,
       codingAgentsShowIcons: codingAgentsShowIcons,
       codingAgentsShowSpinner: codingAgentsShowSpinner,
+      confirmQuitMode: SupatermSettings.default.confirmQuitMode,
       crashReportsEnabled: crashReportsEnabled,
       glowingPaneRingEnabled: glowingPaneRingEnabled,
       newTabPosition: newTabPosition,
       restoreTerminalLayoutEnabled: restoreTerminalLayoutEnabled,
       systemNotificationsEnabled: systemNotificationsEnabled,
+      terminateSessionsOnQuit: SupatermSettings.default.terminateSessionsOnQuit,
       updateChannel: updateChannel
     )
   }

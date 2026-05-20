@@ -145,7 +145,7 @@ struct AgentPanelView: View {
 
   @ViewBuilder
   private func pullRequestRow(_ status: PaneAgentPullRequestStatus) -> some View {
-    let icon = pullRequestIcon(status.kind)
+    let icon = pullRequestIcon(status)
     let color = pullRequestColor(status.kind)
     if let url = status.url {
       linkRow(icon: icon, title: status.title, url: url, iconColor: color)
@@ -311,11 +311,14 @@ struct AgentPanelView: View {
     }
   }
 
-  private func pullRequestIcon(_ kind: PaneAgentPullRequestStatus.Kind) -> AgentPanelIcon {
-    switch kind {
+  private func pullRequestIcon(_ status: PaneAgentPullRequestStatus) -> AgentPanelIcon {
+    switch status.kind {
     case .unavailable:
       return .system("exclamationmark.circle")
     case .none:
+      if status.url != nil {
+        return .asset("github-logo")
+      }
       return .system("plus.circle")
     case .open, .draft, .merged, .closed:
       return .asset("git-pull-request-arrow")

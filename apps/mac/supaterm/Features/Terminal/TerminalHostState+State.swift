@@ -428,6 +428,19 @@ extension TerminalHostState {
     return !changedSurfaceIDs.isEmpty
   }
 
+  func agentPresenceSnapshotsBySurfaceID() -> [UUID: [TerminalPaneAgentRecord]] {
+    Dictionary(
+      uniqueKeysWithValues: liveSurfaceIDs().map { surfaceID in
+        (surfaceID, agentPresenceStore.snapshot(for: surfaceID))
+      }
+    )
+    .filter { !$0.value.isEmpty }
+  }
+
+  var hasActiveAgentWorkForQuit: Bool {
+    agentPresenceStore.hasActiveWorkForQuit
+  }
+
   @discardableResult
   func clearCodexHoverMessages(for surfaceID: UUID) -> Bool {
     guard tabID(containing: surfaceID) != nil else { return false }

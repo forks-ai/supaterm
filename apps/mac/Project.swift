@@ -5,6 +5,9 @@ let ghosttyFingerprintPath: Path = ".build/ghostty/fingerprint"
 let ghosttyResourcesPath: Path = ".build/ghostty/share/ghostty"
 let ghosttyTerminfoPath: Path = ".build/ghostty/share/terminfo"
 let ghosttyBuildScriptPath: Path = "scripts/build-ghostty.sh"
+let zmxBinaryPath: Path = ".build/zmx/bin/zmx"
+let zmxBuildScriptPath: Path = "scripts/build-zmx.sh"
+let zmxFingerprintPath: Path = ".build/zmx/fingerprint"
 
 func tuistInspectScript(_ action: String) -> String {
   """
@@ -302,6 +305,13 @@ let project = Project(
         "supaterm/Features/Terminal",
       ],
       scripts: [
+        .pre(
+          script: """
+            "${SRCROOT}/\(zmxBuildScriptPath.pathString)"
+            """,
+          name: "Build zmx",
+          basedOnDependencyAnalysis: false
+        ),
         .post(
           script: """
             set -euo pipefail
@@ -328,6 +338,31 @@ let project = Project(
             "$(TARGET_BUILD_DIR)/$(UNLOCALIZED_RESOURCES_FOLDER_PATH)/terminfo",
             "$(TARGET_BUILD_DIR)/$(UNLOCALIZED_RESOURCES_FOLDER_PATH)/ghostty-resources.fingerprint",
           ],
+        ),
+        .post(
+          script: """
+            set -euo pipefail
+
+            destination_dir="${TARGET_BUILD_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}/zmx"
+            destination_path="${destination_dir}/zmx"
+            source_path="${SRCROOT}/\(zmxBinaryPath.pathString)"
+
+            if [ ! -x "${source_path}" ]; then
+              echo "error: missing built zmx executable" >&2
+              exit 1
+            fi
+
+            mkdir -p "${destination_dir}"
+            /bin/cp -f "${source_path}" "${destination_path}"
+            """,
+          name: "Embed zmx",
+          inputPaths: [
+            "$(SRCROOT)/\(zmxBinaryPath.pathString)",
+            "$(SRCROOT)/\(zmxFingerprintPath.pathString)",
+          ],
+          outputPaths: [
+            "$(TARGET_BUILD_DIR)/$(UNLOCALIZED_RESOURCES_FOLDER_PATH)/zmx/zmx",
+          ]
         ),
         .post(
           script: """

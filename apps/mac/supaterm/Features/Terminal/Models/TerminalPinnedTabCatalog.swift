@@ -71,6 +71,14 @@ nonisolated struct TerminalPinnedTabCatalog: Equatable, Codable, Sendable {
     spaces.first(where: { $0.id == spaceID })?.tabs ?? []
   }
 
+  var surfaceIDs: Set<UUID> {
+    spaces.reduce(into: Set<UUID>()) { result, space in
+      for tab in space.tabs {
+        result.formUnion(tab.session.surfaceIDs)
+      }
+    }
+  }
+
   func updatingTabs(
     _ tabs: [PersistedPinnedTerminalTab],
     in spaceID: TerminalSpaceID

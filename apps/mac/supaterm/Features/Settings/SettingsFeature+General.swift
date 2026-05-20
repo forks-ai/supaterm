@@ -11,6 +11,10 @@ extension SettingsFeature {
       state.analyticsEnabled = isEnabled
       return persist(state)
 
+    case .confirmQuitModeSelected(let mode):
+      state.confirmQuitMode = mode
+      return persist(state)
+
     case .crashReportsEnabledChanged(let isEnabled):
       state.crashReportsEnabled = isEnabled
       return persist(state)
@@ -25,6 +29,10 @@ extension SettingsFeature {
 
     case .restoreTerminalLayoutEnabledChanged(let isEnabled):
       state.restoreTerminalLayoutEnabled = isEnabled
+      return persist(state)
+
+    case .terminateSessionsOnQuitChanged(let isEnabled):
+      state.terminateSessionsOnQuit = isEnabled
       return persist(state)
 
     default:

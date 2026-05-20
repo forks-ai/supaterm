@@ -3,14 +3,14 @@ import SwiftUI
 
 @MainActor
 final class QuitConfirmationPresenter {
-  func confirmQuit() -> Bool {
-    guard let panelController = panelController() else { return false }
+  func confirmQuit(terminatesSessions: Bool) -> Bool {
+    guard let panelController = panelController(terminatesSessions: terminatesSessions) else { return false }
     return panelController.runModal()
   }
 
-  private func panelController() -> QuitConfirmationPanelController? {
+  private func panelController(terminatesSessions: Bool) -> QuitConfirmationPanelController? {
     guard let parentWindow = preferredParentWindow() else { return nil }
-    return QuitConfirmationPanelController(parentWindow: parentWindow)
+    return QuitConfirmationPanelController(parentWindow: parentWindow, terminatesSessions: terminatesSessions)
   }
 
   private func preferredParentWindow() -> NSWindow? {
@@ -31,7 +31,7 @@ final class QuitConfirmationPresenter {
 private final class QuitConfirmationPanelController: NSWindowController {
   private weak var parentWindow: NSWindow?
 
-  init(parentWindow: NSWindow) {
+  init(parentWindow: NSWindow, terminatesSessions: Bool) {
     self.parentWindow = parentWindow
 
     let window = QuitConfirmationPanel(
@@ -47,6 +47,7 @@ private final class QuitConfirmationPanelController: NSWindowController {
     window.contentViewController = NSHostingController(
       rootView: QuitConfirmationView(
         palette: palette,
+        terminatesSessions: terminatesSessions,
         onConfirm: { [weak self] in
           self?.finish(.OK)
         },
@@ -115,6 +116,7 @@ private final class QuitConfirmationPanel: NSPanel {
 
 private struct QuitConfirmationView: View {
   let palette: TerminalPalette
+  let terminatesSessions: Bool
   let onConfirm: () -> Void
   let onCancel: () -> Void
 
@@ -122,7 +124,8 @@ private struct QuitConfirmationView: View {
     ConfirmationOverlay(
       palette: palette,
       title: "Quit Supaterm?",
-      message: "All terminal sessions will be terminated.",
+      message: terminatesSessions
+        ? "All terminal sessions will be terminated." : "Terminal sessions will continue running.",
       confirmTitle: "Quit Supaterm",
       onConfirm: onConfirm,
       onCancel: onCancel
