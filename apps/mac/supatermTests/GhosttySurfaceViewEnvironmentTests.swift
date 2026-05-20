@@ -35,9 +35,26 @@ struct GhosttySurfaceViewEnvironmentTests {
           key: SupatermCLIEnvironment.cliPathKey,
           value: "/Applications/Supaterm.app/Contents/Resources/bin/sp"
         ),
-        SupatermCLIEnvironmentVariable(key: "ZMX_DIR", value: "/tmp/zmx-\(getuid())"),
+        SupatermCLIEnvironmentVariable(key: ZmxSocketBudget.environmentKey, value: "/tmp/zmx-\(getuid())"),
         SupatermCLIEnvironmentVariable(key: "PATH", value: path),
       ]
+    )
+  }
+
+  @Test
+  func supatermEnvironmentVariablesUseBudgetedZmxDirectory() {
+    let environmentVariables = GhosttySurfaceView.supatermEnvironmentVariables(
+      surfaceID: UUID(),
+      tabID: UUID(),
+      socketPath: nil,
+      cliPath: nil,
+      processEnvironment: ["TMPDIR": "/var/folders/" + String(repeating: "a", count: 80)]
+    )
+
+    #expect(
+      environmentVariables.contains(
+        SupatermCLIEnvironmentVariable(key: ZmxSocketBudget.environmentKey, value: "/tmp/zmx-\(getuid())")
+      )
     )
   }
 

@@ -49,7 +49,7 @@ extension ZmxClient {
       process.executableURL = executable
       process.arguments = arguments
       var environment = ProcessInfo.processInfo.environment
-      environment["ZMX_DIR"] = ZmxSocketBudget.socketDir(environment: environment)
+      environment[ZmxSocketBudget.environmentKey] = ZmxSocketBudget.socketDir(environment: environment)
       process.environment = environment
 
       let stdoutPipe: Pipe?
@@ -199,6 +199,7 @@ public nonisolated enum ZmxSessionID {
 }
 
 public nonisolated enum ZmxSocketBudget {
+  public nonisolated static let environmentKey = "ZMX_DIR"
   public nonisolated static let sunPathLimit = 104
   public nonisolated static let safetyMargin = 2
   public nonisolated static let sessionNameByteCount =
@@ -207,7 +208,7 @@ public nonisolated enum ZmxSocketBudget {
   public nonisolated static func socketDir(environment: [String: String] = ProcessInfo.processInfo.environment)
     -> String
   {
-    if let custom = environment["ZMX_DIR"], !custom.isEmpty {
+    if let custom = environment[environmentKey], !custom.isEmpty {
       return custom
     }
     let userID = getuid()
