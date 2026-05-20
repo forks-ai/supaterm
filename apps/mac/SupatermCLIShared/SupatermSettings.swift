@@ -421,13 +421,11 @@ struct LegacySupatermSettingsFile: Decodable, Equatable, Sendable {
   var codingAgentsShowPanel: Bool
   var codingAgentsShowIcons: Bool
   var codingAgentsShowSpinner: Bool
-  var confirmQuitMode: ConfirmQuitMode
   var crashReportsEnabled: Bool
   var glowingPaneRingEnabled: Bool
   var newTabPosition: NewTabPosition
   var restoreTerminalLayoutEnabled: Bool
   var systemNotificationsEnabled: Bool
-  var terminateSessionsOnQuit: Bool
   var updateChannel: UpdateChannel
 
   init(from decoder: any Decoder) throws {
@@ -440,7 +438,6 @@ struct LegacySupatermSettingsFile: Decodable, Equatable, Sendable {
     self.codingAgentsShowPanel = defaults.codingAgentsShowPanel
     self.codingAgentsShowIcons = defaults.codingAgentsShowIcons
     self.codingAgentsShowSpinner = defaults.codingAgentsShowSpinner
-    self.confirmQuitMode = defaults.confirmQuitMode
     self.crashReportsEnabled =
       try container.decodeIfPresent(Bool.self, forKey: .crashReportsEnabled) ?? defaults.crashReportsEnabled
     self.glowingPaneRingEnabled =
@@ -453,7 +450,6 @@ struct LegacySupatermSettingsFile: Decodable, Equatable, Sendable {
     self.systemNotificationsEnabled =
       try container.decodeIfPresent(Bool.self, forKey: .systemNotificationsEnabled)
       ?? defaults.systemNotificationsEnabled
-    self.terminateSessionsOnQuit = defaults.terminateSessionsOnQuit
     self.updateChannel =
       try container.decodeIfPresent(UpdateChannel.self, forKey: .updateChannel) ?? defaults.updateChannel
   }
@@ -465,13 +461,13 @@ struct LegacySupatermSettingsFile: Decodable, Equatable, Sendable {
       codingAgentsShowPanel: codingAgentsShowPanel,
       codingAgentsShowIcons: codingAgentsShowIcons,
       codingAgentsShowSpinner: codingAgentsShowSpinner,
-      confirmQuitMode: confirmQuitMode,
+      confirmQuitMode: SupatermSettings.default.confirmQuitMode,
       crashReportsEnabled: crashReportsEnabled,
       glowingPaneRingEnabled: glowingPaneRingEnabled,
       newTabPosition: newTabPosition,
       restoreTerminalLayoutEnabled: restoreTerminalLayoutEnabled,
       systemNotificationsEnabled: systemNotificationsEnabled,
-      terminateSessionsOnQuit: terminateSessionsOnQuit,
+      terminateSessionsOnQuit: SupatermSettings.default.terminateSessionsOnQuit,
       updateChannel: updateChannel
     )
   }
@@ -480,12 +476,10 @@ struct LegacySupatermSettingsFile: Decodable, Equatable, Sendable {
     case appearanceMode
     case analyticsEnabled
     case crashReportsEnabled
-    case confirmQuitMode
     case glowingPaneRingEnabled
     case newTabPosition
     case restoreTerminalLayoutEnabled
     case systemNotificationsEnabled
-    case terminateSessionsOnQuit
     case updateChannel
     case updatesAutomaticallyCheckForUpdates
     case updatesAutomaticallyDownloadUpdates

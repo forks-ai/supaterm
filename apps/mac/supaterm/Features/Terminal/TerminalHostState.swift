@@ -2222,11 +2222,7 @@ final class TerminalHostState {
   }
 
   func killZmxSession(for surfaceID: UUID) {
-    guard zmxClient.isBundled() else { return }
-    let zmxClient = zmxClient
-    Task.detached(priority: .utility) {
-      await zmxClient.killSession(surfaceID)
-    }
+    killZmxSessions(for: [surfaceID])
   }
 
   func killZmxSessions(for surfaceIDs: [UUID]) {

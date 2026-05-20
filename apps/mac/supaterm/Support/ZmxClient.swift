@@ -32,10 +32,6 @@ extension ZmxClient {
     let probed = LockIsolated<Bool?>(nil)
     let cachedBundledURL = Bundle.main.url(forResource: "zmx", withExtension: nil, subdirectory: "zmx")
 
-    @Sendable func bundledExecutable() -> URL? {
-      cachedBundledURL
-    }
-
     @Sendable func resolveExecutable() -> URL? {
       guard let url = cachedBundledURL else { return nil }
       let canUseZmx = probed.withValue { current -> Bool in
@@ -48,7 +44,7 @@ extension ZmxClient {
     }
 
     @Sendable func runZmx(_ arguments: [String], captureStdout: Bool = false) async -> String? {
-      guard let executable = bundledExecutable() else { return nil }
+      guard let executable = cachedBundledURL else { return nil }
       let process = Process()
       process.executableURL = executable
       process.arguments = arguments
@@ -122,7 +118,7 @@ extension ZmxClient {
 
     return ZmxClient(
       executableURL: resolveExecutable,
-      isBundled: { bundledExecutable() != nil },
+      isBundled: { cachedBundledURL != nil },
       wrapCommand: { surfaceID, userCommand in
         guard let executable = resolveExecutable() else { return nil }
         return ZmxAttach.buildCommand(
