@@ -1,9 +1,41 @@
+import CryptoKit
 import Darwin
 import Foundation
+
+public enum SupatermInstanceIdentity {
+  public static let defaultName = "default"
+
+  public static func resolvedName(
+    environment: [String: String] = ProcessInfo.processInfo.environment
+  ) -> String {
+    normalizedName(environment[SupatermCLIEnvironment.instanceNameKey])
+  }
+
+  public static func normalizedName(_ name: String?) -> String {
+    SupatermSocketPath.normalized(name) ?? defaultName
+  }
+
+  public static func fileStem(for name: String) -> String {
+    let allowed = CharacterSet(charactersIn: "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789._-")
+    let stem =
+      name
+      .unicodeScalars
+      .map { allowed.contains($0) ? String($0) : "-" }
+      .joined()
+      .trimmingCharacters(in: CharacterSet(charactersIn: ".-_"))
+    return stem.isEmpty ? defaultName : stem
+  }
+
+  public static func stableHash(for name: String, hexDigitCount: Int = 16) -> String {
+    let digest = SHA256.hash(data: Data(name.utf8))
+    return String(digest.map { String(format: "%02x", $0) }.joined().prefix(hexDigitCount))
+  }
+}
 
 public enum SupatermSocketPath {
   public static let managedDirectoryPrefix = "supaterm-"
   public static let managedRuntimeDirectoryName = "supaterm"
+  private static let socketPathByteLimit = MemoryLayout<sockaddr_un>.size - 1
   private static let tmpPath = "/tmp"
   private static let xdgRuntimeDirectoryKey = "XDG_RUNTIME_DIR"
   private static let temporaryDirectoryKey = "TMPDIR"
@@ -33,12 +65,18 @@ public enum SupatermSocketPath {
     environment: [String: String] = ProcessInfo.processInfo.environment,
     userID: uid_t = getuid()
   ) -> URL {
-    managedDirectoryURL(
+    let directoryURL = managedDirectoryURL(
       rootDirectory: rootDirectory,
       environment: environment,
       userID: userID
     )
-    .appendingPathComponent(managedSocketFileName(forInstanceName: instanceName), isDirectory: false)
+    return directoryURL.appendingPathComponent(
+      managedSocketFileName(
+        forInstanceName: instanceName,
+        directoryPath: directoryURL.path
+      ),
+      isDirectory: false
+    )
   }
 
   public static func resolveExplicitPath(
@@ -176,16 +214,27 @@ public enum SupatermSocketPath {
     return "\(managedDirectoryPrefix)\(userID)"
   }
 
-  private static func managedSocketFileName(forInstanceName instanceName: String) -> String {
-    let fallback = "default"
-    let normalizedInstanceName = normalized(instanceName) ?? fallback
-    let allowed = CharacterSet.alphanumerics.union(CharacterSet(charactersIn: "._-"))
-    let sanitized = normalizedInstanceName.unicodeScalars.map { scalar in
-      allowed.contains(scalar) ? String(scalar) : "-"
+  private static func managedSocketFileName(
+    forInstanceName instanceName: String,
+    directoryPath: String
+  ) -> String {
+    let normalizedInstanceName = SupatermInstanceIdentity.normalizedName(instanceName)
+    let stem = SupatermInstanceIdentity.fileStem(for: normalizedInstanceName)
+    let hash = SupatermInstanceIdentity.stableHash(for: normalizedInstanceName)
+    let fullName = "instance-\(stem)-\(hash)"
+    let maxFileNameByteCount = socketPathByteLimit - directoryPath.utf8.count - 1
+    guard fullName.utf8.count > maxFileNameByteCount else {
+      return fullName
     }
-    .joined()
-    .trimmingCharacters(in: CharacterSet(charactersIn: ".-_"))
-    return "instance-\(sanitized.isEmpty ? fallback : sanitized)"
+
+    let prefix = "instance-"
+    let minimumName = "\(prefix)\(hash)"
+    let reservedByteCount = prefix.utf8.count + hash.utf8.count + 1
+    let maxStemByteCount = maxFileNameByteCount - reservedByteCount
+    guard maxStemByteCount > 0 else {
+      return minimumName
+    }
+    return "\(prefix)\(String(stem.prefix(maxStemByteCount)))-\(hash)"
   }
 
   private static func canonicalizedExistingPrefix(of path: String) -> String {

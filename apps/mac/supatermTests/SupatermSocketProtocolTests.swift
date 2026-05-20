@@ -70,48 +70,60 @@ struct SupatermSocketProtocolTests {
   @Test
   func managedSocketURLFitsDarwinSocketLimit() {
     let path = SupatermSocketPath.managedSocketURL(
-      instanceName: "default",
+      instanceName: String(repeating: "very-long-instance-name", count: 12),
       userID: 501
     ).path
 
-    #expect(path.utf8.count < 104)
+    #expect(path.utf8.count < MemoryLayout<sockaddr_un>.size)
   }
 
   @Test
   func managedSocketURLUsesOverrideAsTempStyleRoot() {
     let rootDirectory = URL(fileURLWithPath: "/tmp/SupatermTests", isDirectory: true)
+    let socketURL = SupatermSocketPath.managedSocketURL(
+      instanceName: "main",
+      rootDirectory: rootDirectory,
+      environment: [
+        "XDG_RUNTIME_DIR": "/run/user/501",
+        "TMPDIR": "/tmp/ignored",
+      ],
+      userID: 501
+    )
 
     #expect(
-      SupatermSocketPath.managedSocketURL(
-        instanceName: "main",
-        rootDirectory: rootDirectory,
-        environment: [
-          "XDG_RUNTIME_DIR": "/run/user/501",
-          "TMPDIR": "/tmp/ignored",
-        ],
-        userID: 501
-      )
+      socketURL.deletingLastPathComponent()
         == URL(fileURLWithPath: "/private/tmp/SupatermTests", isDirectory: true)
         .appendingPathComponent("supaterm-501", isDirectory: true)
-        .appendingPathComponent("instance-main", isDirectory: false)
     )
+    #expect(socketURL.lastPathComponent.hasPrefix("instance-main-"))
   }
 
   @Test
-  func managedSocketURLUsesStableInstanceName() {
+  func managedSocketURLUsesStableHashDisambiguatedInstanceName() {
     let rootDirectory = URL(fileURLWithPath: "/tmp/SupatermTests", isDirectory: true)
-
-    #expect(
-      SupatermSocketPath.managedSocketURL(
-        instanceName: "dev/main",
-        rootDirectory: rootDirectory,
-        environment: [:],
-        userID: 501
-      )
-        == URL(fileURLWithPath: "/private/tmp/SupatermTests", isDirectory: true)
-        .appendingPathComponent("supaterm-501", isDirectory: true)
-        .appendingPathComponent("instance-dev-main", isDirectory: false)
+    let first = SupatermSocketPath.managedSocketURL(
+      instanceName: "dev/main",
+      rootDirectory: rootDirectory,
+      environment: [:],
+      userID: 501
     )
+    let second = SupatermSocketPath.managedSocketURL(
+      instanceName: "dev/main",
+      rootDirectory: rootDirectory,
+      environment: [:],
+      userID: 501
+    )
+    let collidingStem = SupatermSocketPath.managedSocketURL(
+      instanceName: "dev-main",
+      rootDirectory: rootDirectory,
+      environment: [:],
+      userID: 501
+    )
+
+    #expect(first == second)
+    #expect(first != collidingStem)
+    #expect(first.lastPathComponent.hasPrefix("instance-dev-main-"))
+    #expect(collidingStem.lastPathComponent.hasPrefix("instance-dev-main-"))
   }
 
   @Test
@@ -174,12 +186,13 @@ struct SupatermSocketProtocolTests {
   func processSocketEndpointUsesEnvironmentSelectedManagedPathAndInstanceName() {
     let endpointID = UUID(uuidString: "C46492BD-5A6E-4C73-8D0F-71AFBA7EF1DE")!
     let startedAt = Date(timeIntervalSince1970: 123)
+    let environment = [
+      "XDG_RUNTIME_DIR": "/run/user/501",
+      SupatermCLIEnvironment.instanceNameKey: "dev",
+    ]
 
     let endpoint = SupatermProcessSocketEndpoint.make(
-      environment: [
-        "XDG_RUNTIME_DIR": "/run/user/501",
-        SupatermCLIEnvironment.instanceNameKey: "dev",
-      ],
+      environment: environment,
       endpointID: endpointID,
       processID: 99,
       startedAt: startedAt,
@@ -191,11 +204,11 @@ struct SupatermSocketProtocolTests {
         == SupatermSocketEndpoint(
           id: endpointID,
           name: "dev",
-          path:
-            URL(fileURLWithPath: "/run/user/501", isDirectory: true)
-            .appendingPathComponent("supaterm", isDirectory: true)
-            .appendingPathComponent("instance-dev", isDirectory: false)
-            .path,
+          path: SupatermSocketPath.managedSocketURL(
+            instanceName: "dev",
+            environment: environment,
+            userID: 501
+          ).path,
           pid: 99,
           startedAt: startedAt
         )
@@ -205,12 +218,13 @@ struct SupatermSocketProtocolTests {
   @Test
   func processSocketEndpointIgnoresInheritedSocketPath() {
     let endpointID = UUID(uuidString: "0DC934AE-CE34-4B47-B968-B70E0A1E8733")!
+    let environment = [
+      "TMPDIR": "/tmp/SupatermTests",
+      SupatermCLIEnvironment.socketPathKey: "/tmp/override.sock",
+      SupatermCLIEnvironment.instanceNameKey: "named",
+    ]
     let endpoint = SupatermProcessSocketEndpoint.make(
-      environment: [
-        "TMPDIR": "/tmp/SupatermTests",
-        SupatermCLIEnvironment.socketPathKey: "/tmp/override.sock",
-        SupatermCLIEnvironment.instanceNameKey: "named",
-      ],
+      environment: environment,
       endpointID: endpointID,
       processID: 7,
       startedAt: Date(timeIntervalSince1970: 456),
@@ -219,25 +233,27 @@ struct SupatermSocketProtocolTests {
 
     #expect(
       endpoint?.path
-        == URL(fileURLWithPath: "/private/tmp/SupatermTests", isDirectory: true)
-        .appendingPathComponent("supaterm-501", isDirectory: true)
-        .appendingPathComponent("instance-named", isDirectory: false)
-        .path
+        == SupatermSocketPath.managedSocketURL(
+          instanceName: "named",
+          environment: environment,
+          userID: 501
+        ).path
     )
     #expect(endpoint?.name == "named")
   }
 
   @Test
   func processSocketEndpointPathDependsOnInstanceNameNotProcessID() {
+    let environment = ["TMPDIR": "/tmp/SupatermTests", SupatermCLIEnvironment.instanceNameKey: "dev"]
     let first = SupatermProcessSocketEndpoint.make(
-      environment: ["TMPDIR": "/tmp/SupatermTests", SupatermCLIEnvironment.instanceNameKey: "dev"],
+      environment: environment,
       endpointID: UUID(uuidString: "11111111-1111-1111-1111-111111111111")!,
       processID: 42,
       startedAt: Date(timeIntervalSince1970: 0),
       userID: 501
     )
     let second = SupatermProcessSocketEndpoint.make(
-      environment: ["TMPDIR": "/tmp/SupatermTests", SupatermCLIEnvironment.instanceNameKey: "dev"],
+      environment: environment,
       endpointID: UUID(uuidString: "22222222-2222-2222-2222-222222222222")!,
       processID: 43,
       startedAt: Date(timeIntervalSince1970: 1),
@@ -247,10 +263,11 @@ struct SupatermSocketProtocolTests {
     #expect(first?.path == second?.path)
     #expect(
       first?.path
-        == URL(fileURLWithPath: "/private/tmp/SupatermTests", isDirectory: true)
-        .appendingPathComponent("supaterm-501", isDirectory: true)
-        .appendingPathComponent("instance-dev", isDirectory: false)
-        .path
+        == SupatermSocketPath.managedSocketURL(
+          instanceName: "dev",
+          environment: environment,
+          userID: 501
+        ).path
     )
   }
 

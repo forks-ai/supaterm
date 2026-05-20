@@ -331,7 +331,7 @@ struct AppDelegateTests {
         sessionCatalog: sessionCatalog,
         pinnedTabCatalog: pinnedTabCatalog,
         liveSurfaceIDs: [liveSurfaceID]
-      ) == Set([persistedSurfaceID, pinnedSurfaceID, liveSurfaceID].map(ZmxSessionID.make(surfaceID:)))
+      ) == Set([persistedSurfaceID, pinnedSurfaceID, liveSurfaceID].map { ZmxSessionID.make(surfaceID: $0) })
     )
     #expect(
       AppDelegate.knownZmxSessionIDsForLaunchReaping(
@@ -339,7 +339,7 @@ struct AppDelegateTests {
         sessionCatalog: sessionCatalog,
         pinnedTabCatalog: pinnedTabCatalog,
         liveSurfaceIDs: [liveSurfaceID]
-      ) == [ZmxSessionID.make(surfaceID: liveSurfaceID)]
+      ) == Set([pinnedSurfaceID, liveSurfaceID].map { ZmxSessionID.make(surfaceID: $0) })
     )
   }
 }

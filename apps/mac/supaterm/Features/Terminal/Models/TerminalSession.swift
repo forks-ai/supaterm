@@ -1,3 +1,4 @@
+import CryptoKit
 import Foundation
 import SupatermCLIShared
 
@@ -310,10 +311,38 @@ nonisolated struct TerminalPaneLeafSession: Equatable, Codable, Sendable {
 
   init(from decoder: Decoder) throws {
     let container = try decoder.container(keyedBy: CodingKeys.self)
-    self.id = try container.decodeIfPresent(UUID.self, forKey: .id) ?? UUID()
+    self.id = try container.decodeIfPresent(UUID.self, forKey: .id) ?? Self.legacyID(codingPath: decoder.codingPath)
     self.workingDirectoryPath = try container.decodeIfPresent(String.self, forKey: .workingDirectoryPath)
     self.titleOverride = try container.decodeIfPresent(String.self, forKey: .titleOverride)
     self.agents = try container.decodeIfPresent([TerminalPaneAgentRecord].self, forKey: .agents) ?? []
+  }
+
+  private static func legacyID(codingPath: [CodingKey]) -> UUID {
+    let seed = codingPath.map { key in
+      key.intValue.map { "[\($0)]" } ?? key.stringValue
+    }
+    .joined(separator: "/")
+    let digest = SHA256.hash(data: Data((seed.isEmpty ? "leaf" : seed).utf8))
+    let bytes = Array(digest.prefix(16))
+    return UUID(
+      uuid: (
+        bytes[0],
+        bytes[1],
+        bytes[2],
+        bytes[3],
+        bytes[4],
+        bytes[5],
+        bytes[6],
+        bytes[7],
+        bytes[8],
+        bytes[9],
+        bytes[10],
+        bytes[11],
+        bytes[12],
+        bytes[13],
+        bytes[14],
+        bytes[15]
+      ))
   }
 
   func pruned() -> TerminalPaneLeafSession {

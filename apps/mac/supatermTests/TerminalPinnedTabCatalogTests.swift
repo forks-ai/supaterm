@@ -47,12 +47,22 @@ struct TerminalPinnedTabCatalogTests {
     )
 
     let catalog = try JSONDecoder().decode(TerminalPinnedTabCatalog.self, from: data)
+    let decodedAgain = try JSONDecoder().decode(TerminalPinnedTabCatalog.self, from: data)
     let sanitized = TerminalPinnedTabCatalog.sanitized(
       catalog,
       validSpaceIDs: [TerminalSpaceID(rawValue: UUID(uuidString: "AAAAAAAA-AAAA-AAAA-AAAA-AAAAAAAAAAAA")!)]
     )
+    let sanitizedAgain = TerminalPinnedTabCatalog.sanitized(
+      decodedAgain,
+      validSpaceIDs: [TerminalSpaceID(rawValue: UUID(uuidString: "AAAAAAAA-AAAA-AAAA-AAAA-AAAAAAAAAAAA")!)]
+    )
     let root = try #require(sanitized.spaces.first?.tabs.first?.session.root)
+    let rootAgain = try #require(sanitizedAgain.spaces.first?.tabs.first?.session.root)
     guard case .leaf(let leaf) = root else {
+      Issue.record("Expected leaf root")
+      return
+    }
+    guard case .leaf(let leafAgain) = rootAgain else {
       Issue.record("Expected leaf root")
       return
     }
@@ -61,6 +71,7 @@ struct TerminalPinnedTabCatalogTests {
     #expect(leaf.workingDirectoryPath == "/tmp")
     #expect(leaf.titleOverride == "Pane")
     #expect(leaf.agents.isEmpty)
+    #expect(leaf.id == leafAgain.id)
     #expect(sanitized.surfaceIDs == [leaf.id])
   }
 

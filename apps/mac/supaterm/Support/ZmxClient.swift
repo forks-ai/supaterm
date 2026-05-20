@@ -1,6 +1,7 @@
 import ComposableArchitecture
 import Darwin
 import Foundation
+import SupatermCLIShared
 
 public nonisolated struct ZmxClient: Sendable {
   public var executableURL: @Sendable () -> URL?
@@ -55,19 +56,13 @@ extension ZmxClient {
       environment["ZMX_DIR"] = ZmxSocketBudget.socketDir(environment: environment)
       process.environment = environment
 
-      let stdoutBuffer = LockIsolated(Data())
+      let stdoutPipe: Pipe?
       if captureStdout {
-        let stdoutPipe = Pipe()
-        process.standardOutput = stdoutPipe
-        stdoutPipe.fileHandleForReading.readabilityHandler = { handle in
-          let chunk = handle.availableData
-          if chunk.isEmpty {
-            handle.readabilityHandler = nil
-            return
-          }
-          stdoutBuffer.withValue { $0.append(chunk) }
-        }
+        let pipe = Pipe()
+        stdoutPipe = pipe
+        process.standardOutput = pipe
       } else {
+        stdoutPipe = nil
         process.standardOutput = FileHandle.nullDevice
       }
 
@@ -120,8 +115,9 @@ extension ZmxClient {
       }
 
       guard exitStatus == 0 else { return nil }
-      guard captureStdout else { return nil }
-      return stdoutBuffer.withValue { String(data: $0, encoding: .utf8) ?? "" }
+      guard captureStdout, let stdoutPipe else { return nil }
+      let stdout = stdoutPipe.fileHandleForReading.readDataToEndOfFile()
+      return String(data: stdout, encoding: .utf8) ?? ""
     }
 
     return ZmxClient(
@@ -144,7 +140,7 @@ extension ZmxClient {
           stdout
           .split(whereSeparator: \.isNewline)
           .map { $0.trimmingCharacters(in: .whitespaces) }
-          .filter { !$0.isEmpty && $0.hasPrefix(ZmxSessionID.prefix) }
+          .filter { ZmxSessionID.surfaceID(from: $0) != nil }
       }
     )
   }()
@@ -172,21 +168,45 @@ extension DependencyValues {
 
 public nonisolated enum ZmxSessionID {
   public nonisolated static let prefix = "spt-"
+  public nonisolated static let instanceHashHexDigitCount = 16
 
-  public nonisolated static func make(surfaceID: UUID) -> String {
-    prefix + surfaceID.uuidString.lowercased()
+  public nonisolated static func make(
+    surfaceID: UUID,
+    environment: [String: String] = ProcessInfo.processInfo.environment
+  ) -> String {
+    namespacePrefix(environment: environment) + surfaceID.uuidString.lowercased()
   }
 
-  public nonisolated static func surfaceID(from sessionID: String) -> UUID? {
-    guard sessionID.hasPrefix(prefix) else { return nil }
-    return UUID(uuidString: String(sessionID.dropFirst(prefix.count)))
+  public nonisolated static func surfaceID(
+    from sessionID: String,
+    environment: [String: String] = ProcessInfo.processInfo.environment
+  ) -> UUID? {
+    let namespacePrefix = namespacePrefix(environment: environment)
+    guard sessionID.hasPrefix(namespacePrefix) else { return nil }
+    return UUID(uuidString: String(sessionID.dropFirst(namespacePrefix.count)))
+  }
+
+  public nonisolated static func namespacePrefix(
+    environment: [String: String] = ProcessInfo.processInfo.environment
+  ) -> String {
+    prefix + instanceHash(environment: environment) + "-"
+  }
+
+  public nonisolated static func instanceHash(
+    environment: [String: String] = ProcessInfo.processInfo.environment
+  ) -> String {
+    SupatermInstanceIdentity.stableHash(
+      for: SupatermInstanceIdentity.resolvedName(environment: environment),
+      hexDigitCount: instanceHashHexDigitCount
+    )
   }
 }
 
 public nonisolated enum ZmxSocketBudget {
   public nonisolated static let sunPathLimit = 104
   public nonisolated static let safetyMargin = 2
-  public nonisolated static let sessionNameByteCount = ZmxSessionID.prefix.utf8.count + 36
+  public nonisolated static let sessionNameByteCount =
+    ZmxSessionID.prefix.utf8.count + ZmxSessionID.instanceHashHexDigitCount + 1 + 36
 
   public nonisolated static func socketDir(environment: [String: String] = ProcessInfo.processInfo.environment)
     -> String

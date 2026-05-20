@@ -1,16 +1,21 @@
 import Foundation
+import SupatermCLIShared
 import Testing
 
 @testable import SupatermSupport
 
 struct ZmxClientTests {
   @Test
-  func sessionIDUsesSupatermPrefixAndRoundTripsSurfaceID() {
+  func sessionIDUsesInstanceNamespaceAndRoundTripsSurfaceID() {
     let surfaceID = UUID(uuidString: "01234567-89AB-CDEF-0123-456789ABCDEF")!
-    let sessionID = ZmxSessionID.make(surfaceID: surfaceID)
+    let environment = [SupatermCLIEnvironment.instanceNameKey: "dev/main"]
+    let otherEnvironment = [SupatermCLIEnvironment.instanceNameKey: "dev-main"]
+    let sessionID = ZmxSessionID.make(surfaceID: surfaceID, environment: environment)
 
-    #expect(sessionID == "spt-01234567-89ab-cdef-0123-456789abcdef")
-    #expect(ZmxSessionID.surfaceID(from: sessionID) == surfaceID)
+    #expect(
+      sessionID == "\(ZmxSessionID.namespacePrefix(environment: environment))01234567-89ab-cdef-0123-456789abcdef")
+    #expect(ZmxSessionID.surfaceID(from: sessionID, environment: environment) == surfaceID)
+    #expect(ZmxSessionID.surfaceID(from: sessionID, environment: otherEnvironment) == nil)
     #expect(ZmxSessionID.surfaceID(from: "other-01234567-89ab-cdef-0123-456789abcdef") == nil)
   }
 

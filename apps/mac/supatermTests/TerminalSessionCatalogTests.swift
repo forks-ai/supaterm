@@ -64,8 +64,14 @@ struct TerminalSessionCatalogTests {
     )
 
     let catalog = try JSONDecoder().decode(TerminalSessionCatalog.self, from: data)
+    let decodedAgain = try JSONDecoder().decode(TerminalSessionCatalog.self, from: data)
     let root = try #require(catalog.windows.first?.spaces.first?.tabs.first?.root)
+    let rootAgain = try #require(decodedAgain.windows.first?.spaces.first?.tabs.first?.root)
     guard case .leaf(let leaf) = root else {
+      Issue.record("Expected leaf root")
+      return
+    }
+    guard case .leaf(let leafAgain) = rootAgain else {
       Issue.record("Expected leaf root")
       return
     }
@@ -74,6 +80,7 @@ struct TerminalSessionCatalogTests {
     #expect(leaf.workingDirectoryPath == "/tmp")
     #expect(leaf.titleOverride == "Pane")
     #expect(leaf.agents.isEmpty)
+    #expect(leaf.id == leafAgain.id)
     #expect(catalog.surfaceIDs == [leaf.id])
   }
 

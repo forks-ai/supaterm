@@ -505,7 +505,7 @@ final class TerminalWindowRegistry {
   }
 
   nonisolated private static func terminateAllZmxSessions(using zmxClient: ZmxClient) async {
-    let surfaceIDs = await zmxClient.listSessions().compactMap(ZmxSessionID.surfaceID(from:))
+    let surfaceIDs = await zmxClient.listSessions().compactMap { ZmxSessionID.surfaceID(from: $0) }
     await withTaskGroup(of: Void.self) { group in
       for surfaceID in surfaceIDs {
         group.addTask {

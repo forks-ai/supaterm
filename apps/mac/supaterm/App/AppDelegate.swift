@@ -294,7 +294,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, GhosttyAppActionPerfor
       let orphanSurfaceIDs =
         sessionIDs
         .filter { !knownSessionIDs.contains($0) }
-        .compactMap(ZmxSessionID.surfaceID(from:))
+        .compactMap { ZmxSessionID.surfaceID(from: $0) }
       await withTaskGroup(of: Void.self) { group in
         for surfaceID in orphanSurfaceIDs {
           group.addTask {
@@ -313,9 +313,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, GhosttyAppActionPerfor
   ) -> Set<String> {
     let persistedSurfaceIDs =
       restoreTerminalLayoutEnabled
-      ? sessionCatalog.surfaceIDs.union(pinnedTabCatalog.surfaceIDs)
+      ? sessionCatalog.surfaceIDs
       : []
-    return Set(persistedSurfaceIDs.union(liveSurfaceIDs).map(ZmxSessionID.make(surfaceID:)))
+    let knownSurfaceIDs = persistedSurfaceIDs.union(pinnedTabCatalog.surfaceIDs).union(liveSurfaceIDs)
+    return Set(knownSurfaceIDs.map { ZmxSessionID.make(surfaceID: $0) })
   }
 
   private func openServiceTabs(workingDirectoryPaths: [String]) {
