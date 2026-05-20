@@ -28,6 +28,8 @@ code_roots=(
   "$app_path/Contents/PlugIns"
   "$app_path/Contents/XPCServices"
   "$app_path/Contents/Library/LoginItems"
+  "$app_path/Contents/Resources/bin"
+  "$app_path/Contents/Resources/zmx"
 )
 
 code_paths=()

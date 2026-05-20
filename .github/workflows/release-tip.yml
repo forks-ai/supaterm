@@ -90,7 +90,7 @@ jobs:
           </plist>
           EOF
       - run: make mac-export-archive
-      - name: Re-sign frameworks
+      - name: Re-sign embedded code
         run: bash ./.github/scripts/resign_exported_app.sh apps/mac/build/export
       - name: Store notarization credentials
         run: |
