@@ -99,8 +99,8 @@ public struct SettingsFeature {
     var restoreTerminalLayoutEnabled = SupatermSettings.default.restoreTerminalLayoutEnabled
     public var selectedTab = Tab.general
     var systemNotificationsEnabled = SupatermSettings.default.systemNotificationsEnabled
-    var terminateSessionsOnQuit = SupatermSettings.default.terminateSessionsOnQuit
     var terminal = SettingsTerminalState()
+    var zmxSessionsEnabled = SupatermSettings.default.zmxSessionsEnabled
 
     public init() {}
   }
@@ -128,7 +128,6 @@ public struct SettingsFeature {
     case systemNotificationsAuthorizationResult(
       DesktopNotificationClient.AuthorizationRequestResult)
     case systemNotificationsEnabledChanged(Bool)
-    case terminateSessionsOnQuitChanged(Bool)
     case tabSelected(Tab)
     case task
     case terminalConfirmCloseSurfaceSelected(GhosttyTerminalCloseConfirmation)
@@ -145,6 +144,7 @@ public struct SettingsFeature {
     case updateClientSnapshotReceived(UpdateClient.Snapshot)
     case updatesAutomaticallyCheckForUpdatesChanged(Bool)
     case updatesAutomaticallyDownloadUpdatesChanged(Bool)
+    case zmxSessionsEnabledChanged(Bool)
   }
 
   public enum Alert: Equatable {
@@ -257,7 +257,7 @@ public struct SettingsFeature {
         .glowingPaneRingEnabledChanged,
         .newTabPositionSelected,
         .restoreTerminalLayoutEnabledChanged,
-        .terminateSessionsOnQuitChanged:
+        .zmxSessionsEnabledChanged:
         return reduceGeneral(&state, action: action)
 
       case .systemNotificationsEnabledChanged,
@@ -326,8 +326,8 @@ public struct SettingsFeature {
     state.newTabPosition = supatermSettings.newTabPosition
     state.restoreTerminalLayoutEnabled = supatermSettings.restoreTerminalLayoutEnabled
     state.systemNotificationsEnabled = supatermSettings.systemNotificationsEnabled
-    state.terminateSessionsOnQuit = supatermSettings.terminateSessionsOnQuit
     state.about.updateChannel = supatermSettings.updateChannel
+    state.zmxSessionsEnabled = supatermSettings.zmxSessionsEnabled
   }
 
   func openSystemNotificationSettings() -> Effect<Action> {
@@ -349,8 +349,8 @@ public struct SettingsFeature {
       newTabPosition: state.newTabPosition,
       restoreTerminalLayoutEnabled: state.restoreTerminalLayoutEnabled,
       systemNotificationsEnabled: state.systemNotificationsEnabled,
-      terminateSessionsOnQuit: state.terminateSessionsOnQuit,
-      updateChannel: state.about.updateChannel
+      updateChannel: state.about.updateChannel,
+      zmxSessionsEnabled: state.zmxSessionsEnabled
     )
     @Shared(.supatermSettings) var sharedSupatermSettings = .default
     $sharedSupatermSettings.withLock {

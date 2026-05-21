@@ -54,8 +54,9 @@ struct SupatermSettingsTests {
     #expect(prefs.newTabPosition == .end)
     #expect(prefs.restoreTerminalLayoutEnabled)
     #expect(!prefs.systemNotificationsEnabled)
-    #expect(!prefs.terminateSessionsOnQuit)
     #expect(prefs.updateChannel == .stable)
+    #expect(prefs.zmxSessionsEnabled)
+    #expect(!prefs.terminatesSessionsOnQuit)
   }
 
   @Test
@@ -141,6 +142,28 @@ struct SupatermSettingsTests {
   }
 
   @Test
+  func prefsEncodeDisabledZmxSessions() throws {
+    let data = try SupatermSettingsCodec.encode(
+      SupatermSettings(
+        appearanceMode: .dark,
+        analyticsEnabled: true,
+        crashReportsEnabled: true,
+        updateChannel: .stable,
+        zmxSessionsEnabled: false
+      )
+    )
+    let string = try #require(String(data: data, encoding: .utf8)).trimmingCharacters(in: .newlines)
+
+    #expect(
+      string
+        == """
+        [terminal]
+        zmx_sessions_enabled = false
+        """
+    )
+  }
+
+  @Test
   func prefsRoundTripThroughToml() throws {
     let data = try SupatermSettingsCodec.encode(
       SupatermSettings(
@@ -155,8 +178,8 @@ struct SupatermSettingsTests {
         newTabPosition: .current,
         restoreTerminalLayoutEnabled: false,
         systemNotificationsEnabled: true,
-        terminateSessionsOnQuit: true,
-        updateChannel: .tip
+        updateChannel: .tip,
+        zmxSessionsEnabled: false
       )
     )
     let prefs = try SupatermSettingsCodec.decode(data)
@@ -175,8 +198,8 @@ struct SupatermSettingsTests {
           newTabPosition: .current,
           restoreTerminalLayoutEnabled: false,
           systemNotificationsEnabled: true,
-          terminateSessionsOnQuit: true,
-          updateChannel: .tip
+          updateChannel: .tip,
+          zmxSessionsEnabled: false
         )
     )
   }
@@ -203,8 +226,8 @@ struct SupatermSettingsTests {
     #expect(prefs.newTabPosition == .end)
     #expect(prefs.restoreTerminalLayoutEnabled)
     #expect(!prefs.systemNotificationsEnabled)
-    #expect(!prefs.terminateSessionsOnQuit)
     #expect(prefs.updateChannel == .stable)
+    #expect(prefs.zmxSessionsEnabled)
   }
 
   @Test

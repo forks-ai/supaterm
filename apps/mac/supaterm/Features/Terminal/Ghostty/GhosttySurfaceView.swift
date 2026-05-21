@@ -189,7 +189,8 @@ final class GhosttySurfaceView: NSView, Identifiable {
     tabID: UUID,
     socketPath: String?,
     cliPath: String?,
-    processEnvironment: [String: String] = ProcessInfo.processInfo.environment
+    processEnvironment: [String: String] = ProcessInfo.processInfo.environment,
+    zmxSessionsEnabled: Bool = true
   ) -> [SupatermCLIEnvironmentVariable] {
     var environmentVariables = SupatermCLIContext(
       surfaceID: surfaceID,
@@ -219,12 +220,14 @@ final class GhosttySurfaceView: NSView, Identifiable {
         )
       )
     }
-    environmentVariables.append(
-      SupatermCLIEnvironmentVariable(
-        key: ZmxSocketBudget.environmentKey,
-        value: ZmxSocketBudget.socketDir(environment: processEnvironment)
+    if zmxSessionsEnabled {
+      environmentVariables.append(
+        SupatermCLIEnvironmentVariable(
+          key: ZmxSocketBudget.environmentKey,
+          value: ZmxSocketBudget.socketDir(environment: processEnvironment)
+        )
       )
-    )
+    }
     let path = prependedPath(
       cliDirectory(cliPath) ?? "",
       currentPath: processEnvironment["PATH"]
@@ -250,7 +253,8 @@ final class GhosttySurfaceView: NSView, Identifiable {
     command: String? = nil,
     fontSize: Float32? = nil,
     context: ghostty_surface_context_e,
-    managesWindowAppearance: Bool = false
+    managesWindowAppearance: Bool = false,
+    zmxSessionsEnabled: Bool = true
   ) {
     self.runtime = runtime
     self.id = id
@@ -259,7 +263,8 @@ final class GhosttySurfaceView: NSView, Identifiable {
       surfaceID: id,
       tabID: tabID,
       socketPath: SupatermProcessSocketEndpoint.current()?.path,
-      cliPath: GhosttySupport.bundledCLIPath(resourcesURL: Bundle.main.resourceURL)
+      cliPath: GhosttySupport.bundledCLIPath(resourcesURL: Bundle.main.resourceURL),
+      zmxSessionsEnabled: zmxSessionsEnabled
     )
     self.fontSize = fontSize ?? 0
     self.context = context

@@ -75,6 +75,8 @@ final class TerminalWindowController: NSWindowController {
     registry: TerminalWindowRegistry,
     session: TerminalWindowSession? = nil,
     startupCommand: String? = nil,
+    zmxClient: ZmxClient = .liveValue,
+    zmxSessionsEnabled: Bool = true,
     onSessionChange: @escaping @MainActor () -> Void = {}
   ) {
     self.registry = registry
@@ -82,7 +84,7 @@ final class TerminalWindowController: NSWindowController {
     self.windowControllerID = windowControllerID
 
     let ghostty = GhosttyRuntime()
-    let terminal = TerminalHostState(runtime: ghostty)
+    let terminal = TerminalHostState(runtime: ghostty, zmxClient: zmxClient, zmxSessionsEnabled: zmxSessionsEnabled)
     terminal.onSessionChange = onSessionChange
     if let session {
       _ = terminal.restore(from: session)

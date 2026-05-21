@@ -244,7 +244,7 @@ private struct SupatermSettingsUnknownKeyAudit: Decodable {
       contentsOf: try Self.unknownNestedKeys(
         in: container,
         section: "terminal",
-        allowedKeys: ["confirm_quit", "new_tab_position", "restore_layout", "terminate_sessions_on_quit"]
+        allowedKeys: ["confirm_quit", "new_tab_position", "restore_layout", "zmx_sessions_enabled"]
       )
     )
     warnings.append(contentsOf: try Self.unknownNestedKeys(in: container, section: "updates", allowedKeys: ["channel"]))

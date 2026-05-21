@@ -34,9 +34,9 @@ struct SettingsGeneralView: View {
 
   private var persistSessionsUsingZmx: Binding<Bool> {
     Binding(
-      get: { !store.terminateSessionsOnQuit },
+      get: { store.zmxSessionsEnabled },
       set: { newValue in
-        _ = store.send(.terminateSessionsOnQuitChanged(!newValue))
+        _ = store.send(.zmxSessionsEnabledChanged(newValue))
       }
     )
   }
@@ -101,7 +101,7 @@ struct SettingsGeneralView: View {
         SettingsToggleRow(
           title: "Persist Sessions Using zmx",
           subtitle:
-            "Keep sessions alive in zmx after Supaterm quits so restored tabs reconnect instead of starting fresh.",
+            "Use zmx for terminal session persistence across Supaterm restarts.",
           isOn: persistSessionsUsingZmx
         )
       }

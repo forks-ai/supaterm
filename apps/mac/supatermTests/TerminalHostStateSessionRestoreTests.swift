@@ -1,5 +1,6 @@
 import ComposableArchitecture
 import Foundation
+import SupatermSupport
 import Testing
 
 @testable import SupatermCLIShared
@@ -7,6 +8,39 @@ import Testing
 
 @MainActor
 struct TerminalHostStateSessionRestoreTests {
+  @Test
+  func disabledZmxSessionsLeaveStartupCommandUnwrapped() {
+    let host = TerminalHostState(
+      managesTerminalSurfaces: false,
+      zmxClient: wrappingZmxClient(),
+      zmxSessionsEnabled: false
+    )
+
+    #expect(
+      host.resolvedSurfaceCommand(
+        startupCommand: "echo hello",
+        surfaceID: UUID()
+      ) == "/bin/zsh -lc 'echo hello'"
+    )
+  }
+
+  @Test
+  func disabledZmxSessionsSkipSessionCleanup() async {
+    let killedSurfaceIDs = LockIsolated<[UUID]>([])
+    let host = TerminalHostState(
+      managesTerminalSurfaces: false,
+      zmxClient: wrappingZmxClient(killSession: { surfaceID in
+        killedSurfaceIDs.withValue { $0.append(surfaceID) }
+      }),
+      zmxSessionsEnabled: false
+    )
+    let surfaceID = UUID()
+
+    await host.killZmxSessionsAndWait(for: [surfaceID])
+
+    #expect(killedSurfaceIDs.value.isEmpty)
+  }
+
   @Test
   func ensureInitialTabUsesRequestedWorkingDirectoryPath() async throws {
     try await withDependencies {
@@ -122,5 +156,15 @@ struct TerminalHostStateSessionRestoreTests {
       #expect(
         debug.spaces.last?.tabs.last?.panes.first(where: \.isFocused)?.displayTitle == "Pane Title")
     }
+  }
+
+  private func wrappingZmxClient(killSession: @escaping @Sendable (UUID) async -> Void = { _ in }) -> ZmxClient {
+    ZmxClient(
+      executableURL: { URL(fileURLWithPath: "/tmp/zmx") },
+      isBundled: { true },
+      wrapCommand: { _, _ in "wrapped" },
+      killSession: killSession,
+      listSessions: { [] }
+    )
   }
 }

@@ -44,6 +44,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, GhosttyAppActionPerfor
   private let quitConfirmationPresenter: QuitConfirmationPresenter
   private let socketStore: StoreOf<SocketControlFeature>
   private let terminalWindowRegistry: TerminalWindowRegistry
+  private let zmxSessionsEnabledAtLaunch: Bool
   private lazy var serviceProvider = SupatermServiceProvider(
     openTabs: { [weak self] paths in
       self?.openServiceTabs(workingDirectoryPaths: paths)
@@ -65,7 +66,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, GhosttyAppActionPerfor
     AppCrashReporting.setup()
     AppTelemetry.setup()
     GhosttyBootstrap.initialize()
-    let terminalWindowRegistry = TerminalWindowRegistry()
+    @Shared(.supatermSettings) var launchSupatermSettings = .default
+    let zmxSessionsEnabledAtLaunch = launchSupatermSettings.zmxSessionsEnabled
+    let zmxClient = zmxSessionsEnabledAtLaunch ? ZmxClient.liveValue : .noop
+    let terminalWindowRegistry = TerminalWindowRegistry(zmxClient: zmxClient)
     let terminalCommandExecutor = TerminalCommandExecutor(registry: terminalWindowRegistry)
     let menuController = SupatermMenuController(registry: terminalWindowRegistry)
     let globalKeybindManager = GhosttyGlobalKeybindManager.shared
@@ -80,6 +84,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, GhosttyAppActionPerfor
     self.quitConfirmationPresenter = quitConfirmationPresenter
     self.socketStore = socketStore
     self.terminalWindowRegistry = terminalWindowRegistry
+    self.zmxSessionsEnabledAtLaunch = zmxSessionsEnabledAtLaunch
     super.init()
     globalKeybindManager.setRuntimeProvider { [weak terminalWindowRegistry] in
       terminalWindowRegistry?.globalKeybindRuntimes() ?? []
@@ -97,6 +102,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, GhosttyAppActionPerfor
     }
   }
 
+  private var launchZmxClient: ZmxClient {
+    zmxSessionsEnabledAtLaunch ? .liveValue : .noop
+  }
+
   func applicationDidFinishLaunching(_ notification: Notification) {
     NSWindow.allowsAutomaticWindowTabbing = false
     NSApp.servicesProvider = serviceProvider
@@ -104,7 +113,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, GhosttyAppActionPerfor
     socketStore.send(.task)
     refreshInstalledAgentHooks()
     restoreWindowsAtLaunch()
-    reapOrphanZmxSessions()
+    if zmxSessionsEnabledAtLaunch {
+      reapOrphanZmxSessions()
+    }
     $lastAppLaunchedDate.withLock {
       $0 = Date()
     }
@@ -158,9 +169,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, GhosttyAppActionPerfor
       hasActiveAgentWorkForQuit: terminalWindowRegistry.hasActiveAgentWorkForQuit,
       needsQuitConfirmation: terminalWindowRegistry.needsQuitConfirmation,
       bypassesQuitConfirmation: terminalWindowRegistry.bypassesQuitConfirmation,
-      terminatesSessionsOnQuit: supatermSettings.terminateSessionsOnQuit
+      terminatesSessionsOnQuit: supatermSettings.terminatesSessionsOnQuit
     ) {
-      quitConfirmationPresenter.confirmQuit(terminatesSessions: supatermSettings.terminateSessionsOnQuit)
+      quitConfirmationPresenter.confirmQuit(terminatesSessions: supatermSettings.terminatesSessionsOnQuit)
     }
     let reply = terminationPlan.reply
     terminatingSessionCatalog = Self.pendingTerminationSessionCatalog(
@@ -280,7 +291,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, GhosttyAppActionPerfor
   }
 
   private func reapOrphanZmxSessions() {
-    let zmxClient = ZmxClient.liveValue
+    let zmxClient = launchZmxClient
     Task.detached(priority: .utility) {
       let sessionIDs = await zmxClient.listSessions()
       let knownSessionIDs = await MainActor.run { [weak self] in
@@ -357,7 +368,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, GhosttyAppActionPerfor
     let controller = TerminalWindowController(
       registry: terminalWindowRegistry,
       session: session,
-      startupCommand: startupCommand
+      startupCommand: startupCommand,
+      zmxClient: launchZmxClient,
+      zmxSessionsEnabled: zmxSessionsEnabledAtLaunch
     ) { [weak self] in
       self?.saveSession()
     }

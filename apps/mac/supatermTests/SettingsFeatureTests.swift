@@ -43,7 +43,8 @@ struct SettingsFeatureTests {
           newTabPosition: .current,
           restoreTerminalLayoutEnabled: false,
           systemNotificationsEnabled: true,
-          updateChannel: .tip
+          updateChannel: .tip,
+          zmxSessionsEnabled: false
         )
       }
 
@@ -69,6 +70,7 @@ struct SettingsFeatureTests {
         $0.newTabPosition = .current
         $0.restoreTerminalLayoutEnabled = false
         $0.systemNotificationsEnabled = true
+        $0.zmxSessionsEnabled = false
       }
       await store.receive(.terminalSettingsLoadRequested, timeout: 0) {
         $0.terminal.isLoading = true

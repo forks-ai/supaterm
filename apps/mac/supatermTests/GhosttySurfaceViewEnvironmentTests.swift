@@ -59,6 +59,19 @@ struct GhosttySurfaceViewEnvironmentTests {
   }
 
   @Test
+  func supatermEnvironmentVariablesOmitZmxDirectoryWhenZmxSessionsAreDisabled() {
+    let environmentVariables = GhosttySurfaceView.supatermEnvironmentVariables(
+      surfaceID: UUID(),
+      tabID: UUID(),
+      socketPath: nil,
+      cliPath: nil,
+      zmxSessionsEnabled: false
+    )
+
+    #expect(!environmentVariables.contains { $0.key == ZmxSocketBudget.environmentKey })
+  }
+
+  @Test
   func prependedPathMovesCliDirectoryToFrontWithoutDuplication() {
     #expect(
       GhosttySurfaceView.prependedPath(

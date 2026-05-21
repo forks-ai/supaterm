@@ -224,6 +224,8 @@ final class TerminalHostState {
   @ObservationIgnored
   let zmxClient: ZmxClient
   @ObservationIgnored
+  let zmxSessionsEnabled: Bool
+  @ObservationIgnored
   @Shared(.supatermSettings)
   var supatermSettings = .default
   @ObservationIgnored
@@ -273,11 +275,13 @@ final class TerminalHostState {
   init(
     runtime: GhosttyRuntime? = nil,
     managesTerminalSurfaces: Bool = true,
-    zmxClient: ZmxClient = .liveValue
+    zmxClient: ZmxClient = .liveValue,
+    zmxSessionsEnabled: Bool = true
   ) {
     self.managesTerminalSurfaces = managesTerminalSurfaces
     self.runtime = managesTerminalSurfaces ? (runtime ?? GhosttyRuntime()) : runtime
     self.zmxClient = zmxClient
+    self.zmxSessionsEnabled = zmxSessionsEnabled
 
     let initialSpaceCatalog = TerminalSpaceCatalog.sanitized(spaceCatalog)
     if initialSpaceCatalog != spaceCatalog {
@@ -1138,7 +1142,8 @@ final class TerminalHostState {
       command: command,
       fontSize: inherited.fontSize,
       context: context,
-      managesWindowAppearance: false
+      managesWindowAppearance: false,
+      zmxSessionsEnabled: zmxSessionsEnabled
     )
     configureBridgeCallbacks(for: view, tabID: tabID)
     configureSurfaceCallbacks(for: view, tabID: tabID)
@@ -1151,6 +1156,7 @@ final class TerminalHostState {
     surfaceID: UUID
   ) -> String? {
     let command = startupCommand.map(SupatermShellCommand.ghosttyStartupCommand(for:))
+    guard zmxSessionsEnabled else { return command }
     return zmxClient.wrapCommand(surfaceID, command) ?? command
   }
 
@@ -2220,7 +2226,7 @@ final class TerminalHostState {
 
   func killZmxSessions(for surfaceIDs: [UUID]) {
     let surfaceIDs = Array(Set(surfaceIDs))
-    guard !surfaceIDs.isEmpty, zmxClient.isBundled() else { return }
+    guard zmxSessionsEnabled, !surfaceIDs.isEmpty, zmxClient.isBundled() else { return }
     let zmxClient = zmxClient
     Task.detached(priority: .utility) {
       await withTaskGroup(of: Void.self) { group in
@@ -2235,7 +2241,7 @@ final class TerminalHostState {
 
   func killZmxSessionsAndWait(for surfaceIDs: [UUID]) async {
     let surfaceIDs = Array(Set(surfaceIDs))
-    guard !surfaceIDs.isEmpty, zmxClient.isBundled() else { return }
+    guard zmxSessionsEnabled, !surfaceIDs.isEmpty, zmxClient.isBundled() else { return }
     let zmxClient = zmxClient
     await withTaskGroup(of: Void.self) { group in
       for surfaceID in surfaceIDs {

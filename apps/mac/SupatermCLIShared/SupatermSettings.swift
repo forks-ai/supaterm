@@ -12,8 +12,8 @@ public struct SupatermSettings: Codable, Equatable, Sendable {
   public var newTabPosition: NewTabPosition
   public var restoreTerminalLayoutEnabled: Bool
   public var systemNotificationsEnabled: Bool
-  public var terminateSessionsOnQuit: Bool
   public var updateChannel: UpdateChannel
+  public var zmxSessionsEnabled: Bool
 
   public init(
     appearanceMode: AppearanceMode,
@@ -27,8 +27,8 @@ public struct SupatermSettings: Codable, Equatable, Sendable {
     newTabPosition: NewTabPosition = .end,
     restoreTerminalLayoutEnabled: Bool = true,
     systemNotificationsEnabled: Bool = false,
-    terminateSessionsOnQuit: Bool = false,
-    updateChannel: UpdateChannel
+    updateChannel: UpdateChannel,
+    zmxSessionsEnabled: Bool = true
   ) {
     self.appearanceMode = appearanceMode
     self.analyticsEnabled = analyticsEnabled
@@ -41,8 +41,8 @@ public struct SupatermSettings: Codable, Equatable, Sendable {
     self.newTabPosition = newTabPosition
     self.restoreTerminalLayoutEnabled = restoreTerminalLayoutEnabled
     self.systemNotificationsEnabled = systemNotificationsEnabled
-    self.terminateSessionsOnQuit = terminateSessionsOnQuit
     self.updateChannel = updateChannel
+    self.zmxSessionsEnabled = zmxSessionsEnabled
   }
 
   public static let `default` = Self(
@@ -57,8 +57,8 @@ public struct SupatermSettings: Codable, Equatable, Sendable {
     newTabPosition: .end,
     restoreTerminalLayoutEnabled: true,
     systemNotificationsEnabled: false,
-    terminateSessionsOnQuit: false,
-    updateChannel: .stable
+    updateChannel: .stable,
+    zmxSessionsEnabled: true
   )
 
   public static func defaultURL(
@@ -105,8 +105,8 @@ public struct SupatermSettings: Codable, Equatable, Sendable {
       newTabPosition: terminal?.newTabPosition ?? defaults.newTabPosition,
       restoreTerminalLayoutEnabled: terminal?.restoreLayout ?? defaults.restoreTerminalLayoutEnabled,
       systemNotificationsEnabled: notifications?.systemNotifications ?? defaults.systemNotificationsEnabled,
-      terminateSessionsOnQuit: terminal?.terminateSessionsOnQuit ?? defaults.terminateSessionsOnQuit,
-      updateChannel: updates?.channel ?? defaults.updateChannel
+      updateChannel: updates?.channel ?? defaults.updateChannel,
+      zmxSessionsEnabled: terminal?.zmxSessionsEnabled ?? defaults.zmxSessionsEnabled
     )
   }
 
@@ -153,14 +153,14 @@ public struct SupatermSettings: Codable, Equatable, Sendable {
     if newTabPosition != defaults.newTabPosition
       || restoreTerminalLayoutEnabled != defaults.restoreTerminalLayoutEnabled
       || confirmQuitMode != defaults.confirmQuitMode
-      || terminateSessionsOnQuit != defaults.terminateSessionsOnQuit
+      || zmxSessionsEnabled != defaults.zmxSessionsEnabled
     {
       try container.encode(
         PersistedTerminal(
           confirmQuitMode: confirmQuitMode,
           newTabPosition: newTabPosition,
           restoreLayout: restoreTerminalLayoutEnabled,
-          terminateSessionsOnQuit: terminateSessionsOnQuit
+          zmxSessionsEnabled: zmxSessionsEnabled
         ),
         forKey: .terminal
       )
@@ -331,18 +331,18 @@ extension SupatermSettings {
     let confirmQuitMode: ConfirmQuitMode
     let newTabPosition: NewTabPosition
     let restoreLayout: Bool
-    let terminateSessionsOnQuit: Bool
+    let zmxSessionsEnabled: Bool
 
     init(
       confirmQuitMode: ConfirmQuitMode,
       newTabPosition: NewTabPosition,
       restoreLayout: Bool,
-      terminateSessionsOnQuit: Bool
+      zmxSessionsEnabled: Bool
     ) {
       self.confirmQuitMode = confirmQuitMode
       self.newTabPosition = newTabPosition
       self.restoreLayout = restoreLayout
-      self.terminateSessionsOnQuit = terminateSessionsOnQuit
+      self.zmxSessionsEnabled = zmxSessionsEnabled
     }
 
     init(from decoder: any Decoder) throws {
@@ -357,16 +357,16 @@ extension SupatermSettings {
       restoreLayout =
         try container.decodeIfPresent(Bool.self, forKey: .restoreLayout)
         ?? defaults.restoreTerminalLayoutEnabled
-      terminateSessionsOnQuit =
-        try container.decodeIfPresent(Bool.self, forKey: .terminateSessionsOnQuit)
-        ?? defaults.terminateSessionsOnQuit
+      zmxSessionsEnabled =
+        try container.decodeIfPresent(Bool.self, forKey: .zmxSessionsEnabled)
+        ?? defaults.zmxSessionsEnabled
     }
 
     enum CodingKeys: String, CodingKey {
       case confirmQuitMode = "confirm_quit"
       case newTabPosition = "new_tab_position"
       case restoreLayout = "restore_layout"
-      case terminateSessionsOnQuit = "terminate_sessions_on_quit"
+      case zmxSessionsEnabled = "zmx_sessions_enabled"
     }
 
     func encode(to encoder: any Encoder) throws {
@@ -382,8 +382,8 @@ extension SupatermSettings {
       if restoreLayout != defaults.restoreTerminalLayoutEnabled {
         try container.encode(restoreLayout, forKey: .restoreLayout)
       }
-      if terminateSessionsOnQuit != defaults.terminateSessionsOnQuit {
-        try container.encode(terminateSessionsOnQuit, forKey: .terminateSessionsOnQuit)
+      if zmxSessionsEnabled != defaults.zmxSessionsEnabled {
+        try container.encode(zmxSessionsEnabled, forKey: .zmxSessionsEnabled)
       }
     }
   }
@@ -467,8 +467,8 @@ struct LegacySupatermSettingsFile: Decodable, Equatable, Sendable {
       newTabPosition: newTabPosition,
       restoreTerminalLayoutEnabled: restoreTerminalLayoutEnabled,
       systemNotificationsEnabled: systemNotificationsEnabled,
-      terminateSessionsOnQuit: SupatermSettings.default.terminateSessionsOnQuit,
-      updateChannel: updateChannel
+      updateChannel: updateChannel,
+      zmxSessionsEnabled: SupatermSettings.default.zmxSessionsEnabled
     )
   }
 
@@ -483,5 +483,11 @@ struct LegacySupatermSettingsFile: Decodable, Equatable, Sendable {
     case updateChannel
     case updatesAutomaticallyCheckForUpdates
     case updatesAutomaticallyDownloadUpdates
+  }
+}
+
+extension SupatermSettings {
+  public var terminatesSessionsOnQuit: Bool {
+    !zmxSessionsEnabled
   }
 }

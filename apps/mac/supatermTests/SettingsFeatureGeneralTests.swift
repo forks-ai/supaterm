@@ -1,4 +1,5 @@
 import ComposableArchitecture
+import Foundation
 import Sharing
 import SupatermSupport
 import Testing
@@ -64,6 +65,34 @@ struct SettingsFeatureGeneralTests {
 
       @Shared(.supatermSettings) var supatermSettings = .default
       #expect(!supatermSettings.restoreTerminalLayoutEnabled)
+    }
+  }
+
+  @Test
+  func zmxSessionsSettingPersistsPrefsAndShowsRestartAlert() async throws {
+    await withDependencies {
+      $0.defaultFileStorage = .inMemory
+    } operation: {
+      let store = TestStore(initialState: SettingsFeature.State()) {
+        SettingsFeature()
+      }
+
+      await store.send(.zmxSessionsEnabledChanged(false)) {
+        $0.zmxSessionsEnabled = false
+        $0.alert = AlertState {
+          TextState("Restart Required")
+        } actions: {
+          ButtonState(role: .cancel, action: .dismiss) {
+            TextState("OK")
+          }
+        } message: {
+          TextState("Restart Supaterm for zmx session changes to take effect.")
+        }
+      }
+
+      @Shared(.supatermSettings) var supatermSettings = .default
+      #expect(!supatermSettings.zmxSessionsEnabled)
+      #expect(supatermSettings.terminatesSessionsOnQuit)
     }
   }
 

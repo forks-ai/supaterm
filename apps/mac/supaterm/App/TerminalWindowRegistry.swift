@@ -54,7 +54,12 @@ final class TerminalWindowRegistry {
   var commandExecutor: TerminalCommandExecutor?
 
   private var entries: [Entry] = []
+  private let zmxClient: ZmxClient
   var onChange: @MainActor () -> Void = {}
+
+  init(zmxClient: ZmxClient = .liveValue) {
+    self.zmxClient = zmxClient
+  }
 
   var hasShortcutSource: Bool {
     !entries.isEmpty
@@ -345,13 +350,14 @@ final class TerminalWindowRegistry {
   }
 
   func terminateAllZmxSessions() {
+    let zmxClient = zmxClient
     Task.detached(priority: .utility) {
-      await Self.terminateAllZmxSessions(using: .liveValue)
+      await Self.terminateAllZmxSessions(using: zmxClient)
     }
   }
 
   func terminateAllZmxSessionsAndWait() async {
-    await Self.terminateAllZmxSessions(using: .liveValue)
+    await Self.terminateAllZmxSessions(using: zmxClient)
   }
 
   func restorationSnapshot() -> TerminalSessionCatalog {

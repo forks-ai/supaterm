@@ -1,4 +1,5 @@
 import ComposableArchitecture
+import Foundation
 
 extension SettingsFeature {
   func reduceGeneral(_ state: inout State, action: Action) -> Effect<Action> {
@@ -31,12 +32,25 @@ extension SettingsFeature {
       state.restoreTerminalLayoutEnabled = isEnabled
       return persist(state)
 
-    case .terminateSessionsOnQuitChanged(let isEnabled):
-      state.terminateSessionsOnQuit = isEnabled
+    case .zmxSessionsEnabledChanged(let isEnabled):
+      state.zmxSessionsEnabled = isEnabled
+      state.alert = zmxRestartRequiredAlert()
       return persist(state)
 
     default:
       return .none
+    }
+  }
+
+  func zmxRestartRequiredAlert() -> AlertState<Alert> {
+    AlertState {
+      TextState("Restart Required")
+    } actions: {
+      ButtonState(role: .cancel, action: .dismiss) {
+        TextState("OK")
+      }
+    } message: {
+      TextState("Restart Supaterm for zmx session changes to take effect.")
     }
   }
 }
