@@ -16,6 +16,42 @@ type ChangelogEntry = {
 
 const changelogData: ChangelogEntry[] = [
   {
+    version: "v1.3.0",
+    date: "2026-05-21",
+    title: "🧭 Agent Panel & Persistence",
+    description:
+      "Agent work is visible per pane now, and terminal sessions can survive quit and relaunch.",
+    image: "/changelog/demo-agent-panel.png",
+    sections: [
+      {
+        category: "new",
+        items: [
+          "Added a per-pane agent panel with task progress, branch details, pull request status, checks, web-search sources, and localhost links",
+          "Added zmx-backed session persistence so tabs, splits, working directories, titles, and agent presence can reconnect after quit and relaunch",
+          "Added Finder services for opening selected files or folders in a new Supaterm tab or window",
+        ],
+      },
+      {
+        category: "improvements",
+        items: [
+          "Pinned tabs now auto-save their layout, selected state, titles, and working directories",
+          "Coding-agent badges now stack in the sidebar and stay visible across active tabs and splits",
+          "The agent panel can be toggled from settings, the menu, and Command-I",
+          "Quit confirmation now lets you preserve or terminate persisted sessions",
+        ],
+      },
+      {
+        category: "fixes",
+        items: [
+          "Older saved terminal layouts now restore instead of falling back to a blank layout",
+          "Managed socket and zmx session paths now fall back safely when paths are too long",
+          "Session cleanup now only targets the current Supaterm instance",
+          "New installs now default close confirmation to Always",
+        ],
+      },
+    ],
+  },
+  {
     version: "v1.2.2",
     date: "2026-05-09",
     title: "🪝 Fix Codex Hooks",
