@@ -56,6 +56,13 @@ public enum SupatermSettingsCodec {
     return try decoder().decode(SupatermSettingsUnknownKeyAudit.self, from: data).warnings
   }
 
+  static func needsTerminalZmxKeyMigration(in data: Data) throws -> Bool {
+    if isEmptyToml(data) {
+      return false
+    }
+    return try decoder().decode(SupatermSettingsTerminalZmxKeyMigrationAudit.self, from: data).isNeeded
+  }
+
   public static func decoder() -> TOMLDecoder {
     let decoder = TOMLDecoder()
     return decoder
@@ -104,7 +111,12 @@ public struct SupatermSettingsMigration {
 
     if fileManager.fileExists(atPath: settingsURL.path) {
       guard let data = try? Data(contentsOf: settingsURL) else { return }
-      guard (try? SupatermSettingsCodec.decode(data)) != nil else { return }
+      guard let settings = try? SupatermSettingsCodec.decode(data) else { return }
+      if try SupatermSettingsCodec.needsTerminalZmxKeyMigration(in: data) {
+        let tomlData = try SupatermSettingsCodec.encode(settings)
+        _ = try SupatermSettingsCodec.decode(tomlData)
+        try tomlData.write(to: settingsURL, options: .atomic)
+      }
       try removeItemIfExists(at: legacyURL)
       return
     }
@@ -244,7 +256,13 @@ private struct SupatermSettingsUnknownKeyAudit: Decodable {
       contentsOf: try Self.unknownNestedKeys(
         in: container,
         section: "terminal",
-        allowedKeys: ["confirm_quit", "new_tab_position", "restore_layout", "zmx_sessions_enabled"]
+        allowedKeys: [
+          "confirm_quit",
+          "new_tab_position",
+          "restore_layout",
+          "terminate_sessions_on_quit",
+          "zmx_sessions_enabled",
+        ]
       )
     )
     warnings.append(contentsOf: try Self.unknownNestedKeys(in: container, section: "updates", allowedKeys: ["channel"]))
@@ -280,6 +298,24 @@ private struct SupatermSettingsUnknownKeyAudit: Decodable {
         let path = prefix.map { "\($0).\(key)" } ?? key
         return "Unknown config key `\(path)`."
       }
+  }
+}
+
+private struct SupatermSettingsTerminalZmxKeyMigrationAudit: Decodable {
+  let isNeeded: Bool
+
+  init(from decoder: any Decoder) throws {
+    let container = try decoder.container(keyedBy: AnyCodingKey.self)
+    guard let terminalKey = AnyCodingKey(stringValue: "terminal"), container.contains(terminalKey) else {
+      isNeeded = false
+      return
+    }
+    let terminal = try container.nestedContainer(keyedBy: AnyCodingKey.self, forKey: terminalKey)
+    guard let legacyKey = AnyCodingKey(stringValue: "terminate_sessions_on_quit") else {
+      isNeeded = false
+      return
+    }
+    isNeeded = terminal.contains(legacyKey)
   }
 }
 

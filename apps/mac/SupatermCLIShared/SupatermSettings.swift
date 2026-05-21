@@ -357,8 +357,10 @@ extension SupatermSettings {
       restoreLayout =
         try container.decodeIfPresent(Bool.self, forKey: .restoreLayout)
         ?? defaults.restoreTerminalLayoutEnabled
+      let legacyTerminateSessionsOnQuit = try container.decodeIfPresent(Bool.self, forKey: .terminateSessionsOnQuit)
       zmxSessionsEnabled =
         try container.decodeIfPresent(Bool.self, forKey: .zmxSessionsEnabled)
+        ?? legacyTerminateSessionsOnQuit.map { !$0 }
         ?? defaults.zmxSessionsEnabled
     }
 
@@ -366,6 +368,7 @@ extension SupatermSettings {
       case confirmQuitMode = "confirm_quit"
       case newTabPosition = "new_tab_position"
       case restoreLayout = "restore_layout"
+      case terminateSessionsOnQuit = "terminate_sessions_on_quit"
       case zmxSessionsEnabled = "zmx_sessions_enabled"
     }
 

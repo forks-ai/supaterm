@@ -105,6 +105,29 @@ struct SupatermSettingsValidationTests {
   }
 
   @Test
+  func validTomlAcceptsLegacyTerminalZmxKey() throws {
+    let homeDirectoryURL = try temporarySettingsValidationHomeDirectory()
+    let settingsURL = SupatermSettings.defaultURL(homeDirectoryPath: homeDirectoryURL.path, environment: [:])
+    try FileManager.default.createDirectory(
+      at: settingsURL.deletingLastPathComponent(),
+      withIntermediateDirectories: true
+    )
+    try Data(
+      #"""
+      [terminal]
+      terminate_sessions_on_quit = true
+      """#.utf8
+    )
+    .write(to: settingsURL)
+
+    let result = SupatermSettingsValidator(homeDirectoryURL: homeDirectoryURL, environment: [:]).validate()
+
+    #expect(result.status == .valid)
+    #expect(result.warnings.isEmpty)
+    #expect(result.errors.isEmpty)
+  }
+
+  @Test
   func invalidTomlReturnsFailure() throws {
     let homeDirectoryURL = try temporarySettingsValidationHomeDirectory()
     let settingsURL = SupatermSettings.defaultURL(homeDirectoryPath: homeDirectoryURL.path, environment: [:])

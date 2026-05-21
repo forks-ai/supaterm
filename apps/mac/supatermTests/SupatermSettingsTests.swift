@@ -164,6 +164,46 @@ struct SupatermSettingsTests {
   }
 
   @Test
+  func prefsDecodeMigratesTerminateSessionsOnQuitToZmxSessionsEnabled() throws {
+    let data = Data(
+      #"""
+      [terminal]
+      terminate_sessions_on_quit = true
+      """#.utf8
+    )
+
+    let prefs = try SupatermSettingsCodec.decode(data)
+    let encoded = try SupatermSettingsCodec.encode(prefs)
+    let string = try #require(String(data: encoded, encoding: .utf8)).trimmingCharacters(in: .newlines)
+
+    #expect(!prefs.zmxSessionsEnabled)
+    #expect(prefs.terminatesSessionsOnQuit)
+    #expect(
+      string
+        == """
+        [terminal]
+        zmx_sessions_enabled = false
+        """
+    )
+  }
+
+  @Test
+  func prefsDecodePrefersZmxSessionsEnabledOverTerminateSessionsOnQuit() throws {
+    let data = Data(
+      #"""
+      [terminal]
+      terminate_sessions_on_quit = true
+      zmx_sessions_enabled = true
+      """#.utf8
+    )
+
+    let prefs = try SupatermSettingsCodec.decode(data)
+
+    #expect(prefs.zmxSessionsEnabled)
+    #expect(!prefs.terminatesSessionsOnQuit)
+  }
+
+  @Test
   func prefsRoundTripThroughToml() throws {
     let data = try SupatermSettingsCodec.encode(
       SupatermSettings(
