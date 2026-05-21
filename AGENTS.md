@@ -16,7 +16,7 @@
 
 ```bash
 make mac-build          # Debug build
-SUPATERM_STATE_HOME="$(mktemp -d)" make mac-run  # this uses ephemeral storage to not interfer with user settings
+make mac-run            # Debug run with isolated ephemeral state
 make mac-test           # full test suite
 ```
 

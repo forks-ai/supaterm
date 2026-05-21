@@ -8,16 +8,16 @@ Use `$SUPATERM_CLI_PATH` in development shells to call the Debug CLI instead of 
 
 ## Isolated App State
 
-`SUPATERM_STATE_HOME` is the root for settings, sessions, spaces, pinned tabs, launch state, and terminal config. Use it with `make mac-run` to avoid touching production app state:
+`make mac-run` creates disposable state and zmx directories under `apps/mac/.build/run-state` by default. To reuse a specific development state root:
 
 ```bash
-SUPATERM_STATE_HOME=/tmp/supaterm-dev make mac-run
+SUPATERM_RUN_STATE_HOME=/tmp/supaterm-dev make mac-run
 ```
 
-For a disposable run:
+To reuse a named development instance:
 
 ```bash
-SUPATERM_STATE_HOME="$(mktemp -d)" make mac-run
+SUPATERM_RUN_INSTANCE_NAME=supaterm-dev SUPATERM_RUN_STATE_HOME=/tmp/supaterm-dev make mac-run
 ```
 
 Panes inherit `SUPATERM_STATE_HOME`, so `sp` commands launched inside the app use the same root.
