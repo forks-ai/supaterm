@@ -68,6 +68,34 @@ struct SupatermSocketProtocolTests {
   }
 
   @Test
+  func managedDirectoryURLSkipsEnvironmentRootsThatCannotFitSocketPath() {
+    let longRoot = "/private/tmp/" + String(repeating: "x", count: darwinSocketPathByteLimit())
+    #expect(
+      SupatermSocketPath.managedDirectoryURL(
+        environment: [
+          "XDG_RUNTIME_DIR": longRoot,
+          "TMPDIR": "/tmp/SupatermTests",
+        ],
+        userID: 501
+      )
+        == URL(fileURLWithPath: "/private/tmp/SupatermTests", isDirectory: true)
+        .appendingPathComponent("supaterm-501", isDirectory: true)
+    )
+
+    let socketPath = SupatermSocketPath.managedSocketURL(
+      instanceName: "dev",
+      processID: 90374,
+      environment: [
+        "TMPDIR": longRoot
+      ],
+      userID: 501
+    ).path
+
+    #expect(socketPath.hasPrefix("/private/tmp/supaterm-501/"))
+    #expect(socketPath.utf8.count < darwinSocketPathByteLimit())
+  }
+
+  @Test
   func managedSocketURLFitsDarwinSocketLimit() {
     let path = SupatermSocketPath.managedSocketURL(
       instanceName: String(repeating: "very-long-instance-name", count: 12),

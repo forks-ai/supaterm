@@ -161,30 +161,37 @@ struct SocketControlRuntimeTests {
   }
 
   @Test
-  func startRejectsOverlongXdgManagedPath() async throws {
+  func startSkipsOverlongXdgManagedPath() async throws {
     let rootURL = try makeTemporaryDirectory()
     defer { try? FileManager.default.removeItem(at: rootURL) }
 
+    let userID = getuid()
+    let temporaryDirectory = rootURL.appendingPathComponent("tmp", isDirectory: true)
     let xdgRuntimeDirectory =
       rootURL
       .appendingPathComponent(String(repeating: "x", count: 80), isDirectory: true)
     let endpoint = SupatermProcessSocketEndpoint.make(
-      environment: ["XDG_RUNTIME_DIR": xdgRuntimeDirectory.path],
+      environment: [
+        "XDG_RUNTIME_DIR": xdgRuntimeDirectory.path,
+        "TMPDIR": temporaryDirectory.path,
+      ],
       endpointID: UUID(uuidString: "5E6A9FDD-B5D8-4F46-BDA7-79C20AC2A61F")!,
       processID: 1,
       startedAt: Date(timeIntervalSince1970: 0),
-      userID: getuid()
+      userID: userID
     )!
     let runtime = SocketControlRuntime(endpointProvider: { endpoint })
 
-    do {
-      _ = try await runtime.start()
-      Issue.record("Expected start() to reject an overlong XDG socket path.")
-    } catch let error as SocketControlRuntime.RuntimeError {
-      #expect(error == .pathTooLong(endpoint.path))
-    } catch {
-      Issue.record("Unexpected error: \(error)")
-    }
+    let resolvedEndpoint = try await runtime.start()
+    let managedDirectory =
+      temporaryDirectory
+      .appendingPathComponent("supaterm-\(userID)", isDirectory: true)
+
+    #expect(resolvedEndpoint == endpoint)
+    #expect(endpoint.path.hasPrefix(managedDirectory.path + "/"))
+    #expect(try existingPermissions(at: managedDirectory) == 0o700)
+
+    await runtime.stop()
   }
 }
 

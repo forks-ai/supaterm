@@ -48,17 +48,36 @@ public enum SupatermSocketPath {
     environment: [String: String] = ProcessInfo.processInfo.environment,
     userID: uid_t = getuid()
   ) -> URL {
-    resolvedManagedRootDirectoryURL(
-      rootDirectory: rootDirectory,
-      environment: environment
-    )
-    .appendingPathComponent(
-      managedDirectoryName(
-        rootDirectory: rootDirectory,
-        environment: environment,
-        userID: userID
-      ),
-      isDirectory: true
+    if let rootDirectory {
+      return managedDirectoryURL(
+        rootPath: rootDirectory.path,
+        directoryName: tempManagedDirectoryName(userID: userID)
+      )
+    }
+
+    if let xdgRuntimeDirectory = normalized(environment[xdgRuntimeDirectoryKey]) {
+      let directoryURL = managedDirectoryURL(
+        rootPath: xdgRuntimeDirectory,
+        directoryName: managedRuntimeDirectoryName
+      )
+      if canFitManagedSocket(in: directoryURL) {
+        return directoryURL
+      }
+    }
+
+    if let temporaryDirectory = normalized(environment[temporaryDirectoryKey]) {
+      let directoryURL = managedDirectoryURL(
+        rootPath: temporaryDirectory,
+        directoryName: tempManagedDirectoryName(userID: userID)
+      )
+      if canFitManagedSocket(in: directoryURL) {
+        return directoryURL
+      }
+    }
+
+    return managedDirectoryURL(
+      rootPath: tmpPath,
+      directoryName: tempManagedDirectoryName(userID: userID)
     )
   }
 
@@ -178,45 +197,23 @@ public enum SupatermSocketPath {
     return (fileStatus.st_mode & S_IFMT) == S_IFSOCK
   }
 
-  private static func resolvedManagedRootDirectoryURL(
-    rootDirectory: URL?,
-    environment: [String: String]
+  private static func managedDirectoryURL(
+    rootPath: String,
+    directoryName: String
   ) -> URL {
-    if let rootDirectory {
-      return URL(
-        fileURLWithPath: canonicalized(rootDirectory.path) ?? rootDirectory.path,
-        isDirectory: true
-      )
-    }
-
-    if let xdgRuntimeDirectory = normalized(environment[xdgRuntimeDirectoryKey]) {
-      return URL(
-        fileURLWithPath: canonicalized(xdgRuntimeDirectory) ?? xdgRuntimeDirectory,
-        isDirectory: true
-      )
-    }
-
-    let temporaryDirectory = normalized(environment[temporaryDirectoryKey]) ?? tmpPath
     return URL(
-      fileURLWithPath: canonicalized(temporaryDirectory) ?? temporaryDirectory,
+      fileURLWithPath: canonicalized(rootPath) ?? rootPath,
       isDirectory: true
     )
+    .appendingPathComponent(directoryName, isDirectory: true)
   }
 
-  private static func managedDirectoryName(
-    rootDirectory: URL?,
-    environment: [String: String],
-    userID: uid_t
-  ) -> String {
-    if rootDirectory != nil {
-      return "\(managedDirectoryPrefix)\(userID)"
-    }
-
-    if normalized(environment[xdgRuntimeDirectoryKey]) != nil {
-      return managedRuntimeDirectoryName
-    }
-
+  private static func tempManagedDirectoryName(userID: uid_t) -> String {
     return "\(managedDirectoryPrefix)\(userID)"
+  }
+
+  private static func canFitManagedSocket(in directoryURL: URL) -> Bool {
+    directoryURL.path.utf8.count + 1 + minimumSocketFileNameByteCount <= socketPathByteLimit
   }
 
   private static func managedSocketFileName(
@@ -242,6 +239,10 @@ public enum SupatermSocketPath {
       return minimumName
     }
     return "\(prefix)\(String(stem.prefix(maxStemByteCount)))-\(hash)\(processSuffix)"
+  }
+
+  private static var minimumSocketFileNameByteCount: Int {
+    "instance-0123456789abcdef-pid-2147483647".utf8.count
   }
 
   private static func canonicalizedExistingPrefix(of path: String) -> String {
