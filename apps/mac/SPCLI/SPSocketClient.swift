@@ -285,7 +285,12 @@ enum SPSocketSelection {
   ) -> SPSocketSelectionDiagnostics {
     let explicitSocketPath = SupatermSocketPath.normalized(explicitPath)
     let environmentSocketPath = SupatermSocketPath.normalized(environment[SupatermCLIEnvironment.socketPathKey])
-    let shouldDiscover = alwaysDiscover || explicitSocketPath == nil && environmentSocketPath == nil
+    let environmentPathStatus = explicitSocketPath == nil ? environmentSocketPath.map(probeEndpoint) : nil
+    let shouldDiscover = shouldDiscoverManagedSockets(
+      explicitSocketPath: explicitSocketPath,
+      environmentPathStatus: environmentPathStatus,
+      alwaysDiscover: alwaysDiscover
+    )
 
     let discovery: SupatermManagedSocketDiscoveryResult
     if shouldDiscover {
@@ -307,8 +312,7 @@ enum SPSocketSelection {
     let resolutionEnvironmentPath = environmentPathForResolution(
       environmentSocketPath,
       explicitSocketPath: explicitSocketPath,
-      alwaysDiscover: alwaysDiscover,
-      probeEnvironmentPath: probeEndpoint
+      environmentPathStatus: environmentPathStatus
     )
 
     do {
@@ -383,8 +387,7 @@ enum SPSocketSelection {
   static func environmentPathForResolution(
     _ environmentSocketPath: String?,
     explicitSocketPath: String?,
-    alwaysDiscover: Bool,
-    probeEnvironmentPath: (String) -> SupatermManagedSocketCandidateStatus
+    environmentPathStatus: SupatermManagedSocketCandidateStatus?
   ) -> String? {
     guard let environmentSocketPath else {
       return nil
@@ -392,13 +395,27 @@ enum SPSocketSelection {
     guard explicitSocketPath == nil else {
       return nil
     }
-    guard alwaysDiscover else {
-      return environmentSocketPath
-    }
-    guard case .reachable = probeEnvironmentPath(environmentSocketPath) else {
+    guard case .reachable = environmentPathStatus else {
       return nil
     }
     return environmentSocketPath
+  }
+
+  static func shouldDiscoverManagedSockets(
+    explicitSocketPath: String?,
+    environmentPathStatus: SupatermManagedSocketCandidateStatus?,
+    alwaysDiscover: Bool
+  ) -> Bool {
+    if alwaysDiscover {
+      return true
+    }
+    guard explicitSocketPath == nil else {
+      return false
+    }
+    guard case .reachable = environmentPathStatus else {
+      return true
+    }
+    return false
   }
 
   private static func formatResolutionError(

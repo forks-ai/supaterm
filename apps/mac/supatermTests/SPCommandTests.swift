@@ -139,7 +139,7 @@ struct SPCommandTests {
   }
 
   @Test
-  func socketSelectionCanBypassStaleEnvironmentPathDuringDiscovery() {
+  func socketSelectionUsesOnlyReachableEnvironmentPathDuringDiscovery() {
     let environmentPath = "/tmp/stale.sock"
     let endpoint = SupatermSocketEndpoint(
       id: UUID(uuidString: "3F6B51E0-F214-456C-93F4-D87AEACCC292")!,
@@ -153,49 +153,76 @@ struct SPCommandTests {
       SPSocketSelection.environmentPathForResolution(
         environmentPath,
         explicitSocketPath: nil,
-        alwaysDiscover: true,
-        probeEnvironmentPath: { _ in .stale }
+        environmentPathStatus: .stale
       ) == nil
     )
     #expect(
       SPSocketSelection.environmentPathForResolution(
         environmentPath,
         explicitSocketPath: nil,
-        alwaysDiscover: true,
-        probeEnvironmentPath: { _ in .ignored }
+        environmentPathStatus: .ignored
       ) == nil
     )
     #expect(
       SPSocketSelection.environmentPathForResolution(
         environmentPath,
         explicitSocketPath: nil,
-        alwaysDiscover: true,
-        probeEnvironmentPath: { _ in .reachable(endpoint) }
-      ) == environmentPath
-    )
-    #expect(
-      SPSocketSelection.environmentPathForResolution(
-        environmentPath,
-        explicitSocketPath: nil,
-        alwaysDiscover: false,
-        probeEnvironmentPath: { _ in .stale }
-      ) == environmentPath
-    )
-    #expect(
-      SPSocketSelection.environmentPathForResolution(
-        environmentPath,
-        explicitSocketPath: nil,
-        alwaysDiscover: true,
-        probeEnvironmentPath: { _ in .reachable(endpoint) }
+        environmentPathStatus: .reachable(endpoint)
       ) == environmentPath
     )
     #expect(
       SPSocketSelection.environmentPathForResolution(
         environmentPath,
         explicitSocketPath: "/tmp/explicit.sock",
-        alwaysDiscover: true,
-        probeEnvironmentPath: { _ in .stale }
+        environmentPathStatus: .reachable(endpoint)
       ) == nil
+    )
+  }
+
+  @Test
+  func socketSelectionDiscoversWhenEnvironmentPathIsUnavailable() {
+    let endpoint = SupatermSocketEndpoint(
+      id: UUID(uuidString: "3F6B51E0-F214-456C-93F4-D87AEACCC292")!,
+      name: "default",
+      path: "/tmp/live.sock",
+      pid: 1,
+      startedAt: Date(timeIntervalSince1970: 1)
+    )
+
+    #expect(
+      SPSocketSelection.shouldDiscoverManagedSockets(
+        explicitSocketPath: nil,
+        environmentPathStatus: .stale,
+        alwaysDiscover: false
+      )
+    )
+    #expect(
+      SPSocketSelection.shouldDiscoverManagedSockets(
+        explicitSocketPath: nil,
+        environmentPathStatus: .ignored,
+        alwaysDiscover: false
+      )
+    )
+    #expect(
+      !SPSocketSelection.shouldDiscoverManagedSockets(
+        explicitSocketPath: nil,
+        environmentPathStatus: .reachable(endpoint),
+        alwaysDiscover: false
+      )
+    )
+    #expect(
+      !SPSocketSelection.shouldDiscoverManagedSockets(
+        explicitSocketPath: "/tmp/explicit.sock",
+        environmentPathStatus: .stale,
+        alwaysDiscover: false
+      )
+    )
+    #expect(
+      SPSocketSelection.shouldDiscoverManagedSockets(
+        explicitSocketPath: "/tmp/explicit.sock",
+        environmentPathStatus: .reachable(endpoint),
+        alwaysDiscover: true
+      )
     )
   }
 
