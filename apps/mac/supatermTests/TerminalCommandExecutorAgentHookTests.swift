@@ -483,6 +483,51 @@ struct TerminalCommandExecutorAgentHookTests {
     #expect(harness.host.agentActivity(for: harness.tabID) == .codex(.running))
   }
   @Test
+  func codexPreToolUseRecoversMissingSessionAndStartsPanelTracking() throws {
+    let harness = try makeClaudeHookHarness()
+    let transcriptPath = try CodexTranscriptFixtures.makeTranscript()
+    defer { try? FileManager.default.removeItem(at: transcriptPath.deletingLastPathComponent()) }
+
+    try CodexTranscriptFixtures.append(.taskStarted(turnID: "turn-1"), to: transcriptPath)
+    try CodexTranscriptFixtures.append(
+      .functionCall(
+        name: "update_plan",
+        arguments: [
+          "plan": [
+            ["step": "Read terminal state", "status": "completed"],
+            ["step": "Recover Codex presence", "status": "in_progress"],
+          ]
+        ]
+      ),
+      to: transcriptPath
+    )
+
+    _ = try harness.commandExecutor.handleAgentHook(
+      codexHook(
+        CodexHookFixtures.preToolUse,
+        transcriptPath: transcriptPath,
+        context: harness.context
+      )
+    )
+
+    #expect(harness.host.agentActivity(for: harness.tabID) == .codex(.running))
+    #expect(harness.host.tabAgentPresentation(for: harness.tabID).badgeActivities == [.codex(.running)])
+    #expect(
+      harness.host.agentPanelPresentation(for: harness.context.surfaceID)?.progressRows == [
+        PaneAgentProgressRow(
+          id: "0:Read terminal state",
+          title: "Read terminal state",
+          status: .completed
+        ),
+        PaneAgentProgressRow(
+          id: "1:Recover Codex presence",
+          title: "Recover Codex presence",
+          status: .running
+        ),
+      ]
+    )
+  }
+  @Test
   func codexTranscriptDetailOverridesOptimisticPreToolUseRunningState() async throws {
     let clock = TestClock()
     let harness = try makeClaudeHookHarness(

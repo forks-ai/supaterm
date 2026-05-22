@@ -130,8 +130,10 @@ Codex now uses the same app-side bridge and tab-state model.
 The app binds Codex sessions to pane surfaces and turns Codex hook events into tab activity.
 
 - `SessionStart` binds the session to the current pane surface and starts transcript observation for the recorded `transcript_path`.
-- `PreToolUse` and `PostToolUse` optimistically mark the tab as `running` before transcript progress arrives.
-- `UserPromptSubmit` re-arms transcript observation for the next turn and clears structured completion suppression without supplying Codex detail on its own.
+- `PreToolUse` and `PostToolUse` optimistically mark the tab as `running` before transcript progress arrives, and
+  recover the pane binding when `SessionStart` was missed.
+- `UserPromptSubmit` re-arms transcript observation for the next turn, recovers the pane binding when `SessionStart`
+  was missed, and clears structured completion suppression without supplying Codex detail on its own.
 - `Stop` marks the tab as `idle` and stores the final assistant message as the latest tab notification when one is provided.
 - Transcript lifecycle remains authoritative for Codex detail and final `idle` transitions.
 - `task_started` and `turn_started` mark the tab as `running`.

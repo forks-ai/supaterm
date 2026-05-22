@@ -25,7 +25,7 @@ extension TerminalCommandExecutor {
 
   func handleAgentHook(_ request: SupatermAgentHookRequest) throws -> TerminalAgentHookResult {
     pruneDeadAgentProcesses()
-    registerAgentHookSession(request)
+    let didStartSession = registerAgentHookSession(request)
     let routesToForegroundSession = routesAgentHookToForegroundSession(request)
 
     switch request.event.hookEventName {
@@ -41,7 +41,8 @@ extension TerminalCommandExecutor {
     case .postToolUse, .preToolUse:
       return handleToolStateAgentHook(
         request,
-        routesToForegroundSession: routesToForegroundSession
+        routesToForegroundSession: routesToForegroundSession,
+        didStartSession: didStartSession
       )
 
     case .userPromptSubmit:
@@ -159,6 +160,14 @@ extension TerminalCommandExecutor {
         context: request.context
       )
     }
+    if request.agent == .codex {
+      _ = registerAgentPresence(
+        agent: request.agent,
+        sessionID: sessionID,
+        context: request.context,
+        processID: request.processID
+      )
+    }
     if request.agent != .codex {
       _ = setAgentPresenceActivity(
         TerminalHostState.AgentActivity(kind: request.agent, phase: .running),
@@ -198,12 +207,21 @@ extension TerminalCommandExecutor {
 
   func handleToolStateAgentHook(
     _ request: SupatermAgentHookRequest,
-    routesToForegroundSession: Bool
+    routesToForegroundSession: Bool,
+    didStartSession: Bool
   ) -> TerminalAgentHookResult {
     guard routesToForegroundSession else {
       return TerminalAgentHookResult(desktopNotification: nil)
     }
-    return handleRunningAgentHook(request)
+    let result = handleRunningAgentHook(request)
+    if didStartSession, request.agent == .codex, let sessionID = request.event.sessionID {
+      _ = agentSessionStore.beginAgentPanelTracking(
+        agent: request.agent,
+        sessionID: sessionID,
+        context: request.context
+      )
+    }
+    return result
   }
 
   func handleUserPromptSubmitAgentHook(
@@ -320,18 +338,21 @@ extension TerminalCommandExecutor {
     )
   }
 
+  @discardableResult
   func registerAgentHookSession(
     _ request: SupatermAgentHookRequest
-  ) {
-    guard let sessionID = request.event.sessionID else { return }
-    if request.event.hookEventName == .sessionStart {
+  ) -> Bool {
+    guard let sessionID = request.event.sessionID else { return false }
+    if request.event.hookEventName == .sessionStart
+      || shouldRecoverAgentHookSession(request, sessionID: sessionID)
+    {
       agentSessionStore.beginSession(
         agent: request.agent,
         sessionID: sessionID,
         context: request.context,
         transcriptPath: request.event.transcriptPath
       )
-      return
+      return true
     }
     if agentSessionStore.hasSession(agent: request.agent, sessionID: sessionID) {
       agentSessionStore.updateSession(
@@ -340,6 +361,25 @@ extension TerminalCommandExecutor {
         context: request.context,
         transcriptPath: request.event.transcriptPath
       )
+    }
+    return false
+  }
+
+  func shouldRecoverAgentHookSession(
+    _ request: SupatermAgentHookRequest,
+    sessionID: String
+  ) -> Bool {
+    guard request.agent == .codex,
+      request.context != nil,
+      !agentSessionStore.hasSession(agent: request.agent, sessionID: sessionID)
+    else {
+      return false
+    }
+    switch request.event.hookEventName {
+    case .postToolUse, .preToolUse, .userPromptSubmit:
+      return true
+    case .notification, .sessionEnd, .sessionStart, .stop, .unsupported:
+      return false
     }
   }
 
