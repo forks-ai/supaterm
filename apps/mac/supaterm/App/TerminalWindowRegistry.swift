@@ -410,6 +410,32 @@ final class TerminalWindowRegistry {
     _ = try? entry.terminal.focusPane(.contextPane(target.surfaceID))
   }
 
+  @discardableResult
+  func focusNotificationSurface(_ surfaceID: UUID) -> Bool {
+    for entry in activeEntries() {
+      guard entry.terminal.tabID(containing: surfaceID) != nil else { continue }
+      do {
+        guard let window = entry.windowReference.value else { continue }
+        NSApp.activate(ignoringOtherApps: true)
+        if window.isMiniaturized {
+          window.deminiaturize(nil)
+        }
+        window.makeKeyAndOrderFront(nil)
+        entry.terminal.updateWindowActivity(WindowActivityState(isKeyWindow: true, isVisible: true))
+        _ = try entry.terminal.focusPane(.contextPane(surfaceID))
+        return true
+      } catch let error as TerminalControlError {
+        if case .contextPaneNotFound = error {
+          continue
+        }
+        return false
+      } catch {
+        return false
+      }
+    }
+    return false
+  }
+
   func performCommandPaletteUpdateAction(
     _ action: UpdateUserAction,
     windowID: ObjectIdentifier?

@@ -80,7 +80,14 @@ struct SocketControlFeatureNotificationsTests {
       #expect(decodedResult == expectedResult)
       #expect(
         await desktopNotificationRecorder.snapshot()
-          == [DesktopNotificationRequest(body: "Build finished", subtitle: "CI", title: "Deploy complete")]
+          == [
+            DesktopNotificationRequest(
+              body: "Build finished",
+              subtitle: "CI",
+              title: "Deploy complete",
+              sourceSurfaceID: expectedResult.paneID
+            )
+          ]
       )
     }
   }
@@ -302,7 +309,14 @@ struct SocketControlFeatureNotificationsTests {
       #expect(decodedResult == expectedResult)
       #expect(
         await desktopNotificationRecorder.snapshot()
-          == [DesktopNotificationRequest(body: "Build finished", subtitle: "", title: "Build")]
+          == [
+            DesktopNotificationRequest(
+              body: "Build finished",
+              subtitle: "",
+              title: "Build",
+              sourceSurfaceID: expectedResult.paneID
+            )
+          ]
       )
     }
   }
@@ -344,7 +358,8 @@ struct SocketControlFeatureNotificationsTests {
             desktopNotification: DesktopNotificationRequest(
               body: "Claude needs your attention",
               subtitle: "Needs input",
-              title: "Claude Code"
+              title: "Claude Code",
+              sourceSurfaceID: requestPayload.context?.surfaceID
             )
           )
         }
@@ -356,7 +371,8 @@ struct SocketControlFeatureNotificationsTests {
       let expectedNotification = DesktopNotificationRequest(
         body: "Claude needs your attention",
         subtitle: "Needs input",
-        title: "Claude Code"
+        title: "Claude Code",
+        sourceSurfaceID: requestPayload.context?.surfaceID
       )
       #expect(records.count == 1)
       #expect(records.first?.handle == handle)

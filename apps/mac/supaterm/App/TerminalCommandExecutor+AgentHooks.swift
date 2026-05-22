@@ -408,7 +408,8 @@ extension TerminalCommandExecutor {
             ? DesktopNotificationRequest(
               body: notification.body,
               subtitle: notification.subtitle,
-              title: result.resolvedTitle
+              title: result.resolvedTitle,
+              sourceSurfaceID: result.paneID
             )
             : nil
         )

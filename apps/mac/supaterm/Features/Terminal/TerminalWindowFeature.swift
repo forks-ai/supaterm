@@ -230,7 +230,8 @@ struct TerminalWindowFeature {
               DesktopNotificationRequest(
                 body: event.body,
                 subtitle: event.subtitle,
-                title: event.resolvedTitle
+                title: event.resolvedTitle,
+                sourceSurfaceID: event.sourceSurfaceID
               )
             )
           }

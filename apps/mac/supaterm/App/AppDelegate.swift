@@ -5,6 +5,7 @@ import SupatermSettingsFeature
 import SupatermSocketFeature
 import SupatermSupport
 import SupatermTerminalCore
+import UserNotifications
 
 @MainActor
 protocol GhosttyAppActionPerforming: AnyObject {
@@ -25,7 +26,9 @@ private final class WeakToggleVisibilityWindow {
 }
 
 @MainActor
-final class AppDelegate: NSObject, NSApplicationDelegate, GhosttyAppActionPerforming {
+final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterDelegate,
+  GhosttyAppActionPerforming
+{
   struct LaunchWindowRequest: Equatable {
     let session: TerminalWindowSession?
     let startupCommand: String?
@@ -111,6 +114,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, GhosttyAppActionPerfor
   func applicationDidFinishLaunching(_ notification: Notification) {
     NSWindow.allowsAutomaticWindowTabbing = false
     NSApp.servicesProvider = serviceProvider
+    UNUserNotificationCenter.current().delegate = self
     menuController.install()
     socketStore.send(.task)
     refreshInstalledAgentHooks()
@@ -159,6 +163,31 @@ final class AppDelegate: NSObject, NSApplicationDelegate, GhosttyAppActionPerfor
 
   func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
     false
+  }
+
+  nonisolated func userNotificationCenter(
+    _ center: UNUserNotificationCenter,
+    willPresent notification: UNNotification
+  ) async -> UNNotificationPresentationOptions {
+    await Task.yield()
+    return [.badge, .sound, .banner]
+  }
+
+  nonisolated func userNotificationCenter(
+    _ center: UNUserNotificationCenter,
+    didReceive response: UNNotificationResponse
+  ) async {
+    guard response.actionIdentifier != UNNotificationDismissActionIdentifier else { return }
+    guard
+      let surfaceID = DesktopNotificationRequest.sourceSurfaceID(
+        from: response.notification.request.content.userInfo
+      )
+    else {
+      return
+    }
+    await MainActor.run {
+      _ = self.terminalWindowRegistry.focusNotificationSurface(surfaceID)
+    }
   }
 
   func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {

@@ -12,6 +12,20 @@ import Testing
 @MainActor
 struct TerminalWindowFeatureTests {
   @Test
+  func desktopNotificationRequestEncodesSourceSurfaceIDInUserInfo() {
+    let surfaceID = UUID()
+    let request = DesktopNotificationRequest(
+      body: "Build finished",
+      subtitle: "CI",
+      title: "Deploy complete",
+      sourceSurfaceID: surfaceID
+    )
+
+    #expect(DesktopNotificationRequest.sourceSurfaceID(from: request.userInfo) == surfaceID)
+    #expect(DesktopNotificationRequest.sourceSurfaceID(from: [:]) == nil)
+  }
+
+  @Test
   func taskBootstrapsTerminalAndRoutesClientEvents() async {
     let recorder = TerminalCommandRecorder()
     let surfaceID = UUID()
@@ -365,12 +379,13 @@ struct TerminalWindowFeatureTests {
   @Test
   func notificationReceivedDeliversDesktopNotificationWhenRequested() async throws {
     let recorder = TerminalDesktopNotificationRecorder()
+    let sourceSurfaceID = UUID()
     let event = TerminalNotificationEvent(
       attentionState: .unread,
       body: "Build finished",
       desktopNotificationDisposition: .deliver,
       resolvedTitle: "Deploy complete",
-      sourceSurfaceID: UUID(),
+      sourceSurfaceID: sourceSurfaceID,
       subtitle: "CI"
     )
 
@@ -394,7 +409,14 @@ struct TerminalWindowFeatureTests {
 
       #expect(
         await recorder.snapshot()
-          == [DesktopNotificationRequest(body: "Build finished", subtitle: "CI", title: "Deploy complete")]
+          == [
+            DesktopNotificationRequest(
+              body: "Build finished",
+              subtitle: "CI",
+              title: "Deploy complete",
+              sourceSurfaceID: sourceSurfaceID
+            )
+          ]
       )
     }
   }

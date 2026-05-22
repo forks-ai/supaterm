@@ -166,7 +166,8 @@ struct TerminalCommandExecutorAgentHookTests {
         == DesktopNotificationRequest(
           body: "Claude needs your attention",
           subtitle: "Needs input",
-          title: "Claude Code"
+          title: "Claude Code",
+          sourceSurfaceID: harness.context.surfaceID
         )
     )
     #expect(harness.host.unreadNotificationCount(for: harness.tabID) == 1)
@@ -253,7 +254,8 @@ struct TerminalCommandExecutorAgentHookTests {
         == DesktopNotificationRequest(
           body: "Done.",
           subtitle: "Turn complete",
-          title: "Claude Code"
+          title: "Claude Code",
+          sourceSurfaceID: harness.context.surfaceID
         )
     )
     #expect(harness.host.unreadNotificationCount(for: harness.tabID) == 1)
@@ -894,7 +896,8 @@ struct TerminalCommandExecutorAgentHookTests {
         == DesktopNotificationRequest(
           body: "Done.",
           subtitle: "Turn complete",
-          title: "Codex"
+          title: "Codex",
+          sourceSurfaceID: harness.context.surfaceID
         )
     )
     #expect(harness.host.unreadNotificationCount(for: harness.tabID) == 1)
@@ -1043,7 +1046,8 @@ struct TerminalCommandExecutorAgentHookTests {
         == DesktopNotificationRequest(
           body: "Child done.",
           subtitle: "Turn complete",
-          title: "Codex"
+          title: "Codex",
+          sourceSurfaceID: harness.context.surfaceID
         )
     )
     #expect(harness.host.unreadNotificationCount(for: harness.tabID) == 1)

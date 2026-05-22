@@ -530,6 +530,46 @@ struct TerminalWindowRegistryTests {
   }
 
   @Test
+  func focusNotificationSurfaceSelectsOwningTabAndPane() throws {
+    try withDependencies {
+      $0.defaultFileStorage = .inMemory
+    } operation: {
+      initializeGhosttyForTests()
+
+      let registry = TerminalWindowRegistry()
+      let host = TerminalHostState()
+      host.windowActivity = .inactive
+      host.handleCommand(.ensureInitialTab(focusing: false, startupCommand: nil))
+      let firstTabID = try #require(host.selectedTabID)
+      let secondTabID = try #require(host.createTab(focusing: false))
+      let targetSurfaceID = try #require(host.trees[secondTabID]?.root?.leftmostLeaf().id)
+      host.handleCommand(.selectTab(firstTabID))
+      let store = Store(initialState: AppFeature.State()) {
+        AppFeature()
+      }
+      let windowControllerID = UUID()
+
+      registry.register(
+        keyboardShortcutForAction: { _ in nil },
+        windowControllerID: windowControllerID,
+        store: store,
+        terminal: host,
+        requestConfirmedWindowClose: {}
+      )
+      let window = makeWindow()
+      registry.updateWindow(window, for: windowControllerID)
+
+      #expect(host.selectedTabID == firstTabID)
+
+      #expect(registry.focusNotificationSurface(targetSurfaceID))
+
+      #expect(host.selectedTabID == secondTabID)
+      #expect(host.selectedSurfaceView?.id == targetSurfaceID)
+      #expect(host.windowActivity == WindowActivityState(isKeyWindow: true, isVisible: true))
+    }
+  }
+
+  @Test
   func performCommandPaletteUpdateActionDispatchesToRequestedStore() async {
     let registry = TerminalWindowRegistry()
     let recorder = UpdateMenuActionRecorder()

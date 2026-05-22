@@ -3,41 +3,41 @@ import ComposableArchitecture
 import Foundation
 import UserNotifications
 
-private final class ForegroundDesktopNotificationDelegate: NSObject, UNUserNotificationCenterDelegate {
-  func userNotificationCenter(
-    _ center: UNUserNotificationCenter,
-    willPresent notification: UNNotification
-  ) async -> UNNotificationPresentationOptions {
-    await Task.yield()
-    return [.badge, .sound, .banner]
-  }
-}
-
-@MainActor
-private let foregroundDesktopNotificationDelegate = ForegroundDesktopNotificationDelegate()
-
 @MainActor
 private func configuredNotificationCenter() -> UNUserNotificationCenter {
-  let center = UNUserNotificationCenter.current()
-  if center.delegate !== foregroundDesktopNotificationDelegate {
-    center.delegate = foregroundDesktopNotificationDelegate
-  }
-  return center
+  UNUserNotificationCenter.current()
 }
 
 public struct DesktopNotificationRequest: Equatable, Sendable {
+  public nonisolated static let sourceSurfaceIDUserInfoKey = "supatermSourceSurfaceID"
+
   public let body: String
+  public let sourceSurfaceID: UUID?
   public let subtitle: String
   public let title: String
 
   public init(
     body: String,
     subtitle: String,
-    title: String
+    title: String,
+    sourceSurfaceID: UUID? = nil
   ) {
     self.body = body
+    self.sourceSurfaceID = sourceSurfaceID
     self.subtitle = subtitle
     self.title = title
+  }
+
+  public nonisolated var userInfo: [AnyHashable: Any] {
+    guard let sourceSurfaceID else { return [:] }
+    return [Self.sourceSurfaceIDUserInfoKey: sourceSurfaceID.uuidString]
+  }
+
+  public nonisolated static func sourceSurfaceID(from userInfo: [AnyHashable: Any]) -> UUID? {
+    guard let value = userInfo[sourceSurfaceIDUserInfoKey] as? String else {
+      return nil
+    }
+    return UUID(uuidString: value)
   }
 }
 
@@ -117,6 +117,7 @@ extension DesktopNotificationClient: DependencyKey {
       content.subtitle = request.subtitle
       content.title = request.title
       content.sound = .default
+      content.userInfo = request.userInfo
       let notificationRequest = UNNotificationRequest(
         identifier: UUID().uuidString,
         content: content,

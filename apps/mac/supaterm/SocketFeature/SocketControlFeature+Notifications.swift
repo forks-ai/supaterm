@@ -26,7 +26,8 @@ extension SocketControlFeature {
           DesktopNotificationRequest(
             body: payload.body,
             subtitle: payload.subtitle,
-            title: result.resolvedTitle
+            title: result.resolvedTitle,
+            sourceSurfaceID: result.paneID
           )
         )
       }
