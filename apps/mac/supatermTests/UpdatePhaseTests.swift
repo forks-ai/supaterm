@@ -41,6 +41,22 @@ struct UpdatePhaseTests {
   }
 
   @Test
+  func updateAvailableOffersNextRestartInstall() {
+    let phase = UpdatePhase.updateAvailable(
+      UpdatePhase.Available(contentLength: nil, releaseDate: nil, version: "1.2.3")
+    )
+
+    #expect(
+      phase.actionPresentations.map(\.title)
+        == ["Skip", "Install after next restart", "Install and Relaunch"]
+    )
+    #expect(
+      phase.actionPresentations.map(\.action)
+        == [.skipVersion, .installAfterNextRestart, .install]
+    )
+  }
+
+  @Test
   func downloadingExposesProgressTextAndValue() {
     let phase = UpdatePhase.downloading(
       UpdatePhase.Downloading(

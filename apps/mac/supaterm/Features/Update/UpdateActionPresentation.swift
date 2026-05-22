@@ -44,8 +44,8 @@ extension UpdatePhase {
           isProminent: false
         ),
         UpdateActionPresentation(
-          title: "Later",
-          action: .dismiss,
+          title: "Install after next restart",
+          action: .installAfterNextRestart,
           isProminent: false
         ),
         UpdateActionPresentation(

@@ -341,7 +341,8 @@ struct TerminalWindowRegistryTests {
 
     let snapshot = registry.commandPaletteSnapshot(windowID: ObjectIdentifier(window))
 
-    #expect(snapshot.updateEntries.map(\.title) == ["Skip", "Later", "Install and Relaunch"])
+    #expect(snapshot.updateEntries.map(\.title) == ["Skip", "Install after next restart", "Install and Relaunch"])
+    #expect(snapshot.updateEntries.map(\.action) == [.skipVersion, .installAfterNextRestart, .install])
     #expect(snapshot.updateEntries.last?.badge == "1.2.3")
   }
 

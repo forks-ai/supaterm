@@ -13,6 +13,7 @@ public enum UpdateUserAction: Equatable, Sendable {
   case declineAutomaticChecks
   case dismiss
   case install
+  case installAfterNextRestart
   case restartLater
   case restartNow
   case retry
@@ -442,16 +443,24 @@ final class UpdateRuntime: NSObject, @unchecked Sendable {
     case interactive
   }
 
+  private enum PreparedInstallChoice {
+    case nextRestart
+    case relaunch
+  }
+
   private var automaticallyChecksForUpdatesObservation: NSKeyValueObservation?
   private var automaticallyDownloadsUpdatesObservation: NSKeyValueObservation?
   private var canCheckForUpdatesObservation: NSKeyValueObservation?
   private var continuations: [UUID: AsyncStream<UpdateClient.Snapshot>.Continuation] = [:]
+  private var hidesNextManualInstallPrompt = false
   private var interaction: Interaction = .none
   private var phase: UpdatePhase = .idle
+  private var preparedInstallChoice: PreparedInstallChoice = .relaunch
   private var sessionOrigin: SessionOrigin = .idle
   private var started = false
   private var stubAutomaticallyChecksForUpdates = true
   private var stubAutomaticallyDownloadsUpdates = true
+  private var updateAvailableStage: SPUUserUpdateStage?
   private let userDriver: UpdateDriver?
   private let updater: SPUUpdater?
 
@@ -538,6 +547,9 @@ final class UpdateRuntime: NSObject, @unchecked Sendable {
 
     case .install:
       installUpdate()
+
+    case .installAfterNextRestart:
+      installAfterNextRestart()
 
     case .restartLater:
       restartLater()
@@ -702,15 +714,19 @@ final class UpdateRuntime: NSObject, @unchecked Sendable {
     isAutoUpdate: Bool,
     buildVersion: String? = nil,
     restart: @escaping () -> Void,
+    showsPrompt: Bool = true,
     version: String = "",
     fallback: (() -> Void)?
   ) {
+    preparedInstallChoice = .relaunch
+    hidesNextManualInstallPrompt = false
     sessionOrigin = .interactive
     interaction = .installing(restart)
     phase = .installing(
       UpdatePhase.Installing(
         buildVersion: buildVersion,
         isAutoUpdate: isAutoUpdate,
+        showsPrompt: showsPrompt,
         version: version
       )
     )
@@ -724,6 +740,7 @@ final class UpdateRuntime: NSObject, @unchecked Sendable {
     acknowledgement: @escaping () -> Void,
     fallback: (() -> Void)?
   ) {
+    resetPreparedInstallChoice()
     sessionOrigin = .interactive
     interaction = .notFound(acknowledgement)
     phase = .notFound
@@ -735,6 +752,7 @@ final class UpdateRuntime: NSObject, @unchecked Sendable {
     reply: @escaping (SUUpdatePermissionResponse) -> Void,
     fallback: (() -> Void)?
   ) {
+    resetPreparedInstallChoice()
     sessionOrigin = .interactive
     interaction = .permissionRequest(reply)
     phase = .permissionRequest
@@ -744,9 +762,12 @@ final class UpdateRuntime: NSObject, @unchecked Sendable {
 
   fileprivate func showUpdateAvailable(
     _ available: UpdatePhase.Available,
+    stage: SPUUserUpdateStage,
     reply: @escaping (SPUUserUpdateChoice) -> Void,
     fallback: (() -> Void)?
   ) {
+    resetPreparedInstallChoice()
+    updateAvailableStage = stage
     sessionOrigin = .interactive
     interaction = .updateAvailable(reply)
     phase = .updateAvailable(available)
@@ -758,6 +779,7 @@ final class UpdateRuntime: NSObject, @unchecked Sendable {
     _ acknowledgement: @escaping () -> Void,
     fallback: (() -> Void)?
   ) {
+    resetPreparedInstallChoice()
     sessionOrigin = .idle
     interaction = .none
     phase = .idle
@@ -768,6 +790,7 @@ final class UpdateRuntime: NSObject, @unchecked Sendable {
 
   fileprivate func dismissUpdateInstallation() {
     guard case .installing = interaction, case .installing(let installing) = phase else {
+      resetPreparedInstallChoice()
       sessionOrigin = .idle
       interaction = .none
       phase = .idle
@@ -789,6 +812,48 @@ final class UpdateRuntime: NSObject, @unchecked Sendable {
     fallback: (() -> Void)?
   ) {
     fallback?()
+  }
+
+  fileprivate func showReadyToInstallAndRelaunch(
+    reply: @escaping @Sendable (SPUUserUpdateChoice) -> Void,
+    fallback: (() -> Void)?
+  ) {
+    guard hasUnobtrusiveTarget else {
+      fallback?()
+      return
+    }
+
+    switch preparedInstallChoice {
+    case .nextRestart:
+      resetPreparedInstallChoice()
+      sessionOrigin = .idle
+      interaction = .none
+      phase = .idle
+      publish()
+      reply(.dismiss)
+    case .relaunch:
+      preparedInstallChoice = .relaunch
+      updateAvailableStage = nil
+      hidesNextManualInstallPrompt = true
+      sessionOrigin = .interactive
+      phase = .installing(UpdatePhase.Installing(isAutoUpdate: false, showsPrompt: false))
+      publish()
+      reply(.install)
+    }
+  }
+
+  fileprivate func showManualInstallingUpdate(
+    restart: @escaping () -> Void,
+    fallback: (() -> Void)?
+  ) {
+    let showsPrompt = !hidesNextManualInstallPrompt
+    hidesNextManualInstallPrompt = false
+    showInstalling(
+      isAutoUpdate: false,
+      restart: restart,
+      showsPrompt: showsPrompt,
+      fallback: fallback
+    )
   }
 
   fileprivate var hasUnobtrusiveTarget: Bool {
@@ -836,6 +901,7 @@ final class UpdateRuntime: NSObject, @unchecked Sendable {
       break
     }
 
+    resetPreparedInstallChoice()
     interaction = .none
     phase = .idle
     publish()
@@ -849,6 +915,7 @@ final class UpdateRuntime: NSObject, @unchecked Sendable {
   private func cancelInteraction() {
     switch interaction {
     case .checking(let cancel), .downloading(let cancel):
+      resetPreparedInstallChoice()
       sessionOrigin = .idle
       interaction = .none
       phase = .idle
@@ -862,18 +929,21 @@ final class UpdateRuntime: NSObject, @unchecked Sendable {
   private func dismissInteraction() {
     switch interaction {
     case .updateAvailable(let reply):
+      resetPreparedInstallChoice()
       sessionOrigin = .idle
       interaction = .none
       phase = .idle
       publish()
       reply(.dismiss)
     case .notFound(let acknowledgement):
+      resetPreparedInstallChoice()
       sessionOrigin = .idle
       interaction = .none
       phase = .idle
       publish()
       acknowledgement()
     case .error:
+      resetPreparedInstallChoice()
       sessionOrigin = .idle
       interaction = .none
       phase = .idle
@@ -885,6 +955,22 @@ final class UpdateRuntime: NSObject, @unchecked Sendable {
 
   private func installUpdate() {
     guard case .updateAvailable(let reply) = interaction else { return }
+    preparedInstallChoice = .relaunch
+    reply(.install)
+  }
+
+  private func installAfterNextRestart() {
+    guard case .updateAvailable(let reply) = interaction else { return }
+    preparedInstallChoice = .nextRestart
+    if updateAvailableStage == .installing {
+      resetPreparedInstallChoice()
+      sessionOrigin = .idle
+      interaction = .none
+      phase = .idle
+      publish()
+      reply(.dismiss)
+      return
+    }
     reply(.install)
   }
 
@@ -945,6 +1031,7 @@ final class UpdateRuntime: NSObject, @unchecked Sendable {
 
   private func skipVersion() {
     guard case .updateAvailable(let reply) = interaction else { return }
+    resetPreparedInstallChoice()
     sessionOrigin = .idle
     interaction = .none
     phase = .idle
@@ -966,6 +1053,7 @@ final class UpdateRuntime: NSObject, @unchecked Sendable {
       break
     }
 
+    resetPreparedInstallChoice()
     sessionOrigin = .idle
     interaction = .none
     phase = .idle
@@ -977,6 +1065,12 @@ final class UpdateRuntime: NSObject, @unchecked Sendable {
     for continuation in continuations.values {
       continuation.yield(snapshot)
     }
+  }
+
+  private func resetPreparedInstallChoice() {
+    preparedInstallChoice = .relaunch
+    hidesNextManualInstallPrompt = false
+    updateAvailableStage = nil
   }
 
   private func configureUpdater(updateChannel: UpdateChannel) {
@@ -1089,8 +1183,7 @@ private final class UpdateDriver: NSObject, SPUUserDriver, SPUUpdaterDelegate {
   ) {
     switch presentationMode {
     case .sidebar:
-      runtime?.showInstalling(
-        isAutoUpdate: false,
+      runtime?.showManualInstallingUpdate(
         restart: retryTerminatingApplication,
         fallback: nil
       )
@@ -1107,11 +1200,16 @@ private final class UpdateDriver: NSObject, SPUUserDriver, SPUUpdaterDelegate {
     case .standard:
       standard.showReady(toInstallAndRelaunch: reply)
     case .sidebar:
-      guard runtime?.hasUnobtrusiveTarget == true else {
+      guard let runtime else {
         standard.showReady(toInstallAndRelaunch: reply)
         return
       }
-      reply(.install)
+      runtime.showReadyToInstallAndRelaunch(
+        reply: reply,
+        fallback: {
+          self.standard.showReady(toInstallAndRelaunch: reply)
+        }
+      )
     }
   }
 
@@ -1133,6 +1231,7 @@ private final class UpdateDriver: NSObject, SPUUserDriver, SPUUpdaterDelegate {
           releaseDate: appcastItem.date,
           version: appcastItem.displayVersionString
         ),
+        stage: state.stage,
         reply: reply,
         fallback: nil
       )

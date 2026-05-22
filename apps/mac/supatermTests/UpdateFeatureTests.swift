@@ -63,11 +63,12 @@ struct UpdateFeatureTests {
     }
 
     await store.send(.perform(.install))
+    await store.send(.perform(.installAfterNextRestart))
     await store.send(.perform(.cancel))
     await store.send(.perform(.retry))
     await store.send(.perform(.dismiss))
 
-    #expect(await recorder.actions() == [.install, .cancel, .retry, .dismiss])
+    #expect(await recorder.actions() == [.install, .installAfterNextRestart, .cancel, .retry, .dismiss])
   }
 
   @Test

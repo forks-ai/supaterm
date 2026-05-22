@@ -249,16 +249,30 @@ struct TerminalSidebarUpdateSection: View {
   private var actionRow: some View {
     let actions = Array(phase.actionPresentations.enumerated())
     if !actions.isEmpty {
-      trailingActionRow {
-        ForEach(actions, id: \.offset) { indexedAction in
-          let action = indexedAction.element
-          actionButton(
-            action.title,
-            tone: action.isProminent ? .prominent : .normal
-          ) {
-            _ = store.send(.perform(action.action))
-          }
+      ViewThatFits(in: .horizontal) {
+        trailingActionRow {
+          actionButtons(actions)
         }
+
+        VStack(alignment: .trailing, spacing: 8) {
+          actionButtons(actions)
+        }
+        .frame(maxWidth: .infinity, alignment: .trailing)
+      }
+    }
+  }
+
+  @ViewBuilder
+  private func actionButtons(
+    _ actions: [(offset: Int, element: UpdateActionPresentation)]
+  ) -> some View {
+    ForEach(actions, id: \.offset) { indexedAction in
+      let action = indexedAction.element
+      actionButton(
+        action.title,
+        tone: action.isProminent ? .prominent : .normal
+      ) {
+        _ = store.send(.perform(action.action))
       }
     }
   }
