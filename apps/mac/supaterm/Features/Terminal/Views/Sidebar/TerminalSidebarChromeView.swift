@@ -800,7 +800,7 @@ private struct TerminalSidebarProgressIndicatorView: View {
     Group {
       switch progress.indicatorStyle {
       case .ring:
-        TerminalSidebarRingIndicatorView(
+        TerminalProgressRingIndicatorView(
           fraction: progress.fraction,
           color: color,
           trackColor: trackColor
@@ -833,77 +833,6 @@ private struct TerminalSidebarProgressIndicatorView: View {
     case .error:
       return .red
     }
-  }
-}
-
-private struct TerminalSidebarRingIndicatorView: View {
-  let fraction: Double?
-  let color: Color
-  let trackColor: Color
-
-  @Environment(\.accessibilityReduceMotion) private var reduceMotion
-  @State private var rotation = Angle.zero
-
-  var body: some View {
-    ZStack {
-      if let fraction {
-        Circle()
-          .stroke(trackColor, lineWidth: 2)
-
-        Circle()
-          .trim(from: 0, to: fraction)
-          .stroke(
-            color,
-            style: StrokeStyle(lineWidth: 2, lineCap: .round)
-          )
-          .rotationEffect(.degrees(-90))
-          .terminalAnimation(
-            .easeInOut(duration: 0.2),
-            value: fraction,
-            reduceMotion: reduceMotion
-          )
-      } else {
-        Circle()
-          .stroke(
-            AngularGradient(
-              gradient: Gradient(colors: [color, color.opacity(0.3)]),
-              center: .center,
-              startAngle: .degrees(0),
-              endAngle: .degrees(360)
-            ),
-            style: StrokeStyle(lineWidth: 2, lineCap: .round)
-          )
-          .rotationEffect(rotation)
-      }
-    }
-    .frame(width: 14, height: 14)
-    .frame(width: 16, height: 16)
-    .onAppear {
-      startRotation(reduceMotion: reduceMotion)
-    }
-    .onChange(of: fraction == nil) { _, _ in
-      restartRotation(reduceMotion: reduceMotion)
-    }
-    .onChange(of: reduceMotion) { _, reduceMotion in
-      restartRotation(reduceMotion: reduceMotion)
-    }
-    .accessibilityHidden(true)
-  }
-
-  private var rotationAnimation: Animation {
-    .linear(duration: 1.6).repeatForever(autoreverses: false)
-  }
-
-  private func startRotation(reduceMotion: Bool) {
-    guard fraction == nil, !reduceMotion else { return }
-    TerminalMotion.animate(rotationAnimation, reduceMotion: reduceMotion) {
-      rotation = .degrees(360)
-    }
-  }
-
-  private func restartRotation(reduceMotion: Bool) {
-    rotation = .zero
-    startRotation(reduceMotion: reduceMotion)
   }
 }
 
@@ -1240,11 +1169,7 @@ private struct TerminalSidebarAgentActivityView: View {
             .accessibilityHidden(true)
 
         case .running:
-          TerminalSidebarRingIndicatorView(
-            fraction: nil,
-            color: runningIndicatorColor,
-            trackColor: runningIndicatorTrackColor
-          )
+          TerminalAgentRunningSpinnerView(isSelected: isSelected, palette: palette)
 
         case .idle:
           EmptyView()
@@ -1300,20 +1225,6 @@ private struct TerminalSidebarAgentActivityView: View {
 
   private var verticalOffset: CGFloat {
     activity.phase == .needsInput && isAnimating ? -1 : 0
-  }
-
-  private var runningIndicatorColor: Color {
-    if isSelected {
-      return palette.selectedIcon.opacity(0.56)
-    }
-    return palette.secondaryText.opacity(0.72)
-  }
-
-  private var runningIndicatorTrackColor: Color {
-    if isSelected {
-      return palette.selectedIcon.opacity(0.18)
-    }
-    return palette.secondaryText.opacity(0.22)
   }
 
   private func color(for tone: TerminalHostState.AgentActivityTone) -> Color {

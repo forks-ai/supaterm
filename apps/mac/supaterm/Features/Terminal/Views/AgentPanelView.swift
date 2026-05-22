@@ -17,7 +17,6 @@ struct AgentPanelView: View {
   let palette: TerminalPalette
   let openURL: (URL) -> Void
 
-  @Environment(\.accessibilityReduceMotion) private var reduceMotion
   @State private var checksAreExpanded = false
 
   var body: some View {
@@ -100,10 +99,8 @@ struct AgentPanelView: View {
   private func progressRow(_ row: PaneAgentProgressRow) -> some View {
     HStack(spacing: 7) {
       AgentPanelProgressIcon(
-        symbol: progressSymbol(row.status),
-        color: progressColor(row.status),
-        isRunning: row.status == .running,
-        reduceMotion: reduceMotion
+        status: row.status,
+        palette: palette
       )
       Text(row.title)
         .font(.system(size: 12, weight: .medium))
@@ -295,28 +292,6 @@ struct AgentPanelView: View {
     .frame(maxWidth: .infinity, alignment: .leading)
   }
 
-  private func progressSymbol(_ status: PaneAgentProgressRow.Status) -> String {
-    switch status {
-    case .pending:
-      return "circle"
-    case .running:
-      return "circle.dotted"
-    case .completed:
-      return "checkmark.circle.fill"
-    }
-  }
-
-  private func progressColor(_ status: PaneAgentProgressRow.Status) -> Color {
-    switch status {
-    case .pending:
-      return palette.secondaryText
-    case .running:
-      return Color.accentColor
-    case .completed:
-      return palette.mint
-    }
-  }
-
   private func pullRequestIcon(_ status: PaneAgentPullRequestStatus) -> AgentPanelIcon {
     switch status.kind {
     case .unavailable:
@@ -375,33 +350,28 @@ private enum AgentPanelIcon {
 }
 
 private struct AgentPanelProgressIcon: View {
-  let symbol: String
-  let color: Color
-  let isRunning: Bool
-  let reduceMotion: Bool
+  let status: PaneAgentProgressRow.Status
+  let palette: TerminalPalette
 
   var body: some View {
-    if isRunning && !reduceMotion {
-      TimelineView(.animation) { context in
-        image
-          .rotationEffect(.degrees(rotationDegrees(at: context.date)))
+    Group {
+      switch status {
+      case .pending:
+        image("circle", color: palette.secondaryText)
+      case .running:
+        TerminalAgentRunningSpinnerView(isSelected: false, palette: palette)
+      case .completed:
+        image("checkmark.circle.fill", color: palette.mint)
       }
-    } else {
-      image
     }
+    .frame(width: 16)
   }
 
-  private var image: some View {
+  private func image(_ symbol: String, color: Color) -> some View {
     Image(systemName: symbol)
       .font(.system(size: 11, weight: .semibold))
       .foregroundStyle(color)
-      .frame(width: 14)
       .accessibilityHidden(true)
-  }
-
-  private func rotationDegrees(at date: Date) -> Double {
-    let interval = date.timeIntervalSinceReferenceDate.truncatingRemainder(dividingBy: 1.2)
-    return interval / 1.2 * 360
   }
 }
 
