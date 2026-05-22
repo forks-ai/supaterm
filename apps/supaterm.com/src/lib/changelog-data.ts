@@ -16,6 +16,14 @@ type ChangelogEntry = {
 
 const changelogData: ChangelogEntry[] = [
   {
+    version: "v1.3.1",
+    date: "2026-05-22",
+    title: "🛠️ Session & Update Polish",
+    description:
+      "A small bug-fix release for smoother persisted sessions, clearer update prompts, and more reliable coding-agent activity. Updates can now install right away or wait until the next restart without losing terminal sessions.",
+    sections: [],
+  },
+  {
     version: "v1.3.0",
     date: "2026-05-21",
     title: "🧭 Agent Panel & Persistence",
