@@ -154,7 +154,6 @@ struct SPCommandTests {
         environmentPath,
         explicitSocketPath: nil,
         alwaysDiscover: true,
-        discoveredEndpoints: [],
         probeEnvironmentPath: { _ in .stale }
       ) == nil
     )
@@ -163,7 +162,6 @@ struct SPCommandTests {
         environmentPath,
         explicitSocketPath: nil,
         alwaysDiscover: true,
-        discoveredEndpoints: [],
         probeEnvironmentPath: { _ in .ignored }
       ) == nil
     )
@@ -172,7 +170,6 @@ struct SPCommandTests {
         environmentPath,
         explicitSocketPath: nil,
         alwaysDiscover: true,
-        discoveredEndpoints: [],
         probeEnvironmentPath: { _ in .reachable(endpoint) }
       ) == environmentPath
     )
@@ -181,7 +178,6 @@ struct SPCommandTests {
         environmentPath,
         explicitSocketPath: nil,
         alwaysDiscover: false,
-        discoveredEndpoints: [endpoint],
         probeEnvironmentPath: { _ in .stale }
       ) == environmentPath
     )
@@ -190,16 +186,14 @@ struct SPCommandTests {
         environmentPath,
         explicitSocketPath: nil,
         alwaysDiscover: true,
-        discoveredEndpoints: [endpoint],
         probeEnvironmentPath: { _ in .reachable(endpoint) }
-      ) == nil
+      ) == environmentPath
     )
     #expect(
       SPSocketSelection.environmentPathForResolution(
         environmentPath,
         explicitSocketPath: "/tmp/explicit.sock",
         alwaysDiscover: true,
-        discoveredEndpoints: [endpoint],
         probeEnvironmentPath: { _ in .stale }
       ) == nil
     )

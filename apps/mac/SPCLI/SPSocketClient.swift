@@ -308,7 +308,6 @@ enum SPSocketSelection {
       environmentSocketPath,
       explicitSocketPath: explicitSocketPath,
       alwaysDiscover: alwaysDiscover,
-      discoveredEndpoints: discovery.reachableEndpoints,
       probeEnvironmentPath: probeEndpoint
     )
 
@@ -385,7 +384,6 @@ enum SPSocketSelection {
     _ environmentSocketPath: String?,
     explicitSocketPath: String?,
     alwaysDiscover: Bool,
-    discoveredEndpoints: [SupatermSocketEndpoint],
     probeEnvironmentPath: (String) -> SupatermManagedSocketCandidateStatus
   ) -> String? {
     guard let environmentSocketPath else {
@@ -396,9 +394,6 @@ enum SPSocketSelection {
     }
     guard alwaysDiscover else {
       return environmentSocketPath
-    }
-    guard discoveredEndpoints.isEmpty else {
-      return nil
     }
     guard case .reachable = probeEnvironmentPath(environmentSocketPath) else {
       return nil
