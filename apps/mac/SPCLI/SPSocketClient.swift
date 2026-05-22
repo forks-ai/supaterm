@@ -304,11 +304,18 @@ enum SPSocketSelection {
     } else {
       discovery = .init(reachableEndpoints: [], removedStalePaths: [])
     }
+    let resolutionEnvironmentPath = environmentPathForResolution(
+      environmentSocketPath,
+      explicitSocketPath: explicitSocketPath,
+      alwaysDiscover: alwaysDiscover,
+      discoveredEndpoints: discovery.reachableEndpoints,
+      probeEnvironmentPath: probeEndpoint
+    )
 
     do {
       let resolvedTarget = try SupatermSocketTargetResolver.resolve(
         explicitPath: explicitSocketPath,
-        environmentPath: environmentSocketPath,
+        environmentPath: resolutionEnvironmentPath,
         instance: instance,
         discoveredEndpoints: discovery.reachableEndpoints
       )
@@ -372,6 +379,31 @@ enum SPSocketSelection {
 
   private static func removeManagedSocketPath(_ path: String) {
     _ = path.withCString(unlink)
+  }
+
+  static func environmentPathForResolution(
+    _ environmentSocketPath: String?,
+    explicitSocketPath: String?,
+    alwaysDiscover: Bool,
+    discoveredEndpoints: [SupatermSocketEndpoint],
+    probeEnvironmentPath: (String) -> SupatermManagedSocketCandidateStatus
+  ) -> String? {
+    guard let environmentSocketPath else {
+      return nil
+    }
+    guard explicitSocketPath == nil else {
+      return nil
+    }
+    guard alwaysDiscover else {
+      return environmentSocketPath
+    }
+    guard discoveredEndpoints.isEmpty else {
+      return nil
+    }
+    guard case .reachable = probeEnvironmentPath(environmentSocketPath) else {
+      return nil
+    }
+    return environmentSocketPath
   }
 
   private static func formatResolutionError(

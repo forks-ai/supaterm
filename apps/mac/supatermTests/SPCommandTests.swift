@@ -139,6 +139,73 @@ struct SPCommandTests {
   }
 
   @Test
+  func socketSelectionCanBypassStaleEnvironmentPathDuringDiscovery() {
+    let environmentPath = "/tmp/stale.sock"
+    let endpoint = SupatermSocketEndpoint(
+      id: UUID(uuidString: "3F6B51E0-F214-456C-93F4-D87AEACCC292")!,
+      name: "default",
+      path: "/tmp/live.sock",
+      pid: 1,
+      startedAt: Date(timeIntervalSince1970: 1)
+    )
+
+    #expect(
+      SPSocketSelection.environmentPathForResolution(
+        environmentPath,
+        explicitSocketPath: nil,
+        alwaysDiscover: true,
+        discoveredEndpoints: [],
+        probeEnvironmentPath: { _ in .stale }
+      ) == nil
+    )
+    #expect(
+      SPSocketSelection.environmentPathForResolution(
+        environmentPath,
+        explicitSocketPath: nil,
+        alwaysDiscover: true,
+        discoveredEndpoints: [],
+        probeEnvironmentPath: { _ in .ignored }
+      ) == nil
+    )
+    #expect(
+      SPSocketSelection.environmentPathForResolution(
+        environmentPath,
+        explicitSocketPath: nil,
+        alwaysDiscover: true,
+        discoveredEndpoints: [],
+        probeEnvironmentPath: { _ in .reachable(endpoint) }
+      ) == environmentPath
+    )
+    #expect(
+      SPSocketSelection.environmentPathForResolution(
+        environmentPath,
+        explicitSocketPath: nil,
+        alwaysDiscover: false,
+        discoveredEndpoints: [endpoint],
+        probeEnvironmentPath: { _ in .stale }
+      ) == environmentPath
+    )
+    #expect(
+      SPSocketSelection.environmentPathForResolution(
+        environmentPath,
+        explicitSocketPath: nil,
+        alwaysDiscover: true,
+        discoveredEndpoints: [endpoint],
+        probeEnvironmentPath: { _ in .reachable(endpoint) }
+      ) == nil
+    )
+    #expect(
+      SPSocketSelection.environmentPathForResolution(
+        environmentPath,
+        explicitSocketPath: "/tmp/explicit.sock",
+        alwaysDiscover: true,
+        discoveredEndpoints: [endpoint],
+        probeEnvironmentPath: { _ in .stale }
+      ) == nil
+    )
+  }
+
+  @Test
   func onboardRendererShowsWelcomeShortcutsAndSetupCommands() {
     let rendered = SPOnboardingRenderer.render(
       SupatermOnboardingSnapshot(
