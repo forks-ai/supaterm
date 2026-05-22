@@ -25,7 +25,7 @@ extension TerminalCommandExecutor {
 
   func handleAgentHook(_ request: SupatermAgentHookRequest) throws -> TerminalAgentHookResult {
     pruneDeadAgentProcesses()
-    let didStartSession = registerAgentHookSession(request)
+    let didBeginSession = registerAgentHookSession(request)
     let routesToForegroundSession = routesAgentHookToForegroundSession(request)
 
     switch request.event.hookEventName {
@@ -42,7 +42,7 @@ extension TerminalCommandExecutor {
       return handleToolStateAgentHook(
         request,
         routesToForegroundSession: routesToForegroundSession,
-        didStartSession: didStartSession
+        didBeginSession: didBeginSession
       )
 
     case .userPromptSubmit:
@@ -153,13 +153,11 @@ extension TerminalCommandExecutor {
     guard let sessionID = prepareAgentTurn(request) else {
       return TerminalAgentHookResult(desktopNotification: nil)
     }
-    if request.agent == .codex || request.agent == .claude {
-      _ = agentSessionStore.beginAgentPanelTracking(
-        agent: request.agent,
-        sessionID: sessionID,
-        context: request.context
-      )
-    }
+    _ = agentSessionStore.beginAgentPanelTracking(
+      agent: request.agent,
+      sessionID: sessionID,
+      context: request.context
+    )
     if request.agent == .codex {
       _ = registerAgentPresence(
         agent: request.agent,
@@ -194,13 +192,11 @@ extension TerminalCommandExecutor {
         context: request.context,
         processID: request.processID
       )
-      if request.agent == .codex || request.agent == .claude {
-        _ = agentSessionStore.beginAgentPanelTracking(
-          agent: request.agent,
-          sessionID: sessionID,
-          context: request.context
-        )
-      }
+      _ = agentSessionStore.beginAgentPanelTracking(
+        agent: request.agent,
+        sessionID: sessionID,
+        context: request.context
+      )
     }
     return TerminalAgentHookResult(desktopNotification: nil)
   }
@@ -208,13 +204,13 @@ extension TerminalCommandExecutor {
   func handleToolStateAgentHook(
     _ request: SupatermAgentHookRequest,
     routesToForegroundSession: Bool,
-    didStartSession: Bool
+    didBeginSession: Bool
   ) -> TerminalAgentHookResult {
     guard routesToForegroundSession else {
       return TerminalAgentHookResult(desktopNotification: nil)
     }
     let result = handleRunningAgentHook(request)
-    if didStartSession, request.agent == .codex, let sessionID = request.event.sessionID {
+    if didBeginSession, let sessionID = request.event.sessionID {
       _ = agentSessionStore.beginAgentPanelTracking(
         agent: request.agent,
         sessionID: sessionID,
@@ -338,13 +334,13 @@ extension TerminalCommandExecutor {
     )
   }
 
-  @discardableResult
   func registerAgentHookSession(
     _ request: SupatermAgentHookRequest
   ) -> Bool {
     guard let sessionID = request.event.sessionID else { return false }
+    let sessionExists = agentSessionStore.hasSession(agent: request.agent, sessionID: sessionID)
     if request.event.hookEventName == .sessionStart
-      || shouldRecoverAgentHookSession(request, sessionID: sessionID)
+      || shouldRecoverCodexSessionBinding(request, sessionExists: sessionExists)
     {
       agentSessionStore.beginSession(
         agent: request.agent,
@@ -354,24 +350,23 @@ extension TerminalCommandExecutor {
       )
       return true
     }
-    if agentSessionStore.hasSession(agent: request.agent, sessionID: sessionID) {
-      agentSessionStore.updateSession(
-        agent: request.agent,
-        sessionID: sessionID,
-        context: request.context,
-        transcriptPath: request.event.transcriptPath
-      )
-    }
+    guard sessionExists else { return false }
+    agentSessionStore.updateSession(
+      agent: request.agent,
+      sessionID: sessionID,
+      context: request.context,
+      transcriptPath: request.event.transcriptPath
+    )
     return false
   }
 
-  func shouldRecoverAgentHookSession(
+  func shouldRecoverCodexSessionBinding(
     _ request: SupatermAgentHookRequest,
-    sessionID: String
+    sessionExists: Bool
   ) -> Bool {
     guard request.agent == .codex,
       request.context != nil,
-      !agentSessionStore.hasSession(agent: request.agent, sessionID: sessionID)
+      !sessionExists
     else {
       return false
     }
