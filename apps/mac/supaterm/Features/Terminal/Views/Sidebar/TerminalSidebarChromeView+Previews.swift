@@ -23,6 +23,7 @@ private struct TerminalSidebarTabPreviewItem: Identifiable {
   let title: String
   let icon: String?
   let isSelected: Bool
+  let notificationPreviewMarkdown: String?
   let paneWorkingDirectories: [String]
   let unreadCount: Int
   let agentActivity: TerminalHostState.AgentActivity?
@@ -47,6 +48,7 @@ private struct TerminalSidebarTabPreviewItem: Identifiable {
       stateLabel,
       isSelected ? "Selected" : nil,
       paneCountLabel,
+      notificationPreviewMarkdown == nil ? nil : "Message",
     ]
     .compactMap { $0 }
 
@@ -96,6 +98,7 @@ private struct TerminalSidebarTabPreviewItem: Identifiable {
     id: String,
     icon: String? = nil,
     isSelected: Bool = false,
+    notificationPreviewMarkdown: String? = nil,
     paneWorkingDirectories: [String] = [],
     unreadCount: Int = 0,
     agentActivity: TerminalHostState.AgentActivity? = nil,
@@ -109,6 +112,7 @@ private struct TerminalSidebarTabPreviewItem: Identifiable {
     self.title = title
     self.icon = icon
     self.isSelected = isSelected
+    self.notificationPreviewMarkdown = notificationPreviewMarkdown
     self.paneWorkingDirectories = paneWorkingDirectories
     self.unreadCount = unreadCount
     self.agentActivity = agentActivity
@@ -183,6 +187,7 @@ private enum TerminalSidebarTabPreviewFixtures {
       scenario: "Running agent inside a split coding tab",
       title: "Socket cleanup",
       id: "A379CB4E-2B01-4A6F-9388-A06B4E9C1A05",
+      notificationPreviewMarkdown: "Applying patch to socket notification routing while watching stale pane sockets",
       paneWorkingDirectories: cwdList(
         cwd("apps", "mac"),
         cwd("docs")
@@ -195,6 +200,7 @@ private enum TerminalSidebarTabPreviewFixtures {
       title: "Release note pass",
       id: "A379CB4E-2B01-4A6F-9388-A06B4E9C1A06",
       icon: "doc.text",
+      notificationPreviewMarkdown: "Need approval before publishing the release notes",
       paneWorkingDirectories: cwdList(
         cwd("apps", "supaterm.com"),
         cwd("docs")
@@ -207,6 +213,7 @@ private enum TerminalSidebarTabPreviewFixtures {
       title: "Docs audit",
       id: "A379CB4E-2B01-4A6F-9388-A06B4E9C1A07",
       icon: "doc.text.magnifyingglass",
+      notificationPreviewMarkdown: "Review complete: no further changes needed",
       paneWorkingDirectories: cwdList(cwd("docs")),
       agentActivity: TerminalHostState.AgentActivity(kind: .pi, phase: .idle)
     ),
@@ -237,6 +244,10 @@ private enum TerminalSidebarTabPreviewFixtures {
       title: "Deploy smoke test",
       id: "A379CB4E-2B01-4A6F-9388-A06B4E9C1A08",
       icon: "shippingbox",
+      notificationPreviewMarkdown: [
+        "Local preview server is ready with a deliberately long line",
+        "that truncates at the end",
+      ].joined(separator: " "),
       paneWorkingDirectories: cwdList(
         cwd("apps", "supaterm.com"),
         cwd("docs")
@@ -249,6 +260,7 @@ private enum TerminalSidebarTabPreviewFixtures {
       title: "Build failures",
       id: "A379CB4E-2B01-4A6F-9388-A06B4E9C1A09",
       icon: "hammer",
+      notificationPreviewMarkdown: "2 failures in TerminalSidebarChromeViewTests",
       paneWorkingDirectories: cwdList(
         cwd("apps", "mac"),
         cwd("apps", "mac", "supatermTests")
@@ -278,6 +290,7 @@ private struct TerminalSidebarTabPreviewRow: View {
       tab: item.tab,
       palette: palette,
       isSelected: item.isSelected,
+      notificationPreviewMarkdown: item.notificationPreviewMarkdown,
       paneWorkingDirectories: item.paneWorkingDirectories,
       unreadCount: item.unreadCount,
       badgeActivities: item.agentActivity.map { [$0] } ?? [],

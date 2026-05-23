@@ -5,6 +5,7 @@ import SupatermCLIShared
 import SupatermSupport
 import SupatermUpdateFeature
 import SwiftUI
+import Textual
 
 private let terminalSidebarScrollSpace = "TerminalSidebarScrollSpace"
 private let terminalSidebarScrollTopID = "TerminalSidebarScrollTop"
@@ -297,6 +298,7 @@ struct TerminalSidebarChromeView: View {
     let hasTerminalBell = terminal.tabHasBell(for: tab.id)
     let preview = TerminalSidebarDragPreviewItem(
       tab: tab,
+      notificationPreviewMarkdown: notificationPresentation?.previewMarkdown,
       paneWorkingDirectories: paneWorkingDirectories,
       unreadCount: unreadCount,
       badgeActivities: agentPresentation.badgeActivities,
@@ -462,6 +464,7 @@ struct TerminalSidebarTabSummaryView: View {
   let tab: TerminalTabItem
   let palette: TerminalPalette
   let isSelected: Bool
+  let notificationPreviewMarkdown: String?
   let paneWorkingDirectories: [String]
   let unreadCount: Int
   let badgeActivities: [TerminalHostState.AgentActivity]
@@ -542,6 +545,13 @@ struct TerminalSidebarTabSummaryView: View {
     return paneWorkingDirectories.joined(separator: "\n")
   }
 
+  static func visibleNotificationPreviewMarkdown(
+    _ markdown: String?
+  ) -> String? {
+    let markdown = markdown?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+    return markdown.isEmpty ? nil : markdown
+  }
+
   static func popoverMarkdown(
     notificationMarkdown: String?
   ) -> String? {
@@ -576,6 +586,19 @@ struct TerminalSidebarTabSummaryView: View {
           .lineLimit(1)
           .truncationMode(.tail)
           .frame(maxWidth: .infinity, alignment: .leading)
+
+        if let notificationPreviewMarkdown = Self.visibleNotificationPreviewMarkdown(
+          notificationPreviewMarkdown
+        ) {
+          InlineText(markdown: notificationPreviewMarkdown)
+            .font(.system(size: 11, weight: .medium))
+            .foregroundStyle(notificationTextColor)
+            .textual.inlineStyle(notificationInlineStyle)
+            .allowsHitTesting(false)
+            .lineLimit(1)
+            .truncationMode(.tail)
+            .multilineTextAlignment(.leading)
+        }
 
         ForEach(paneWorkingDirectories, id: \.self) { workingDirectory in
           Text(workingDirectory)
@@ -617,6 +640,21 @@ struct TerminalSidebarTabSummaryView: View {
       .fixedSize(horizontal: true, vertical: false)
     }
     .frame(maxWidth: .infinity, alignment: .leading)
+  }
+
+  private var notificationTextColor: Color {
+    isSelected
+      ? palette.selectedText.opacity(0.82)
+      : palette.secondaryText
+  }
+
+  private var notificationInlineStyle: InlineStyle {
+    InlineStyle()
+      .code(.monospaced, .fontScale(0.94), .foregroundColor(notificationTextColor))
+      .emphasis(.italic)
+      .strong(.fontWeight(.semibold))
+      .link(.foregroundColor(notificationTextColor))
+      .strikethrough(.strikethroughStyle(.single))
   }
 
   @ViewBuilder
@@ -876,6 +914,7 @@ struct TerminalSidebarTabRow: View {
     let badgeActivities: [TerminalHostState.AgentActivity]
     let badgeActivity: TerminalHostState.AgentActivity?
     let hasTerminalBell: Bool
+    let notificationPreviewMarkdown: String?
     let paneWorkingDirectories: [String]
     let showsAgentMarks: Bool
     let showsAgentSpinner: Bool
@@ -959,6 +998,7 @@ struct TerminalSidebarTabRow: View {
           tab: tab,
           palette: palette,
           isSelected: isSelected,
+          notificationPreviewMarkdown: notificationPresentation?.previewMarkdown,
           paneWorkingDirectories: paneWorkingDirectories,
           unreadCount: unreadCount,
           badgeActivities: agentPresentation.badgeActivities,
@@ -1117,6 +1157,7 @@ struct TerminalSidebarTabRow: View {
       badgeActivities: agentPresentation.badgeActivities,
       badgeActivity: agentPresentation.badgeActivity,
       hasTerminalBell: hasTerminalBell,
+      notificationPreviewMarkdown: notificationPresentation?.previewMarkdown,
       paneWorkingDirectories: paneWorkingDirectories,
       showsAgentMarks: showsAgentMarks,
       showsAgentSpinner: showsAgentSpinner,
