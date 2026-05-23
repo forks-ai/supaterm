@@ -545,13 +545,6 @@ struct TerminalSidebarTabSummaryView: View {
     return paneWorkingDirectories.joined(separator: "\n")
   }
 
-  static func visibleNotificationPreviewMarkdown(
-    _ markdown: String?
-  ) -> String? {
-    let markdown = markdown?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
-    return markdown.isEmpty ? nil : markdown
-  }
-
   static func popoverMarkdown(
     notificationMarkdown: String?
   ) -> String? {
@@ -587,9 +580,7 @@ struct TerminalSidebarTabSummaryView: View {
           .truncationMode(.tail)
           .frame(maxWidth: .infinity, alignment: .leading)
 
-        if let notificationPreviewMarkdown = Self.visibleNotificationPreviewMarkdown(
-          notificationPreviewMarkdown
-        ) {
+        if let notificationPreviewMarkdown {
           InlineText(markdown: notificationPreviewMarkdown)
             .font(.system(size: 11, weight: .medium))
             .foregroundStyle(notificationTextColor)

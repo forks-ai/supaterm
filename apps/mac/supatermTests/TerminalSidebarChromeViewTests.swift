@@ -378,24 +378,6 @@ struct TerminalSidebarChromeViewTests {
   }
 
   @Test
-  func notificationPreviewMarkdownReturnsTrimmedText() {
-    #expect(
-      TerminalSidebarTabSummaryView.visibleNotificationPreviewMarkdown(
-        "  Need approval before release  "
-      ) == "Need approval before release"
-    )
-  }
-
-  @Test
-  func notificationPreviewMarkdownIsNilForBlankText() {
-    #expect(
-      TerminalSidebarTabSummaryView.visibleNotificationPreviewMarkdown(
-        "   "
-      ) == nil
-    )
-  }
-
-  @Test
   func notificationMarkdownDrivesPopover() {
     #expect(
       TerminalSidebarTabSummaryView.popoverMarkdown(

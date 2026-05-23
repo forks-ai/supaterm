@@ -865,9 +865,10 @@ extension TerminalHostState {
     _ notification: PaneNotification?
   ) -> SidebarNotificationPresentation? {
     guard let markdown = notificationText(notification) else { return nil }
+    let previewMarkdown = sidebarNotificationPreviewMarkdown(markdown)
     return SidebarNotificationPresentation(
       markdown: markdown,
-      previewMarkdown: sidebarNotificationPreviewMarkdown(markdown)
+      previewMarkdown: previewMarkdown.isEmpty ? nil : previewMarkdown
     )
   }
 

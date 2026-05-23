@@ -190,6 +190,28 @@ struct TerminalHostStateNotificationTests {
         == TerminalHostState.SidebarNotificationPresentation(
           markdown: "[Ship notes](https://example.com)",
           previewMarkdown: "Ship notes"
+      )
+    )
+  }
+
+  @Test
+  func sidebarNotificationPresentationOmitsEmptyPreviewMarkdown() throws {
+    let notification = makeNotification(
+      attentionState: .unread,
+      body: "https://example.com",
+      createdAt: 1,
+      title: "Ignored"
+    )
+
+    let presentation = try #require(
+      TerminalHostState.sidebarNotificationPresentation(notification)
+    )
+
+    #expect(
+      presentation
+        == TerminalHostState.SidebarNotificationPresentation(
+          markdown: "https://example.com",
+          previewMarkdown: nil
         )
     )
   }
