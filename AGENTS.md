@@ -63,25 +63,31 @@ make web-build          # production build
 - Query recent logs:
 
 ```bash
-/usr/bin/log show --last 30m --style compact --predicate 'subsystem == "app.supabit.supaterm"'
+/usr/bin/log show --last 30m --debug --style compact --predicate 'subsystem == "app.supabit.supaterm"'
 ```
 
 - Query action logs:
 
 ```bash
-/usr/bin/log show --last 30m --style compact --predicate 'subsystem == "app.supabit.supaterm" && (category == "actions" || category == "terminal" || category == "settings" || category == "socket" || category == "update")'
+/usr/bin/log show --last 30m --debug --style compact --predicate 'subsystem == "app.supabit.supaterm" && (category == "actions" || category == "terminal" || category == "settings" || category == "socket" || category == "update")'
 ```
 
 - Query socket/update logs:
 
 ```bash
-/usr/bin/log show --last 30m --style compact --predicate 'subsystem == "app.supabit.supaterm" && (category == "socket" || category == "update")'
+/usr/bin/log show --last 30m --debug --style compact --predicate 'subsystem == "app.supabit.supaterm" && (category == "socket" || category == "update")'
 ```
 
-- Query zmx/session diagnostics:
+- Stream zmx/session diagnostics:
 
 ```bash
-/usr/bin/log show --last 30m --style compact --predicate 'subsystem == "app.supabit.supaterm" && (category == "terminal" || category == "zmx")'
+/usr/bin/log stream --style compact --level debug --predicate 'subsystem == "app.supabit.supaterm" && (category == "terminal" || category == "zmx")'
+```
+
+- Query persisted zmx/session diagnostics:
+
+```bash
+/usr/bin/log show --last 30m --debug --style compact --predicate 'subsystem == "app.supabit.supaterm" && (category == "terminal" || category == "zmx")'
 ```
 
 - Sentry breadcrumbs are allowlisted release diagnostics only; local OSLog is the source of truth for action tracing
