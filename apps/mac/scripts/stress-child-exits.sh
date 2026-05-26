@@ -5,22 +5,26 @@ iterations=200
 burst=1
 delay_ms=30
 lifetime_ms=0
-target="${SUPATERM_TAB_ID:-}"
+target=""
 direction="right"
 layout="keep"
+mode="split"
+send_command="exec true"
 
 usage() {
   cat <<'EOF'
 Usage: stress-child-exits.sh [options]
 
 Options:
-  --in <selector>       Tab or pane selector for split target.
+  --mode <mode>         Stress mode: split|send-exit. Default: split
+  --in <selector>       Target selector. split=tab/pane, send-exit=pane.
   --iterations <n>      Number of iterations. Default: 200
   --burst <n>           Splits per iteration. Default: 1
   --delay-ms <n>        Delay between iterations in ms. Default: 30
   --lifetime-ms <n>     Child process lifetime in ms before exit. Default: 0
   --direction <dir>     Split direction: right|left|down|up. Default: right
   --layout <layout>     Split layout: keep|equalize. Default: keep
+  --command <text>      Command sent in send-exit mode. Default: exec true
   -h, --help            Show this help.
 EOF
 }
@@ -29,6 +33,10 @@ while [[ $# -gt 0 ]]; do
   case "$1" in
     --in)
       target="${2:-}"
+      shift 2
+      ;;
+    --mode)
+      mode="${2:-}"
       shift 2
       ;;
     --iterations)
@@ -53,6 +61,10 @@ while [[ $# -gt 0 ]]; do
       ;;
     --layout)
       layout="${2:-}"
+      shift 2
+      ;;
+    --command)
+      send_command="${2:-}"
       shift 2
       ;;
     -h|--help)
@@ -87,8 +99,21 @@ if ! [[ "$lifetime_ms" =~ ^[0-9]+$ ]]; then
   exit 2
 fi
 
+if [[ "$mode" != "split" && "$mode" != "send-exit" ]]; then
+  echo "--mode must be split or send-exit" >&2
+  exit 2
+fi
+
 if [[ -z "$target" ]]; then
-  echo "Missing split target. Pass --in <selector> or run inside a Supaterm pane." >&2
+  if [[ "$mode" == "split" ]]; then
+    target="${SUPATERM_TAB_ID:-}"
+  else
+    target="${SUPATERM_SURFACE_ID:-}"
+  fi
+fi
+
+if [[ -z "$target" ]]; then
+  echo "Missing target. Pass --in <selector> or run inside a Supaterm pane." >&2
   exit 2
 fi
 
@@ -104,21 +129,31 @@ fi
 success=0
 failed=0
 
-echo "stress-child-exits: target=${target} iterations=${iterations} burst=${burst} delay_ms=${delay_ms} lifetime_ms=${lifetime_ms} direction=${direction} layout=${layout}"
+echo "stress-child-exits: mode=${mode} target=${target} iterations=${iterations} burst=${burst} delay_ms=${delay_ms} lifetime_ms=${lifetime_ms} direction=${direction} layout=${layout}"
 
 for ((i = 1; i <= iterations; i++)); do
   for ((j = 1; j <= burst; j++)); do
-    if sp pane split \
-      --in "$target" \
-      --no-focus \
-      --layout "$layout" \
-      "$direction" \
-      --script "$child_script" \
-      --quiet
+    if [[ "$mode" == "split" ]]
     then
-      success=$((success + 1))
+      if sp pane split \
+        --in "$target" \
+        --no-focus \
+        --layout "$layout" \
+        "$direction" \
+        --script "$child_script" \
+        --quiet
+      then
+        success=$((success + 1))
+      else
+        failed=$((failed + 1))
+      fi
     else
-      failed=$((failed + 1))
+      if sp pane send --newline --quiet "$target" "$send_command"
+      then
+        success=$((success + 1))
+      else
+        failed=$((failed + 1))
+      fi
     fi
   done
   echo "iteration=${i}/${iterations} success=${success} failed=${failed}"
