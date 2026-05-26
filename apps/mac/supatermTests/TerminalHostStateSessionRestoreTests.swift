@@ -164,7 +164,7 @@ struct TerminalHostStateSessionRestoreTests {
       isBundled: { true },
       wrapCommand: { _, _ in "wrapped" },
       killSession: killSession,
-      listSessions: { [] }
+      listSessions: { ZmxClient.SessionListResult(sessionIDs: [], querySucceeded: true) }
     )
   }
 }

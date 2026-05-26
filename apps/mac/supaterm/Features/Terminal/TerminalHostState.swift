@@ -1549,23 +1549,26 @@ final class TerminalHostState {
     )
     let zmxClient = zmxClient
     Task { @MainActor [weak self, zmxClient] in
-      let sessionExists = await zmxClient.listSessions().contains(sessionID)
+      let sessionListResult = await zmxClient.listSessions()
       guard let self else { return }
       self.finishCloseSurfaceAfterProcessExit(
         surfaceID,
-        sessionExists: sessionExists,
+        sessionListResult: sessionListResult,
         sessionID: sessionID,
-        source: source
+        source: source,
+        didRetry: false
       )
     }
   }
 
   func finishCloseSurfaceAfterProcessExit(
     _ surfaceID: UUID,
-    sessionExists: Bool,
+    sessionListResult: ZmxClient.SessionListResult,
     sessionID: String,
-    source: TerminalSurfaceCloseSource
+    source: TerminalSurfaceCloseSource,
+    didRetry: Bool
   ) {
+    let sessionExists = sessionListResult.sessionIDs.contains(sessionID)
     SupatermLog.notice(
       SupatermLog.terminal,
       "terminal.close.zmxProbe.finished",
@@ -1574,8 +1577,44 @@ final class TerminalHostState {
         "surfaceID=\(SupatermLog.uuid(surfaceID))",
         "sessionID=\(sessionID)",
         "sessionExists=\(sessionExists)",
+        "querySucceeded=\(sessionListResult.querySucceeded)",
+        "retry=\(didRetry)",
+        "sessionCount=\(sessionListResult.sessionIDs.count)",
       ]
     )
+    guard sessionListResult.querySucceeded else {
+      if !didRetry {
+        SupatermLog.notice(
+          SupatermLog.terminal,
+          "terminal.close.zmxProbe.retryScheduled",
+          fields: [
+            "source=\(source.rawValue)",
+            "surfaceID=\(SupatermLog.uuid(surfaceID))",
+            "sessionID=\(sessionID)",
+          ]
+        )
+        let zmxClient = zmxClient
+        Task { @MainActor [weak self, zmxClient] in
+          try? await Task.sleep(for: .milliseconds(150))
+          let retryResult = await zmxClient.listSessions()
+          guard let self else { return }
+          self.finishCloseSurfaceAfterProcessExit(
+            surfaceID,
+            sessionListResult: retryResult,
+            sessionID: sessionID,
+            source: source,
+            didRetry: true
+          )
+        }
+        return
+      }
+      requestCloseSurface(
+        surfaceID,
+        needsConfirmation: false,
+        source: source
+      )
+      return
+    }
     guard sessionExists, reattachZmxSurface(surfaceID, source: source) else {
       requestCloseSurface(
         surfaceID,

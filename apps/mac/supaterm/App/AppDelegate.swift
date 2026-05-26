@@ -337,7 +337,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
     let zmxClient = launchZmxClient
     Task.detached(priority: .utility) {
       SupatermLog.notice(SupatermLog.zmx, "zmx.reap.start")
-      let sessionIDs = await zmxClient.listSessions()
+      let sessionListResult = await zmxClient.listSessions()
+      guard sessionListResult.querySucceeded else {
+        SupatermLog.error(SupatermLog.zmx, "zmx.reap.skipped", fields: ["reason=listFailed"])
+        return
+      }
+      let sessionIDs = sessionListResult.sessionIDs
       let knownSessionIDs = await MainActor.run { [weak self] in
         guard let self else { return Set<String>() }
         return Self.knownZmxSessionIDsForLaunchReaping(

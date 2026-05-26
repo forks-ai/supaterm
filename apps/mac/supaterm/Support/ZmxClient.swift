@@ -63,18 +63,31 @@ nonisolated private func zmxLogRunFinished(_ argumentLabel: String, stdoutLineCo
 }
 
 public nonisolated struct ZmxClient: Sendable {
+  public struct SessionListResult: Sendable {
+    public let sessionIDs: [String]
+    public let querySucceeded: Bool
+
+    public nonisolated init(
+      sessionIDs: [String],
+      querySucceeded: Bool
+    ) {
+      self.sessionIDs = sessionIDs
+      self.querySucceeded = querySucceeded
+    }
+  }
+
   public var executableURL: @Sendable () -> URL?
   public var isBundled: @Sendable () -> Bool
   public var wrapCommand: @Sendable (_ surfaceID: UUID, _ userCommand: String?) -> String?
   public var killSession: @Sendable (_ surfaceID: UUID) async -> Void
-  public var listSessions: @Sendable () async -> [String]
+  public var listSessions: @Sendable () async -> SessionListResult
 
   public nonisolated init(
     executableURL: @escaping @Sendable () -> URL?,
     isBundled: @escaping @Sendable () -> Bool,
     wrapCommand: @escaping @Sendable (_ surfaceID: UUID, _ userCommand: String?) -> String?,
     killSession: @escaping @Sendable (_ surfaceID: UUID) async -> Void,
-    listSessions: @escaping @Sendable () async -> [String]
+    listSessions: @escaping @Sendable () async -> SessionListResult
   ) {
     self.executableURL = executableURL
     self.isBundled = isBundled
@@ -248,7 +261,10 @@ extension ZmxClient {
         _ = await runZmx(["kill", ZmxSessionID.make(surfaceID: surfaceID)])
       },
       listSessions: {
-        guard let stdout = await runZmx(["ls", "--short"], captureStdout: true) else { return [] }
+        guard let stdout = await runZmx(["ls", "--short"], captureStdout: true) else {
+          zmxLogError("zmx.list.failed")
+          return SessionListResult(sessionIDs: [], querySucceeded: false)
+        }
         let sessions =
           stdout
           .split(whereSeparator: \.isNewline)
@@ -258,7 +274,7 @@ extension ZmxClient {
           "zmx.list.parsed",
           fields: ["count=\(sessions.count)"]
         )
-        return sessions
+        return SessionListResult(sessionIDs: sessions, querySucceeded: true)
       }
     )
   }()
@@ -268,7 +284,7 @@ extension ZmxClient {
     isBundled: { false },
     wrapCommand: { _, _ in nil },
     killSession: { _ in },
-    listSessions: { [] }
+    listSessions: { SessionListResult(sessionIDs: [], querySucceeded: false) }
   )
 }
 

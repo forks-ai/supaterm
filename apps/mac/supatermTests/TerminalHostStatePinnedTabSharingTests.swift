@@ -387,7 +387,10 @@ struct TerminalHostStatePinnedTabSharingTests {
             killedSurfaceIDs.withValue { $0.append(surfaceID) }
           },
           listSessions: {
-            Array(sessionIDs.value)
+            ZmxClient.SessionListResult(
+              sessionIDs: Array(sessionIDs.value),
+              querySucceeded: true
+            )
           }
         )
       )

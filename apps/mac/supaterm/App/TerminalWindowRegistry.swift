@@ -570,7 +570,12 @@ final class TerminalWindowRegistry {
   }
 
   nonisolated private static func terminateAllZmxSessions(using zmxClient: ZmxClient) async {
-    let surfaceIDs = await zmxClient.listSessions().compactMap { ZmxSessionID.surfaceID(from: $0) }
+    let sessionListResult = await zmxClient.listSessions()
+    guard sessionListResult.querySucceeded else {
+      SupatermLog.error(SupatermLog.zmx, "zmx.terminateAll.skipped", fields: ["reason=listFailed"])
+      return
+    }
+    let surfaceIDs = sessionListResult.sessionIDs.compactMap { ZmxSessionID.surfaceID(from: $0) }
     SupatermLog.notice(
       SupatermLog.zmx,
       "zmx.terminateAll.plan",
