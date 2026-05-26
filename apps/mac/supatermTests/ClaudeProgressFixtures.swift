@@ -46,6 +46,141 @@ enum ClaudeProgressFixtures {
     )
   }
 
+  static func appendTaskCreate(
+    toolUseID: String,
+    subject: String,
+    description: String = "",
+    activeForm: String = "",
+    blockedBy: [String] = [],
+    metadata: [String: Any]? = nil,
+    taskID: String? = nil,
+    timestamp: String = "2026-05-26T15:47:17.000Z",
+    to transcriptURL: URL
+  ) throws {
+    var input: [String: Any] = [
+      "subject": subject,
+      "description": description,
+      "activeForm": activeForm,
+    ]
+    if !blockedBy.isEmpty {
+      input["blockedBy"] = blockedBy
+    }
+    if let metadata {
+      input["metadata"] = metadata
+    }
+    if let taskID {
+      input["id"] = taskID
+    }
+    try appendLine(
+      [
+        "type": "assistant",
+        "timestamp": timestamp,
+        "message": [
+          "content": [
+            [
+              "type": "tool_use",
+              "id": toolUseID,
+              "name": "TaskCreate",
+              "input": input,
+            ]
+          ]
+        ],
+      ],
+      to: transcriptURL
+    )
+  }
+
+  static func appendTaskCreateResult(
+    toolUseID: String,
+    taskID: String,
+    subject: String,
+    timestamp: String = "2026-05-26T15:47:17.100Z",
+    to transcriptURL: URL
+  ) throws {
+    try appendLine(
+      [
+        "type": "user",
+        "timestamp": timestamp,
+        "message": [
+          "content": [
+            [
+              "tool_use_id": toolUseID,
+              "type": "tool_result",
+              "content": "Task #\(taskID) created successfully: \(subject)",
+            ]
+          ]
+        ],
+        "toolUseResult": [
+          "task": [
+            "id": taskID,
+            "subject": subject,
+          ]
+        ],
+      ],
+      to: transcriptURL
+    )
+  }
+
+  static func appendTaskUpdate(
+    taskID: String,
+    status: String,
+    subject: String? = nil,
+    addBlockedBy: [String] = [],
+    metadata: [String: Any]? = nil,
+    timestamp: String = "2026-05-26T15:47:18.000Z",
+    to transcriptURL: URL
+  ) throws {
+    var input: [String: Any] = [
+      "taskId": taskID,
+      "status": status,
+    ]
+    if let subject {
+      input["subject"] = subject
+    }
+    if !addBlockedBy.isEmpty {
+      input["addBlockedBy"] = addBlockedBy
+    }
+    if let metadata {
+      input["metadata"] = metadata
+    }
+    try appendLine(
+      [
+        "type": "assistant",
+        "timestamp": timestamp,
+        "message": [
+          "content": [
+            [
+              "type": "tool_use",
+              "id": "toolu_update_\(taskID)",
+              "name": "TaskUpdate",
+              "input": input,
+            ]
+          ]
+        ],
+      ],
+      to: transcriptURL
+    )
+  }
+
+  static func appendTaskReminder(
+    _ tasks: [[String: Any]],
+    timestamp: String = "2026-05-26T15:50:27.000Z",
+    to transcriptURL: URL
+  ) throws {
+    try appendLine(
+      [
+        "type": "attachment",
+        "timestamp": timestamp,
+        "attachment": [
+          "type": "task_reminder",
+          "content": tasks,
+          "itemCount": tasks.count,
+        ],
+      ],
+      to: transcriptURL
+    )
+  }
+
   static func writeTask(
     id: String,
     subject: String,
@@ -60,7 +195,10 @@ enum ClaudeProgressFixtures {
       homeDirectoryURL
       .appendingPathComponent(".claude", isDirectory: true)
       .appendingPathComponent("tasks", isDirectory: true)
-      .appendingPathComponent(ClaudeTaskProgressReader.sanitizedTaskListID(sessionID), isDirectory: true)
+      .appendingPathComponent(
+        ClaudeTaskProgressReader.sanitizedTaskListID(sessionID),
+        isDirectory: true
+      )
     try FileManager.default.createDirectory(at: taskDirectoryURL, withIntermediateDirectories: true)
     var object: [String: Any] = [
       "id": id,

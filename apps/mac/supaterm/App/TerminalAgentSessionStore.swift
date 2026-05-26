@@ -178,7 +178,9 @@ final class TerminalAgentSessionStore {
     surfaceID: UUID
   ) {
     for record in records {
-      guard record.processIDs.contains(where: TerminalAgentPresenceStore.isProcessAlive) else { continue }
+      guard record.processIDs.contains(where: TerminalAgentPresenceStore.isProcessAlive) else {
+        continue
+      }
       let surfaceKey = SurfaceKey(agent: record.agent, surfaceID: surfaceID)
       for sessionID in record.sessionIDs {
         let key = SessionKey(agent: record.agent, sessionID: sessionID)
@@ -191,7 +193,8 @@ final class TerminalAgentSessionStore {
           foregroundSessionsBySurface[surfaceKey] = sessionID
           routing = .foreground
         }
-        var session = sessions[key] ?? Session(routing: routing, surfaceID: surfaceID, transcriptPath: nil)
+        var session =
+          sessions[key] ?? Session(routing: routing, surfaceID: surfaceID, transcriptPath: nil)
         session.routing = routing
         session.surfaceID = surfaceID
         sessions[key] = session
@@ -246,7 +249,8 @@ final class TerminalAgentSessionStore {
       while !Task.isCancelled {
         try? await sleep(interval)
         guard !Task.isCancelled else { return }
-        guard let (updatedCursor, batch) = CodexTranscriptMonitor.advance(cursor, at: transcriptPath)
+        guard
+          let (updatedCursor, batch) = CodexTranscriptMonitor.advance(cursor, at: transcriptPath)
         else {
           continue
         }
@@ -302,10 +306,10 @@ final class TerminalAgentSessionStore {
     let key = SessionKey(agent: .claude, sessionID: sessionID)
     guard let session = sessions[key] else { return false }
     let initialProgress =
-      session.transcriptPath.map { ClaudeTodoTranscriptMonitor.start(at: $0) }
+      session.transcriptPath.map { ClaudeTranscriptProgressMonitor.start(at: $0) }
       ?? (cursor: ClaudeProgressCursor(transcriptOffset: 0), rows: nil)
-    var todoRows = initialProgress.rows ?? []
-    var currentSnapshot = claudePanelSnapshot(sessionID: sessionID, todoRows: todoRows)
+    var transcriptRows = initialProgress.rows ?? []
+    var currentSnapshot = claudePanelSnapshot(sessionID: sessionID, transcriptRows: transcriptRows)
     agentPanelMonitorTasks[key]?.cancel()
     handleAgentPanelSnapshot(currentSnapshot, key: key, sessionID: sessionID, context: context)
     let interval = transcriptPollInterval
@@ -317,14 +321,17 @@ final class TerminalAgentSessionStore {
         guard !Task.isCancelled else { return }
         guard let self, self.sessions[key] != nil else { return }
         if let transcriptPath = self.sessions[key]?.transcriptPath,
-          let result = ClaudeTodoTranscriptMonitor.advance(cursor, at: transcriptPath)
+          let result = ClaudeTranscriptProgressMonitor.advance(cursor, at: transcriptPath)
         {
           cursor = result.cursor
           if let rows = result.rows {
-            todoRows = rows
+            transcriptRows = rows
           }
         }
-        let nextSnapshot = self.claudePanelSnapshot(sessionID: sessionID, todoRows: todoRows)
+        let nextSnapshot = self.claudePanelSnapshot(
+          sessionID: sessionID,
+          transcriptRows: transcriptRows
+        )
         guard nextSnapshot != currentSnapshot else {
           continue
         }
@@ -483,9 +490,9 @@ final class TerminalAgentSessionStore {
 
   private func claudePanelSnapshot(
     sessionID: String,
-    todoRows: [PaneAgentProgressRow]
+    transcriptRows: [PaneAgentProgressRow]
   ) -> AgentPanelSnapshot {
     let taskRows = claudeTaskProgressRows(sessionID: sessionID)
-    return AgentPanelSnapshot(progressRows: taskRows.isEmpty ? todoRows : taskRows)
+    return AgentPanelSnapshot(progressRows: taskRows.isEmpty ? transcriptRows : taskRows)
   }
 }

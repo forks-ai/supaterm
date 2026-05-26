@@ -292,6 +292,113 @@ struct TerminalAgentSessionStoreTests {
     )
   }
 
+  @Test
+  func beginClaudePanelTrackingUsesTranscriptTasksWhenTaskFilesAreEmpty() throws {
+    let homeDirectoryURL = try ClaudeProgressFixtures.makeHomeDirectory()
+    defer { try? FileManager.default.removeItem(at: homeDirectoryURL) }
+    let transcriptURL = try ClaudeProgressFixtures.makeTranscript()
+    defer { try? FileManager.default.removeItem(at: transcriptURL.deletingLastPathComponent()) }
+    let delegate = SessionStoreDelegateSpy()
+    let store = TerminalAgentSessionStore(
+      agentRunningTimeout: .seconds(5),
+      transcriptPollInterval: .seconds(1),
+      claudeTasksHomeDirectoryURL: homeDirectoryURL,
+      sleep: { _ in }
+    )
+    store.delegate = delegate
+    let context = SupatermCLIContext(surfaceID: UUID(), tabID: UUID())
+    try ClaudeProgressFixtures.appendTaskReminder(
+      [
+        [
+          "id": "1",
+          "subject": "Transcript task row",
+          "status": "in_progress",
+          "blockedBy": [],
+        ]
+      ],
+      to: transcriptURL
+    )
+    store.beginSession(
+      agent: .claude,
+      sessionID: "session-1",
+      context: context,
+      transcriptPath: transcriptURL.path
+    )
+
+    #expect(store.beginAgentPanelTracking(agent: .claude, sessionID: "session-1", context: context))
+    #expect(
+      delegate.panelSnapshots == [
+        AgentPanelSnapshot(
+          progressRows: [
+            PaneAgentProgressRow(
+              id: "claude-task:1",
+              title: "Transcript task row",
+              status: .running
+            )
+          ]
+        )
+      ]
+    )
+  }
+
+  @Test
+  func beginClaudePanelTrackingPollsTranscriptTaskChanges() async throws {
+    let clock = TestClock()
+    let homeDirectoryURL = try ClaudeProgressFixtures.makeHomeDirectory()
+    defer { try? FileManager.default.removeItem(at: homeDirectoryURL) }
+    let transcriptURL = try ClaudeProgressFixtures.makeTranscript()
+    defer { try? FileManager.default.removeItem(at: transcriptURL.deletingLastPathComponent()) }
+    let delegate = SessionStoreDelegateSpy()
+    let store = TerminalAgentSessionStore(
+      agentRunningTimeout: .seconds(5),
+      transcriptPollInterval: .seconds(1),
+      claudeTasksHomeDirectoryURL: homeDirectoryURL,
+      sleep: { duration in
+        try await clock.sleep(for: duration)
+      }
+    )
+    store.delegate = delegate
+    let context = SupatermCLIContext(surfaceID: UUID(), tabID: UUID())
+    store.beginSession(
+      agent: .claude,
+      sessionID: "session-1",
+      context: context,
+      transcriptPath: transcriptURL.path
+    )
+
+    #expect(store.beginAgentPanelTracking(agent: .claude, sessionID: "session-1", context: context))
+    #expect(delegate.panelSnapshots == [AgentPanelSnapshot()])
+
+    try ClaudeProgressFixtures.appendTaskCreate(
+      toolUseID: "toolu_create_1",
+      subject: "Polled transcript row",
+      to: transcriptURL
+    )
+    try ClaudeProgressFixtures.appendTaskCreateResult(
+      toolUseID: "toolu_create_1",
+      taskID: "1",
+      subject: "Polled transcript row",
+      to: transcriptURL
+    )
+
+    await flushEffects()
+    await clock.advance(by: .seconds(1))
+    await flushEffects()
+
+    #expect(
+      delegate.panelSnapshots.last
+        == AgentPanelSnapshot(
+          progressRows: [
+            PaneAgentProgressRow(
+              id: "claude-task:1",
+              title: "Polled transcript row",
+              status: .pending
+            )
+          ]
+        )
+    )
+  }
+
   private func flushEffects() async {
     for _ in 0..<5 {
       await Task.yield()

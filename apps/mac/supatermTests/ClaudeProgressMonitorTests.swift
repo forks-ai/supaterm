@@ -152,7 +152,7 @@ struct ClaudeProgressMonitorTests {
       to: transcriptURL
     )
 
-    let result = ClaudeTodoTranscriptMonitor.start(at: transcriptURL.path)
+    let result = ClaudeTranscriptProgressMonitor.start(at: transcriptURL.path)
 
     #expect(
       result.rows == [
@@ -176,17 +176,140 @@ struct ClaudeProgressMonitorTests {
   }
 
   @Test
+  func taskCreateAndUpdateTranscriptProducesProgressRows() throws {
+    let transcriptURL = try ClaudeProgressFixtures.makeTranscript()
+    defer { try? FileManager.default.removeItem(at: transcriptURL.deletingLastPathComponent()) }
+
+    try ClaudeProgressFixtures.appendTaskCreate(
+      toolUseID: "toolu_create_1",
+      subject: "Wire transcript tasks",
+      to: transcriptURL
+    )
+    try ClaudeProgressFixtures.appendTaskCreateResult(
+      toolUseID: "toolu_create_1",
+      taskID: "1",
+      subject: "Wire transcript tasks",
+      to: transcriptURL
+    )
+    try ClaudeProgressFixtures.appendTaskUpdate(
+      taskID: "1",
+      status: "in_progress",
+      to: transcriptURL
+    )
+
+    let result = ClaudeTranscriptProgressMonitor.start(at: transcriptURL.path)
+
+    #expect(
+      result.rows == [
+        PaneAgentProgressRow(
+          id: "claude-task:1",
+          title: "Wire transcript tasks",
+          status: .running
+        )
+      ]
+    )
+  }
+
+  @Test
+  func taskReminderTranscriptProducesProgressRows() throws {
+    let transcriptURL = try ClaudeProgressFixtures.makeTranscript()
+    defer { try? FileManager.default.removeItem(at: transcriptURL.deletingLastPathComponent()) }
+
+    try ClaudeProgressFixtures.appendTaskReminder(
+      [
+        [
+          "id": "1",
+          "subject": "Render reminder task",
+          "status": "in_progress",
+          "blockedBy": [],
+        ],
+        [
+          "id": "internal",
+          "subject": "Internal task",
+          "status": "pending",
+          "blockedBy": [],
+          "metadata": ["_internal": true],
+        ],
+      ],
+      to: transcriptURL
+    )
+
+    let result = ClaudeTranscriptProgressMonitor.start(at: transcriptURL.path)
+
+    #expect(
+      result.rows == [
+        PaneAgentProgressRow(
+          id: "claude-task:1",
+          title: "Render reminder task",
+          status: .running
+        )
+      ]
+    )
+  }
+
+  @Test
+  func emptyTaskReminderClearsTranscriptRows() throws {
+    let transcriptURL = try ClaudeProgressFixtures.makeTranscript()
+    defer { try? FileManager.default.removeItem(at: transcriptURL.deletingLastPathComponent()) }
+
+    try ClaudeProgressFixtures.appendTaskReminder(
+      [
+        [
+          "id": "1",
+          "subject": "Task to clear",
+          "status": "in_progress",
+          "blockedBy": [],
+        ]
+      ],
+      to: transcriptURL
+    )
+    try ClaudeProgressFixtures.appendTaskReminder(
+      [],
+      timestamp: "2026-05-26T15:50:28.000Z",
+      to: transcriptURL
+    )
+
+    let result = ClaudeTranscriptProgressMonitor.start(at: transcriptURL.path)
+
+    #expect(result.rows == [])
+  }
+
+  @Test
+  func taskUpdateDeletesTranscriptTask() throws {
+    let transcriptURL = try ClaudeProgressFixtures.makeTranscript()
+    defer { try? FileManager.default.removeItem(at: transcriptURL.deletingLastPathComponent()) }
+
+    try ClaudeProgressFixtures.appendTaskCreate(
+      toolUseID: "toolu_create_1",
+      subject: "Delete transcript task",
+      taskID: "1",
+      to: transcriptURL
+    )
+    try ClaudeProgressFixtures.appendTaskUpdate(
+      taskID: "1",
+      status: "deleted",
+      to: transcriptURL
+    )
+
+    let result = ClaudeTranscriptProgressMonitor.start(at: transcriptURL.path)
+
+    #expect(result.rows == [])
+  }
+
+  @Test
   func advanceConsumesOnlyCompleteTranscriptLines() throws {
     let transcriptURL = try ClaudeProgressFixtures.makeTranscript()
     defer { try? FileManager.default.removeItem(at: transcriptURL.deletingLastPathComponent()) }
 
-    let start = ClaudeTodoTranscriptMonitor.start(at: transcriptURL.path)
+    let start = ClaudeTranscriptProgressMonitor.start(at: transcriptURL.path)
     let handle = try FileHandle(forWritingTo: transcriptURL)
     defer { try? handle.close() }
     try handle.seekToEnd()
     try handle.write(contentsOf: Data(#"{"type":"assistant"}"#.utf8))
 
-    let result = try #require(ClaudeTodoTranscriptMonitor.advance(start.cursor, at: transcriptURL.path))
+    let result = try #require(
+      ClaudeTranscriptProgressMonitor.advance(start.cursor, at: transcriptURL.path)
+    )
 
     #expect(result.cursor.transcriptOffset == start.cursor.transcriptOffset)
     #expect(result.rows == nil)
@@ -202,7 +325,10 @@ struct ClaudeProgressMonitorTests {
       homeDirectoryURL
       .appendingPathComponent(".claude", isDirectory: true)
       .appendingPathComponent("tasks", isDirectory: true)
-      .appendingPathComponent(ClaudeTaskProgressReader.sanitizedTaskListID(sessionID), isDirectory: true)
+      .appendingPathComponent(
+        ClaudeTaskProgressReader.sanitizedTaskListID(sessionID),
+        isDirectory: true
+      )
       .appendingPathComponent("\(id).json")
     try FileManager.default.setAttributes([.modificationDate: date], ofItemAtPath: taskURL.path)
   }
