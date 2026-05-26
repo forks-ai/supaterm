@@ -50,13 +50,8 @@ extension DependencyValues {
 }
 
 extension Reducer where State: Equatable {
-  @ReducerBuilder<State, Action>
   func logActions() -> some Reducer<State, Action> {
-    #if DEBUG
-      self._printChanges(.actionLabels)
-    #else
-      AppActionLogReducer(base: self)
-    #endif
+    AppActionLogReducer(base: self)
   }
 }
 

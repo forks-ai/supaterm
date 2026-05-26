@@ -53,6 +53,7 @@ make web-build          # production build
 ## Logging
 
 - Supaterm app logs use subsystem `app.supabit.supaterm`
+- Debug and release action logs both use OSLog
 - Stream live logs:
 
 ```bash

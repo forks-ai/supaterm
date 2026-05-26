@@ -102,7 +102,7 @@ struct ActionLoggingTests {
   }
 
   @Test
-  func releaseActionReducerLogsAfterBaseReducer() {
+  func actionReducerLogsAfterBaseReducer() {
     enum TestAction {
       case increment
     }
