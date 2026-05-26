@@ -55,6 +55,7 @@ struct ActionLoggingTests {
     #expect(
       appLogEvent(for: UpdateFeature.Action.perform(.checkForUpdates)).category == .update
     )
+    #expect(AppLogCategory.zmx.rawValue == "zmx")
   }
 
   @Test

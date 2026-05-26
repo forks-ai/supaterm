@@ -830,6 +830,19 @@ final class TerminalHostState {
   }
 
   func updateWindowActivity(_ activity: WindowActivityState) {
+    let selectedTabID = selectedTabID
+    let focusedSurfaceID = selectedTabID.flatMap { focusedSurfaceIDByTab[$0] }
+    SupatermLog.debug(
+      SupatermLog.terminal,
+      "terminal.windowActivity.update",
+      fields: [
+        "isKeyWindow=\(activity.isKeyWindow)",
+        "isVisible=\(activity.isVisible)",
+        "selectedSpaceID=\(SupatermLog.uuid(selectedSpaceID?.rawValue))",
+        "selectedTabID=\(SupatermLog.uuid(selectedTabID?.rawValue))",
+        "focusedSurfaceID=\(SupatermLog.uuid(focusedSurfaceID))",
+      ]
+    )
     windowActivity = activity
     syncFocus(activity)
     clearUnreadOnFocusedSurfaceIfNeeded()
@@ -861,6 +874,16 @@ final class TerminalHostState {
     if let surfaceToFocus, surfaceToFocus.window?.firstResponder is GhosttySurfaceView {
       surfaceToFocus.window?.makeFirstResponder(surfaceToFocus)
     }
+    SupatermLog.debug(
+      SupatermLog.terminal,
+      "terminal.focus.sync",
+      fields: [
+        "isKeyWindow=\(activity.isKeyWindow)",
+        "isVisible=\(activity.isVisible)",
+        "selectedTabID=\(SupatermLog.uuid(selectedTabID?.rawValue))",
+        "focusedSurfaceID=\(SupatermLog.uuid(surfaceToFocus?.id))",
+      ]
+    )
   }
 
   func splitTree(
@@ -1134,6 +1157,18 @@ final class TerminalHostState {
       startupCommand: startupCommand,
       surfaceID: surfaceID
     )
+    SupatermLog.debug(
+      SupatermLog.terminal,
+      "terminal.surface.create",
+      fields: [
+        "surfaceID=\(surfaceID.uuidString.lowercased())",
+        "tabID=\(tabID.rawValue.uuidString.lowercased())",
+        "context=\(Self.surfaceContextLabel(context))",
+        "zmxSessionsEnabled=\(zmxSessionsEnabled)",
+        "hasStartupCommand=\(startupCommand?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false)",
+        "hasResolvedCommand=\(command != nil)",
+      ]
+    )
     let view = GhosttySurfaceView(
       id: surfaceID,
       runtime: runtime,
@@ -1156,8 +1191,54 @@ final class TerminalHostState {
     surfaceID: UUID
   ) -> String? {
     let command = startupCommand.map(SupatermShellCommand.ghosttyStartupCommand(for:))
-    guard zmxSessionsEnabled else { return command }
-    return zmxClient.wrapCommand(surfaceID, command) ?? command
+    let sessionID = ZmxSessionID.make(surfaceID: surfaceID)
+    guard zmxSessionsEnabled else {
+      SupatermLog.debug(
+        SupatermLog.zmx,
+        "zmx.attach.skipped",
+        fields: [
+          "surfaceID=\(surfaceID.uuidString.lowercased())",
+          "sessionID=\(sessionID)",
+          "reason=disabled",
+        ]
+      )
+      return command
+    }
+    guard let wrappedCommand = zmxClient.wrapCommand(surfaceID, command) else {
+      SupatermLog.error(
+        SupatermLog.zmx,
+        "zmx.attach.fallback",
+        fields: [
+          "surfaceID=\(surfaceID.uuidString.lowercased())",
+          "sessionID=\(sessionID)",
+          "hasStartupCommand=\(command != nil)",
+        ]
+      )
+      return command
+    }
+    SupatermLog.debug(
+      SupatermLog.zmx,
+      "zmx.attach.resolved",
+      fields: [
+        "surfaceID=\(surfaceID.uuidString.lowercased())",
+        "sessionID=\(sessionID)",
+        "hasStartupCommand=\(command != nil)",
+      ]
+    )
+    return wrappedCommand
+  }
+
+  static func surfaceContextLabel(_ context: ghostty_surface_context_e) -> String {
+    switch context {
+    case GHOSTTY_SURFACE_CONTEXT_WINDOW:
+      return "window"
+    case GHOSTTY_SURFACE_CONTEXT_TAB:
+      return "tab"
+    case GHOSTTY_SURFACE_CONTEXT_SPLIT:
+      return "split"
+    default:
+      return String(Int(context.rawValue))
+    }
   }
 
   func suspendPinnedTab(_ tabID: TerminalTabID) {
@@ -2226,7 +2307,23 @@ final class TerminalHostState {
 
   func killZmxSessions(for surfaceIDs: [UUID]) {
     let surfaceIDs = Array(Set(surfaceIDs))
-    guard zmxSessionsEnabled, !surfaceIDs.isEmpty, zmxClient.isBundled() else { return }
+    guard !surfaceIDs.isEmpty else {
+      SupatermLog.debug(SupatermLog.zmx, "zmx.kill.skipped", fields: ["reason=empty"])
+      return
+    }
+    guard zmxSessionsEnabled else {
+      SupatermLog.debug(SupatermLog.zmx, "zmx.kill.skipped", fields: ["reason=disabled"])
+      return
+    }
+    guard zmxClient.isBundled() else {
+      SupatermLog.debug(SupatermLog.zmx, "zmx.kill.skipped", fields: ["reason=unbundled"])
+      return
+    }
+    SupatermLog.debug(
+      SupatermLog.zmx,
+      "zmx.kill.enqueue",
+      fields: ["count=\(surfaceIDs.count)"]
+    )
     let zmxClient = zmxClient
     Task.detached(priority: .utility) {
       await withTaskGroup(of: Void.self) { group in
@@ -2241,7 +2338,23 @@ final class TerminalHostState {
 
   func killZmxSessionsAndWait(for surfaceIDs: [UUID]) async {
     let surfaceIDs = Array(Set(surfaceIDs))
-    guard zmxSessionsEnabled, !surfaceIDs.isEmpty, zmxClient.isBundled() else { return }
+    guard !surfaceIDs.isEmpty else {
+      SupatermLog.debug(SupatermLog.zmx, "zmx.killAndWait.skipped", fields: ["reason=empty"])
+      return
+    }
+    guard zmxSessionsEnabled else {
+      SupatermLog.debug(SupatermLog.zmx, "zmx.killAndWait.skipped", fields: ["reason=disabled"])
+      return
+    }
+    guard zmxClient.isBundled() else {
+      SupatermLog.debug(SupatermLog.zmx, "zmx.killAndWait.skipped", fields: ["reason=unbundled"])
+      return
+    }
+    SupatermLog.debug(
+      SupatermLog.zmx,
+      "zmx.killAndWait.start",
+      fields: ["count=\(surfaceIDs.count)"]
+    )
     let zmxClient = zmxClient
     await withTaskGroup(of: Void.self) { group in
       for surfaceID in surfaceIDs {
@@ -2250,6 +2363,11 @@ final class TerminalHostState {
         }
       }
     }
+    SupatermLog.debug(
+      SupatermLog.zmx,
+      "zmx.killAndWait.finished",
+      fields: ["count=\(surfaceIDs.count)"]
+    )
   }
 
   func terminateLiveTerminalSessions() {

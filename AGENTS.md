@@ -78,6 +78,12 @@ make web-build          # production build
 /usr/bin/log show --last 30m --style compact --predicate 'subsystem == "app.supabit.supaterm" && (category == "socket" || category == "update")'
 ```
 
+- Query zmx/session diagnostics:
+
+```bash
+/usr/bin/log show --last 30m --style compact --predicate 'subsystem == "app.supabit.supaterm" && (category == "terminal" || category == "zmx")'
+```
+
 - Sentry breadcrumbs are allowlisted release diagnostics only; local OSLog is the source of truth for action tracing
 
 ## Tools

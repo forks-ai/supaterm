@@ -9,6 +9,7 @@ nonisolated enum AppLogCategory: String, Equatable, Sendable {
   case socket
   case terminal
   case update
+  case zmx
 }
 
 nonisolated struct AppLogEvent: Equatable, Sendable {
@@ -104,6 +105,8 @@ nonisolated enum ActionLogPolicy {
       return containsAny(label, terminalBreadcrumbFragments)
     case .update:
       return containsAny(label, updateBreadcrumbFragments)
+    case .zmx:
+      return false
     }
   }
 

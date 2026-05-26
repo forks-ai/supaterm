@@ -3,6 +3,58 @@ import Darwin
 import Foundation
 import SupatermCLIShared
 
+nonisolated private func zmxLogDebug(
+  _ event: String,
+  fields: [String] = []
+) {
+  SupatermLog.debug(SupatermLog.zmx, event, fields: fields)
+}
+
+nonisolated private func zmxLogError(
+  _ event: String,
+  fields: [String] = []
+) {
+  SupatermLog.error(SupatermLog.zmx, event, fields: fields)
+}
+
+nonisolated private func zmxLogRunStart(_ argumentLabel: String, captureStdout: Bool) {
+  zmxLogDebug(
+    "zmx.run.start",
+    fields: [
+      "arguments=\(argumentLabel)",
+      "captureStdout=\(captureStdout)",
+    ]
+  )
+}
+
+nonisolated private func zmxLogRunLaunchFailed(_ argumentLabel: String, error: Error) {
+  zmxLogError(
+    "zmx.run.launchFailed",
+    fields: [
+      "arguments=\(argumentLabel)",
+      "error=\(String(describing: error))",
+    ]
+  )
+}
+
+nonisolated private func zmxLogRunFailure(_ argumentLabel: String, exitStatus: Int32) {
+  zmxLogError(
+    "zmx.run.failed",
+    fields: [
+      "arguments=\(argumentLabel)",
+      "exitStatus=\(exitStatus)",
+    ]
+  )
+}
+
+nonisolated private func zmxLogRunFinished(_ argumentLabel: String, stdoutLineCount: Int? = nil) {
+  var fields = ["arguments=\(argumentLabel)", "exitStatus=0"]
+  if let stdoutLineCount {
+    fields.append("stdoutLines=\(stdoutLineCount)")
+  }
+  zmxLogDebug("zmx.run.finished", fields: fields)
+}
+
 public nonisolated struct ZmxClient: Sendable {
   public var executableURL: @Sendable () -> URL?
   public var isBundled: @Sendable () -> Bool
@@ -33,18 +85,38 @@ extension ZmxClient {
     let cachedBundledURL = Bundle.main.url(forResource: "zmx", withExtension: nil, subdirectory: "zmx")
 
     @Sendable func resolveExecutable() -> URL? {
-      guard let url = cachedBundledURL else { return nil }
+      guard let url = cachedBundledURL else {
+        zmxLogError("zmx.executable.missing")
+        return nil
+      }
       let canUseZmx = probed.withValue { current -> Bool in
         if let current { return current }
-        let computed = ZmxSocketBudget.probe() == nil
+        let probeResult = ZmxSocketBudget.probe()
+        let computed = probeResult == nil
         current = computed
+        if let probeResult {
+          zmxLogError(
+            "zmx.executable.unavailable",
+            fields: ["reason=\(probeResult)"]
+          )
+        } else {
+          zmxLogDebug("zmx.executable.available")
+        }
         return computed
       }
       return canUseZmx ? url : nil
     }
 
     @Sendable func runZmx(_ arguments: [String], captureStdout: Bool = false) async -> String? {
-      guard let executable = cachedBundledURL else { return nil }
+      let argumentLabel = arguments.joined(separator: " ")
+      zmxLogRunStart(argumentLabel, captureStdout: captureStdout)
+      guard let executable = cachedBundledURL else {
+        zmxLogError(
+          "zmx.run.missingExecutable",
+          fields: ["arguments=\(argumentLabel)"]
+        )
+        return nil
+      }
       let process = Process()
       process.executableURL = executable
       process.arguments = arguments
@@ -74,6 +146,7 @@ extension ZmxClient {
       do {
         try process.run()
       } catch {
+        zmxLogRunLaunchFailed(argumentLabel, error: error)
         return nil
       }
 
@@ -107,36 +180,78 @@ extension ZmxClient {
           defer { group.cancelAll() }
           await group.next()
         }
+        zmxLogError(
+          "zmx.run.timeout",
+          fields: ["arguments=\(argumentLabel)"]
+        )
         return nil
       }
 
-      guard exitStatus == 0 else { return nil }
-      guard captureStdout, let stdoutPipe else { return nil }
+      guard exitStatus == 0 else {
+        zmxLogRunFailure(argumentLabel, exitStatus: exitStatus)
+        return nil
+      }
+      guard captureStdout, let stdoutPipe else {
+        zmxLogRunFinished(argumentLabel)
+        return nil
+      }
       let stdout = stdoutPipe.fileHandleForReading.readDataToEndOfFile()
-      return String(data: stdout, encoding: .utf8) ?? ""
+      let output = String(data: stdout, encoding: .utf8) ?? ""
+      zmxLogRunFinished(argumentLabel, stdoutLineCount: output.split(whereSeparator: \.isNewline).count)
+      return output
     }
 
     return ZmxClient(
       executableURL: resolveExecutable,
       isBundled: { cachedBundledURL != nil },
       wrapCommand: { surfaceID, userCommand in
-        guard let executable = resolveExecutable() else { return nil }
+        let sessionID = ZmxSessionID.make(surfaceID: surfaceID)
+        guard let executable = resolveExecutable() else {
+          zmxLogError(
+            "zmx.attach.unavailable",
+            fields: [
+              "surfaceID=\(surfaceID.uuidString.lowercased())",
+              "sessionID=\(sessionID)",
+            ]
+          )
+          return nil
+        }
+        zmxLogDebug(
+          "zmx.attach.wrap",
+          fields: [
+            "surfaceID=\(surfaceID.uuidString.lowercased())",
+            "sessionID=\(sessionID)",
+            "hasUserCommand=\(userCommand?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false)",
+          ]
+        )
         return ZmxAttach.buildCommand(
           executablePath: executable.path(percentEncoded: false),
-          sessionID: ZmxSessionID.make(surfaceID: surfaceID),
+          sessionID: sessionID,
           userCommand: userCommand
         )
       },
       killSession: { surfaceID in
+        zmxLogDebug(
+          "zmx.kill.requested",
+          fields: [
+            "surfaceID=\(surfaceID.uuidString.lowercased())",
+            "sessionID=\(ZmxSessionID.make(surfaceID: surfaceID))",
+          ]
+        )
         _ = await runZmx(["kill", ZmxSessionID.make(surfaceID: surfaceID)])
       },
       listSessions: {
         guard let stdout = await runZmx(["ls", "--short"], captureStdout: true) else { return [] }
-        return
+        let sessions =
           stdout
           .split(whereSeparator: \.isNewline)
           .map { $0.trimmingCharacters(in: .whitespaces) }
           .filter { ZmxSessionID.surfaceID(from: $0) != nil }
+        zmxLogDebug(
+          "zmx.list.parsed",
+          fields: ["count=\(sessions.count)"]
+        )
+        return sessions
       }
     )
   }()

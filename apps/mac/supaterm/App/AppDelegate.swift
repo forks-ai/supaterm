@@ -335,6 +335,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
   private func reapOrphanZmxSessions() {
     let zmxClient = launchZmxClient
     Task.detached(priority: .utility) {
+      SupatermLog.debug(SupatermLog.zmx, "zmx.reap.start")
       let sessionIDs = await zmxClient.listSessions()
       let knownSessionIDs = await MainActor.run { [weak self] in
         guard let self else { return Set<String>() }
@@ -345,10 +346,22 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
           liveSurfaceIDs: terminalWindowRegistry.liveSurfaceIDs()
         )
       }
-      let orphanSurfaceIDs =
+      let orphanSessionIDs =
         sessionIDs
         .filter { !knownSessionIDs.contains($0) }
+      let orphanSurfaceIDs =
+        orphanSessionIDs
         .compactMap { ZmxSessionID.surfaceID(from: $0) }
+      SupatermLog.debug(
+        SupatermLog.zmx,
+        "zmx.reap.plan",
+        fields: [
+          "sessions=\(sessionIDs.count)",
+          "known=\(knownSessionIDs.count)",
+          "orphans=\(orphanSessionIDs.count)",
+          "orphanSessionIDs=\(orphanSessionIDs.joined(separator: ","))",
+        ]
+      )
       await withTaskGroup(of: Void.self) { group in
         for surfaceID in orphanSurfaceIDs {
           group.addTask {
@@ -356,6 +369,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
           }
         }
       }
+      SupatermLog.debug(
+        SupatermLog.zmx,
+        "zmx.reap.finished",
+        fields: ["killed=\(orphanSurfaceIDs.count)"]
+      )
     }
   }
 
