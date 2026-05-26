@@ -45,14 +45,9 @@ struct SettingsFeatureGeneralTests {
         $0.crashReportsEnabled = false
       }
 
-      await store.send(.verboseLoggingEnabledChanged(true)) {
-        $0.verboseLoggingEnabled = true
-      }
-
       @Shared(.supatermSettings) var supatermSettings = .default
       #expect(!supatermSettings.analyticsEnabled)
       #expect(!supatermSettings.crashReportsEnabled)
-      #expect(supatermSettings.verboseLoggingEnabled)
     }
   }
 

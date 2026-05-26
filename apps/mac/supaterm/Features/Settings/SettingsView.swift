@@ -55,6 +55,8 @@ private struct SettingsTabContentView: View {
 
   var body: some View {
     switch tab {
+    case .advanced:
+      SettingsAdvancedView(store: store)
     case .codingAgents:
       SettingsCodingAgentsView(store: store)
     case .general:

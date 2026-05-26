@@ -21,7 +21,7 @@ struct SettingsFeatureTests {
   func tabOrderEndsWithAbout() {
     #expect(
       SettingsFeature.Tab.allCases
-        == [.general, .terminal, .notifications, .codingAgents, .about]
+        == [.general, .terminal, .notifications, .codingAgents, .advanced, .about]
     )
   }
 
@@ -174,6 +174,10 @@ struct SettingsFeatureTests {
 
     await store.send(.tabSelected(.codingAgents)) {
       $0.selectedTab = .codingAgents
+    }
+
+    await store.send(.tabSelected(.advanced)) {
+      $0.selectedTab = .advanced
     }
 
     await store.send(.tabSelected(.notifications)) {

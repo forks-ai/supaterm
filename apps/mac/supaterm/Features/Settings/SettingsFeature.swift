@@ -159,6 +159,7 @@ public struct SettingsFeature {
     case terminal
     case notifications
     case codingAgents
+    case advanced
     case about
 
     public var id: String {
@@ -169,6 +170,8 @@ public struct SettingsFeature {
       switch self {
       case .codingAgents:
         "hammer"
+      case .advanced:
+        "slider.horizontal.3"
       case .general:
         "gearshape"
       case .terminal:
@@ -184,6 +187,8 @@ public struct SettingsFeature {
       switch self {
       case .codingAgents:
         "Coding Agents"
+      case .advanced:
+        "Advanced"
       case .general:
         "General"
       case .terminal:
@@ -259,9 +264,11 @@ public struct SettingsFeature {
         .glowingPaneRingEnabledChanged,
         .newTabPositionSelected,
         .restoreTerminalLayoutEnabledChanged,
-        .verboseLoggingEnabledChanged,
         .zmxSessionsEnabledChanged:
         return reduceGeneral(&state, action: action)
+
+      case .verboseLoggingEnabledChanged:
+        return reduceAdvanced(&state, action: action)
 
       case .systemNotificationsEnabledChanged,
         .systemNotificationsAuthorizationChecked,

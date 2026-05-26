@@ -41,15 +41,6 @@ struct SettingsGeneralView: View {
     )
   }
 
-  private var verboseLoggingEnabled: Binding<Bool> {
-    Binding(
-      get: { store.verboseLoggingEnabled },
-      set: { newValue in
-        _ = store.send(.verboseLoggingEnabledChanged(newValue))
-      }
-    )
-  }
-
   private var newTabPosition: Binding<NewTabPosition> {
     Binding(
       get: { store.newTabPosition },
@@ -112,12 +103,6 @@ struct SettingsGeneralView: View {
           subtitle:
             "Use zmx for terminal session persistence across Supaterm restarts.",
           isOn: persistSessionsUsingZmx
-        )
-
-        SettingsToggleRow(
-          title: "Enable Verbose Logging",
-          subtitle: "Emit debug-level diagnostics to local OSLog.",
-          isOn: verboseLoggingEnabled
         )
       }
     }
