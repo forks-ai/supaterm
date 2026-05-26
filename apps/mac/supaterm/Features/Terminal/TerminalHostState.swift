@@ -815,7 +815,7 @@ final class TerminalHostState {
         needsConfirmationOverride: needsConfirmation
       )
     else {
-      SupatermLog.notice(
+      SupatermLog.debug(
         SupatermLog.terminal,
         "terminal.close.request.dropped",
         fields: [
@@ -1234,7 +1234,7 @@ final class TerminalHostState {
       startupCommand: startupCommand,
       surfaceID: surfaceID
     )
-    SupatermLog.notice(
+    SupatermLog.debug(
       SupatermLog.terminal,
       "terminal.surface.create",
       fields: [
@@ -1293,7 +1293,7 @@ final class TerminalHostState {
       )
       return command
     }
-    SupatermLog.notice(
+    SupatermLog.debug(
       SupatermLog.zmx,
       "zmx.attach.resolved",
       fields: [
@@ -1327,7 +1327,7 @@ final class TerminalHostState {
       return
     }
     let surfaceIDs = trees[tabID]?.leaves().map(\.id) ?? []
-    SupatermLog.notice(
+    SupatermLog.debug(
       SupatermLog.terminal,
       "terminal.pinned.suspend",
       fields: [
@@ -1537,23 +1537,14 @@ final class TerminalHostState {
       return
     }
 
-    let sessionID = ZmxSessionID.make(surfaceID: surfaceID)
-    SupatermLog.notice(
-      SupatermLog.terminal,
-      "terminal.close.zmxProbe.start",
-      fields: [
-        "source=\(source.rawValue)",
-        "surfaceID=\(SupatermLog.uuid(surfaceID))",
-        "sessionID=\(sessionID)",
-      ]
-    )
     let zmxClient = zmxClient
+    let sessionID = ZmxSessionID.make(surfaceID: surfaceID)
     Task { @MainActor [weak self, zmxClient] in
-      let sessionListResult = await zmxClient.listSessions()
+      let sessionIDs = await zmxClient.listSessions()
       guard let self else { return }
       self.finishCloseSurfaceAfterProcessExit(
         surfaceID,
-        sessionListResult: sessionListResult,
+        sessionIDs: sessionIDs,
         sessionID: sessionID,
         source: source,
         didRetry: false
@@ -1563,59 +1554,36 @@ final class TerminalHostState {
 
   func finishCloseSurfaceAfterProcessExit(
     _ surfaceID: UUID,
-    sessionListResult: ZmxClient.SessionListResult,
+    sessionIDs: [String]?,
     sessionID: String,
     source: TerminalSurfaceCloseSource,
     didRetry: Bool
   ) {
-    let sessionExists = sessionListResult.sessionIDs.contains(sessionID)
-    SupatermLog.notice(
-      SupatermLog.terminal,
-      "terminal.close.zmxProbe.finished",
-      fields: [
-        "source=\(source.rawValue)",
-        "surfaceID=\(SupatermLog.uuid(surfaceID))",
-        "sessionID=\(sessionID)",
-        "sessionExists=\(sessionExists)",
-        "querySucceeded=\(sessionListResult.querySucceeded)",
-        "retry=\(didRetry)",
-        "sessionCount=\(sessionListResult.sessionIDs.count)",
-      ]
-    )
-    guard sessionListResult.querySucceeded else {
-      if !didRetry {
-        SupatermLog.notice(
-          SupatermLog.terminal,
-          "terminal.close.zmxProbe.retryScheduled",
-          fields: [
-            "source=\(source.rawValue)",
-            "surfaceID=\(SupatermLog.uuid(surfaceID))",
-            "sessionID=\(sessionID)",
-          ]
+    guard let sessionIDs else {
+      guard !didRetry else {
+        requestCloseSurface(
+          surfaceID,
+          needsConfirmation: false,
+          source: source
         )
-        let zmxClient = zmxClient
-        Task { @MainActor [weak self, zmxClient] in
-          try? await Task.sleep(for: .milliseconds(150))
-          let retryResult = await zmxClient.listSessions()
-          guard let self else { return }
-          self.finishCloseSurfaceAfterProcessExit(
-            surfaceID,
-            sessionListResult: retryResult,
-            sessionID: sessionID,
-            source: source,
-            didRetry: true
-          )
-        }
         return
       }
-      requestCloseSurface(
-        surfaceID,
-        needsConfirmation: false,
-        source: source
-      )
+      let zmxClient = zmxClient
+      Task { @MainActor [weak self, zmxClient] in
+        try? await Task.sleep(for: .milliseconds(150))
+        let retrySessionIDs = await zmxClient.listSessions()
+        guard let self else { return }
+        self.finishCloseSurfaceAfterProcessExit(
+          surfaceID,
+          sessionIDs: retrySessionIDs,
+          sessionID: sessionID,
+          source: source,
+          didRetry: true
+        )
+      }
       return
     }
-    guard sessionExists, reattachZmxSurface(surfaceID, source: source) else {
+    guard sessionIDs.contains(sessionID), reattachZmxSurface(surfaceID, source: source) else {
       requestCloseSurface(
         surfaceID,
         needsConfirmation: false,
@@ -1631,7 +1599,7 @@ final class TerminalHostState {
     source: TerminalSurfaceCloseSource
   ) -> Bool {
     guard let tabID = tabID(containing: surfaceID), var tree = trees[tabID] else {
-      SupatermLog.notice(
+      SupatermLog.debug(
         SupatermLog.terminal,
         "terminal.close.zmxReattach.dropped",
         fields: [
@@ -1643,7 +1611,7 @@ final class TerminalHostState {
       return false
     }
     guard let node = tree.find(id: surfaceID), let previousSurface = surfaces[surfaceID] else {
-      SupatermLog.notice(
+      SupatermLog.debug(
         SupatermLog.terminal,
         "terminal.close.zmxReattach.dropped",
         fields: [
@@ -1700,7 +1668,7 @@ final class TerminalHostState {
       focusSurface(replacementSurface, in: tabID)
     }
     syncFocus(windowActivity)
-    SupatermLog.notice(
+    SupatermLog.debug(
       SupatermLog.terminal,
       "terminal.close.zmxReattach.finished",
       fields: [
@@ -2169,7 +2137,7 @@ final class TerminalHostState {
   ) {
     guard let tree = trees.removeValue(forKey: tabID) else { return }
     let surfaceIDs = tree.leaves().map(\.id)
-    SupatermLog.notice(
+    SupatermLog.debug(
       SupatermLog.terminal,
       "terminal.tree.remove",
       fields: [
@@ -2386,7 +2354,7 @@ final class TerminalHostState {
       fields.append("tabID=\(SupatermLog.uuid(tabID.rawValue))")
     }
     fields.append("reason=\(reason)")
-    SupatermLog.notice(
+    SupatermLog.debug(
       SupatermLog.terminal,
       "terminal.close.perform.dropped",
       fields: fields
@@ -2394,7 +2362,7 @@ final class TerminalHostState {
   }
 
   func logClosePerform(_ context: TerminalClosePerformLogContext) {
-    SupatermLog.notice(
+    SupatermLog.debug(
       SupatermLog.terminal,
       "terminal.close.perform",
       fields: [
@@ -2416,7 +2384,7 @@ final class TerminalHostState {
     tabID: TerminalTabID,
     source: TerminalSurfaceCloseSource
   ) {
-    SupatermLog.notice(
+    SupatermLog.debug(
       SupatermLog.terminal,
       "terminal.close.killSurface",
       fields: [
@@ -2444,7 +2412,7 @@ final class TerminalHostState {
       resolvedTarget = "window"
       resolvedNeedsConfirmation = needsConfirmation
     }
-    SupatermLog.notice(
+    SupatermLog.debug(
       SupatermLog.terminal,
       "terminal.close.request",
       fields: [
@@ -2730,7 +2698,7 @@ final class TerminalHostState {
       SupatermLog.debug(SupatermLog.zmx, "zmx.kill.skipped", fields: ["reason=unbundled"])
       return
     }
-    SupatermLog.notice(
+    SupatermLog.debug(
       SupatermLog.zmx,
       "zmx.kill.enqueue",
       fields: [
@@ -2764,7 +2732,7 @@ final class TerminalHostState {
       SupatermLog.debug(SupatermLog.zmx, "zmx.killAndWait.skipped", fields: ["reason=unbundled"])
       return
     }
-    SupatermLog.notice(
+    SupatermLog.debug(
       SupatermLog.zmx,
       "zmx.killAndWait.start",
       fields: [
@@ -2780,7 +2748,7 @@ final class TerminalHostState {
         }
       }
     }
-    SupatermLog.notice(
+    SupatermLog.debug(
       SupatermLog.zmx,
       "zmx.killAndWait.finished",
       fields: [

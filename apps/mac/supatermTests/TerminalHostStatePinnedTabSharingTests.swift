@@ -387,10 +387,7 @@ struct TerminalHostStatePinnedTabSharingTests {
             killedSurfaceIDs.withValue { $0.append(surfaceID) }
           },
           listSessions: {
-            ZmxClient.SessionListResult(
-              sessionIDs: Array(sessionIDs.value),
-              querySucceeded: true
-            )
+            Array(sessionIDs.value)
           }
         )
       )
@@ -429,6 +426,69 @@ struct TerminalHostStatePinnedTabSharingTests {
       #expect(currentSurfaces.map(\.id) == initialSurfaceIDs)
       #expect(currentSurfaces[0] !== exitedSurface)
       #expect(killedSurfaceIDs.value.isEmpty)
+    }
+  }
+
+  @Test
+  func zmxBackedChildExitRetriesTransientSessionListFailureBeforeClosingPane() async throws {
+    try await withDependencies {
+      $0.defaultFileStorage = .inMemory
+      initializeGhosttyForTests()
+    } operation: {
+      let sessionIDs = LockIsolated<Set<String>>([])
+      let listCallCount = LockIsolated(0)
+      let killedSurfaceIDs = LockIsolated<[UUID]>([])
+      let host = TerminalHostState(
+        zmxClient: ZmxClient(
+          executableURL: { URL(fileURLWithPath: "/tmp/zmx") },
+          isBundled: { true },
+          wrapCommand: { _, _ in nil },
+          killSession: { surfaceID in
+            killedSurfaceIDs.withValue { $0.append(surfaceID) }
+          },
+          listSessions: {
+            listCallCount.withValue {
+              $0 += 1
+              guard $0 > 1 else { return nil }
+              return Array(sessionIDs.value)
+            }
+          }
+        )
+      )
+      host.handleCommand(.ensureInitialTab(focusing: false, startupCommand: nil))
+      let pinnedTabID = try #require(host.selectedTabID)
+      host.handleCommand(.togglePinned(pinnedTabID))
+      await flushPinnedTabCatalogObservation()
+
+      _ = try host.createPane(
+        TerminalCreatePaneRequest(
+          startupCommand: nil,
+          direction: .right,
+          focus: false,
+          equalize: false,
+          target: .tab(windowIndex: 1, spaceIndex: 1, tabIndex: 1)
+        )
+      )
+      let initialSurfaces = try #require(host.trees[pinnedTabID]?.leaves())
+      let initialSurfaceIDs = initialSurfaces.map(\.id)
+      let exitedSurface = initialSurfaces[0]
+      sessionIDs.withValue {
+        $0.insert(ZmxSessionID.make(surfaceID: exitedSurface.id))
+      }
+
+      let target = ghostty_target_s(tag: GHOSTTY_TARGET_SURFACE, target: ghostty_target_u())
+      var action = ghostty_action_s(tag: GHOSTTY_ACTION_SHOW_CHILD_EXITED, action: ghostty_action_u())
+      action.action.child_exited.exit_code = 0
+      action.action.child_exited.timetime_ms = 28
+
+      #expect(exitedSurface.bridge.handleAction(target: target, action: action))
+      try await Task.sleep(for: .milliseconds(250))
+
+      let currentSurfaces = try #require(host.trees[pinnedTabID]?.leaves())
+      #expect(currentSurfaces.map(\.id) == initialSurfaceIDs)
+      #expect(currentSurfaces[0] !== exitedSurface)
+      #expect(killedSurfaceIDs.value.isEmpty)
+      #expect(listCallCount.value == 2)
     }
   }
 

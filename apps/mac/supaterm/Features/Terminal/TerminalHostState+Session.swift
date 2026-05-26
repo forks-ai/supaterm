@@ -295,7 +295,7 @@ extension TerminalHostState {
     tabID: TerminalTabID,
     in spaceID: TerminalSpaceID
   ) {
-    SupatermLog.notice(
+    SupatermLog.debug(
       SupatermLog.terminal,
       "terminal.session.restoreTab",
       fields: [

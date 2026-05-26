@@ -291,7 +291,7 @@ extension TerminalHostState {
       return
     }
 
-    SupatermLog.notice(
+    SupatermLog.debug(
       SupatermLog.terminal,
       "terminal.pinned.restore",
       fields: [

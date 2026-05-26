@@ -10,13 +10,6 @@ nonisolated private func zmxLogDebug(
   SupatermLog.debug(SupatermLog.zmx, event, fields: fields)
 }
 
-nonisolated private func zmxLogNotice(
-  _ event: String,
-  fields: [String] = []
-) {
-  SupatermLog.notice(SupatermLog.zmx, event, fields: fields)
-}
-
 nonisolated private func zmxLogError(
   _ event: String,
   fields: [String] = []
@@ -63,31 +56,18 @@ nonisolated private func zmxLogRunFinished(_ argumentLabel: String, stdoutLineCo
 }
 
 public nonisolated struct ZmxClient: Sendable {
-  public struct SessionListResult: Sendable {
-    public let sessionIDs: [String]
-    public let querySucceeded: Bool
-
-    public nonisolated init(
-      sessionIDs: [String],
-      querySucceeded: Bool
-    ) {
-      self.sessionIDs = sessionIDs
-      self.querySucceeded = querySucceeded
-    }
-  }
-
   public var executableURL: @Sendable () -> URL?
   public var isBundled: @Sendable () -> Bool
   public var wrapCommand: @Sendable (_ surfaceID: UUID, _ userCommand: String?) -> String?
   public var killSession: @Sendable (_ surfaceID: UUID) async -> Void
-  public var listSessions: @Sendable () async -> SessionListResult
+  public var listSessions: @Sendable () async -> [String]?
 
   public nonisolated init(
     executableURL: @escaping @Sendable () -> URL?,
     isBundled: @escaping @Sendable () -> Bool,
     wrapCommand: @escaping @Sendable (_ surfaceID: UUID, _ userCommand: String?) -> String?,
     killSession: @escaping @Sendable (_ surfaceID: UUID) async -> Void,
-    listSessions: @escaping @Sendable () async -> SessionListResult
+    listSessions: @escaping @Sendable () async -> [String]?
   ) {
     self.executableURL = executableURL
     self.isBundled = isBundled
@@ -251,7 +231,7 @@ extension ZmxClient {
         )
       },
       killSession: { surfaceID in
-        zmxLogNotice(
+        zmxLogDebug(
           "zmx.kill.requested",
           fields: [
             "surfaceID=\(surfaceID.uuidString.lowercased())",
@@ -263,7 +243,7 @@ extension ZmxClient {
       listSessions: {
         guard let stdout = await runZmx(["ls", "--short"], captureStdout: true) else {
           zmxLogError("zmx.list.failed")
-          return SessionListResult(sessionIDs: [], querySucceeded: false)
+          return nil
         }
         let sessions =
           stdout
@@ -274,7 +254,7 @@ extension ZmxClient {
           "zmx.list.parsed",
           fields: ["count=\(sessions.count)"]
         )
-        return SessionListResult(sessionIDs: sessions, querySucceeded: true)
+        return sessions
       }
     )
   }()
@@ -284,7 +264,7 @@ extension ZmxClient {
     isBundled: { false },
     wrapCommand: { _, _ in nil },
     killSession: { _ in },
-    listSessions: { SessionListResult(sessionIDs: [], querySucceeded: false) }
+    listSessions: { nil }
   )
 }
 

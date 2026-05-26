@@ -336,13 +336,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
   private func reapOrphanZmxSessions() {
     let zmxClient = launchZmxClient
     Task.detached(priority: .utility) {
-      SupatermLog.notice(SupatermLog.zmx, "zmx.reap.start")
-      let sessionListResult = await zmxClient.listSessions()
-      guard sessionListResult.querySucceeded else {
+      SupatermLog.debug(SupatermLog.zmx, "zmx.reap.start")
+      guard let sessionIDs = await zmxClient.listSessions() else {
         SupatermLog.error(SupatermLog.zmx, "zmx.reap.skipped", fields: ["reason=listFailed"])
         return
       }
-      let sessionIDs = sessionListResult.sessionIDs
       let knownSessionIDs = await MainActor.run { [weak self] in
         guard let self else { return Set<String>() }
         return Self.knownZmxSessionIDsForLaunchReaping(
@@ -358,7 +356,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
       let orphanSurfaceIDs =
         orphanSessionIDs
         .compactMap { ZmxSessionID.surfaceID(from: $0) }
-      SupatermLog.notice(
+      SupatermLog.debug(
         SupatermLog.zmx,
         "zmx.reap.plan",
         fields: [
@@ -375,7 +373,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
           }
         }
       }
-      SupatermLog.notice(
+      SupatermLog.debug(
         SupatermLog.zmx,
         "zmx.reap.finished",
         fields: ["killed=\(orphanSurfaceIDs.count)"]
