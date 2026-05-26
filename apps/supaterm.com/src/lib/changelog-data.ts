@@ -16,6 +16,12 @@ type ChangelogEntry = {
 
 const changelogData: ChangelogEntry[] = [
   {
+    version: "v1.3.2",
+    date: "2026-05-26",
+    title: "🛠️ Some zmx hotfixes",
+    sections: [],
+  },
+  {
     version: "v1.3.1",
     date: "2026-05-22",
     title: "🛠️ Session & Update Polish",
