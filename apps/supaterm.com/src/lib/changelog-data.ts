@@ -16,6 +16,14 @@ type ChangelogEntry = {
 
 const changelogData: ChangelogEntry[] = [
   {
+    version: "v1.3.3",
+    date: "2026-05-26",
+    title: "🛠️ More zmx hotfixes",
+    description:
+      "Real fix this time, sorry. Persisted zmx panes now stay attached when wrapped processes exit.",
+    sections: [],
+  },
+  {
     version: "v1.3.2",
     date: "2026-05-26",
     title: "🛠️ Some zmx hotfixes",
