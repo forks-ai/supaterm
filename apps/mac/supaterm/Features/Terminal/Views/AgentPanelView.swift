@@ -125,10 +125,10 @@ struct AgentPanelView: View {
       AgentPanelActionButton(
         icon: .asset("git-fork"),
         palette: palette,
-        helpText: forkHelpText,
+        helpText: Self.forkHelpText(forksDown: forksDown),
         accessibilityLabel: "Fork session",
         action: {
-          forkSession(forkDirection, session.forkStartupCommand)
+          forkSession(Self.forkDirection(forksDown: forksDown), session.forkStartupCommand)
         }
       )
       AgentPanelActionButton(
@@ -143,14 +143,6 @@ struct AgentPanelView: View {
     }
     .padding(.top, 2)
     .frame(maxWidth: .infinity, alignment: .trailing)
-  }
-
-  private var forkDirection: SupatermPaneDirection {
-    Self.forkDirection(forksDown: forksDown)
-  }
-
-  private var forkHelpText: String {
-    Self.forkHelpText(forksDown: forksDown)
   }
 
   static func forkDirection(forksDown: Bool) -> SupatermPaneDirection {
@@ -420,7 +412,6 @@ private struct AgentPanelActionButton: View {
           palette.detailStroke.opacity(isHovering ? 0.6 : 0),
           in: .rect(cornerRadius: 5)
         )
-        .accessibilityHidden(true)
     }
     .buttonStyle(.plain)
     .help(helpText)

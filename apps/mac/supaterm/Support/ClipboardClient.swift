@@ -2,9 +2,9 @@ import AppKit
 import ComposableArchitecture
 
 public struct ClipboardClient: Sendable {
-  public var copyString: @MainActor @Sendable (String) -> Bool
+  public var copyString: @MainActor @Sendable (String) -> Void
 
-  public init(copyString: @escaping @MainActor @Sendable (String) -> Bool) {
+  public init(copyString: @escaping @MainActor @Sendable (String) -> Void) {
     self.copyString = copyString
   }
 }
@@ -14,12 +14,12 @@ extension ClipboardClient: DependencyKey {
     copyString: { value in
       let pasteboard = NSPasteboard.general
       pasteboard.clearContents()
-      return pasteboard.setString(value, forType: .string)
+      pasteboard.setString(value, forType: .string)
     }
   )
 
   public static let testValue = Self(
-    copyString: { _ in false }
+    copyString: { _ in }
   )
 }
 

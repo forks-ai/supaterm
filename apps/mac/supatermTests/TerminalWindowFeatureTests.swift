@@ -1034,7 +1034,6 @@ struct TerminalWindowFeatureTests {
     } withDependencies: {
       $0.clipboardClient.copyString = { sessionID in
         copiedSessionIDs.append(sessionID)
-        return true
       }
     }
 
@@ -1079,10 +1078,9 @@ struct TerminalWindowFeatureTests {
       )
     )
 
-    #expect(requests.count == 1)
     #expect(
-      requests.first
-        == TerminalCreatePaneRequest(
+      requests == [
+        TerminalCreatePaneRequest(
           startupCommand: "pi --fork session-1",
           cwd: nil,
           direction: .down,
@@ -1090,6 +1088,7 @@ struct TerminalWindowFeatureTests {
           equalize: false,
           target: .contextPane(surfaceID)
         )
+      ]
     )
   }
 

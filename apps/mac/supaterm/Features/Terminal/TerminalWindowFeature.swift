@@ -333,9 +333,7 @@ struct TerminalWindowFeature {
 
       case .agentPanelCopySessionID(let sessionID):
         return .run { [clipboardClient] _ in
-          _ = await MainActor.run {
-            clipboardClient.copyString(sessionID)
-          }
+          await clipboardClient.copyString(sessionID)
         }
 
       case .agentPanelForkSessionRequested(let surfaceID, let direction, let startupCommand):

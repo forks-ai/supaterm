@@ -167,11 +167,9 @@ struct TerminalAgentPresenceStore {
   func panelSession(for surfaceID: UUID) -> PaneAgentPanelSession? {
     let sessions = records.reduce(into: [PaneAgentPanelSession]()) { result, entry in
       guard entry.key.surfaceID == surfaceID else { return }
-      result.append(
-        contentsOf: entry.value.sessionIDs.sorted().map {
-          PaneAgentPanelSession(agent: entry.key.agent, sessionID: $0)
-        }
-      )
+      for sessionID in entry.value.sessionIDs {
+        result.append(PaneAgentPanelSession(agent: entry.key.agent, sessionID: sessionID))
+      }
     }
     guard sessions.count == 1 else { return nil }
     return sessions[0]
