@@ -258,6 +258,7 @@ private struct TerminalSurfacePaneView: View {
       hiddenAgentPanelSurfaceIDs: store.hiddenAgentPanelSurfaceIDs,
       notificationColor: notificationColor,
       palette: palette,
+      agentPanelForksDown: agentPanelForksDown,
       agentPanelShortcutHint: agentPanelShortcutHint,
       showsGlowingPaneRing: showsGlowingPaneRing,
       splitDividerColor: splitDividerColor,
@@ -265,6 +266,15 @@ private struct TerminalSurfacePaneView: View {
       unreadSurfaceIDs: terminal.unreadNotifiedSurfaceIDs(in: tabID)
     ) { operation in
       switch operation {
+      case .agentPanelCopySessionID(let sessionID):
+        _ = store.send(.agentPanelCopySessionID(sessionID))
+      case .agentPanelForkSessionRequested(let surfaceID, let direction, let startupCommand):
+        _ = store.send(
+          .agentPanelForkSessionRequested(
+            surfaceID: surfaceID,
+            direction: direction,
+            startupCommand: startupCommand
+          ))
       case .agentPanelVisibilityToggled(let surfaceID):
         _ = store.send(.agentPanelVisibilityToggled(surfaceID))
       case .agentPanelURLTapped(let url):
@@ -282,5 +292,9 @@ private struct TerminalSurfacePaneView: View {
 
   private var agentPanelShortcutHint: String? {
     commandHoldObserver.isPressed ? AgentPanelShortcut.toggleVisibility.display : nil
+  }
+
+  private var agentPanelForksDown: Bool {
+    commandHoldObserver.isOptionPressed
   }
 }

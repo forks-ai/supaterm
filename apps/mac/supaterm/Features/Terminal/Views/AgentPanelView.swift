@@ -1,3 +1,4 @@
+import SupatermCLIShared
 import SwiftUI
 
 enum AgentPanelMetrics {
@@ -15,6 +16,9 @@ enum AgentPanelShortcut {
 struct AgentPanelView: View {
   let presentation: PaneAgentPanelPresentation
   let palette: TerminalPalette
+  let forksDown: Bool
+  let copySessionID: (String) -> Void
+  let forkSession: (SupatermPaneDirection, String) -> Void
   let openURL: (URL) -> Void
 
   @State private var checksAreExpanded = false
@@ -78,6 +82,10 @@ struct AgentPanelView: View {
           }
         }
       }
+
+      if let session = presentation.session {
+        actionBar(session)
+      }
     }
     .frame(maxWidth: .infinity, alignment: .leading)
   }
@@ -109,6 +117,50 @@ struct AgentPanelView: View {
         .fixedSize(horizontal: false, vertical: true)
     }
     .frame(maxWidth: .infinity, alignment: .leading)
+  }
+
+  private func actionBar(_ session: PaneAgentPanelSession) -> some View {
+    HStack(spacing: 6) {
+      Spacer(minLength: 0)
+      AgentPanelActionButton(
+        icon: .asset("git-fork"),
+        palette: palette,
+        helpText: forkHelpText,
+        accessibilityLabel: "Fork session",
+        action: {
+          forkSession(forkDirection, session.forkStartupCommand)
+        }
+      )
+      AgentPanelActionButton(
+        icon: .asset("copy"),
+        palette: palette,
+        helpText: "Copy session ID",
+        accessibilityLabel: "Copy session ID",
+        action: {
+          copySessionID(session.sessionID)
+        }
+      )
+    }
+    .padding(.top, 2)
+    .frame(maxWidth: .infinity, alignment: .trailing)
+  }
+
+  private var forkDirection: SupatermPaneDirection {
+    Self.forkDirection(forksDown: forksDown)
+  }
+
+  private var forkHelpText: String {
+    Self.forkHelpText(forksDown: forksDown)
+  }
+
+  static func forkDirection(forksDown: Bool) -> SupatermPaneDirection {
+    forksDown ? .down : .right
+  }
+
+  static func forkHelpText(forksDown: Bool) -> String {
+    forksDown
+      ? "Fork session below. Release Option to fork right."
+      : "Fork session right. Hold Option to fork below."
   }
 
   private func valueRow(
@@ -347,6 +399,51 @@ struct AgentPanelView: View {
 private enum AgentPanelIcon {
   case asset(String)
   case system(String)
+}
+
+private struct AgentPanelActionButton: View {
+  let icon: AgentPanelIcon
+  let palette: TerminalPalette
+  let helpText: String
+  let accessibilityLabel: String
+  let action: () -> Void
+
+  @State private var isHovering = false
+
+  var body: some View {
+    Button(action: action) {
+      iconView
+        .foregroundStyle(isHovering ? palette.primaryText : palette.secondaryText)
+        .frame(width: 22, height: 22)
+        .contentShape(.rect)
+        .background(
+          palette.detailStroke.opacity(isHovering ? 0.6 : 0),
+          in: .rect(cornerRadius: 5)
+        )
+        .accessibilityHidden(true)
+    }
+    .buttonStyle(.plain)
+    .help(helpText)
+    .accessibilityLabel(accessibilityLabel)
+    .onHover { isHovering = $0 }
+  }
+
+  @ViewBuilder
+  private var iconView: some View {
+    switch icon {
+    case .asset(let name):
+      Image(name)
+        .renderingMode(.template)
+        .resizable()
+        .aspectRatio(contentMode: .fit)
+        .frame(width: 13, height: 13)
+        .accessibilityHidden(true)
+    case .system(let name):
+      Image(systemName: name)
+        .font(.system(size: 12, weight: .medium))
+        .accessibilityHidden(true)
+    }
+  }
 }
 
 private struct AgentPanelProgressIcon: View {

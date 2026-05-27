@@ -1,4 +1,5 @@
 import AppKit
+import SupatermCLIShared
 import SwiftUI
 import UniformTypeIdentifiers
 
@@ -45,6 +46,7 @@ struct TerminalSplitTreeView: View {
   let hiddenAgentPanelSurfaceIDs: Set<UUID>
   let notificationColor: Color
   let palette: TerminalPalette
+  let agentPanelForksDown: Bool
   let agentPanelShortcutHint: String?
   let showsGlowingPaneRing: Bool
   let splitDividerColor: Color
@@ -174,6 +176,7 @@ struct TerminalSplitTreeView: View {
         hiddenAgentPanelSurfaceIDs: hiddenAgentPanelSurfaceIDs,
         notificationColor: notificationColor,
         palette: palette,
+        agentPanelForksDown: agentPanelForksDown,
         agentPanelShortcutHint: agentPanelShortcutHint,
         showsGlowingPaneRing: showsGlowingPaneRing,
         splitDividerColor: splitDividerColor,
@@ -190,6 +193,12 @@ struct TerminalSplitTreeView: View {
     case resize(node: SplitTree<GhosttySurfaceView>.Node, ratio: Double)
     case drop(payloadId: UUID, destinationId: UUID, zone: DropZone)
     case equalize
+    case agentPanelCopySessionID(String)
+    case agentPanelForkSessionRequested(
+      surfaceID: UUID,
+      direction: SupatermPaneDirection,
+      startupCommand: String
+    )
     case agentPanelVisibilityToggled(UUID)
     case agentPanelURLTapped(URL)
   }
@@ -209,6 +218,7 @@ struct TerminalSplitTreeView: View {
     let hiddenAgentPanelSurfaceIDs: Set<UUID>
     let notificationColor: Color
     let palette: TerminalPalette
+    let agentPanelForksDown: Bool
     let agentPanelShortcutHint: String?
     let showsGlowingPaneRing: Bool
     let splitDividerColor: Color
@@ -228,6 +238,7 @@ struct TerminalSplitTreeView: View {
           isAgentPanelCollapsed: hiddenAgentPanelSurfaceIDs.contains(leafView.id),
           notificationColor: notificationColor,
           palette: palette,
+          agentPanelForksDown: agentPanelForksDown,
           agentPanelShortcutHint: agentPanelShortcutHint,
           showsGlowingPaneRing: showsGlowingPaneRing,
           surfaceView: leafView,
@@ -263,6 +274,7 @@ struct TerminalSplitTreeView: View {
               hiddenAgentPanelSurfaceIDs: hiddenAgentPanelSurfaceIDs,
               notificationColor: notificationColor,
               palette: palette,
+              agentPanelForksDown: agentPanelForksDown,
               agentPanelShortcutHint: agentPanelShortcutHint,
               showsGlowingPaneRing: showsGlowingPaneRing,
               splitDividerColor: splitDividerColor,
@@ -281,6 +293,7 @@ struct TerminalSplitTreeView: View {
               hiddenAgentPanelSurfaceIDs: hiddenAgentPanelSurfaceIDs,
               notificationColor: notificationColor,
               palette: palette,
+              agentPanelForksDown: agentPanelForksDown,
               agentPanelShortcutHint: agentPanelShortcutHint,
               showsGlowingPaneRing: showsGlowingPaneRing,
               splitDividerColor: splitDividerColor,
@@ -305,6 +318,7 @@ struct TerminalSplitTreeView: View {
     let isAgentPanelCollapsed: Bool
     let notificationColor: Color
     let palette: TerminalPalette
+    let agentPanelForksDown: Bool
     let agentPanelShortcutHint: String?
     let showsGlowingPaneRing: Bool
     let surfaceView: GhosttySurfaceView
@@ -427,8 +441,21 @@ struct TerminalSplitTreeView: View {
           isCollapsed: overlayState == .collapsedIcon,
           presentation: agentPanelPresentation,
           palette: palette,
+          forksDown: agentPanelForksDown,
           reduceMotion: reduceMotion,
           shortcutHint: agentPanelShortcutHint,
+          copySessionID: { sessionID in
+            action(.agentPanelCopySessionID(sessionID))
+          },
+          forkSession: { direction, startupCommand in
+            action(
+              .agentPanelForkSessionRequested(
+                surfaceID: surfaceView.id,
+                direction: direction,
+                startupCommand: startupCommand
+              )
+            )
+          },
           toggle: toggleAgentPanel,
           openURL: { url in
             action(.agentPanelURLTapped(url))
@@ -654,8 +681,11 @@ struct TerminalSplitTreeView: View {
     let isCollapsed: Bool
     let presentation: PaneAgentPanelPresentation
     let palette: TerminalPalette
+    let forksDown: Bool
     let reduceMotion: Bool
     let shortcutHint: String?
+    let copySessionID: (String) -> Void
+    let forkSession: (SupatermPaneDirection, String) -> Void
     let toggle: () -> Void
     let openURL: (URL) -> Void
 
@@ -666,6 +696,9 @@ struct TerminalSplitTreeView: View {
         AgentPanelView(
           presentation: presentation,
           palette: palette,
+          forksDown: forksDown,
+          copySessionID: copySessionID,
+          forkSession: forkSession,
           openURL: openURL
         )
         .fixedSize(horizontal: false, vertical: true)
@@ -1174,6 +1207,7 @@ struct TerminalSplitTreeAXContainer: NSViewRepresentable {
   let hiddenAgentPanelSurfaceIDs: Set<UUID>
   let notificationColor: Color
   let palette: TerminalPalette
+  let agentPanelForksDown: Bool
   let agentPanelShortcutHint: String?
   let showsGlowingPaneRing: Bool
   let splitDividerColor: Color
@@ -1198,6 +1232,7 @@ struct TerminalSplitTreeAXContainer: NSViewRepresentable {
           hiddenAgentPanelSurfaceIDs: hiddenAgentPanelSurfaceIDs,
           notificationColor: notificationColor,
           palette: palette,
+          agentPanelForksDown: agentPanelForksDown,
           agentPanelShortcutHint: agentPanelShortcutHint,
           showsGlowingPaneRing: showsGlowingPaneRing,
           splitDividerColor: splitDividerColor,

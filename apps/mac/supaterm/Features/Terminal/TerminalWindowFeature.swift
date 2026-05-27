@@ -143,6 +143,12 @@ struct TerminalWindowFeature {
     case closeTabsBelowRequested(TerminalTabID)
     case collapseSidebarButtonTapped
     case floatingSidebarVisibilityChanged(Bool)
+    case agentPanelCopySessionID(String)
+    case agentPanelForkSessionRequested(
+      surfaceID: UUID,
+      direction: SupatermPaneDirection,
+      startupCommand: String
+    )
     case agentPanelURLTapped(URL)
     case agentPanelVisibilityToggled(UUID)
     case navigateSearchMenuItemSelected(GhosttySearchDirection)
@@ -185,6 +191,7 @@ struct TerminalWindowFeature {
   }
 
   @Dependency(AnalyticsClient.self) var analyticsClient
+  @Dependency(ClipboardClient.self) var clipboardClient
   @Dependency(ExternalNavigationClient.self) var externalNavigationClient
   @Dependency(DesktopNotificationClient.self) var desktopNotificationClient
   @Dependency(TerminalCommandPaletteClient.self) var terminalCommandPaletteClient
@@ -323,6 +330,27 @@ struct TerminalWindowFeature {
       case .floatingSidebarVisibilityChanged(let isVisible):
         state.isFloatingSidebarVisible = isVisible
         return .none
+
+      case .agentPanelCopySessionID(let sessionID):
+        return .run { [clipboardClient] _ in
+          _ = await MainActor.run {
+            clipboardClient.copyString(sessionID)
+          }
+        }
+
+      case .agentPanelForkSessionRequested(let surfaceID, let direction, let startupCommand):
+        return .run { [terminalClient] _ in
+          _ = try? await terminalClient.createPane(
+            TerminalCreatePaneRequest(
+              startupCommand: startupCommand,
+              cwd: nil,
+              direction: direction,
+              focus: true,
+              equalize: false,
+              target: .contextPane(surfaceID)
+            )
+          )
+        }
 
       case .agentPanelURLTapped(let url):
         return .run { [externalNavigationClient] _ in

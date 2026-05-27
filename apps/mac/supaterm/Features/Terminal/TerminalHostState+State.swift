@@ -299,9 +299,8 @@ extension TerminalHostState {
     guard agentPanelIsActive(for: surfaceID) else {
       return nil
     }
-    guard let presentation = paneAgentMetadataBySurfaceID[surfaceID]?.panelPresentation else {
-      return nil
-    }
+    let presentation = (paneAgentMetadataBySurfaceID[surfaceID] ?? PaneAgentMetadata())
+      .panelPresentation(session: agentPresenceStore.panelSession(for: surfaceID))
     guard !presentation.isEmpty else {
       return nil
     }

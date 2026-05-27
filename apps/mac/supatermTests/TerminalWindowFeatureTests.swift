@@ -1026,6 +1026,74 @@ struct TerminalWindowFeatureTests {
   }
 
   @Test
+  func agentPanelCopySessionIDWritesClipboard() async {
+    var copiedSessionIDs: [String] = []
+
+    let store = TestStore(initialState: TerminalWindowFeature.State()) {
+      TerminalWindowFeature()
+    } withDependencies: {
+      $0.clipboardClient.copyString = { sessionID in
+        copiedSessionIDs.append(sessionID)
+        return true
+      }
+    }
+
+    await store.send(.agentPanelCopySessionID("session-1"))
+
+    #expect(copiedSessionIDs == ["session-1"])
+  }
+
+  @Test
+  func agentPanelForkSessionRequestedCreatesFocusedPaneInContextSurface() async {
+    let surfaceID = UUID()
+    let spaceID = UUID()
+    let tabID = UUID()
+    let paneID = UUID()
+    var requests: [TerminalCreatePaneRequest] = []
+
+    let store = TestStore(initialState: TerminalWindowFeature.State()) {
+      TerminalWindowFeature()
+    } withDependencies: {
+      $0.terminalClient.createPane = { request in
+        requests.append(request)
+        return SupatermNewPaneResult(
+          direction: request.direction,
+          isFocused: true,
+          isSelectedTab: true,
+          windowIndex: 1,
+          spaceIndex: 1,
+          spaceID: spaceID,
+          tabIndex: 1,
+          tabID: tabID,
+          paneIndex: 2,
+          paneID: paneID
+        )
+      }
+    }
+
+    await store.send(
+      .agentPanelForkSessionRequested(
+        surfaceID: surfaceID,
+        direction: .down,
+        startupCommand: "pi --fork session-1"
+      )
+    )
+
+    #expect(requests.count == 1)
+    #expect(
+      requests.first
+        == TerminalCreatePaneRequest(
+          startupCommand: "pi --fork session-1",
+          cwd: nil,
+          direction: .down,
+          focus: true,
+          equalize: false,
+          target: .contextPane(surfaceID)
+        )
+    )
+  }
+
+  @Test
   func sidebarTabMoveCommittedSendsAtomicMoveCommand() async {
     let recorder = TerminalCommandRecorder()
     let tabID = TerminalTabID()

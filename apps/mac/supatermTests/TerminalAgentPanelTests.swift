@@ -69,6 +69,50 @@ struct TerminalAgentPanelTests {
   }
 
   @Test
+  func panelSessionBuildsForkStartupCommands() {
+    #expect(
+      PaneAgentPanelSession(agent: .codex, sessionID: "session 1").forkStartupCommand
+        == "codex fork 'session 1'"
+    )
+    #expect(
+      PaneAgentPanelSession(agent: .claude, sessionID: "session-1").forkStartupCommand
+        == "claude --fork-session --resume session-1"
+    )
+    #expect(
+      PaneAgentPanelSession(agent: .pi, sessionID: "session-1").forkStartupCommand
+        == "pi --fork session-1"
+    )
+  }
+
+  @Test
+  @MainActor
+  func registeredPresenceExposesSessionPanelWithoutSnapshot() throws {
+    initializeGhosttyForTests()
+
+    let host = TerminalHostState()
+    let surfaceID = try #require(
+      restoreSplitHost(
+        host,
+        workingDirectoryPath: FileManager.default.temporaryDirectory.path(percentEncoded: false)
+      )
+      .first
+    )
+
+    #expect(
+      host.registerAgentPresence(
+        agent: .pi,
+        for: surfaceID,
+        sessionID: "session-1",
+        processID: nil
+      )
+    )
+
+    let presentation = try #require(host.agentPanelPresentation(for: surfaceID))
+    #expect(presentation.session == PaneAgentPanelSession(agent: .pi, sessionID: "session-1"))
+    #expect(presentation.progressRows.isEmpty)
+  }
+
+  @Test
   @MainActor
   func disabledPanelSkipsWorkspaceRefresh() async throws {
     try await withDependencies {

@@ -164,6 +164,19 @@ struct TerminalAgentPresenceStore {
     }
   }
 
+  func panelSession(for surfaceID: UUID) -> PaneAgentPanelSession? {
+    let sessions = records.reduce(into: [PaneAgentPanelSession]()) { result, entry in
+      guard entry.key.surfaceID == surfaceID else { return }
+      result.append(
+        contentsOf: entry.value.sessionIDs.sorted().map {
+          PaneAgentPanelSession(agent: entry.key.agent, sessionID: $0)
+        }
+      )
+    }
+    guard sessions.count == 1 else { return nil }
+    return sessions[0]
+  }
+
   func hasInstances(for surfaceID: UUID) -> Bool {
     records.keys.contains { $0.surfaceID == surfaceID }
   }

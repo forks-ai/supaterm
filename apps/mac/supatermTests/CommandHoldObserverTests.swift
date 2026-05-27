@@ -16,4 +16,11 @@ struct CommandHoldObserverTests {
     #expect(CommandHoldObserver.shouldShowShortcuts(for: [.control]) == false)
     #expect(CommandHoldObserver.shouldShowShortcuts(for: [.option, .shift]) == false)
   }
+
+  @Test
+  func optionModifierIsDetectedIndependently() {
+    #expect(CommandHoldObserver.optionIsPressed(for: [.option]))
+    #expect(CommandHoldObserver.optionIsPressed(for: [.command, .option]))
+    #expect(CommandHoldObserver.optionIsPressed(for: [.command]) == false)
+  }
 }

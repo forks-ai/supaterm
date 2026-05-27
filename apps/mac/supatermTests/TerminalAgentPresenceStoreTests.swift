@@ -66,6 +66,48 @@ struct TerminalAgentPresenceStoreTests {
   }
 
   @Test
+  func panelSessionExposesSingleSessionForSurface() {
+    var store = TerminalAgentPresenceStore()
+    let surfaceID = UUID()
+
+    let didRegister = store.register(
+      agent: .pi,
+      surfaceID: surfaceID,
+      sessionID: "session-1",
+      processID: nil
+    )
+    #expect(didRegister)
+
+    #expect(
+      store.panelSession(for: surfaceID)
+        == PaneAgentPanelSession(agent: .pi, sessionID: "session-1")
+    )
+  }
+
+  @Test
+  func panelSessionHidesAmbiguousSessions() {
+    var store = TerminalAgentPresenceStore()
+    let surfaceID = UUID()
+
+    let didRegisterFirst = store.register(
+      agent: .codex,
+      surfaceID: surfaceID,
+      sessionID: "session-1",
+      processID: nil
+    )
+    let didRegisterSecond = store.register(
+      agent: .codex,
+      surfaceID: surfaceID,
+      sessionID: "session-2",
+      processID: nil
+    )
+    #expect(didRegisterFirst)
+    #expect(didRegisterSecond)
+
+    #expect(store.panelSession(for: surfaceID) == nil)
+  }
+
+  @Test
   func pruningDeadProcessDropsPresence() {
     var store = TerminalAgentPresenceStore()
     let surfaceID = UUID()

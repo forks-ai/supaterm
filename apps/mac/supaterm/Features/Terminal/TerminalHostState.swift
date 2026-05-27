@@ -222,19 +222,20 @@ final class TerminalHostState {
     var sources: [PaneAgentSource] = []
 
     var isEmpty: Bool {
-      codexHoverMessages.isEmpty && panelPresentation.isEmpty
+      codexHoverMessages.isEmpty && panelPresentation().isEmpty
     }
 
     var hasStructuredPanelContent: Bool {
       !progressRows.isEmpty || !sources.isEmpty
     }
 
-    var panelPresentation: PaneAgentPanelPresentation {
+    func panelPresentation(session: PaneAgentPanelSession? = nil) -> PaneAgentPanelPresentation {
       PaneAgentPanelPresentation(
         progressRows: progressRows,
         branchDetails: branchDetails,
         artifacts: artifacts,
-        sources: sources
+        sources: sources,
+        session: session
       )
     }
   }
@@ -1076,6 +1077,12 @@ final class TerminalHostState {
     case .equalize:
       trees[tabID] = tree.equalized()
       sessionDidChange()
+
+    case .agentPanelCopySessionID:
+      break
+
+    case .agentPanelForkSessionRequested:
+      break
 
     case .agentPanelVisibilityToggled:
       break

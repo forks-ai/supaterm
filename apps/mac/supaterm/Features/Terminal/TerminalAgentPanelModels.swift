@@ -1,16 +1,37 @@
 import Foundation
+import SupatermCLIShared
 
 nonisolated struct PaneAgentPanelPresentation: Equatable, Sendable {
   var progressRows: [PaneAgentProgressRow] = []
   var branchDetails: PaneAgentBranchDetails?
   var artifacts: [PaneAgentArtifact] = []
   var sources: [PaneAgentSource] = []
+  var session: PaneAgentPanelSession?
 
   var isEmpty: Bool {
     progressRows.isEmpty
       && branchDetails == nil
       && artifacts.isEmpty
       && sources.isEmpty
+      && session == nil
+  }
+}
+
+nonisolated struct PaneAgentPanelSession: Equatable, Sendable {
+  let agent: SupatermAgentKind
+  let sessionID: String
+
+  var forkStartupCommand: String {
+    let arguments: [String] =
+      switch agent {
+      case .codex:
+        ["codex", "fork", sessionID]
+      case .claude:
+        ["claude", "--fork-session", "--resume", sessionID]
+      case .pi:
+        ["pi", "--fork", sessionID]
+      }
+    return arguments.map(SupatermShellCommand.escapedToken).joined(separator: " ")
   }
 }
 

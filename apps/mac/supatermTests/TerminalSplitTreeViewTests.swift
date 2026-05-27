@@ -1,4 +1,5 @@
 import SwiftUI
+import SupatermCLIShared
 import Testing
 
 @testable import supaterm
@@ -203,6 +204,24 @@ struct TerminalSplitTreeViewTests {
   }
 
   @Test
+  func agentPanelShowsForSessionActionsOnly() {
+    let surfaceID = UUID()
+    let presentation = PaneAgentPanelPresentation(
+      session: PaneAgentPanelSession(agent: .pi, sessionID: "session-1")
+    )
+
+    #expect(
+      TerminalSplitTreeView.LeafView.agentPanelOverlayState(
+        presentation: presentation,
+        focusedSurfaceID: surfaceID,
+        surfaceID: surfaceID,
+        size: CGSize(width: 420, height: 260),
+        isCollapsed: false
+      ) == .expandedPanel
+    )
+  }
+
+  @Test
   func agentPanelMovesBelowSearchOverlayWhenSearchIsVisible() {
     #expect(TerminalSplitTreeView.LeafView.agentPanelTopPadding(searchIsVisible: false) == 12)
     #expect(
@@ -220,6 +239,24 @@ struct TerminalSplitTreeViewTests {
   @Test
   func agentPanelShortcutDisplaysCommandI() {
     #expect(AgentPanelShortcut.toggleVisibility.display == "⌘I")
+  }
+
+  @Test
+  func agentPanelForkDirectionFollowsOptionState() {
+    #expect(AgentPanelView.forkDirection(forksDown: false) == .right)
+    #expect(AgentPanelView.forkDirection(forksDown: true) == .down)
+  }
+
+  @Test
+  func agentPanelForkHelpTextExplainsOptionState() {
+    #expect(
+      AgentPanelView.forkHelpText(forksDown: false)
+        == "Fork session right. Hold Option to fork below."
+    )
+    #expect(
+      AgentPanelView.forkHelpText(forksDown: true)
+        == "Fork session below. Release Option to fork right."
+    )
   }
 
   @Test
