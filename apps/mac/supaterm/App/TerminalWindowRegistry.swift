@@ -125,15 +125,7 @@ final class TerminalWindowRegistry {
       return CommandAvailability(hasWindow: false, hasTab: false, hasSurface: false, hasAnySurface: hasAnySurface)
     }
 
-    let selectedAgentPanel = selectedAgentPanel(in: entry)
-    return CommandAvailability(
-      hasWindow: true,
-      hasTab: entry.terminal.selectedTabID != nil,
-      hasSurface: entry.terminal.selectedSurfaceView != nil,
-      hasAnySurface: hasAnySurface,
-      hasAgentPanel: selectedAgentPanel != nil,
-      hasAgentPanelSession: selectedAgentPanel?.session != nil
-    )
+    return commandAvailability(for: entry)
   }
 
   func menuContext(keyWindow: NSWindow? = NSApp.keyWindow) -> MenuContext {
@@ -154,16 +146,8 @@ final class TerminalWindowRegistry {
     let updateState = entry.store.withState(\.update)
     let updateMenuItemAction = Self.updateMenuItemAction(for: updateState)
 
-    let selectedAgentPanel = selectedAgentPanel(in: entry)
     return MenuContext(
-      availability: CommandAvailability(
-        hasWindow: true,
-        hasTab: entry.terminal.selectedTabID != nil,
-        hasSurface: entry.terminal.selectedSurfaceView != nil,
-        hasAnySurface: hasAnySurface,
-        hasAgentPanel: selectedAgentPanel != nil,
-        hasAgentPanelSession: selectedAgentPanel?.session != nil
-      ),
+      availability: commandAvailability(for: entry),
       closesKeyWindowDirectly: closesKeyWindowDirectly,
       hasSearch: entry.terminal.selectedSurfaceState?.searchNeedle != nil,
       updateMenuItemText: updateState.phase.menuItemTitle,
@@ -524,6 +508,18 @@ final class TerminalWindowRegistry {
     guard let surfaceID = entry.terminal.selectedSurfaceView?.id else { return nil }
     guard let presentation = entry.terminal.agentPanelPresentation(for: surfaceID) else { return nil }
     return SelectedAgentPanel(surfaceID: surfaceID, session: presentation.session)
+  }
+
+  private func commandAvailability(for entry: Entry) -> CommandAvailability {
+    let selectedAgentPanel = selectedAgentPanel(in: entry)
+    return CommandAvailability(
+      hasWindow: true,
+      hasTab: entry.terminal.selectedTabID != nil,
+      hasSurface: entry.terminal.selectedSurfaceView != nil,
+      hasAnySurface: hasAnySurface,
+      hasAgentPanel: selectedAgentPanel != nil,
+      hasAgentPanelSession: selectedAgentPanel?.session != nil
+    )
   }
 
   func globalKeybindRuntimes() -> [GhosttyRuntime] {

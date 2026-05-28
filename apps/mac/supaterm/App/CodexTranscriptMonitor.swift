@@ -191,8 +191,7 @@ struct CodexConversationState: Equatable {
   }
 
   var progressRows: [PaneAgentProgressRow] {
-    guard let sourceTurn = activeTurn ?? latestTurn else { return [] }
-    return sourceTurn.displayedProgressRows
+    (activeTurn ?? latestTurn)?.displayedProgressRows ?? []
   }
 
   var sources: [PaneAgentSource] {

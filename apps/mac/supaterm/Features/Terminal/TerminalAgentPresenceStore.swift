@@ -181,16 +181,18 @@ struct TerminalAgentPresenceStore {
   }
 
   func panelSession(for surfaceID: UUID) -> PaneAgentPanelSession? {
-    let sessions = records.reduce(into: [PaneAgentPanelSession]()) { result, entry in
-      guard entry.key.surfaceID == surfaceID, entry.value.isActionable else { return }
+    var session: PaneAgentPanelSession?
+    for entry in records {
+      guard entry.key.surfaceID == surfaceID, entry.value.isActionable else { continue }
       for sessionID in entry.value.sessionIDs {
-        if let session = PaneAgentPanelSession.supported(agent: entry.key.agent, sessionID: sessionID) {
-          result.append(session)
+        guard let nextSession = PaneAgentPanelSession.supported(agent: entry.key.agent, sessionID: sessionID) else {
+          continue
         }
+        guard session == nil else { return nil }
+        session = nextSession
       }
     }
-    guard sessions.count == 1 else { return nil }
-    return sessions[0]
+    return session
   }
 
   func hasInstances(for surfaceID: UUID) -> Bool {

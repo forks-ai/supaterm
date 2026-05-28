@@ -18,65 +18,40 @@ nonisolated struct PaneAgentPanelPresentation: Equatable, Sendable {
 }
 
 nonisolated struct PaneAgentPanelSession: Equatable, Sendable {
-  private let supportedAgent: SupportedAgent
+  let agent: SupatermAgentKind
   let sessionID: String
 
-  var agent: SupatermAgentKind {
-    supportedAgent.kind
-  }
-
-  private init(supportedAgent: SupportedAgent, sessionID: String) {
-    self.supportedAgent = supportedAgent
+  private init(agent: SupatermAgentKind, sessionID: String) {
+    self.agent = agent
     self.sessionID = sessionID
   }
 
   static func supported(agent: SupatermAgentKind, sessionID: String) -> Self? {
-    guard let supportedAgent = SupportedAgent(kind: agent) else {
+    switch agent {
+    case .claude, .codex:
+      break
+    case .pi:
       return nil
     }
     let sessionID = sessionID.trimmingCharacters(in: .whitespacesAndNewlines)
     guard !sessionID.isEmpty else {
       return nil
     }
-    return Self(supportedAgent: supportedAgent, sessionID: sessionID)
+    return Self(agent: agent, sessionID: sessionID)
   }
 
   var forkStartupCommand: String {
-    let arguments = supportedAgent.forkArguments(sessionID: sessionID)
-    return arguments.map(SupatermShellCommand.escapedToken).joined(separator: " ")
-  }
-
-  private enum SupportedAgent: Equatable, Sendable {
-    case claude
-    case codex
-
-    init?(kind: SupatermAgentKind) {
-      switch kind {
-      case .claude:
-        self = .claude
-      case .codex:
-        self = .codex
-      case .pi:
-        return nil
-      }
-    }
-
-    var kind: SupatermAgentKind {
-      switch self {
-      case .claude:
-        .claude
-      case .codex:
-        .codex
-      }
-    }
-
-    func forkArguments(sessionID: String) -> [String] {
-      switch self {
-      case .claude:
-        ["claude", "--fork-session", "--resume", sessionID]
-      case .codex:
-        ["codex", "fork", sessionID]
-      }
+    switch agent {
+    case .claude:
+      return ["claude", "--fork-session", "--resume", sessionID]
+        .map(SupatermShellCommand.escapedToken)
+        .joined(separator: " ")
+    case .codex:
+      return ["codex", "fork", sessionID]
+        .map(SupatermShellCommand.escapedToken)
+        .joined(separator: " ")
+    case .pi:
+      preconditionFailure("Unsupported agent")
     }
   }
 }
