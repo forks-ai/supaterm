@@ -12,7 +12,7 @@ struct GhosttySurfaceSearchOverlay: View {
   @State private var corner: GhosttySearchCorner = .topRight
   @State private var dragOffset: CGSize = .zero
   @State private var barSize: CGSize = .zero
-  @State private var isSearchFieldFocused = false
+  @State private var searchFocusRequest = 0
   @State private var searchTask: Task<Void, Never>?
 
   private let overlayPadding: CGFloat = 8
@@ -29,12 +29,11 @@ struct GhosttySurfaceSearchOverlay: View {
         HStack(spacing: 4) {
           GhosttySearchField(
             text: $searchText,
-            isFocused: isSearchFieldFocused,
+            focusRequest: searchFocusRequest,
             onSubmit: { isShifted in
               navigateSearch(isShifted ? .previous : .next)
             },
             onEscape: {
-              isSearchFieldFocused = false
               surfaceView.requestFocus()
             }
           )
@@ -116,7 +115,7 @@ struct GhosttySurfaceSearchOverlay: View {
       }
       .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: corner.alignment)
       .onAppear {
-        focusSearchField()
+        focusSearchFieldIfNeeded()
         scheduleSearch(searchText)
       }
       .onChange(of: searchText) { _, newValue in
@@ -124,13 +123,12 @@ struct GhosttySurfaceSearchOverlay: View {
       }
       .onChange(of: state.searchNeedle) { _, newValue in
         guard let newValue else { return }
-        focusSearchField()
         if !newValue.isEmpty, newValue != searchText {
           searchText = newValue
         }
       }
       .onChange(of: state.searchFocusCount) { _, _ in
-        focusSearchField()
+        focusSearchFieldIfNeeded()
       }
       .onDisappear {
         searchTask?.cancel()
@@ -194,11 +192,11 @@ struct GhosttySurfaceSearchOverlay: View {
     emitSearch(searchText)
   }
 
-  private func focusSearchField() {
-    isSearchFieldFocused = false
+  private func focusSearchFieldIfNeeded() {
+    guard surfaceView.consumeSearchFocusRequest(state.searchFocusCount) else { return }
     Task { @MainActor in
       await Task.yield()
-      isSearchFieldFocused = true
+      searchFocusRequest += 1
     }
   }
 
@@ -279,7 +277,7 @@ private struct SearchButtonLabel: View {
 
 private struct GhosttySearchField: NSViewRepresentable {
   @Binding var text: String
-  var isFocused: Bool
+  var focusRequest: Int
   var onSubmit: (Bool) -> Void
   var onEscape: () -> Void
 
@@ -309,13 +307,15 @@ private struct GhosttySearchField: NSViewRepresentable {
     nsView.onSubmit = onSubmit
     nsView.onEscape = onEscape
 
-    if isFocused, nsView.window?.firstResponder !== nsView.currentEditor() {
-      nsView.window?.makeFirstResponder(nsView)
+    if context.coordinator.focusRequest != focusRequest, let window = nsView.window {
+      context.coordinator.focusRequest = focusRequest
+      window.makeFirstResponder(nsView)
     }
   }
 
   final class Coordinator: NSObject, NSTextFieldDelegate {
     @Binding var text: String
+    var focusRequest = 0
 
     init(text: Binding<String>) {
       _text = text

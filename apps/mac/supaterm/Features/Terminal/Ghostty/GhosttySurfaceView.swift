@@ -63,6 +63,7 @@ final class GhosttySurfaceView: NSView, Identifiable {
   private var lastPerformKeyEvent: TimeInterval?
   private var currentCursor: NSCursor = .iBeam
   private var focused = false
+  private var handledSearchFocusCount = 0
   private var markedText = NSMutableAttributedString()
   private var keyTextAccumulator: [String]?
   private var cellSize: CGSize = .zero
@@ -1097,6 +1098,12 @@ final class GhosttySurfaceView: NSView, Identifiable {
 
   func requestFocus() {
     Self.moveFocus(to: self)
+  }
+
+  func consumeSearchFocusRequest(_ count: Int) -> Bool {
+    guard count > handledSearchFocusCount else { return false }
+    handledSearchFocusCount = count
+    return true
   }
 
   static func moveFocus(
