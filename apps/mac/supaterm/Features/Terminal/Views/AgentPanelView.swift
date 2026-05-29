@@ -126,6 +126,7 @@ struct AgentPanelView: View {
     section("Session actions") {
       VStack(spacing: 4) {
         AgentPanelActionRow(
+          icon: .asset("git-fork"),
           title: Self.forkTitle(forksDown: forksDown),
           palette: palette,
           shortcutHint: shortcutHint(AgentPanelShortcut.forkSession),
@@ -135,6 +136,7 @@ struct AgentPanelView: View {
           }
         )
         AgentPanelActionRow(
+          icon: .asset("copy"),
           title: "Copy session ID",
           palette: palette,
           shortcutHint: shortcutHint(AgentPanelShortcut.copySessionID),
@@ -172,7 +174,7 @@ struct AgentPanelView: View {
     iconColor: Color? = nil
   ) -> some View {
     HStack(spacing: 7) {
-      rowIcon(icon, color: iconColor ?? palette.secondaryText)
+      AgentPanelIconView(icon: icon, color: iconColor ?? palette.secondaryText)
       Text(title)
         .font(.system(size: 12, weight: .medium))
         .foregroundStyle(palette.primaryText)
@@ -222,7 +224,7 @@ struct AgentPanelView: View {
       openURL(url)
     } label: {
       HStack(spacing: 7) {
-        rowIcon(icon, color: iconColor ?? palette.secondaryText)
+        AgentPanelIconView(icon: icon, color: iconColor ?? palette.secondaryText)
         Text(title)
           .font(.system(size: 12, weight: .medium))
           .foregroundStyle(palette.primaryText)
@@ -238,31 +240,6 @@ struct AgentPanelView: View {
     }
     .buttonStyle(.plain)
     .accessibilityLabel(title)
-  }
-
-  @ViewBuilder
-  private func rowIcon(
-    _ icon: AgentPanelIcon,
-    color: Color
-  ) -> some View {
-    switch icon {
-    case .asset(let name):
-      Image(name)
-        .renderingMode(.template)
-        .resizable()
-        .aspectRatio(contentMode: .fit)
-        .frame(width: 13, height: 13)
-        .frame(width: 14)
-        .foregroundStyle(color)
-        .accessibilityHidden(true)
-
-    case .system(let name):
-      Image(systemName: name)
-        .font(.system(size: 11, weight: .medium))
-        .foregroundStyle(color)
-        .frame(width: 14)
-        .accessibilityHidden(true)
-    }
   }
 
   private func pullRequestChecksRows(_ checks: PaneAgentPullRequestChecks) -> some View {
@@ -404,7 +381,34 @@ private enum AgentPanelIcon {
   case system(String)
 }
 
+private struct AgentPanelIconView: View {
+  let icon: AgentPanelIcon
+  let color: Color
+
+  var body: some View {
+    switch icon {
+    case .asset(let name):
+      Image(name)
+        .renderingMode(.template)
+        .resizable()
+        .aspectRatio(contentMode: .fit)
+        .frame(width: 13, height: 13)
+        .frame(width: 14)
+        .foregroundStyle(color)
+        .accessibilityHidden(true)
+
+    case .system(let name):
+      Image(systemName: name)
+        .font(.system(size: 11, weight: .medium))
+        .foregroundStyle(color)
+        .frame(width: 14)
+        .accessibilityHidden(true)
+    }
+  }
+}
+
 private struct AgentPanelActionRow: View {
+  let icon: AgentPanelIcon
   let title: String
   let palette: TerminalPalette
   let shortcutHint: String?
@@ -416,6 +420,7 @@ private struct AgentPanelActionRow: View {
   var body: some View {
     Button(action: action) {
       HStack(spacing: 8) {
+        AgentPanelIconView(icon: icon, color: palette.secondaryText)
         Text(title)
           .font(.system(size: 12, weight: .medium))
           .foregroundStyle(palette.primaryText)
