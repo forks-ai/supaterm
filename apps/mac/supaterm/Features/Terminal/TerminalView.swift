@@ -9,7 +9,9 @@ struct TerminalView: View {
   let commandPaletteClient: TerminalCommandPaletteClient
   let store: StoreOf<TerminalWindowFeature>
   let updateStore: StoreOf<UpdateFeature>
+  let releaseAnnouncement: ReleaseAnnouncement?
   @Bindable var terminal: TerminalHostState
+  let dismissReleaseAnnouncement: () -> Void
   @Shared(.supatermSettings) private var supatermSettings = .default
   @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
@@ -269,6 +271,7 @@ struct TerminalView: View {
       TerminalSplitView(
         store: store,
         updateStore: updateStore,
+        releaseAnnouncement: releaseAnnouncement,
         palette: palette,
         terminal: terminal,
         totalWidth: geometry.size.width,
@@ -276,7 +279,8 @@ struct TerminalView: View {
         sidebarFraction: sidebarFractionBinding,
         minFraction: minSidebarFraction,
         maxFraction: maxSidebarFraction,
-        onHide: collapseSidebar
+        onHide: collapseSidebar,
+        dismissReleaseAnnouncement: dismissReleaseAnnouncement
       )
       .frame(maxWidth: .infinity, maxHeight: .infinity)
 
@@ -284,13 +288,15 @@ struct TerminalView: View {
         FloatingSidebarOverlay(
           store: store,
           updateStore: updateStore,
+          releaseAnnouncement: releaseAnnouncement,
           palette: palette,
           terminal: terminal,
           totalWidth: geometry.size.width,
           sidebarFraction: sidebarFractionBinding,
           isVisible: floatingSidebarVisibilityBinding,
           minFraction: minSidebarFraction,
-          maxFraction: maxSidebarFraction
+          maxFraction: maxSidebarFraction,
+          dismissReleaseAnnouncement: dismissReleaseAnnouncement
         )
       }
     }

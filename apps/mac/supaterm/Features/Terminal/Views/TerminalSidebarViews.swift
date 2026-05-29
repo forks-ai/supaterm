@@ -6,6 +6,7 @@ import SwiftUI
 struct TerminalSplitView: View {
   let store: StoreOf<TerminalWindowFeature>
   let updateStore: StoreOf<UpdateFeature>
+  let releaseAnnouncement: ReleaseAnnouncement?
   let palette: TerminalPalette
   let terminal: TerminalHostState
   let totalWidth: CGFloat
@@ -14,6 +15,7 @@ struct TerminalSplitView: View {
   let minFraction: CGFloat
   let maxFraction: CGFloat
   let onHide: () -> Void
+  let dismissReleaseAnnouncement: () -> Void
 
   @State private var dragFraction: CGFloat?
 
@@ -48,8 +50,10 @@ struct TerminalSplitView: View {
         TerminalSidebarView(
           store: store,
           updateStore: updateStore,
+          releaseAnnouncement: releaseAnnouncement,
           palette: palette,
-          terminal: terminal
+          terminal: terminal,
+          dismissReleaseAnnouncement: dismissReleaseAnnouncement
         )
         .frame(width: currentSidebarWidth)
         .frame(maxHeight: .infinity)
@@ -91,16 +95,20 @@ struct TerminalSplitView: View {
 struct TerminalSidebarView: View {
   let store: StoreOf<TerminalWindowFeature>
   let updateStore: StoreOf<UpdateFeature>
+  let releaseAnnouncement: ReleaseAnnouncement?
   let palette: TerminalPalette
   let terminal: TerminalHostState
+  let dismissReleaseAnnouncement: () -> Void
 
   var body: some View {
     ZStack(alignment: .topLeading) {
       TerminalSidebarChromeView(
         store: store,
         updateStore: updateStore,
+        releaseAnnouncement: releaseAnnouncement,
         palette: palette,
-        terminal: terminal
+        terminal: terminal,
+        dismissReleaseAnnouncement: dismissReleaseAnnouncement
       )
       WindowTrafficLights()
         .padding(.top, TerminalSidebarLayout.trafficLightTopPadding)
@@ -113,6 +121,7 @@ struct TerminalSidebarView: View {
 struct FloatingSidebarOverlay: View {
   let store: StoreOf<TerminalWindowFeature>
   let updateStore: StoreOf<UpdateFeature>
+  let releaseAnnouncement: ReleaseAnnouncement?
   let palette: TerminalPalette
   let terminal: TerminalHostState
   let totalWidth: CGFloat
@@ -120,6 +129,7 @@ struct FloatingSidebarOverlay: View {
   @Binding var isVisible: Bool
   let minFraction: CGFloat
   let maxFraction: CGFloat
+  let dismissReleaseAnnouncement: () -> Void
 
   @Environment(\.accessibilityReduceMotion) private var reduceMotion
   @State private var dragFraction: CGFloat?
@@ -140,9 +150,11 @@ struct FloatingSidebarOverlay: View {
         FloatingSidebarView(
           store: store,
           updateStore: updateStore,
+          releaseAnnouncement: releaseAnnouncement,
           palette: palette,
           terminal: terminal,
-          width: floatingWidth
+          width: floatingWidth,
+          dismissReleaseAnnouncement: dismissReleaseAnnouncement
         )
         .frame(width: floatingWidth)
         .terminalTransition(.move(edge: .leading), reduceMotion: reduceMotion)
@@ -314,16 +326,20 @@ private final class SidebarResizeInteractionNSView: NSView {
 private struct FloatingSidebarView: View {
   let store: StoreOf<TerminalWindowFeature>
   let updateStore: StoreOf<UpdateFeature>
+  let releaseAnnouncement: ReleaseAnnouncement?
   let palette: TerminalPalette
   let terminal: TerminalHostState
   let width: CGFloat
+  let dismissReleaseAnnouncement: () -> Void
 
   var body: some View {
     TerminalSidebarView(
       store: store,
       updateStore: updateStore,
+      releaseAnnouncement: releaseAnnouncement,
       palette: palette,
-      terminal: terminal
+      terminal: terminal,
+      dismissReleaseAnnouncement: dismissReleaseAnnouncement
     )
     .frame(width: width)
     .background(palette.windowBackgroundTint)

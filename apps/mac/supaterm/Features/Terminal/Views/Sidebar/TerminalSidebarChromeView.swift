@@ -85,8 +85,10 @@ enum TerminalSidebarTabShortcutHints {
 struct TerminalSidebarChromeView: View {
   let store: StoreOf<TerminalWindowFeature>
   let updateStore: StoreOf<UpdateFeature>
+  let releaseAnnouncement: ReleaseAnnouncement?
   let palette: TerminalPalette
   let terminal: TerminalHostState
+  let dismissReleaseAnnouncement: () -> Void
 
   @Environment(CommandHoldObserver.self) private var commandHoldObserver
   @Environment(\.accessibilityReduceMotion) private var reduceMotion
@@ -105,6 +107,13 @@ struct TerminalSidebarChromeView: View {
         TerminalSidebarUpdateSection(
           store: updateStore,
           palette: palette
+        )
+      }
+      if let releaseAnnouncement {
+        ReleaseAnnouncementCardView(
+          announcement: releaseAnnouncement,
+          palette: palette,
+          dismiss: dismissReleaseAnnouncement
         )
       }
       TerminalSidebarSpaceBar(

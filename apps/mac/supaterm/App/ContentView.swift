@@ -36,11 +36,15 @@ struct ContentView: View {
       commandPaletteClient: commandPaletteClient,
       store: terminalStore,
       updateStore: updateStore,
+      releaseAnnouncement: store.releaseAnnouncement,
       terminal: terminal
-    )
+    ) {
+      store.send(.releaseAnnouncementDismissed)
+    }
     .environment(commandHoldObserver)
     .environment(ghosttyShortcuts)
     .task {
+      store.send(.task)
       updateStore.send(.task)
       terminalStore.send(.task)
     }
