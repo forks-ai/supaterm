@@ -90,11 +90,9 @@ nonisolated enum ReleaseAnnouncementCatalog {
       ?? state.acknowledgedVersion.flatMap(ReleaseAnnouncementVersion.init)
       ?? currentVersion
     let acknowledgedVersion = state.acknowledgedVersion.flatMap(ReleaseAnnouncementVersion.init)
-    let eligibilityFloor =
-      [previousInstalledVersion, acknowledgedVersion]
-      .compactMap { $0 }
-      .max()
-      ?? currentVersion
+    let eligibilityFloor = acknowledgedVersion.map {
+      max(previousInstalledVersion, $0)
+    } ?? previousInstalledVersion
     state.lastInstalledVersion = currentVersion.rawValue
 
     let announcement = announcements
@@ -116,15 +114,12 @@ nonisolated enum ReleaseAnnouncementCatalog {
     currentVersion: ReleaseAnnouncementVersion,
     hasExistingSupatermState: Bool
   ) -> ReleaseAnnouncementStorageState {
-    let acknowledgedVersion = hasExistingSupatermState
-      ? firstAnnouncementBaseline.rawValue
-      : currentVersion.rawValue
-    let lastInstalledVersion = hasExistingSupatermState
+    let storedVersion = hasExistingSupatermState
       ? firstAnnouncementBaseline.rawValue
       : currentVersion.rawValue
     return ReleaseAnnouncementStorageState(
-      lastInstalledVersion: lastInstalledVersion,
-      acknowledgedVersion: acknowledgedVersion
+      lastInstalledVersion: storedVersion,
+      acknowledgedVersion: storedVersion
     )
   }
 }
