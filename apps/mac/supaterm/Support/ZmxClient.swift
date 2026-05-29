@@ -96,7 +96,7 @@ extension ZmxClient {
         current = computed
         if let probeResult {
           zmxLogError(
-            "zmx.executable.unavailable",
+            "zmx.socketDir.unavailable",
             fields: ["reason=\(probeResult)"]
           )
         } else {
@@ -121,7 +121,7 @@ extension ZmxClient {
       process.executableURL = executable
       process.arguments = arguments
       var environment = ProcessInfo.processInfo.environment
-      environment[ZmxSocketBudget.environmentKey] = ZmxSocketBudget.socketDir(environment: environment)
+      environment[ZmxSocketBudget.environmentKey] = ZmxSocketBudget.socketDir()
       process.environment = environment
 
       let stdoutPipe: Pipe?
@@ -323,27 +323,12 @@ public nonisolated enum ZmxSocketBudget {
   public nonisolated static let sessionNameByteCount =
     ZmxSessionID.prefix.utf8.count + ZmxSessionID.instanceHashHexDigitCount + 1 + 36
 
-  public nonisolated static func socketDir(environment: [String: String] = ProcessInfo.processInfo.environment)
-    -> String
-  {
-    if let custom = environment[environmentKey], !custom.isEmpty {
-      return custom
-    }
-    let userID = getuid()
-    let fallback = "/tmp/zmx-\(userID)"
-    if let xdg = environment["XDG_RUNTIME_DIR"], !xdg.isEmpty {
-      let directory = "\(trimTrailingSlash(xdg))/zmx"
-      return fits(directory: directory) ? directory : fallback
-    }
-    if let tmp = environment["TMPDIR"], !tmp.isEmpty {
-      let directory = "\(trimTrailingSlash(tmp))/zmx-\(userID)"
-      return fits(directory: directory) ? directory : fallback
-    }
-    return fallback
+  public nonisolated static func socketDir() -> String {
+    "/tmp/zmx-\(getuid())"
   }
 
-  public nonisolated static func probe(environment: [String: String] = ProcessInfo.processInfo.environment) -> String? {
-    let directory = socketDir(environment: environment)
+  public nonisolated static func probe() -> String? {
+    let directory = socketDir()
     if !fits(directory: directory) {
       return "socket path \(socketPathByteCount(directory: directory))B exceeds budget \(socketPathByteBudget)B"
     }
@@ -360,14 +345,6 @@ public nonisolated enum ZmxSocketBudget {
 
   private nonisolated static func socketPathByteCount(directory: String) -> Int {
     directory.utf8.count + 1 + sessionNameByteCount
-  }
-
-  private nonisolated static func trimTrailingSlash(_ value: String) -> String {
-    var trimmed = Substring(value)
-    while trimmed.hasSuffix("/") {
-      trimmed = trimmed.dropLast()
-    }
-    return String(trimmed)
   }
 }
 

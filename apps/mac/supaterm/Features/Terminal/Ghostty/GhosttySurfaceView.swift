@@ -225,7 +225,7 @@ final class GhosttySurfaceView: NSView, Identifiable {
       environmentVariables.append(
         SupatermCLIEnvironmentVariable(
           key: ZmxSocketBudget.environmentKey,
-          value: ZmxSocketBudget.socketDir(environment: processEnvironment)
+          value: ZmxSocketBudget.socketDir()
         )
       )
     }

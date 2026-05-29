@@ -42,32 +42,12 @@ struct ZmxClientTests {
   }
 
   @Test
-  func socketBudgetMatchesZmxDirectoryPrecedenceAndTrimsSlashes() {
-    #expect(
-      ZmxSocketBudget.socketDir(
-        environment: [
-          "ZMX_DIR": "/custom/zmx",
-          "XDG_RUNTIME_DIR": "/ignored",
-        ]
-      ) == "/custom/zmx"
-    )
-    #expect(ZmxSocketBudget.socketDir(environment: ["XDG_RUNTIME_DIR": "/run/user/501///"]) == "/run/user/501/zmx")
-    #expect(ZmxSocketBudget.socketDir(environment: ["TMPDIR": "/tmp/app///"]).hasPrefix("/tmp/app/zmx-"))
+  func socketBudgetUsesShortTemporaryDirectory() {
+    #expect(ZmxSocketBudget.socketDir() == "/tmp/zmx-\(getuid())")
   }
 
   @Test
-  func socketBudgetRejectsOverlongDirectory() {
-    let directory = "/" + String(repeating: "a", count: 98)
-
-    #expect(ZmxSocketBudget.probe(environment: ["ZMX_DIR": directory]) != nil)
-    #expect(ZmxSocketBudget.probe(environment: ["ZMX_DIR": "/tmp/zmx"]) == nil)
-  }
-
-  @Test
-  func socketBudgetFallsBackWhenTemporaryDirectoryWouldOverflow() {
-    let directory = "/var/folders/" + String(repeating: "a", count: 80)
-
-    #expect(ZmxSocketBudget.socketDir(environment: ["TMPDIR": directory]).hasPrefix("/tmp/zmx-"))
-    #expect(ZmxSocketBudget.probe(environment: ["TMPDIR": directory]) == nil)
+  func socketBudgetAcceptsShortTemporaryDirectory() {
+    #expect(ZmxSocketBudget.probe() == nil)
   }
 }

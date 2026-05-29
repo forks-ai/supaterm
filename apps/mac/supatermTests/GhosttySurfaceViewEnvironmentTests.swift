@@ -42,13 +42,17 @@ struct GhosttySurfaceViewEnvironmentTests {
   }
 
   @Test
-  func supatermEnvironmentVariablesUseBudgetedZmxDirectory() {
+  func supatermEnvironmentVariablesUseShortZmxDirectory() {
     let environmentVariables = GhosttySurfaceView.supatermEnvironmentVariables(
       surfaceID: UUID(),
       tabID: UUID(),
       socketPath: nil,
       cliPath: nil,
-      processEnvironment: ["TMPDIR": "/var/folders/" + String(repeating: "a", count: 80)]
+      processEnvironment: [
+        "ZMX_DIR": "/var/folders/" + String(repeating: "a", count: 80),
+        "XDG_RUNTIME_DIR": "/var/folders/" + String(repeating: "b", count: 80),
+        "TMPDIR": "/var/folders/" + String(repeating: "c", count: 80),
+      ]
     )
 
     #expect(
