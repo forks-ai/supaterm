@@ -163,7 +163,7 @@ struct AppDelegateTests {
   func quitConfirmationContentOffersTerminateOverrideWhenSessionsArePreservedByDefault() {
     let content = QuitConfirmationContent(terminatesSessions: false)
 
-    #expect(content.buttonTitles == ["Cancel", "Quit", "Quit and Terminate Sessions"])
+    #expect(content.buttonTitles == ["Cancel", "Quit and Terminate Sessions", "Quit"])
   }
 
   @Test

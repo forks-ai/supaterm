@@ -58,11 +58,10 @@ struct QuitConfirmationContent: Equatable {
   }
 
   var buttonTitles: [String] {
-    var titles = ["Cancel"]
+    var titles = ["Cancel", terminatingSessionsTitle]
     if let preservingSessionsTitle {
       titles.append(preservingSessionsTitle)
     }
-    titles.append(terminatingSessionsTitle)
     return titles
   }
 

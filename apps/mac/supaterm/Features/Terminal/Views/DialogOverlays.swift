@@ -88,6 +88,8 @@ struct QuitConfirmationOverlay: View {
 
   @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
+  private static let actionButtonHeight: CGFloat = 52
+
   private static let transition: AnyTransition = .asymmetric(
     insertion: .offset(y: -16).combined(with: .scale(scale: 0.96)).combined(with: .opacity),
     removal: .offset(y: -16).combined(with: .scale(scale: 0.96)).combined(with: .opacity)
@@ -125,9 +127,19 @@ struct QuitConfirmationOverlay: View {
               title: "Cancel",
               style: .secondary,
               shortcut: .text("esc"),
+              height: Self.actionButtonHeight,
               action: onCancel
             )
             .keyboardShortcut(.cancelAction)
+
+            DialogActionButton(
+              palette: palette,
+              title: content.terminatingSessionsTitle,
+              style: .destructive,
+              shortcut: content.preservingSessionsTitle == nil ? .symbol("return") : .text("⇧↩"),
+              height: Self.actionButtonHeight,
+              action: onTerminate
+            )
 
             if let preservingSessionsTitle = content.preservingSessionsTitle {
               DialogActionButton(
@@ -135,17 +147,10 @@ struct QuitConfirmationOverlay: View {
                 title: preservingSessionsTitle,
                 style: .secondary,
                 shortcut: .symbol("return"),
+                height: Self.actionButtonHeight,
                 action: onPreserve
               )
             }
-
-            DialogActionButton(
-              palette: palette,
-              title: content.terminatingSessionsTitle,
-              style: .destructive,
-              shortcut: content.preservingSessionsTitle == nil ? .symbol("return") : .text("⇧↩"),
-              action: onTerminate
-            )
           }
           .padding(.top, 28)
         }
@@ -195,9 +200,26 @@ private struct DialogActionButton: View {
   let title: String
   let style: Style
   let shortcut: Shortcut?
+  let height: CGFloat?
   let action: () -> Void
 
   @State private var isHovering = false
+
+  init(
+    palette: TerminalPalette,
+    title: String,
+    style: Style,
+    shortcut: Shortcut?,
+    height: CGFloat? = nil,
+    action: @escaping () -> Void
+  ) {
+    self.palette = palette
+    self.title = title
+    self.style = style
+    self.shortcut = shortcut
+    self.height = height
+    self.action = action
+  }
 
   var body: some View {
     Button(action: action) {
@@ -227,6 +249,7 @@ private struct DialogActionButton: View {
       .foregroundStyle(foreground)
       .padding(.horizontal, 14)
       .padding(.vertical, 8)
+      .frame(height: height)
       .background(background, in: .rect(cornerRadius: 10))
     }
     .buttonStyle(.plain)
