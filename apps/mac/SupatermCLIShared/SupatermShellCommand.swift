@@ -12,7 +12,13 @@ public enum SupatermShellCommand {
   }
 
   public static func interactiveStartupCommand(for command: String) -> String {
-    "\(command); exec \"${SHELL:-\(startupShell)}\" -l"
+    [
+      command,
+      #"shell="${SHELL:-/bin/zsh}""#,
+      #"[ -x "$shell" ] || shell="/bin/zsh""#,
+      #"if "$shell" -l -c 'exit 0' >/dev/null 2>&1; then exec "$shell" -l; fi"#,
+      #"exec "$shell""#,
+    ].joined(separator: "; ")
   }
 
   public static func escapedToken(_ token: String) -> String {

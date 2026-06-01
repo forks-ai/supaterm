@@ -35,9 +35,13 @@ struct SupatermShellCommandTests {
 
   @Test
   func interactiveStartupCommandLeavesShellBehind() {
+    let expected =
+      #"echo hello; shell="${SHELL:-/bin/zsh}"; [ -x "$shell" ] || shell="/bin/zsh"; "#
+      + #"if "$shell" -l -c 'exit 0' >/dev/null 2>&1; then exec "$shell" -l; fi; exec "$shell""#
+
     #expect(
       SupatermShellCommand.interactiveStartupCommand(for: "echo hello")
-        == #"echo hello; exec "${SHELL:-/bin/zsh}" -l"#
+        == expected
     )
   }
 }
