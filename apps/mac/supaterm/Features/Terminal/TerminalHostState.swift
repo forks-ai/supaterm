@@ -250,6 +250,7 @@ final class TerminalHostState {
 
   struct SurfaceLaunchCommand: Equatable {
     let command: String?
+    let commandWrapper: [String]
     let usesZmx: Bool
   }
 
@@ -1242,11 +1243,9 @@ final class TerminalHostState {
       preconditionFailure("TerminalHostState cannot create surfaces without a GhosttyRuntime")
     }
     let inherited = inheritedSurfaceConfig(fromSurfaceID: inheritingFromSurfaceID, context: context)
-    let shellIntegrationPlan = zmxShellIntegrationPlan(runtime: runtime, startupCommand: startupCommand)
     let launchCommand = resolvedSurfaceCommand(
       startupCommand: startupCommand,
-      surfaceID: surfaceID,
-      defaultShellCommand: shellIntegrationPlan.plannedCommand
+      surfaceID: surfaceID
     )
     SupatermLog.debug(
       SupatermLog.terminal,
@@ -1258,6 +1257,7 @@ final class TerminalHostState {
         "zmxSessionsEnabled=\(zmxSessionsEnabled)",
         "hasStartupCommand=\(startupCommand?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false)",
         "hasResolvedCommand=\(launchCommand.command != nil)",
+        "hasCommandWrapper=\(!launchCommand.commandWrapper.isEmpty)",
         "usesZmx=\(launchCommand.usesZmx)",
       ]
     )
@@ -1267,14 +1267,11 @@ final class TerminalHostState {
       tabID: tabID.rawValue,
       workingDirectory: workingDirectory ?? inherited.workingDirectory,
       command: launchCommand.command,
+      commandWrapper: launchCommand.commandWrapper,
       fontSize: inherited.fontSize,
       context: context,
       managesWindowAppearance: false,
-      zmxSessionsEnabled: zmxSessionsEnabled,
-      zmxShellIntegrationEnvironmentVariables: launchCommand.usesZmx
-        ? shellIntegrationPlan.environmentVariables
-        : [],
-      disableShellIntegration: launchCommand.usesZmx
+      zmxSessionsEnabled: launchCommand.usesZmx
     )
     configureBridgeCallbacks(for: view, tabID: tabID)
     configureSurfaceCallbacks(for: view, tabID: tabID)
@@ -1284,10 +1281,9 @@ final class TerminalHostState {
 
   func resolvedSurfaceCommand(
     startupCommand: String?,
-    surfaceID: UUID,
-    defaultShellCommand: String? = nil
+    surfaceID: UUID
   ) -> SurfaceLaunchCommand {
-    let command = startupCommand.map(SupatermShellCommand.ghosttyStartupCommand(for:))
+    let command = startupCommand.map { SupatermShellCommand.ghosttyStartupCommand(for: $0) }
     let sessionID = ZmxSessionID.make(surfaceID: surfaceID)
     guard zmxSessionsEnabled else {
       SupatermLog.debug(
@@ -1299,9 +1295,9 @@ final class TerminalHostState {
           "reason=disabled",
         ]
       )
-      return SurfaceLaunchCommand(command: command, usesZmx: false)
+      return SurfaceLaunchCommand(command: command, commandWrapper: [], usesZmx: false)
     }
-    guard let wrappedCommand = zmxClient.wrapCommand(surfaceID, command, defaultShellCommand) else {
+    guard let executable = zmxClient.executableURL() else {
       SupatermLog.error(
         SupatermLog.zmx,
         "zmx.attach.fallback",
@@ -1311,30 +1307,31 @@ final class TerminalHostState {
           "hasStartupCommand=\(command != nil)",
         ]
       )
-      return SurfaceLaunchCommand(command: command, usesZmx: false)
+      return SurfaceLaunchCommand(command: command, commandWrapper: [], usesZmx: false)
     }
-    let hasDefaultShellCommand =
-      defaultShellCommand?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false
+    let zmxCommand = startupCommand.map {
+      SupatermShellCommand.ghosttyStartupCommand(for: $0, preservesShellIntegrationEnvironment: true)
+    }
+    let launch = ZmxAttach.resolveLaunch(
+      executablePath: executable.path(percentEncoded: false),
+      sessionID: sessionID,
+      command: zmxCommand
+    )
     SupatermLog.debug(
       SupatermLog.zmx,
       "zmx.attach.resolved",
       fields: [
         "surfaceID=\(surfaceID.uuidString.lowercased())",
         "sessionID=\(sessionID)",
-        "hasStartupCommand=\(command != nil)",
-        "hasDefaultShellCommand=\(hasDefaultShellCommand)",
+        "hasStartupCommand=\(launch.command != nil)",
+        "hasCommandWrapper=\(!launch.commandWrapper.isEmpty)",
       ]
     )
-    return SurfaceLaunchCommand(command: wrappedCommand, usesZmx: true)
-  }
-
-  func zmxShellIntegrationPlan(
-    runtime: GhosttyRuntime,
-    startupCommand: String?
-  ) -> GhosttyShellIntegrationPlan {
-    guard zmxSessionsEnabled else { return .empty }
-    guard startupCommand == nil else { return .empty }
-    return runtime.shellIntegrationPlan(for: ZmxAttach.defaultShellCommand())
+    return SurfaceLaunchCommand(
+      command: launch.command,
+      commandWrapper: launch.commandWrapper,
+      usesZmx: true
+    )
   }
 
   static func surfaceContextLabel(_ context: ghostty_surface_context_e) -> String {

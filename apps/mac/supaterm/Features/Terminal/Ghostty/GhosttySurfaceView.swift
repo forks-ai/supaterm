@@ -54,11 +54,11 @@ final class GhosttySurfaceView: NSView, Identifiable {
   private var surfaceRef: GhosttyRuntime.SurfaceReference?
   private let workingDirectoryCString: UnsafeMutablePointer<CChar>?
   private let commandCString: UnsafeMutablePointer<CChar>?
+  private let commandWrapper: [String]
   private let environmentVariables: [SupatermCLIEnvironmentVariable]
   private let fontSize: Float32
   private let context: ghostty_surface_context_e
   private let managesWindowAppearance: Bool
-  private let disableShellIntegration: Bool
   private var trackingArea: NSTrackingArea?
   private var lastBackingSize: CGSize = .zero
   private var lastPerformKeyEvent: TimeInterval?
@@ -192,8 +192,7 @@ final class GhosttySurfaceView: NSView, Identifiable {
     socketPath: String?,
     cliPath: String?,
     processEnvironment: [String: String] = ProcessInfo.processInfo.environment,
-    zmxSessionsEnabled: Bool = true,
-    zmxShellIntegrationEnvironmentVariables: [SupatermCLIEnvironmentVariable] = []
+    zmxSessionsEnabled: Bool = true
   ) -> [SupatermCLIEnvironmentVariable] {
     var environmentVariables = SupatermCLIContext(
       surfaceID: surfaceID,
@@ -226,11 +225,22 @@ final class GhosttySurfaceView: NSView, Identifiable {
     if zmxSessionsEnabled {
       environmentVariables.append(
         SupatermCLIEnvironmentVariable(
-          key: ZmxSocketBudget.environmentKey,
+          key: ZmxEnvironment.directoryKey,
           value: ZmxSocketBudget.socketDir()
         )
       )
-      environmentVariables.append(contentsOf: zmxShellIntegrationEnvironmentVariables)
+      environmentVariables.append(
+        SupatermCLIEnvironmentVariable(
+          key: ZmxEnvironment.sessionKey,
+          value: ""
+        )
+      )
+      environmentVariables.append(
+        SupatermCLIEnvironmentVariable(
+          key: ZmxEnvironment.sessionPrefixKey,
+          value: ""
+        )
+      )
     }
     let path = prependedPath(
       cliDirectory(cliPath) ?? "",
@@ -255,12 +265,11 @@ final class GhosttySurfaceView: NSView, Identifiable {
     tabID: UUID,
     workingDirectory: URL?,
     command: String? = nil,
+    commandWrapper: [String] = [],
     fontSize: Float32? = nil,
     context: ghostty_surface_context_e,
     managesWindowAppearance: Bool = false,
-    zmxSessionsEnabled: Bool = true,
-    zmxShellIntegrationEnvironmentVariables: [SupatermCLIEnvironmentVariable] = [],
-    disableShellIntegration: Bool = false
+    zmxSessionsEnabled: Bool = true
   ) {
     self.runtime = runtime
     self.id = id
@@ -270,13 +279,12 @@ final class GhosttySurfaceView: NSView, Identifiable {
       tabID: tabID,
       socketPath: SupatermProcessSocketEndpoint.current()?.path,
       cliPath: GhosttySupport.bundledCLIPath(resourcesURL: Bundle.main.resourceURL),
-      zmxSessionsEnabled: zmxSessionsEnabled,
-      zmxShellIntegrationEnvironmentVariables: zmxShellIntegrationEnvironmentVariables
+      zmxSessionsEnabled: zmxSessionsEnabled
     )
+    self.commandWrapper = commandWrapper
     self.fontSize = fontSize ?? 0
     self.context = context
     self.managesWindowAppearance = managesWindowAppearance
-    self.disableShellIntegration = disableShellIntegration
     let initialWorkingDirectoryPath: String?
     if let workingDirectory {
       let path = Self.normalizedWorkingDirectoryPath(
@@ -1024,11 +1032,14 @@ final class GhosttySurfaceView: NSView, Identifiable {
     config.working_directory = workingDirectoryCString.map { UnsafePointer($0) }
     config.command = commandCString.map { UnsafePointer($0) }
     config.context = context
-    config.disable_shell_integration = disableShellIntegration
     Self.withEnvironmentVariables(environmentVariables) { envVars, count in
       config.env_vars = envVars
       config.env_var_count = count
-      surface = ghostty_surface_new(app, &config)
+      Self.withCStringArray(commandWrapper) { wrapper, wrapperCount in
+        config.command_wrapper = wrapper
+        config.command_wrapper_count = wrapperCount
+        surface = ghostty_surface_new(app, &config)
+      }
     }
     bridge.surface = surface
     lastOcclusion = nil
@@ -1066,6 +1077,28 @@ final class GhosttySurfaceView: NSView, Identifiable {
     }
 
     return envVars.withUnsafeMutableBufferPointer { buffer in
+      body(buffer.baseAddress, buffer.count)
+    }
+  }
+
+  private static func withCStringArray<Result>(
+    _ values: [String],
+    _ body: (UnsafePointer<UnsafePointer<CChar>?>?, Int) -> Result
+  ) -> Result {
+    guard !values.isEmpty else {
+      return body(nil, 0)
+    }
+
+    let cStrings: [UnsafePointer<CChar>?] = values.map { value in
+      UnsafePointer(value.withCString { strdup($0)! })
+    }
+    defer {
+      for cString in cStrings {
+        free(UnsafeMutablePointer(mutating: cString))
+      }
+    }
+
+    return cStrings.withUnsafeBufferPointer { buffer in
       body(buffer.baseAddress, buffer.count)
     }
   }

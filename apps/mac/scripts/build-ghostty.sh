@@ -16,6 +16,7 @@ ghostty_legacy_share_path="${ghostty_legacy_prefix_path}/share"
 xcframework_path="${ghostty_build_root}/GhosttyKit.xcframework"
 ghostty_resources_path="${ghostty_build_root}/share/ghostty"
 ghostty_terminfo_path="${ghostty_build_root}/share/terminfo"
+ghostty_patches_dir="${srcroot}/patches"
 
 print_fingerprint() {
   (
@@ -26,6 +27,11 @@ print_fingerprint() {
       git ls-files --others --exclude-standard | LC_ALL=C sort | shasum -a 256
       shasum -a 256 "${script_path}" | awk '{print $1}'
       shasum -a 256 "${srcroot}/../../mise.toml" | awk '{print $1}'
+      if [ -d "${ghostty_patches_dir}" ]; then
+        find "${ghostty_patches_dir}" -type f -name '*.patch' -print | LC_ALL=C sort | while IFS= read -r patch; do
+          shasum -a 256 "${patch}"
+        done
+      fi
     } | shasum -a 256 | awk '{print $1}'
   )
 }
@@ -56,7 +62,49 @@ ensure_ghostty_checkout() {
   fi
 }
 
+apply_ghostty_patches() {
+  [ -d "${ghostty_patches_dir}" ] || return 0
+  local patch
+  for patch in "${ghostty_patches_dir}"/*.patch; do
+    [ -e "${patch}" ] || continue
+    if git -C "${ghostty_dir}" apply --reverse --check "${patch}" 2>/dev/null; then
+      continue
+    fi
+    if ! git -C "${ghostty_dir}" apply --check "${patch}" 2>/dev/null; then
+      echo "error: ${patch} does not apply cleanly to ${ghostty_submodule_path}." >&2
+      echo "       Refresh the patch after updating Ghostty, or clean a dirty submodule and retry." >&2
+      exit 1
+    fi
+    git -C "${ghostty_dir}" apply "${patch}"
+  done
+}
+
+revert_ghostty_patches() {
+  [ -d "${ghostty_patches_dir}" ] || return 0
+  local patch
+  for patch in "${ghostty_patches_dir}"/*.patch; do
+    [ -e "${patch}" ] || continue
+    if git -C "${ghostty_dir}" apply --reverse --check "${patch}" 2>/dev/null; then
+      git -C "${ghostty_dir}" apply --reverse "${patch}" 2>/dev/null || true
+    fi
+  done
+}
+
+revert_and_signal_exit() {
+  revert_ghostty_patches
+  trap - EXIT INT TERM
+  case "$1" in
+    TERM) exit 143 ;;
+    *) exit 130 ;;
+  esac
+}
+
 ensure_ghostty_checkout
+
+trap revert_ghostty_patches EXIT
+trap 'revert_and_signal_exit INT' INT
+trap 'revert_and_signal_exit TERM' TERM
+apply_ghostty_patches
 
 if [ "${1:-}" = "--print-fingerprint" ]; then
   print_fingerprint

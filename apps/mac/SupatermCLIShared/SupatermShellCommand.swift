@@ -3,8 +3,12 @@ import Foundation
 public enum SupatermShellCommand {
   public static let startupShell = "/bin/zsh"
 
-  public static func ghosttyStartupCommand(for script: String) -> String {
-    "\(startupShell) -lc \(escapedToken(script))"
+  public static func ghosttyStartupCommand(
+    for script: String,
+    preservesShellIntegrationEnvironment: Bool = false
+  ) -> String {
+    let flags = preservesShellIntegrationEnvironment ? "-flc" : "-lc"
+    return "\(startupShell) \(flags) \(escapedToken(script))"
   }
 
   public static func escapedToken(_ token: String) -> String {

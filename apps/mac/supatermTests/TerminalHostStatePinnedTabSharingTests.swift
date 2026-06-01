@@ -378,11 +378,12 @@ struct TerminalHostStatePinnedTabSharingTests {
     } operation: {
       let sessionIDs = LockIsolated<Set<String>>([])
       let killedSurfaceIDs = LockIsolated<[UUID]>([])
+      let zmxURL = try makeIdleZmxExecutable()
+      defer { try? FileManager.default.removeItem(at: zmxURL.deletingLastPathComponent()) }
       let host = TerminalHostState(
         zmxClient: ZmxClient(
-          executableURL: { URL(fileURLWithPath: "/tmp/zmx") },
+          executableURL: { zmxURL },
           isBundled: { true },
-          wrapCommand: { _, _, _ in nil },
           killSession: { surfaceID in
             killedSurfaceIDs.withValue { $0.append(surfaceID) }
           },
@@ -418,11 +419,11 @@ struct TerminalHostStatePinnedTabSharingTests {
       action.action.child_exited.timetime_ms = 28
 
       #expect(exitedSurface.bridge.handleAction(target: target, action: action))
-      for _ in 0..<20 {
-        await Task.yield()
-      }
-
-      let currentSurfaces = try #require(host.trees[pinnedTabID]?.leaves())
+      let currentSurfaces = try await waitForSurfaceReplacement(
+        in: host,
+        tabID: pinnedTabID,
+        replacing: exitedSurface
+      )
       #expect(currentSurfaces.map(\.id) == initialSurfaceIDs)
       #expect(currentSurfaces[0] !== exitedSurface)
       #expect(killedSurfaceIDs.value.isEmpty)
@@ -438,11 +439,12 @@ struct TerminalHostStatePinnedTabSharingTests {
       let sessionIDs = LockIsolated<Set<String>>([])
       let listCallCount = LockIsolated(0)
       let killedSurfaceIDs = LockIsolated<[UUID]>([])
+      let zmxURL = try makeIdleZmxExecutable()
+      defer { try? FileManager.default.removeItem(at: zmxURL.deletingLastPathComponent()) }
       let host = TerminalHostState(
         zmxClient: ZmxClient(
-          executableURL: { URL(fileURLWithPath: "/tmp/zmx") },
+          executableURL: { zmxURL },
           isBundled: { true },
-          wrapCommand: { _, _, _ in nil },
           killSession: { surfaceID in
             killedSurfaceIDs.withValue { $0.append(surfaceID) }
           },
@@ -482,9 +484,11 @@ struct TerminalHostStatePinnedTabSharingTests {
       action.action.child_exited.timetime_ms = 28
 
       #expect(exitedSurface.bridge.handleAction(target: target, action: action))
-      try await Task.sleep(for: .milliseconds(250))
-
-      let currentSurfaces = try #require(host.trees[pinnedTabID]?.leaves())
+      let currentSurfaces = try await waitForSurfaceReplacement(
+        in: host,
+        tabID: pinnedTabID,
+        replacing: exitedSurface
+      )
       #expect(currentSurfaces.map(\.id) == initialSurfaceIDs)
       #expect(currentSurfaces[0] !== exitedSurface)
       #expect(killedSurfaceIDs.value.isEmpty)
@@ -767,5 +771,37 @@ struct TerminalHostStatePinnedTabSharingTests {
     for _ in 0..<5 {
       await Task.yield()
     }
+  }
+
+  private func waitForSurfaceReplacement(
+    in host: TerminalHostState,
+    tabID: TerminalTabID,
+    replacing exitedSurface: GhosttySurfaceView
+  ) async throws -> [GhosttySurfaceView] {
+    for _ in 0..<40 {
+      let currentSurfaces = try #require(host.trees[tabID]?.leaves())
+      if currentSurfaces.first !== exitedSurface {
+        return currentSurfaces
+      }
+      try await Task.sleep(for: .milliseconds(25))
+    }
+    return try #require(host.trees[tabID]?.leaves())
+  }
+
+  private func makeIdleZmxExecutable() throws -> URL {
+    let directory = try makeCommandExecutionTemporaryDirectory()
+    let url = directory.appendingPathComponent("zmx", isDirectory: false)
+    try writeExecutable(
+      at: url,
+      script: """
+        #!/bin/sh
+        trap 'exit 0' HUP INT TERM
+        while true; do
+          sleep 1 &
+          wait $!
+        done
+        """
+    )
+    return url
   }
 }

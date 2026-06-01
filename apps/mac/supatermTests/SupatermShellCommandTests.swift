@@ -21,4 +21,15 @@ struct SupatermShellCommandTests {
         == "/bin/zsh -lc 'echo 1\necho 2'"
     )
   }
+
+  @Test
+  func ghosttyStartupCommandCanPreserveShellIntegrationEnvironment() {
+    #expect(
+      SupatermShellCommand.ghosttyStartupCommand(
+        for: #"sp onboard; exec "${SHELL:-/bin/zsh}" -l"#,
+        preservesShellIntegrationEnvironment: true
+      )
+        == #"/bin/zsh -flc 'sp onboard; exec "${SHELL:-/bin/zsh}" -l'"#
+    )
+  }
 }

@@ -55,29 +55,26 @@ nonisolated private func zmxLogRunFinished(_ argumentLabel: String, stdoutLineCo
   zmxLogDebug("zmx.run.finished", fields: fields)
 }
 
-public nonisolated struct ZmxClient: Sendable {
-  public typealias WrapCommand = @Sendable (
-    _ surfaceID: UUID,
-    _ userCommand: String?,
-    _ defaultShellCommand: String?
-  ) -> String?
+public nonisolated enum ZmxEnvironment {
+  public static let directoryKey = "ZMX_DIR"
+  public static let sessionKey = "ZMX_SESSION"
+  public static let sessionPrefixKey = "ZMX_SESSION_PREFIX"
+}
 
+public nonisolated struct ZmxClient: Sendable {
   public var executableURL: @Sendable () -> URL?
   public var isBundled: @Sendable () -> Bool
-  public var wrapCommand: WrapCommand
   public var killSession: @Sendable (_ surfaceID: UUID) async -> Void
   public var listSessions: @Sendable () async -> [String]?
 
   public nonisolated init(
     executableURL: @escaping @Sendable () -> URL?,
     isBundled: @escaping @Sendable () -> Bool,
-    wrapCommand: @escaping WrapCommand,
     killSession: @escaping @Sendable (_ surfaceID: UUID) async -> Void,
     listSessions: @escaping @Sendable () async -> [String]?
   ) {
     self.executableURL = executableURL
     self.isBundled = isBundled
-    self.wrapCommand = wrapCommand
     self.killSession = killSession
     self.listSessions = listSessions
   }
@@ -127,7 +124,9 @@ extension ZmxClient {
       process.executableURL = executable
       process.arguments = arguments
       var environment = ProcessInfo.processInfo.environment
-      environment[ZmxSocketBudget.environmentKey] = ZmxSocketBudget.socketDir()
+      environment[ZmxEnvironment.directoryKey] = ZmxSocketBudget.socketDir()
+      environment[ZmxEnvironment.sessionKey] = ""
+      environment[ZmxEnvironment.sessionPrefixKey] = ""
       process.environment = environment
 
       let stdoutPipe: Pipe?
@@ -210,36 +209,6 @@ extension ZmxClient {
     return ZmxClient(
       executableURL: resolveExecutable,
       isBundled: { cachedBundledURL != nil },
-      wrapCommand: { surfaceID, userCommand, defaultShellCommand in
-        let sessionID = ZmxSessionID.make(surfaceID: surfaceID)
-        guard let executable = resolveExecutable() else {
-          zmxLogError(
-            "zmx.attach.unavailable",
-            fields: [
-              "surfaceID=\(surfaceID.uuidString.lowercased())",
-              "sessionID=\(sessionID)",
-            ]
-          )
-          return nil
-        }
-        let hasDefaultShellCommand =
-          defaultShellCommand?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false
-        zmxLogDebug(
-          "zmx.attach.wrap",
-          fields: [
-            "surfaceID=\(surfaceID.uuidString.lowercased())",
-            "sessionID=\(sessionID)",
-            "hasUserCommand=\(userCommand?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false)",
-            "hasDefaultShellCommand=\(hasDefaultShellCommand)",
-          ]
-        )
-        return ZmxAttach.buildCommand(
-          executablePath: executable.path(percentEncoded: false),
-          sessionID: sessionID,
-          userCommand: userCommand,
-          defaultShellCommand: defaultShellCommand
-        )
-      },
       killSession: { surfaceID in
         zmxLogDebug(
           "zmx.kill.requested",
@@ -272,7 +241,6 @@ extension ZmxClient {
   public nonisolated static let noop = ZmxClient(
     executableURL: { nil },
     isBundled: { false },
-    wrapCommand: { _, _, _ in nil },
     killSession: { _ in },
     listSessions: { nil }
   )
@@ -327,7 +295,6 @@ public nonisolated enum ZmxSessionID {
 }
 
 public nonisolated enum ZmxSocketBudget {
-  public nonisolated static let environmentKey = "ZMX_DIR"
   public nonisolated static let sunPathLimit = 104
   public nonisolated static let safetyMargin = 2
   public nonisolated static let sessionNameByteCount =
@@ -358,35 +325,30 @@ public nonisolated enum ZmxSocketBudget {
   }
 }
 
-public nonisolated enum ZmxAttach {
-  public static let defaultShellCommandFlag = "--default-shell-command"
+public nonisolated struct ZmxLaunch: Equatable, Sendable {
+  public let command: String?
+  public let commandWrapper: [String]
+}
 
-  public nonisolated static func buildCommand(
+public nonisolated enum ZmxAttach {
+  public nonisolated static func buildWrapperArgv(
+    executablePath: String,
+    sessionID: String
+  ) -> [String] {
+    [executablePath, "attach", sessionID]
+  }
+
+  public nonisolated static func resolveLaunch(
     executablePath: String,
     sessionID: String,
-    userCommand: String?,
-    defaultShellCommand: String? = nil
-  ) -> String {
-    let attach = "\(shellQuote(executablePath)) attach \(sessionID)"
-    guard let command = userCommand?.trimmingCharacters(in: .whitespacesAndNewlines), !command.isEmpty else {
-      guard let defaultShellCommand = defaultShellCommand?.trimmingCharacters(in: .whitespacesAndNewlines),
-        !defaultShellCommand.isEmpty
-      else { return attach }
-      return "\(attach) \(defaultShellCommandFlag) \(shellQuote(defaultShellCommand))"
+    command: String?
+  ) -> ZmxLaunch {
+    let command = command.flatMap {
+      $0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? nil : $0
     }
-    return "\(attach) /bin/sh -c \(shellQuote(command))"
-  }
-
-  public nonisolated static func defaultShellCommand(
-    environment: [String: String] = ProcessInfo.processInfo.environment
-  ) -> String {
-    if let shell = environment["SHELL"]?.trimmingCharacters(in: .whitespacesAndNewlines), !shell.isEmpty {
-      return shell
-    }
-    return "/bin/sh"
-  }
-
-  public nonisolated static func shellQuote(_ value: String) -> String {
-    "'\(value.replacing("'", with: "'\\''"))'"
+    return ZmxLaunch(
+      command: command,
+      commandWrapper: buildWrapperArgv(executablePath: executablePath, sessionID: sessionID)
+    )
   }
 }

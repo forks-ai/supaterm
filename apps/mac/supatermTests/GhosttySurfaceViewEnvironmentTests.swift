@@ -35,7 +35,9 @@ struct GhosttySurfaceViewEnvironmentTests {
           key: SupatermCLIEnvironment.cliPathKey,
           value: "/Applications/Supaterm.app/Contents/Resources/bin/sp"
         ),
-        SupatermCLIEnvironmentVariable(key: ZmxSocketBudget.environmentKey, value: "/tmp/zmx-\(getuid())"),
+        SupatermCLIEnvironmentVariable(key: ZmxEnvironment.directoryKey, value: "/tmp/zmx-\(getuid())"),
+        SupatermCLIEnvironmentVariable(key: ZmxEnvironment.sessionKey, value: ""),
+        SupatermCLIEnvironmentVariable(key: ZmxEnvironment.sessionPrefixKey, value: ""),
         SupatermCLIEnvironmentVariable(key: "PATH", value: path),
       ]
     )
@@ -57,28 +59,27 @@ struct GhosttySurfaceViewEnvironmentTests {
 
     #expect(
       environmentVariables.contains(
-        SupatermCLIEnvironmentVariable(key: ZmxSocketBudget.environmentKey, value: "/tmp/zmx-\(getuid())")
+        SupatermCLIEnvironmentVariable(key: ZmxEnvironment.directoryKey, value: "/tmp/zmx-\(getuid())")
       )
     )
   }
 
   @Test
-  func supatermEnvironmentVariablesAppendZmxShellIntegrationVariablesWhenEnabled() {
+  func supatermEnvironmentVariablesClearInheritedZmxSessionContext() {
     let environmentVariables = GhosttySurfaceView.supatermEnvironmentVariables(
       surfaceID: UUID(),
       tabID: UUID(),
       socketPath: nil,
       cliPath: nil,
-      processEnvironment: [:],
-      zmxShellIntegrationEnvironmentVariables: [
-        SupatermCLIEnvironmentVariable(key: "ZDOTDIR", value: "/ghostty/shell-integration/zsh")
+      processEnvironment: [
+        ZmxEnvironment.sessionKey: "parent-session",
+        ZmxEnvironment.sessionPrefixKey: "parent-prefix-",
       ]
     )
 
+    #expect(environmentVariables.contains(SupatermCLIEnvironmentVariable(key: ZmxEnvironment.sessionKey, value: "")))
     #expect(
-      environmentVariables.contains(
-        SupatermCLIEnvironmentVariable(key: "ZDOTDIR", value: "/ghostty/shell-integration/zsh")
-      )
+      environmentVariables.contains(SupatermCLIEnvironmentVariable(key: ZmxEnvironment.sessionPrefixKey, value: ""))
     )
   }
 
@@ -92,24 +93,9 @@ struct GhosttySurfaceViewEnvironmentTests {
       zmxSessionsEnabled: false
     )
 
-    #expect(!environmentVariables.contains { $0.key == ZmxSocketBudget.environmentKey })
-  }
-
-  @Test
-  func supatermEnvironmentVariablesOmitZmxShellIntegrationVariablesWhenDisabled() {
-    let environmentVariables = GhosttySurfaceView.supatermEnvironmentVariables(
-      surfaceID: UUID(),
-      tabID: UUID(),
-      socketPath: nil,
-      cliPath: nil,
-      processEnvironment: [:],
-      zmxSessionsEnabled: false,
-      zmxShellIntegrationEnvironmentVariables: [
-        SupatermCLIEnvironmentVariable(key: "ZDOTDIR", value: "/ghostty/shell-integration/zsh")
-      ]
-    )
-
-    #expect(!environmentVariables.contains { $0.key == "ZDOTDIR" })
+    #expect(!environmentVariables.contains { $0.key == ZmxEnvironment.directoryKey })
+    #expect(!environmentVariables.contains { $0.key == ZmxEnvironment.sessionKey })
+    #expect(!environmentVariables.contains { $0.key == ZmxEnvironment.sessionPrefixKey })
   }
 
   @Test

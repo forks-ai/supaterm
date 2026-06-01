@@ -20,56 +20,49 @@ struct ZmxClientTests {
   }
 
   @Test
-  func attachCommandQuotesExecutableAndUserCommand() {
-    let command = ZmxAttach.buildCommand(
-      executablePath: "/Applications/Supaterm's Runtime/zmx",
+  func buildWrapperArgvKeepsExecutableAsOneArgument() {
+    let argv = ZmxAttach.buildWrapperArgv(
+      executablePath: "/Applications/Supaterm Runtime.app/Contents/Resources/zmx/zmx",
+      sessionID: "spt-session"
+    )
+
+    #expect(argv == ["/Applications/Supaterm Runtime.app/Contents/Resources/zmx/zmx", "attach", "spt-session"])
+  }
+
+  @Test
+  func resolveLaunchWrapsInteractiveShellWithoutCommand() {
+    let launch = ZmxAttach.resolveLaunch(
+      executablePath: "/tmp/zmx",
       sessionID: "spt-session",
-      userCommand: "echo 'hello'"
+      command: nil
     )
 
-    #expect(command == #"'/Applications/Supaterm'\''s Runtime/zmx' attach spt-session /bin/sh -c 'echo '\''hello'\'''"#)
+    #expect(launch.command == nil)
+    #expect(launch.commandWrapper == ["/tmp/zmx", "attach", "spt-session"])
   }
 
   @Test
-  func attachCommandOmitsEmptyUserCommand() {
-    #expect(
-      ZmxAttach.buildCommand(
-        executablePath: "/tmp/zmx",
-        sessionID: "spt-session",
-        userCommand: "  "
-      ) == "'/tmp/zmx' attach spt-session"
+  func resolveLaunchKeepsStartupCommandAndAddsWrapper() {
+    let launch = ZmxAttach.resolveLaunch(
+      executablePath: "/tmp/zmx",
+      sessionID: "spt-session",
+      command: "/bin/zsh -flc 'echo hello'"
     )
+
+    #expect(launch.command == "/bin/zsh -flc 'echo hello'")
+    #expect(launch.commandWrapper == ["/tmp/zmx", "attach", "spt-session"])
   }
 
   @Test
-  func attachCommandUsesDefaultShellCommandWhenUserCommandIsMissing() {
-    #expect(
-      ZmxAttach.buildCommand(
-        executablePath: "/tmp/zmx",
-        sessionID: "spt-session",
-        userCommand: nil,
-        defaultShellCommand: "bash --posix"
-      ) == "'/tmp/zmx' attach spt-session --default-shell-command 'bash --posix'"
+  func resolveLaunchTreatsBlankCommandAsInteractive() {
+    let launch = ZmxAttach.resolveLaunch(
+      executablePath: "/tmp/zmx",
+      sessionID: "spt-session",
+      command: " \n "
     )
-  }
 
-  @Test
-  func attachCommandUserCommandOverridesDefaultShellCommand() {
-    #expect(
-      ZmxAttach.buildCommand(
-        executablePath: "/tmp/zmx",
-        sessionID: "spt-session",
-        userCommand: "echo hello",
-        defaultShellCommand: "bash --posix"
-      ) == "'/tmp/zmx' attach spt-session /bin/sh -c 'echo hello'"
-    )
-  }
-
-  @Test
-  func defaultShellCommandUsesShellEnvironment() {
-    #expect(ZmxAttach.defaultShellCommand(environment: ["SHELL": "/bin/zsh"]) == "/bin/zsh")
-    #expect(ZmxAttach.defaultShellCommand(environment: ["SHELL": " "]) == "/bin/sh")
-    #expect(ZmxAttach.defaultShellCommand(environment: [:]) == "/bin/sh")
+    #expect(launch.command == nil)
+    #expect(launch.commandWrapper == ["/tmp/zmx", "attach", "spt-session"])
   }
 
   @Test

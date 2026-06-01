@@ -5,6 +5,7 @@ let ghosttyFingerprintPath: Path = ".build/ghostty/fingerprint"
 let ghosttyResourcesPath: Path = ".build/ghostty/share/ghostty"
 let ghosttyTerminfoPath: Path = ".build/ghostty/share/terminfo"
 let ghosttyBuildScriptPath: Path = "scripts/build-ghostty.sh"
+let ghosttyCommandWrapperPatchPath: Path = "patches/ghostty-command-wrapper.patch"
 let zmxBinaryPath: Path = ".build/zmx/bin/zmx"
 let zmxBuildScriptPath: Path = "scripts/build-zmx.sh"
 let zmxFingerprintPath: Path = ".build/zmx/fingerprint"
@@ -127,6 +128,7 @@ let project = Project(
       inputs: [
         .file("../../mise.toml"),
         .file(ghosttyBuildScriptPath),
+        .file(ghosttyCommandWrapperPatchPath),
         .script(ghosttyFingerprintInputScript),
       ],
       output: .xcframework(path: ghosttyXCFrameworkPath, linking: .static)
