@@ -74,10 +74,10 @@ struct TerminalAgentPanelTests {
     let claude = try #require(PaneAgentPanelSession.supported(agent: .claude, sessionID: "session-1"))
 
     #expect(
-      codex.forkStartupCommand == "codex fork 'session 1'"
+      codex.forkStartupCommand == #"codex fork 'session 1'; exec "${SHELL:-/bin/zsh}" -l"#
     )
     #expect(
-      claude.forkStartupCommand == "claude --fork-session --resume session-1"
+      claude.forkStartupCommand == #"claude --fork-session --resume session-1; exec "${SHELL:-/bin/zsh}" -l"#
     )
     #expect(PaneAgentPanelSession.supported(agent: .pi, sessionID: "session-1") == nil)
     #expect(PaneAgentPanelSession.supported(agent: .codex, sessionID: " ") == nil)

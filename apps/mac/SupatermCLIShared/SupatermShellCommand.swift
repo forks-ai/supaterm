@@ -11,6 +11,10 @@ public enum SupatermShellCommand {
     return "\(startupShell) \(flags) \(escapedToken(script))"
   }
 
+  public static func interactiveStartupCommand(for command: String) -> String {
+    "\(command); exec \"${SHELL:-\(startupShell)}\" -l"
+  }
+
   public static func escapedToken(_ token: String) -> String {
     guard !token.isEmpty else { return "''" }
 

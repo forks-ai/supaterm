@@ -41,6 +41,10 @@ nonisolated struct PaneAgentPanelSession: Equatable, Sendable {
   }
 
   var forkStartupCommand: String {
+    SupatermShellCommand.interactiveStartupCommand(for: forkCommand)
+  }
+
+  private var forkCommand: String {
     switch agent {
     case .claude:
       return ["claude", "--fork-session", "--resume", sessionID]

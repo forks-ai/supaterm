@@ -1085,7 +1085,7 @@ struct TerminalWindowFeatureTests {
     #expect(
       requests == [
         TerminalCreatePaneRequest(
-          startupCommand: "codex fork session-1",
+          startupCommand: #"codex fork session-1; exec "${SHELL:-/bin/zsh}" -l"#,
           cwd: nil,
           direction: .down,
           focus: true,

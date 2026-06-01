@@ -32,4 +32,12 @@ struct SupatermShellCommandTests {
         == #"/bin/zsh -flc 'sp onboard; exec "${SHELL:-/bin/zsh}" -l'"#
     )
   }
+
+  @Test
+  func interactiveStartupCommandLeavesShellBehind() {
+    #expect(
+      SupatermShellCommand.interactiveStartupCommand(for: "echo hello")
+        == #"echo hello; exec "${SHELL:-/bin/zsh}" -l"#
+    )
+  }
 }
