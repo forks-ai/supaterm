@@ -17,6 +17,12 @@ type ChangelogEntry = {
 
 const changelogData: ChangelogEntry[] = [
   {
+    version: "v1.3.5",
+    date: "2026-06-02",
+    title: "🛠️ Login shell startup fix",
+    sections: [],
+  },
+  {
     version: "v1.3.4",
     date: "2026-06-02",
     title: "🎛️ Agent Panel",
