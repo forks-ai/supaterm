@@ -11,10 +11,32 @@ type ChangelogEntry = {
   title: string;
   description?: string;
   image?: string;
+  video?: string;
   sections: ChangeSection[];
 };
 
 const changelogData: ChangelogEntry[] = [
+  {
+    version: "v1.3.4",
+    date: "2026-06-02",
+    title: "🎛️ Agent Panel",
+    description:
+      "There is now an agent panel showing Git, PR status, server opened by the agent, and some other actions.",
+    video: "/changelog/agent-session-polish.mp4",
+    sections: [
+      {
+        category: "new",
+        items: ["Fork supported agent sessions and copy session IDs from the agent panel"],
+      },
+      {
+        category: "fixes",
+        items: [
+          "zmx startup now preserves shell integration and working-directory tracking",
+          "Splitting panes while search is open now keeps focus on the new pane",
+        ],
+      },
+    ],
+  },
   {
     version: "v1.3.3",
     date: "2026-05-26",

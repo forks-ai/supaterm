@@ -116,6 +116,10 @@ describe("router", () => {
     const { history, router } = await renderRoute("/changelog");
 
     expect(await screen.findByRole("heading", { name: "Changelog" })).toBeTruthy();
+    expect(screen.getByRole("heading", { name: "🎛️ Agent Panel" })).toBeTruthy();
+    expect(document.querySelector("video")?.getAttribute("src")).toBe(
+      "/changelog/agent-session-polish.mp4",
+    );
     expect(screen.queryByRole("heading", { name: /The terminal with/i })).toBeNull();
     expect(history.location.pathname).toBe("/changelog");
     expect(router.state.location.pathname).toBe("/changelog");

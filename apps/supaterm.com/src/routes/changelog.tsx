@@ -55,6 +55,19 @@ function ChangelogPage() {
                     <img src={entry.image} alt={entry.title} className="block w-full" />
                   </div>
                 ) : null}
+                {entry.video ? (
+                  <div className="mt-6 overflow-hidden rounded-[12px] border border-white/8">
+                    <video
+                      src={entry.video}
+                      aria-label={entry.title}
+                      controls
+                      loop
+                      muted
+                      playsInline
+                      className="block w-full"
+                    />
+                  </div>
+                ) : null}
                 <div className="mt-6 space-y-5">
                   {sorted.map((section) => (
                     <div key={section.category} className="pt-4">
