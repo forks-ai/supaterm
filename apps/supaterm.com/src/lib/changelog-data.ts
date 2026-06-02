@@ -17,6 +17,12 @@ type ChangelogEntry = {
 
 const changelogData: ChangelogEntry[] = [
   {
+    version: "v1.3.6",
+    date: "2026-06-02",
+    title: "🛠️ Pinned tab hotfixes",
+    sections: [],
+  },
+  {
     version: "v1.3.5",
     date: "2026-06-02",
     title: "🛠️ Login shell startup fix",
