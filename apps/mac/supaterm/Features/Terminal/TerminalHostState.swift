@@ -27,6 +27,7 @@ nonisolated enum TerminalSurfaceCloseSource: String, Sendable {
 nonisolated enum TerminalTreeRemovalSource: String, Sendable {
   case closeTab = "closeTab"
   case controlCleanup = "control.cleanup"
+  case pinnedLastPaneClose = "pinned.lastPaneClose"
   case pinnedReconcile = "pinned.reconcile"
   case pinnedSuspend = "pinned.suspend"
   case sessionClear = "session.clear"
@@ -1181,7 +1182,17 @@ final class TerminalHostState {
     )
 
     if newTree.isEmpty, wasPinned {
-      performCloseTab(tabID)
+      logCloseKillSurface(surfaceID: surfaceID, tabID: tabID, source: source)
+      persistPinnedTabWorkingDirectoriesIfNeeded(for: tabID)
+      removeTree(for: tabID, source: .pinnedLastPaneClose)
+      if let spaceID {
+        spaceManager.tabManager(for: spaceID)?.updateDirty(tabID, isDirty: false)
+        updateSelectionAfterClosingTab(in: spaceID, wasSelectedSpace: wasSelectedSpace)
+      } else {
+        lastEmittedFocusSurfaceID = nil
+      }
+      syncFocus(windowActivity)
+      sessionDidChange(persistingPinnedTabLayouts: false)
       return
     }
 

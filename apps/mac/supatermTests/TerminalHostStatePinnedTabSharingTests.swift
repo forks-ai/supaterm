@@ -185,7 +185,7 @@ struct TerminalHostStatePinnedTabSharingTests {
   }
 
   @Test
-  func closingLastPaneInPinnedTabClosesItAndSelectsPreviousLiveTab() async throws {
+  func closingLastPaneInPinnedTabKeepsItDormantAndSelectsPreviousLiveTab() async throws {
     try await withDependencies {
       $0.defaultFileStorage = .inMemory
       initializeGhosttyForTests()
@@ -205,16 +205,16 @@ struct TerminalHostStatePinnedTabSharingTests {
       host.handleCommand(.closeSurface(surfaceID))
 
       @Shared(.terminalPinnedTabCatalog) var sharedCatalog = .default
-      #expect(host.spaceManager.tab(for: pinnedTabID) == nil)
+      #expect(host.spaceManager.tab(for: pinnedTabID)?.isPinned == true)
       #expect(host.trees[pinnedTabID] == nil)
       #expect(host.selectedTabID == regularTabID)
       #expect(host.trees[regularTabID] != nil)
-      #expect(sharedCatalog.tabs(in: selectedSpaceID).isEmpty)
+      #expect(sharedCatalog.tabs(in: selectedSpaceID).map(\.id) == [pinnedTabID])
     }
   }
 
   @Test
-  func closingLastPaneInZmxBackedPinnedTabKillsSessionAndRemovesCatalog() async throws {
+  func closingLastPaneInZmxBackedPinnedTabKillsSessionAndKeepsCatalog() async throws {
     try await withDependencies {
       $0.defaultFileStorage = .inMemory
       initializeGhosttyForTests()
@@ -239,6 +239,7 @@ struct TerminalHostStatePinnedTabSharingTests {
 
       host.handleCommand(.createTab(inheritingFromSurfaceID: nil))
       let selectedSpaceID = try #require(host.selectedSpaceID)
+      let regularTabID = try #require(host.selectedTabID)
       host.handleCommand(.selectTab(pinnedTabID))
       let surfaceID = try #require(host.currentFocusedSurfaceID())
 
@@ -247,14 +248,62 @@ struct TerminalHostStatePinnedTabSharingTests {
       @Shared(.terminalPinnedTabCatalog) var sharedCatalog = .default
       let didKillSurface = await waitForKilledSurface(surfaceID, in: killedSurfaceIDs)
       #expect(didKillSurface)
-      #expect(host.spaceManager.tab(for: pinnedTabID) == nil)
+      #expect(host.spaceManager.tab(for: pinnedTabID)?.isPinned == true)
       #expect(host.trees[pinnedTabID] == nil)
-      #expect(sharedCatalog.tabs(in: selectedSpaceID).isEmpty)
+      #expect(host.selectedTabID == regularTabID)
+      #expect(sharedCatalog.tabs(in: selectedSpaceID).map(\.id) == [pinnedTabID])
 
       host.handleCommand(.selectTab(pinnedTabID))
 
-      #expect(host.selectedTabID != pinnedTabID)
+      #expect(host.selectedTabID == pinnedTabID)
+      #expect(host.trees[pinnedTabID]?.leaves().count == 1)
+    }
+  }
+
+  @Test
+  func closingLastPaneInPinnedTabPreservesWorkingDirectory() async throws {
+    try await withDependencies {
+      $0.defaultFileStorage = .inMemory
+      initializeGhosttyForTests()
+    } operation: {
+      let restoredPath = FileManager.default.temporaryDirectory
+        .appendingPathComponent(UUID().uuidString, isDirectory: true)
+      try FileManager.default.createDirectory(at: restoredPath, withIntermediateDirectories: true)
+      let restoredPathString = GhosttySurfaceView.normalizedWorkingDirectoryPath(
+        restoredPath.path(percentEncoded: false)
+      )
+      defer {
+        try? FileManager.default.removeItem(at: restoredPath)
+      }
+
+      let host = TerminalHostState()
+      host.handleCommand(.ensureInitialTab(focusing: false, startupCommand: nil))
+      let pinnedTabID = try #require(host.selectedTabID)
+      host.handleCommand(.togglePinned(pinnedTabID))
+      await flushPinnedTabCatalogObservation()
+
+      host.handleCommand(.createTab(inheritingFromSurfaceID: nil))
+      host.handleCommand(.selectTab(pinnedTabID))
+      host.selectedSurfaceView?.bridge.state.pwd = restoredPathString
+      let surfaceID = try #require(host.currentFocusedSurfaceID())
+
+      host.handleCommand(.closeSurface(surfaceID))
+
+      @Shared(.terminalPinnedTabCatalog) var sharedCatalog = .default
+      let selectedSpaceID = try #require(host.selectedSpaceID)
+      let pinnedTab = try #require(
+        sharedCatalog.tabs(in: selectedSpaceID).first(where: { $0.id == pinnedTabID })
+      )
+      guard case .leaf(let leaf) = pinnedTab.session.root else {
+        Issue.record("Expected leaf root")
+        return
+      }
+      #expect(leaf.workingDirectoryPath == restoredPathString)
       #expect(host.trees[pinnedTabID] == nil)
+
+      host.handleCommand(.selectTab(pinnedTabID))
+
+      #expect(host.selectedSurfaceState?.pwd == restoredPathString)
     }
   }
 
