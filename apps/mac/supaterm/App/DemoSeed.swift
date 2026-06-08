@@ -29,8 +29,8 @@
               spaces: [
                 TerminalWindowSpaceSession(
                   id: IDs.space,
-                  selectedTabIndex: nil,
-                  selectedPinnedTabID: IDs.webTab,
+                  selectedTabIndex: 1,
+                  selectedPinnedTabID: nil,
                   tabs: [
                     deploySession,
                     scratchSession,
