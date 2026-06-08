@@ -65,8 +65,20 @@
         terminal.demoInjectRunningAgent(
           kind: .codex,
           surfaceID: IDs.webAgentSurface,
-          detail: "Running launch prep",
-          sessionID: "supaterm-demo-session"
+          detail: "Refining sidebar states",
+          sessionID: "019b1fd8-49f5-7b72-a4e4-62f59f9c7d21"
+        )
+        terminal.demoInjectRunningAgent(
+          kind: .claude,
+          surfaceID: IDs.webAgentSurface,
+          detail: "Reviewing tab restore",
+          sessionID: nil
+        )
+        terminal.demoInjectRunningAgent(
+          kind: .pi,
+          surfaceID: IDs.webAgentSurface,
+          detail: "Checking release copy",
+          sessionID: nil
         )
         terminal.demoInjectPanelMetadata(surfaceID: IDs.webAgentSurface)
         terminal.demoInjectRunningAgent(

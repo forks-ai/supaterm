@@ -74,28 +74,28 @@
       return Self(
         progressRows: [
           PaneAgentProgressRow(
-            id: "scan-workspace",
-            title: "Scan workspace",
+            id: "inspect-restored-tabs",
+            title: "Inspect restored tabs",
             status: .completed
           ),
           PaneAgentProgressRow(
-            id: "refresh-preview",
-            title: "Refresh preview",
+            id: "wire-agent-badges",
+            title: "Wire agent badges",
             status: .running
           ),
           PaneAgentProgressRow(
-            id: "record-launch-flow",
-            title: "Record launch flow",
+            id: "run-sidebar-checks",
+            title: "Run sidebar checks",
             status: .pending
           ),
         ],
         branchDetails: PaneAgentBranchDetails(
-          branchName: "feat/demo-mode",
+          branchName: "feat/agent-panel-state",
           addedLineCount: 120,
           removedLineCount: 18,
           pullRequestStatus: PaneAgentPullRequestStatus(
             kind: .open,
-            title: "PR #42 Demo workspace",
+            title: "PR #42 Agent panel state",
             url: URL(string: "https://supaterm.com"),
             addedLineCount: 120,
             removedLineCount: 18,
