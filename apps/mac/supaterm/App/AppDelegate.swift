@@ -123,7 +123,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
     menuController.install()
     socketStore.send(.task)
     refreshInstalledAgentHooks()
+    #if SUPATERM_DEMO
+      DemoSeed.seedCatalogs()
+    #endif
     restoreWindowsAtLaunch()
+    #if SUPATERM_DEMO
+      DemoSeed.decorate(windowControllers.values.map(\.terminal))
+    #endif
     if zmxSessionsEnabledAtLaunch {
       reapOrphanZmxSessions()
     }

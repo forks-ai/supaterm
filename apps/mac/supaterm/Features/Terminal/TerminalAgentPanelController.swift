@@ -1018,6 +1018,9 @@ final class TerminalAgentPanelController {
   }
 
   func surfaceFocused(_ surfaceID: UUID) {
+    #if SUPATERM_DEMO
+      guard !DemoSeed.preservesFakeAgentState(surfaceID) else { return }
+    #endif
     let context = terminal?.agentPanelRefreshContext(for: surfaceID)
     updatePortTracking(surfaceID, context: context)
     guard let workspaceKey = updateWorkspaceTracking(surfaceID, context: context) else {
@@ -1029,6 +1032,9 @@ final class TerminalAgentPanelController {
   }
 
   func surfacePathChanged(_ surfaceID: UUID) {
+    #if SUPATERM_DEMO
+      guard !DemoSeed.preservesFakeAgentState(surfaceID) else { return }
+    #endif
     guard
       let workspaceKey = updateWorkspaceTracking(
         surfaceID,
@@ -1043,6 +1049,9 @@ final class TerminalAgentPanelController {
   }
 
   func surfaceAgentStateChanged(_ surfaceID: UUID) {
+    #if SUPATERM_DEMO
+      guard !DemoSeed.preservesFakeAgentState(surfaceID) else { return }
+    #endif
     let context = terminal?.agentPanelRefreshContext(for: surfaceID)
     updatePortTracking(surfaceID, context: context)
     guard let workspaceKey = updateWorkspaceTracking(surfaceID, context: context) else {
@@ -1057,6 +1066,9 @@ final class TerminalAgentPanelController {
   }
 
   func surfaceCommandFinished(_ surfaceID: UUID) {
+    #if SUPATERM_DEMO
+      guard !DemoSeed.preservesFakeAgentState(surfaceID) else { return }
+    #endif
     clearSurface(surfaceID)
   }
 

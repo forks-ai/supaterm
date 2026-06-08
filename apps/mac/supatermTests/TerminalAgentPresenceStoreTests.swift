@@ -43,6 +43,26 @@ struct TerminalAgentPresenceStoreTests {
   }
 
   @Test
+  func activityWithSessionExposesPanelSession() throws {
+    var store = TerminalAgentPresenceStore()
+    let surfaceID = UUID()
+
+    let didSetActivity = store.setActivity(
+      .codex(.running),
+      surfaceID: surfaceID,
+      sessionID: "session-1",
+      processID: nil
+    )
+    #expect(didSetActivity)
+
+    let session = try #require(store.panelSession(for: surfaceID))
+    let expectedSession = try #require(
+      PaneAgentPanelSession.supported(agent: .codex, sessionID: "session-1")
+    )
+    #expect(session == expectedSession)
+  }
+
+  @Test
   func removingLastSessionDropsPresence() {
     var store = TerminalAgentPresenceStore()
     let surfaceID = UUID()
@@ -156,6 +176,24 @@ struct TerminalAgentPresenceStoreTests {
     let prunedSurfaceIDs = store.pruneDeadProcesses { _ in false }
     #expect(prunedSurfaceIDs == Set([surfaceID]))
     #expect(store.badgeInstances(across: [surfaceID]).isEmpty)
+  }
+
+  @Test
+  func pruningSkipsSessionOnlyPresence() {
+    var store = TerminalAgentPresenceStore()
+    let surfaceID = UUID()
+
+    let didSetActivity = store.setActivity(
+      .codex(.running),
+      surfaceID: surfaceID,
+      sessionID: "session",
+      processID: nil
+    )
+    #expect(didSetActivity)
+
+    let prunedSurfaceIDs = store.pruneDeadProcesses { _ in false }
+    #expect(prunedSurfaceIDs.isEmpty)
+    #expect(store.statusInstances(for: surfaceID, surfaceIndex: 0).map(\.activity) == [.codex(.running)])
   }
 
   @Test
