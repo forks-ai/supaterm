@@ -611,6 +611,8 @@ struct TerminalWindowRegistryTests {
     } operation: {
       initializeGhosttyForTests()
 
+      let firstFrame = NSRect(x: 40, y: 80, width: 1_100, height: 740)
+      let secondFrame = NSRect(x: 160, y: 220, width: 1_180, height: 760)
       let registry = TerminalWindowRegistry()
       let firstHost = TerminalHostState()
       firstHost.handleCommand(.ensureInitialTab(focusing: false, startupCommand: nil))
@@ -637,6 +639,7 @@ struct TerminalWindowRegistryTests {
         requestConfirmedWindowClose: {}
       )
       let firstWindow = makeWindow()
+      firstWindow.setFrame(firstFrame, display: false)
       registry.updateWindow(firstWindow, for: firstWindowControllerID)
 
       registry.register(
@@ -647,12 +650,15 @@ struct TerminalWindowRegistryTests {
         requestConfirmedWindowClose: {}
       )
       let secondWindow = makeWindow()
+      secondWindow.setFrame(secondFrame, display: false)
       registry.updateWindow(secondWindow, for: secondWindowControllerID)
 
       let snapshot = registry.restorationSnapshot()
 
       #expect(snapshot.windows.count == 2)
+      #expect(snapshot.windows[0].frame == TerminalWindowFrame(firstFrame))
       #expect(snapshot.windows[0].spaces.first?.tabs.count == 1)
+      #expect(snapshot.windows[1].frame == TerminalWindowFrame(secondFrame))
       #expect(snapshot.windows[1].spaces.first?.tabs.count == 2)
     }
   }

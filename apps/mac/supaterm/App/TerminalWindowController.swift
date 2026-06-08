@@ -147,6 +147,7 @@ final class TerminalWindowController: NSWindowController {
     window.title = Bundle.main.object(forInfoDictionaryKey: "CFBundleDisplayName") as? String ?? "Supaterm"
     window.titleVisibility = .hidden
     window.titlebarAppearsTransparent = true
+    Self.applyRestoredFrame(session?.frame, to: window)
     window.onModifierFlagsChanged = { [commandHoldObserver] modifierFlags in
       commandHoldObserver.update(modifierFlags: modifierFlags)
     }
@@ -195,6 +196,16 @@ final class TerminalWindowController: NSWindowController {
   @available(*, unavailable)
   required init?(coder: NSCoder) {
     fatalError("init(coder:) has not been implemented")
+  }
+
+  private static func applyRestoredFrame(_ frame: TerminalWindowFrame?, to window: NSWindow) {
+    guard let frame else { return }
+    let rect = frame.rect
+    let visibleFrame =
+      NSScreen.screens.first(where: { $0.visibleFrame.intersects(rect) })?.visibleFrame
+      ?? NSScreen.main?.visibleFrame
+      ?? rect
+    window.setFrame(rect.constrained(to: visibleFrame), display: false)
   }
 
   private func performConfirmedWindowClose() {

@@ -86,7 +86,7 @@ final class SettingsWindowController: NSWindowController {
 }
 
 extension NSRect {
-  fileprivate func constrained(to bounds: NSRect) -> NSRect {
+  func constrained(to bounds: NSRect) -> NSRect {
     let x = min(max(origin.x, bounds.minX), bounds.maxX - width)
     let y = min(max(origin.y, bounds.minY), bounds.maxY - height)
     return NSRect(x: x, y: y, width: width, height: height)

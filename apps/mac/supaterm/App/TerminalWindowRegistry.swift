@@ -397,7 +397,11 @@ final class TerminalWindowRegistry {
 
   func restorationSnapshot() -> TerminalSessionCatalog {
     TerminalSessionCatalog(
-      windows: activeEntries().map { $0.terminal.restorationSnapshot() }
+      windows: activeEntries().map { entry in
+        var snapshot = entry.terminal.restorationSnapshot()
+        snapshot.frame = entry.windowReference.value.map { TerminalWindowFrame($0.frame) }
+        return snapshot
+      }
     )
   }
 

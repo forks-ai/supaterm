@@ -1,4 +1,5 @@
 import CryptoKit
+import CoreGraphics
 import Foundation
 import SupatermCLIShared
 
@@ -58,6 +59,17 @@ nonisolated struct TerminalSessionCatalog: Equatable, Codable, Sendable {
 nonisolated struct TerminalWindowSession: Equatable, Codable, Sendable {
   var selectedSpaceID: TerminalSpaceID
   var spaces: [TerminalWindowSpaceSession]
+  var frame: TerminalWindowFrame?
+
+  init(
+    selectedSpaceID: TerminalSpaceID,
+    spaces: [TerminalWindowSpaceSession],
+    frame: TerminalWindowFrame? = nil
+  ) {
+    self.selectedSpaceID = selectedSpaceID
+    self.spaces = spaces
+    self.frame = frame
+  }
 
   func pruned(validSpaceIDs: Set<TerminalSpaceID>) -> TerminalWindowSession? {
     var seenSpaceIDs: Set<TerminalSpaceID> = []
@@ -73,7 +85,8 @@ nonisolated struct TerminalWindowSession: Equatable, Codable, Sendable {
       : spaces[0].id
     return TerminalWindowSession(
       selectedSpaceID: resolvedSelectedSpaceID,
-      spaces: spaces
+      spaces: spaces,
+      frame: frame
     )
   }
 
@@ -81,6 +94,38 @@ nonisolated struct TerminalWindowSession: Equatable, Codable, Sendable {
     spaces.reduce(into: Set<UUID>()) { result, space in
       result.formUnion(space.surfaceIDs)
     }
+  }
+}
+
+nonisolated struct TerminalWindowFrame: Equatable, Codable, Sendable {
+  var x: Double
+  var y: Double
+  var width: Double
+  var height: Double
+
+  init(
+    x: Double,
+    y: Double,
+    width: Double,
+    height: Double
+  ) {
+    self.x = x
+    self.y = y
+    self.width = width
+    self.height = height
+  }
+
+  init(_ rect: CGRect) {
+    self.init(
+      x: Double(rect.origin.x),
+      y: Double(rect.origin.y),
+      width: Double(rect.size.width),
+      height: Double(rect.size.height)
+    )
+  }
+
+  var rect: CGRect {
+    CGRect(x: x, y: y, width: width, height: height)
   }
 }
 
