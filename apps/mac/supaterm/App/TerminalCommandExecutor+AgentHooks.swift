@@ -156,7 +156,7 @@ extension TerminalCommandExecutor {
       context: request.context,
       processID: request.processID
     )
-    if request.agent != .codex {
+    if !request.agent.drivesActivityFromTranscript {
       _ = setAgentPresenceActivity(
         TerminalHostState.AgentActivity(kind: request.agent, phase: .running),
         sessionID: sessionID,
@@ -235,7 +235,7 @@ extension TerminalCommandExecutor {
         context: request.context,
         processID: request.processID
       )
-      if request.agent == .codex {
+      if request.agent.drivesActivityFromTranscript {
         _ = updateCodexHoverMessages(
           event.lastAssistantMessage.map { [$0] } ?? [],
           replacing: true,
@@ -275,14 +275,14 @@ extension TerminalCommandExecutor {
       context: request.context,
       processID: request.processID
     )
-    if request.agent == .codex {
+    if request.agent.drivesActivityFromTranscript {
       _ = clearCodexHoverMessages(
         agent: request.agent,
         context: request.context,
         sessionID: sessionID
       )
     }
-    if request.agent == .codex || request.agent == .claude {
+    if request.agent.hasPanelMonitor {
       _ = clearAgentPanelSnapshot(
         agent: request.agent,
         context: request.context,
@@ -330,7 +330,7 @@ extension TerminalCommandExecutor {
     guard let sessionID = request.event.sessionID else { return false }
     let sessionExists = agentSessionStore.hasSession(agent: request.agent, sessionID: sessionID)
     if request.event.hookEventName == .sessionStart
-      || shouldRecoverCodexSessionBinding(request, sessionExists: sessionExists)
+      || shouldRecoverAgentSessionBinding(request, sessionExists: sessionExists)
     {
       agentSessionStore.beginSession(
         agent: request.agent,
@@ -350,11 +350,11 @@ extension TerminalCommandExecutor {
     return false
   }
 
-  func shouldRecoverCodexSessionBinding(
+  func shouldRecoverAgentSessionBinding(
     _ request: SupatermAgentHookRequest,
     sessionExists: Bool
   ) -> Bool {
-    guard request.agent == .codex,
+    guard request.agent.recoversSessionsFromToolHooks,
       request.context != nil,
       !sessionExists
     else {
@@ -514,15 +514,15 @@ extension TerminalCommandExecutor {
     }
     let agent = activity.kind
     switch activity.phase {
-    case .running where agent == .codex:
+    case .running where agent.drivesActivityFromTranscript:
       agentSessionStore.cancelRunningTimeout(agent: agent, sessionID: sessionID)
     case .running:
-      if agent != .claude {
+      if !agent.keepsPanelTrackingWhenNotRunning {
         agentSessionStore.cancelAgentPanelTracking(agent: agent, sessionID: sessionID)
       }
       agentSessionStore.armRunningTimeout(agent: agent, sessionID: sessionID, context: context)
     default:
-      if agent != .claude {
+      if !agent.keepsPanelTrackingWhenNotRunning {
         agentSessionStore.cancelAgentPanelTracking(agent: agent, sessionID: sessionID)
       }
       agentSessionStore.cancelRunningTimeout(agent: agent, sessionID: sessionID)
