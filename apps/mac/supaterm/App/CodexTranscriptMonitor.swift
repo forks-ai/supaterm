@@ -25,63 +25,13 @@ enum CodexTranscriptTurnStatus: Equatable {
   }
 }
 
-enum CodexTranscriptJSONValue: Equatable {
-  case null
-  case bool(Bool)
-  case number(Double)
-  case string(String)
-  case array([Self])
-  case object([String: Self])
-
-  init?(_ value: Any) {
-    switch value {
-    case is NSNull:
-      self = .null
-    case let value as Bool:
-      self = .bool(value)
-    case let value as NSNumber:
-      self = .number(value.doubleValue)
-    case let value as String:
-      self = .string(value)
-    case let value as [Any]:
-      self = .array(value.compactMap(Self.init))
-    case let value as [String: Any]:
-      self = .object(value.compactMapValues(Self.init))
-    default:
-      return nil
-    }
-  }
-
-  var objectValue: [String: Self]? {
-    guard case .object(let value) = self else { return nil }
-    return value
-  }
-
-  var arrayValue: [Self]? {
-    guard case .array(let value) = self else { return nil }
-    return value
-  }
-
-  var stringValue: String? {
-    guard case .string(let value) = self else { return nil }
-    return value
-  }
-
-  var intValue: Int? {
-    guard case .number(let value) = self else { return nil }
-    return Int(exactly: value)
-  }
-}
-
-typealias CodexTranscriptJSONObject = [String: CodexTranscriptJSONValue]
-
 enum CodexRolloutRecord: Equatable {
-  case sessionMeta(CodexTranscriptJSONObject)
-  case turnContext(CodexTranscriptJSONObject)
-  case eventMessage(type: String, payload: CodexTranscriptJSONObject)
-  case responseItem(type: String, payload: CodexTranscriptJSONObject)
-  case compacted(CodexTranscriptJSONObject)
-  case unknown(type: String, payload: CodexTranscriptJSONValue)
+  case sessionMeta(AgentTranscriptJSONObject)
+  case turnContext(AgentTranscriptJSONObject)
+  case eventMessage(type: String, payload: AgentTranscriptJSONObject)
+  case responseItem(type: String, payload: AgentTranscriptJSONObject)
+  case compacted(AgentTranscriptJSONObject)
+  case unknown(type: String, payload: AgentTranscriptJSONValue)
 }
 
 enum CodexConversationTurnState: Equatable {
@@ -114,9 +64,9 @@ struct CodexConversationReasoning: Equatable {
 enum CodexConversationItem: Equatable {
   case message(CodexConversationMessage)
   case reasoning(CodexConversationReasoning)
-  case operation(type: String, payload: CodexTranscriptJSONObject)
-  case event(type: String, payload: CodexTranscriptJSONObject)
-  case compaction(CodexTranscriptJSONObject)
+  case operation(type: String, payload: AgentTranscriptJSONObject)
+  case event(type: String, payload: AgentTranscriptJSONObject)
+  case compaction(AgentTranscriptJSONObject)
 }
 
 struct CodexConversationTurn: Equatable {
@@ -240,7 +190,7 @@ struct CodexConversationState: Equatable {
 
   private mutating func applyEvent(
     type: String,
-    payload: CodexTranscriptJSONObject
+    payload: AgentTranscriptJSONObject
   ) {
     let preferredTurnID = payload["turn_id"]?.stringValue
     switch type {
@@ -258,7 +208,7 @@ struct CodexConversationState: Equatable {
   }
 
   private mutating func applyTurnStarted(
-    payload: CodexTranscriptJSONObject,
+    payload: AgentTranscriptJSONObject,
     preferredTurnID: String?
   ) {
     let turnID = preferredTurnID ?? makeImplicitTurnID()
@@ -271,7 +221,7 @@ struct CodexConversationState: Equatable {
   }
 
   private mutating func applyTurnCompleted(
-    payload: CodexTranscriptJSONObject,
+    payload: AgentTranscriptJSONObject,
     preferredTurnID: String?
   ) {
     guard let index = turnIndex(preferredTurnID: preferredTurnID) else {
@@ -292,7 +242,7 @@ struct CodexConversationState: Equatable {
   }
 
   private mutating func applyTurnAborted(
-    payload: CodexTranscriptJSONObject,
+    payload: AgentTranscriptJSONObject,
     preferredTurnID: String?
   ) {
     guard let index = turnIndex(preferredTurnID: preferredTurnID) else {
@@ -305,7 +255,7 @@ struct CodexConversationState: Equatable {
   }
 
   private mutating func applyErrorEvent(
-    payload: CodexTranscriptJSONObject,
+    payload: AgentTranscriptJSONObject,
     preferredTurnID: String?
   ) {
     if let index = turnIndex(preferredTurnID: preferredTurnID) {
@@ -320,7 +270,7 @@ struct CodexConversationState: Equatable {
 
   private mutating func applyContentEvent(
     type: String,
-    payload: CodexTranscriptJSONObject,
+    payload: AgentTranscriptJSONObject,
     preferredTurnID: String?
   ) {
     switch type {
@@ -363,7 +313,7 @@ struct CodexConversationState: Equatable {
 
   private mutating func applyResponseItem(
     type: String,
-    payload: CodexTranscriptJSONObject
+    payload: AgentTranscriptJSONObject
   ) {
     let preferredTurnID = payload["turn_id"]?.stringValue
     switch type {
@@ -448,7 +398,7 @@ struct CodexConversationState: Equatable {
 
   private mutating func appendOperation(
     type: String,
-    payload: CodexTranscriptJSONObject,
+    payload: AgentTranscriptJSONObject,
     preferredTurnID: String?
   ) {
     let index = ensureTurnForItem(preferredTurnID: preferredTurnID)
@@ -622,14 +572,14 @@ struct CodexConversationState: Equatable {
 
   static func progressRows(
     operationType: String,
-    payload: CodexTranscriptJSONObject
+    payload: AgentTranscriptJSONObject
   ) -> [PaneAgentProgressRow]? {
     guard operationType == "function_call",
       payload["name"]?.stringValue == "update_plan",
       let arguments = payload["arguments"]?.stringValue,
       let data = arguments.data(using: .utf8),
       let rawObject = try? JSONSerialization.jsonObject(with: data),
-      let object = CodexTranscriptJSONValue(rawObject)?.objectValue,
+      let object = AgentTranscriptJSONValue(rawObject)?.objectValue,
       let plan = object["plan"]?.arrayValue
     else {
       return nil
@@ -651,7 +601,7 @@ struct CodexConversationState: Equatable {
 
   static func sources(
     operationType: String,
-    payload: CodexTranscriptJSONObject
+    payload: AgentTranscriptJSONObject
   ) -> [PaneAgentSource] {
     switch operationType {
     case "web_search_call", "tool_search_call":
@@ -773,7 +723,7 @@ enum CodexTranscriptMonitor {
   private static func record(in line: Data) -> CodexRolloutRecord? {
     guard
       let rawObject = try? JSONSerialization.jsonObject(with: line) as? [String: Any],
-      let object = CodexTranscriptJSONValue(rawObject)?.objectValue,
+      let object = AgentTranscriptJSONValue(rawObject)?.objectValue,
       let lineType = object["type"]?.stringValue
     else {
       return nil
@@ -813,7 +763,7 @@ enum CodexTranscriptMonitor {
 }
 
 private func messageText(
-  from content: [CodexTranscriptJSONValue]?
+  from content: [AgentTranscriptJSONValue]?
 ) -> String? {
   guard let content else { return nil }
   return normalizedMessage(
@@ -826,7 +776,7 @@ private func messageText(
 }
 
 private func textArray(
-  in values: [CodexTranscriptJSONValue]?
+  in values: [AgentTranscriptJSONValue]?
 ) -> [String] {
   guard let values else { return [] }
   return values.compactMap { value in

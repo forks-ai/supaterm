@@ -23,7 +23,7 @@ private struct ClaudeProgressTask: Equatable {
   var status: PaneAgentProgressRow.Status
   var blockedBy: [String]
   var modificationDate: Date?
-  var metadata: CodexTranscriptJSONObject
+  var metadata: AgentTranscriptJSONObject
 
   var isInternal: Bool {
     metadata["_internal"] == .bool(true)
@@ -130,7 +130,7 @@ enum ClaudeTaskProgressReader {
     guard
       let data = try? Data(contentsOf: url),
       let rawObject = try? JSONSerialization.jsonObject(with: data),
-      let object = CodexTranscriptJSONValue(rawObject)?.objectValue,
+      let object = AgentTranscriptJSONValue(rawObject)?.objectValue,
       object["metadata"]?.objectValue?["_internal"] != .bool(true),
       let id = object["id"]?.stringValue,
       let title = AgentProgressParsing.normalizedTitle(object["subject"]?.stringValue)
@@ -152,14 +152,14 @@ enum ClaudeTaskProgressReader {
 private struct ClaudePendingTask: Equatable {
   var title: String
   var blockedBy: [String]
-  var metadata: CodexTranscriptJSONObject
+  var metadata: AgentTranscriptJSONObject
 }
 
 private struct ClaudeTranscriptTaskState: Equatable {
   var tasks: [String: ClaudeProgressTask] = [:]
   var pendingCreates: [String: ClaudePendingTask] = [:]
 
-  mutating func apply(_ object: CodexTranscriptJSONObject) -> [PaneAgentProgressRow]? {
+  mutating func apply(_ object: AgentTranscriptJSONObject) -> [PaneAgentProgressRow]? {
     let timestamp = Self.timestamp(in: object) ?? Date()
     if let rows = applyTaskReminder(object, timestamp: timestamp) {
       return rows
@@ -175,7 +175,7 @@ private struct ClaudeTranscriptTaskState: Equatable {
   }
 
   private mutating func applyTaskReminder(
-    _ object: CodexTranscriptJSONObject,
+    _ object: AgentTranscriptJSONObject,
     timestamp: Date
   ) -> [PaneAgentProgressRow]? {
     guard
@@ -199,7 +199,7 @@ private struct ClaudeTranscriptTaskState: Equatable {
   }
 
   private mutating func applyAssistantLine(
-    _ object: CodexTranscriptJSONObject,
+    _ object: AgentTranscriptJSONObject,
     timestamp: Date
   ) -> [PaneAgentProgressRow]? {
     guard let content = object["message"]?.objectValue?["content"]?.arrayValue else { return nil }
@@ -232,7 +232,7 @@ private struct ClaudeTranscriptTaskState: Equatable {
   }
 
   private mutating func applyUserLine(
-    _ object: CodexTranscriptJSONObject,
+    _ object: AgentTranscriptJSONObject,
     timestamp: Date
   ) -> [PaneAgentProgressRow]? {
     guard
@@ -271,7 +271,7 @@ private struct ClaudeTranscriptTaskState: Equatable {
   }
 
   private mutating func applyTaskCreate(
-    _ toolUse: CodexTranscriptJSONObject,
+    _ toolUse: AgentTranscriptJSONObject,
     timestamp: Date
   ) -> Bool {
     guard
@@ -303,7 +303,7 @@ private struct ClaudeTranscriptTaskState: Equatable {
   }
 
   private mutating func applyTaskUpdate(
-    _ toolUse: CodexTranscriptJSONObject,
+    _ toolUse: AgentTranscriptJSONObject,
     timestamp: Date
   ) -> Bool {
     guard
@@ -359,7 +359,7 @@ private struct ClaudeTranscriptTaskState: Equatable {
   }
 
   private static func task(
-    from object: CodexTranscriptJSONObject?,
+    from object: AgentTranscriptJSONObject?,
     timestamp: Date
   ) -> ClaudeProgressTask? {
     guard
@@ -380,7 +380,7 @@ private struct ClaudeTranscriptTaskState: Equatable {
   }
 
   private static func todoWriteRows(
-    in object: CodexTranscriptJSONObject
+    in object: AgentTranscriptJSONObject
   ) -> [PaneAgentProgressRow]? {
     guard
       let todos = object["input"]?.objectValue?["todos"]?.arrayValue
@@ -403,7 +403,7 @@ private struct ClaudeTranscriptTaskState: Equatable {
     return rows
   }
 
-  private static func timestamp(in object: CodexTranscriptJSONObject) -> Date? {
+  private static func timestamp(in object: AgentTranscriptJSONObject) -> Date? {
     guard let value = object["timestamp"]?.stringValue else { return nil }
     return fractionalTimestampFormatter.date(from: value)
       ?? timestampFormatter.date(from: value)
@@ -479,7 +479,7 @@ enum ClaudeTranscriptProgressMonitor {
     for line in completeData.split(separator: 0x0A) {
       guard
         let rawObject = try? JSONSerialization.jsonObject(with: Data(line)),
-        let object = CodexTranscriptJSONValue(rawObject)?.objectValue
+        let object = AgentTranscriptJSONValue(rawObject)?.objectValue
       else {
         continue
       }
