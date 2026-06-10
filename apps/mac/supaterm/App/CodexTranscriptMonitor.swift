@@ -655,6 +655,48 @@ struct CodexTranscriptBatch {
   }
 }
 
+@MainActor
+final class CodexPanelMonitor: AgentPanelMonitor {
+  private let transcriptPath: String
+  private var cursor: CodexTranscriptCursor
+  private var conversation = CodexConversationState()
+
+  init?(transcriptPath: String) {
+    guard let (cursor, batch) = CodexTranscriptMonitor.start(at: transcriptPath) else {
+      return nil
+    }
+    self.transcriptPath = transcriptPath
+    self.cursor = cursor
+    if let batch {
+      conversation.absorb(batch.records)
+    }
+  }
+
+  func start() -> AgentPanelMonitorTick? {
+    let snapshot = conversation.sidebarSnapshot
+    guard snapshot.status?.isFinal == false else { return nil }
+    return AgentPanelMonitorTick(snapshot: snapshot, isFinal: false)
+  }
+
+  func poll() -> AgentPanelMonitorTick? {
+    guard
+      let (updatedCursor, batch) = CodexTranscriptMonitor.advance(cursor, at: transcriptPath)
+    else {
+      return nil
+    }
+    let didReset = updatedCursor.offset < cursor.offset
+    cursor = updatedCursor
+    guard let batch, !batch.isEmpty else { return nil }
+    if didReset {
+      conversation = CodexConversationState()
+    }
+    conversation.absorb(batch.records)
+    let snapshot = conversation.sidebarSnapshot
+    guard let status = snapshot.status else { return nil }
+    return AgentPanelMonitorTick(snapshot: snapshot, isFinal: status.isFinal)
+  }
+}
+
 struct CodexTranscriptCursor {
   var offset: UInt64
 }

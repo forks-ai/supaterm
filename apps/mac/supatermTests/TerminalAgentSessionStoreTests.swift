@@ -82,6 +82,24 @@ struct TerminalAgentSessionStoreTests {
   }
 
   @Test
+  func beginAgentPanelTrackingRejectsAgentsWithoutMonitors() {
+    let store = TerminalAgentSessionStore(
+      agentRunningTimeout: .seconds(5),
+      transcriptPollInterval: .seconds(1),
+      sleep: { _ in }
+    )
+    let context = SupatermCLIContext(surfaceID: UUID(), tabID: UUID())
+    store.beginSession(
+      agent: .pi,
+      sessionID: "session-1",
+      context: context,
+      transcriptPath: nil
+    )
+
+    #expect(!store.beginAgentPanelTracking(agent: .pi, sessionID: "session-1", context: context))
+  }
+
+  @Test
   func beginCodexTrackingPublishesActiveTranscriptSnapshot() throws {
     let events = SessionStoreEventsSpy()
     let store = TerminalAgentSessionStore(
@@ -102,7 +120,7 @@ struct TerminalAgentSessionStoreTests {
       transcriptPath: transcriptURL.path
     )
 
-    #expect(store.beginCodexTracking(sessionID: "session-1", context: context))
+    #expect(store.beginAgentPanelTracking(agent: .codex, sessionID: "session-1", context: context))
     #expect(events.transcriptSnapshots.count == 1)
     #expect(events.transcriptSnapshots.first?.status == .started("turn-1"))
     #expect(events.transcriptSnapshots.first?.detail == nil)
@@ -132,7 +150,7 @@ struct TerminalAgentSessionStoreTests {
       transcriptPath: transcriptURL.path
     )
 
-    #expect(store.beginCodexTracking(sessionID: "session-1", context: context))
+    #expect(store.beginAgentPanelTracking(agent: .codex, sessionID: "session-1", context: context))
     #expect(events.transcriptSnapshots.isEmpty)
 
     try CodexTranscriptFixtures.append(.taskStarted(turnID: "turn-1"), to: transcriptURL)

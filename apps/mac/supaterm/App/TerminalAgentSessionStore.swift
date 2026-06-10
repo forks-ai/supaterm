@@ -22,7 +22,6 @@ final class TerminalAgentSessionStore {
     var routing: SessionRouting
     var surfaceID: UUID?
     var transcriptPath: String?
-    var codexConversation = CodexConversationState()
   }
 
   var onMonitorSnapshot: @MainActor (AgentMonitorSnapshot, SupatermAgentKind, String, SupatermCLIContext?) -> Void =
@@ -191,66 +190,30 @@ final class TerminalAgentSessionStore {
   }
 
   @discardableResult
-  func beginCodexTracking(
+  func beginAgentPanelTracking(
+    agent: SupatermAgentKind,
     sessionID: String,
     context: SupatermCLIContext?
   ) -> Bool {
-    let key = SessionKey(agent: .codex, sessionID: sessionID)
-    guard
-      let transcriptPath = sessions[key]?.transcriptPath,
-      let (initialCursor, initialBatch) = CodexTranscriptMonitor.start(at: transcriptPath)
-    else {
-      return false
+    let key = SessionKey(agent: agent, sessionID: sessionID)
+    guard let monitor = makeMonitor(agent: agent, key: key) else { return false }
+    agentPanelMonitorTasks[key]?.cancel()
+    if agent == .codex {
+      cancelRunningTimeout(agent: agent, sessionID: sessionID)
     }
-    resetTranscriptConversation(for: key)
-    if let initialBatch, !initialBatch.isEmpty {
-      applyTranscriptBatch(initialBatch, for: key)
+    if let tick = monitor.start() {
+      handleMonitorTick(tick, key: key, sessionID: sessionID, context: context)
     }
-    var cursor = initialCursor
     let interval = transcriptPollInterval
     let sleep = self.sleep
-    agentPanelMonitorTasks[key]?.cancel()
-    cancelRunningTimeout(agent: key.agent, sessionID: sessionID)
-    if let snapshot = sidebarSnapshot(for: key),
-      snapshot.status?.isFinal == false
-    {
-      handleSidebarSnapshot(
-        snapshot,
-        key: key,
-        sessionID: sessionID,
-        context: context
-      )
-    }
     agentPanelMonitorTasks[key] = Task { [weak self] in
       while !Task.isCancelled {
         try? await sleep(interval)
         guard !Task.isCancelled else { return }
-        guard
-          let (updatedCursor, batch) = CodexTranscriptMonitor.advance(cursor, at: transcriptPath)
-        else {
-          continue
-        }
-        let didReset = updatedCursor.offset < cursor.offset
-        cursor = updatedCursor
-        guard let batch, !batch.isEmpty else {
-          continue
-        }
-        guard let self else { return }
-        self.applyTranscriptBatch(batch, for: key, resettingConversation: didReset)
-        guard let snapshot = self.sidebarSnapshot(for: key) else {
-          continue
-        }
-        guard let status = snapshot.status else {
-          continue
-        }
-        let isFinal = status.isFinal
-        self.handleSidebarSnapshot(
-          snapshot,
-          key: key,
-          sessionID: sessionID,
-          context: context
-        )
-        if isFinal {
+        guard let self, self.sessions[key] != nil else { return }
+        guard let tick = monitor.poll() else { continue }
+        self.handleMonitorTick(tick, key: key, sessionID: sessionID, context: context)
+        if tick.isFinal {
           return
         }
       }
@@ -258,69 +221,37 @@ final class TerminalAgentSessionStore {
     return true
   }
 
-  @discardableResult
-  func beginAgentPanelTracking(
+  private func makeMonitor(
     agent: SupatermAgentKind,
-    sessionID: String,
-    context: SupatermCLIContext?
-  ) -> Bool {
+    key: SessionKey
+  ) -> AgentPanelMonitor? {
     switch agent {
     case .codex:
-      return beginCodexTracking(sessionID: sessionID, context: context)
+      guard let transcriptPath = sessions[key]?.transcriptPath else { return nil }
+      return CodexPanelMonitor(transcriptPath: transcriptPath)
     case .claude:
-      return beginClaudePanelTracking(sessionID: sessionID, context: context)
+      guard sessions[key] != nil else { return nil }
+      return ClaudePanelMonitor(
+        sessionID: key.sessionID,
+        homeDirectoryURL: claudeTasksHomeDirectoryURL,
+        transcriptPath: { [weak self] in self?.sessions[key]?.transcriptPath }
+      )
     default:
-      return false
+      return nil
     }
   }
 
-  @discardableResult
-  func beginClaudePanelTracking(
+  private func handleMonitorTick(
+    _ tick: AgentPanelMonitorTick,
+    key: SessionKey,
     sessionID: String,
     context: SupatermCLIContext?
-  ) -> Bool {
-    let key = SessionKey(agent: .claude, sessionID: sessionID)
-    guard let session = sessions[key] else { return false }
-    let initialProgress =
-      session.transcriptPath.map { ClaudeTranscriptProgressMonitor.start(at: $0) }
-      ?? (cursor: ClaudeProgressCursor(transcriptOffset: 0), rows: nil)
-    var transcriptRows = initialProgress.rows ?? []
-    var currentSnapshot = claudePanelSnapshot(sessionID: sessionID, transcriptRows: transcriptRows)
-    agentPanelMonitorTasks[key]?.cancel()
-    handleAgentPanelSnapshot(currentSnapshot, key: key, sessionID: sessionID, context: context)
-    let interval = transcriptPollInterval
-    let sleep = self.sleep
-    agentPanelMonitorTasks[key] = Task { [weak self] in
-      var cursor = initialProgress.cursor
-      while !Task.isCancelled {
-        try? await sleep(interval)
-        guard !Task.isCancelled else { return }
-        guard let self, self.sessions[key] != nil else { return }
-        if let transcriptPath = self.sessions[key]?.transcriptPath,
-          let result = ClaudeTranscriptProgressMonitor.advance(cursor, at: transcriptPath)
-        {
-          cursor = result.cursor
-          if let rows = result.rows {
-            transcriptRows = rows
-          }
-        }
-        let nextSnapshot = self.claudePanelSnapshot(
-          sessionID: sessionID,
-          transcriptRows: transcriptRows
-        )
-        guard nextSnapshot != currentSnapshot else {
-          continue
-        }
-        currentSnapshot = nextSnapshot
-        self.handleAgentPanelSnapshot(
-          nextSnapshot,
-          key: key,
-          sessionID: sessionID,
-          context: context
-        )
-      }
+  ) {
+    if tick.isFinal {
+      agentPanelMonitorTasks.removeValue(forKey: key)
+      cancelRunningTimeout(agent: key.agent, sessionID: sessionID)
     }
-    return true
+    onMonitorSnapshot(tick.snapshot, key.agent, sessionID, context)
   }
 
   func cancelAgentPanelTracking(
@@ -362,28 +293,6 @@ final class TerminalAgentSessionStore {
     runningTimeoutTasks.removeValue(forKey: key)
   }
 
-  private func handleSidebarSnapshot(
-    _ snapshot: AgentMonitorSnapshot,
-    key: SessionKey,
-    sessionID: String,
-    context: SupatermCLIContext?
-  ) {
-    if snapshot.status?.isFinal == true {
-      agentPanelMonitorTasks.removeValue(forKey: key)
-      cancelRunningTimeout(agent: key.agent, sessionID: sessionID)
-    }
-    onMonitorSnapshot(snapshot, key.agent, sessionID, context)
-  }
-
-  private func handleAgentPanelSnapshot(
-    _ snapshot: AgentMonitorSnapshot,
-    key: SessionKey,
-    sessionID: String,
-    context: SupatermCLIContext?
-  ) {
-    onMonitorSnapshot(snapshot, key.agent, sessionID, context)
-  }
-
   private func handleRunningTimeoutExpiry(
     key: SessionKey,
     agent: SupatermAgentKind,
@@ -410,48 +319,4 @@ final class TerminalAgentSessionStore {
     }
   }
 
-  private func applyTranscriptBatch(
-    _ batch: CodexTranscriptBatch,
-    for key: SessionKey,
-    resettingConversation: Bool = false
-  ) {
-    guard var session = sessions[key] else { return }
-    if resettingConversation {
-      session.codexConversation = CodexConversationState()
-    }
-    session.codexConversation.absorb(batch.records)
-    sessions[key] = session
-  }
-
-  private func sidebarSnapshot(
-    for key: SessionKey
-  ) -> AgentMonitorSnapshot? {
-    guard let session = sessions[key] else { return nil }
-    return session.codexConversation.sidebarSnapshot
-  }
-
-  private func resetTranscriptConversation(
-    for key: SessionKey
-  ) {
-    guard var session = sessions[key] else { return }
-    session.codexConversation = CodexConversationState()
-    sessions[key] = session
-  }
-
-  private func claudeTaskProgressRows(
-    sessionID: String
-  ) -> [PaneAgentProgressRow] {
-    ClaudeTaskProgressReader.progressRows(
-      sessionID: sessionID,
-      homeDirectoryURL: claudeTasksHomeDirectoryURL
-    )
-  }
-
-  private func claudePanelSnapshot(
-    sessionID: String,
-    transcriptRows: [PaneAgentProgressRow]
-  ) -> AgentMonitorSnapshot {
-    let taskRows = claudeTaskProgressRows(sessionID: sessionID)
-    return AgentMonitorSnapshot(progressRows: taskRows.isEmpty ? transcriptRows : taskRows)
-  }
 }

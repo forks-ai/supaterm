@@ -8,6 +8,17 @@ struct AgentMonitorSnapshot: Equatable {
   var sources: [PaneAgentSource] = []
 }
 
+struct AgentPanelMonitorTick {
+  let snapshot: AgentMonitorSnapshot
+  let isFinal: Bool
+}
+
+@MainActor
+protocol AgentPanelMonitor {
+  func start() -> AgentPanelMonitorTick?
+  func poll() -> AgentPanelMonitorTick?
+}
+
 enum AgentProgressParsing {
   static func normalizedTitle(_ text: String?) -> String? {
     guard let text else { return nil }
