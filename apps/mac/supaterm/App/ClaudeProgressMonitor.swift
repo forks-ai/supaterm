@@ -422,13 +422,13 @@ enum ClaudeTranscriptProgressMonitor {
   static func start(
     at path: String
   ) -> (cursor: ClaudeProgressCursor, rows: [PaneAgentProgressRow]?) {
-    guard let data = read(path: path, from: 0) else {
+    guard let tick = AgentTranscriptTailer.start(at: path) else {
       return (ClaudeProgressCursor(transcriptOffset: 0), nil)
     }
     var state = ClaudeTranscriptTaskState()
-    let (consumedBytes, rows) = parse(data, state: &state)
+    let rows = apply(tick.objects, to: &state)
     return (
-      ClaudeProgressCursor(transcriptOffset: UInt64(consumedBytes), transcriptState: state),
+      ClaudeProgressCursor(transcriptOffset: tick.cursor.offset, transcriptState: state),
       rows
     )
   }
@@ -437,56 +437,32 @@ enum ClaudeTranscriptProgressMonitor {
     _ cursor: ClaudeProgressCursor,
     at path: String
   ) -> (cursor: ClaudeProgressCursor, rows: [PaneAgentProgressRow]?)? {
-    let fileURL = URL(fileURLWithPath: path)
     guard
-      let values = try? fileURL.resourceValues(forKeys: [.fileSizeKey]),
-      let fileSize = values.fileSize
+      let tick = AgentTranscriptTailer.advance(
+        AgentTranscriptTailCursor(offset: cursor.transcriptOffset),
+        at: path
+      )
     else {
       return nil
     }
-    if UInt64(fileSize) < cursor.transcriptOffset {
-      return start(at: path)
-    }
-    guard let data = read(path: path, from: cursor.transcriptOffset) else { return nil }
-    var state = cursor.transcriptState
-    let (consumedBytes, rows) = parse(data, state: &state)
-    var updatedCursor = cursor
-    updatedCursor.transcriptOffset += UInt64(consumedBytes)
-    updatedCursor.transcriptState = state
-    return (updatedCursor, rows)
+    var state = tick.didReset ? ClaudeTranscriptTaskState() : cursor.transcriptState
+    let rows = apply(tick.objects, to: &state)
+    return (
+      ClaudeProgressCursor(transcriptOffset: tick.cursor.offset, transcriptState: state),
+      rows
+    )
   }
 
-  private static func read(path: String, from offset: UInt64) -> Data? {
-    do {
-      let handle = try FileHandle(forReadingFrom: URL(fileURLWithPath: path))
-      defer { try? handle.close() }
-      try handle.seek(toOffset: offset)
-      return try handle.readToEnd() ?? Data()
-    } catch {
-      return nil
-    }
-  }
-
-  private static func parse(
-    _ data: Data,
-    state: inout ClaudeTranscriptTaskState
-  ) -> (Int, [PaneAgentProgressRow]?) {
-    guard let newlineIndex = data.lastIndex(of: 0x0A) else {
-      return (0, nil)
-    }
-    let completeData = data.prefix(through: newlineIndex)
+  private static func apply(
+    _ objects: [AgentTranscriptJSONObject],
+    to state: inout ClaudeTranscriptTaskState
+  ) -> [PaneAgentProgressRow]? {
     var latestRows: [PaneAgentProgressRow]?
-    for line in completeData.split(separator: 0x0A) {
-      guard
-        let rawObject = try? JSONSerialization.jsonObject(with: Data(line)),
-        let object = AgentTranscriptJSONValue(rawObject)?.objectValue
-      else {
-        continue
-      }
+    for object in objects {
       if let rows = state.apply(object) {
         latestRows = rows
       }
     }
-    return (completeData.count, latestRows)
+    return latestRows
   }
 }

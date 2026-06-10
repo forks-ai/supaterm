@@ -671,61 +671,32 @@ enum CodexTranscriptMonitor {
   static func start(
     at path: String
   ) -> (CodexTranscriptCursor, CodexTranscriptBatch?)? {
-    guard let data = read(path: path, from: 0) else { return nil }
-    let (consumedBytes, batch) = parse(data)
-    return (CodexTranscriptCursor(offset: UInt64(consumedBytes)), batch)
+    guard let tick = AgentTranscriptTailer.start(at: path) else { return nil }
+    return (CodexTranscriptCursor(offset: tick.cursor.offset), batch(from: tick.objects))
   }
 
   static func advance(
     _ cursor: CodexTranscriptCursor,
     at path: String
   ) -> (CodexTranscriptCursor, CodexTranscriptBatch?)? {
-    let fileURL = URL(fileURLWithPath: path)
     guard
-      let values = try? fileURL.resourceValues(forKeys: [.fileSizeKey]),
-      let fileSize = values.fileSize
+      let tick = AgentTranscriptTailer.advance(
+        AgentTranscriptTailCursor(offset: cursor.offset),
+        at: path
+      )
     else {
       return nil
     }
-    if UInt64(fileSize) < cursor.offset {
-      return start(at: path)
-    }
-    guard let data = read(path: path, from: cursor.offset) else { return nil }
-    let (consumedBytes, batch) = parse(data)
-    var updatedCursor = cursor
-    updatedCursor.offset += UInt64(consumedBytes)
-    return (updatedCursor, batch)
+    return (CodexTranscriptCursor(offset: tick.cursor.offset), batch(from: tick.objects))
   }
 
-  private static func read(path: String, from offset: UInt64) -> Data? {
-    do {
-      let handle = try FileHandle(forReadingFrom: URL(fileURLWithPath: path))
-      defer { try? handle.close() }
-      try handle.seek(toOffset: offset)
-      return try handle.readToEnd() ?? Data()
-    } catch {
-      return nil
-    }
+  private static func batch(from objects: [AgentTranscriptJSONObject]) -> CodexTranscriptBatch? {
+    let records = objects.compactMap(record(from:))
+    return records.isEmpty ? nil : CodexTranscriptBatch(records: records)
   }
 
-  private static func parse(_ data: Data) -> (Int, CodexTranscriptBatch?) {
-    guard let newlineIndex = data.lastIndex(of: 0x0A) else {
-      return (0, nil)
-    }
-    let completeData = data.prefix(through: newlineIndex)
-    let records = completeData.split(separator: 0x0A).compactMap { line in
-      record(in: Data(line))
-    }
-    let batch = records.isEmpty ? nil : CodexTranscriptBatch(records: records)
-    return (completeData.count, batch)
-  }
-
-  private static func record(in line: Data) -> CodexRolloutRecord? {
-    guard
-      let rawObject = try? JSONSerialization.jsonObject(with: line) as? [String: Any],
-      let object = AgentTranscriptJSONValue(rawObject)?.objectValue,
-      let lineType = object["type"]?.stringValue
-    else {
+  private static func record(from object: AgentTranscriptJSONObject) -> CodexRolloutRecord? {
+    guard let lineType = object["type"]?.stringValue else {
       return nil
     }
     let payload = object["payload"] ?? .null
