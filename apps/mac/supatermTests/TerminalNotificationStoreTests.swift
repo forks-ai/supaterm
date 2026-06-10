@@ -52,15 +52,10 @@ struct TerminalNotificationStoreTests {
     )
 
     let withinWindow = recordedAt.addingTimeInterval(TerminalNotificationStore.coalescingWindow)
-    let liveNotification = store.recentStructured(for: surfaceID, at: withinWindow)
-    #expect(liveNotification?.text == "Done")
+    #expect(store.recentStructured(for: surfaceID, at: withinWindow)?.text == "Done")
 
     let afterWindow = recordedAt.addingTimeInterval(TerminalNotificationStore.coalescingWindow + 1)
-    let expiredNotification = store.recentStructured(for: surfaceID, at: afterWindow)
-    #expect(expiredNotification == nil)
-
-    let removedNotification = store.recentStructured(for: surfaceID, at: recordedAt)
-    #expect(removedNotification == nil)
+    #expect(store.recentStructured(for: surfaceID, at: afterWindow) == nil)
   }
 
   @Test

@@ -29,13 +29,14 @@ struct TerminalNotificationStore {
     }
   }
 
-  mutating func recentStructured(
+  func recentStructured(
     for surfaceID: UUID,
     at now: Date = Date()
   ) -> TerminalHostState.RecentStructuredNotification? {
-    guard let notification = recentStructuredBySurfaceID[surfaceID] else { return nil }
-    guard now.timeIntervalSince(notification.recordedAt) <= Self.coalescingWindow else {
-      recentStructuredBySurfaceID.removeValue(forKey: surfaceID)
+    guard
+      let notification = recentStructuredBySurfaceID[surfaceID],
+      now.timeIntervalSince(notification.recordedAt) <= Self.coalescingWindow
+    else {
       return nil
     }
     return notification
