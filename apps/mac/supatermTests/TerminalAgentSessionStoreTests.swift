@@ -176,7 +176,7 @@ struct TerminalAgentSessionStoreTests {
     #expect(store.beginAgentPanelTracking(agent: .claude, sessionID: "session-1", context: context))
     #expect(
       events.panelSnapshots == [
-        AgentPanelSnapshot(
+        AgentMonitorSnapshot(
           progressRows: [
             PaneAgentProgressRow(
               id: "claude-task:task-1",
@@ -213,7 +213,7 @@ struct TerminalAgentSessionStoreTests {
     )
 
     #expect(store.beginAgentPanelTracking(agent: .claude, sessionID: "session-1", context: context))
-    #expect(events.panelSnapshots == [AgentPanelSnapshot()])
+    #expect(events.panelSnapshots == [AgentMonitorSnapshot()])
 
     try ClaudeProgressFixtures.writeTask(
       id: "task-1",
@@ -229,7 +229,7 @@ struct TerminalAgentSessionStoreTests {
 
     #expect(
       events.panelSnapshots.last
-        == AgentPanelSnapshot(
+        == AgentMonitorSnapshot(
           progressRows: [
             PaneAgentProgressRow(
               id: "claude-task:task-1",
@@ -279,7 +279,7 @@ struct TerminalAgentSessionStoreTests {
     #expect(store.beginAgentPanelTracking(agent: .claude, sessionID: "session-1", context: context))
     #expect(
       events.panelSnapshots == [
-        AgentPanelSnapshot(
+        AgentMonitorSnapshot(
           progressRows: [
             PaneAgentProgressRow(
               id: "claude-task:task-1",
@@ -328,7 +328,7 @@ struct TerminalAgentSessionStoreTests {
     #expect(store.beginAgentPanelTracking(agent: .claude, sessionID: "session-1", context: context))
     #expect(
       events.panelSnapshots == [
-        AgentPanelSnapshot(
+        AgentMonitorSnapshot(
           progressRows: [
             PaneAgentProgressRow(
               id: "claude-task:1",
@@ -367,7 +367,7 @@ struct TerminalAgentSessionStoreTests {
     )
 
     #expect(store.beginAgentPanelTracking(agent: .claude, sessionID: "session-1", context: context))
-    #expect(events.panelSnapshots == [AgentPanelSnapshot()])
+    #expect(events.panelSnapshots == [AgentMonitorSnapshot()])
 
     try ClaudeProgressFixtures.appendTaskCreate(
       toolUseID: "toolu_create_1",
@@ -387,7 +387,7 @@ struct TerminalAgentSessionStoreTests {
 
     #expect(
       events.panelSnapshots.last
-        == AgentPanelSnapshot(
+        == AgentMonitorSnapshot(
           progressRows: [
             PaneAgentProgressRow(
               id: "claude-task:1",
@@ -409,15 +409,16 @@ struct TerminalAgentSessionStoreTests {
 @MainActor
 private final class SessionStoreEventsSpy {
   var expirations: [(SupatermAgentKind, String)] = []
-  var panelSnapshots: [AgentPanelSnapshot] = []
-  var transcriptSnapshots: [CodexSidebarSnapshot] = []
+  var panelSnapshots: [AgentMonitorSnapshot] = []
+  var transcriptSnapshots: [AgentMonitorSnapshot] = []
 
   func bind(to store: TerminalAgentSessionStore) {
-    store.onSidebarSnapshot = { [weak self] snapshot, _, _, _ in
-      self?.transcriptSnapshots.append(snapshot)
-    }
-    store.onPanelSnapshot = { [weak self] snapshot, _, _, _ in
-      self?.panelSnapshots.append(snapshot)
+    store.onMonitorSnapshot = { [weak self] snapshot, _, _, _ in
+      if snapshot.status != nil {
+        self?.transcriptSnapshots.append(snapshot)
+      } else {
+        self?.panelSnapshots.append(snapshot)
+      }
     }
     store.onRunningTimeoutExpired = { [weak self] agent, sessionID, _ in
       self?.expirations.append((agent, sessionID))

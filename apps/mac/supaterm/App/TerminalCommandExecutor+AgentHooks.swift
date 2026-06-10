@@ -68,50 +68,45 @@ extension TerminalCommandExecutor {
     }
   }
 
-  func handleSidebarSnapshot(
-    _ snapshot: CodexSidebarSnapshot,
+  func handleMonitorSnapshot(
+    _ snapshot: AgentMonitorSnapshot,
     agent: SupatermAgentKind,
     sessionID: String,
     context: SupatermCLIContext?
   ) {
-    _ = updateCodexHoverMessages(
-      snapshot.hoverMessages,
-      replacing: true,
-      agent: agent,
-      sessionID: sessionID,
-      context: context
-    )
-    _ = updateAgentPanelSnapshot(
-      progressRows: snapshot.progressRows,
-      sources: snapshot.sources,
-      agent: agent,
-      sessionID: sessionID,
-      context: context
-    )
-    _ = updateAgentPresenceActivity(
-      TerminalHostState.AgentActivity(
-        kind: agent,
-        phase: snapshot.status?.isFinal == true ? .idle : .running,
-        detail: snapshot.status?.isFinal == true ? nil : snapshot.detail
-      ),
-      sessionID: sessionID,
-      context: context
-    )
-  }
-
-  func handlePanelSnapshot(
-    _ snapshot: AgentPanelSnapshot,
-    agent: SupatermAgentKind,
-    sessionID: String,
-    context: SupatermCLIContext?
-  ) {
-    _ = updateAgentPanelSnapshot(
-      progressRows: snapshot.progressRows,
-      sources: snapshot.sources,
-      agent: agent,
-      sessionID: sessionID,
-      context: context
-    )
+    if let status = snapshot.status {
+      _ = updateCodexHoverMessages(
+        snapshot.hoverMessages,
+        replacing: true,
+        agent: agent,
+        sessionID: sessionID,
+        context: context
+      )
+      _ = updateAgentPanelSnapshot(
+        progressRows: snapshot.progressRows,
+        sources: snapshot.sources,
+        agent: agent,
+        sessionID: sessionID,
+        context: context
+      )
+      _ = updateAgentPresenceActivity(
+        TerminalHostState.AgentActivity(
+          kind: agent,
+          phase: status.isFinal ? .idle : .running,
+          detail: status.isFinal ? nil : snapshot.detail
+        ),
+        sessionID: sessionID,
+        context: context
+      )
+    } else {
+      _ = updateAgentPanelSnapshot(
+        progressRows: snapshot.progressRows,
+        sources: snapshot.sources,
+        agent: agent,
+        sessionID: sessionID,
+        context: context
+      )
+    }
   }
 
   func handleRunningTimeoutExpired(

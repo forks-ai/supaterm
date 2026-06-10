@@ -29,11 +29,8 @@ final class TerminalCommandExecutor {
       claudeTasksHomeDirectoryURL: claudeTasksHomeDirectoryURL,
       sleep: sleep
     )
-    agentSessionStore.onSidebarSnapshot = { [weak self] snapshot, agent, sessionID, context in
-      self?.handleSidebarSnapshot(snapshot, agent: agent, sessionID: sessionID, context: context)
-    }
-    agentSessionStore.onPanelSnapshot = { [weak self] snapshot, agent, sessionID, context in
-      self?.handlePanelSnapshot(snapshot, agent: agent, sessionID: sessionID, context: context)
+    agentSessionStore.onMonitorSnapshot = { [weak self] snapshot, agent, sessionID, context in
+      self?.handleMonitorSnapshot(snapshot, agent: agent, sessionID: sessionID, context: context)
     }
     agentSessionStore.onRunningTimeoutExpired = { [weak self] agent, sessionID, context in
       self?.handleRunningTimeoutExpired(agent: agent, sessionID: sessionID, context: context)

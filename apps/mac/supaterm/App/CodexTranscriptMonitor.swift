@@ -1,6 +1,6 @@
 import Foundation
 
-enum CodexTranscriptTurnStatus: Equatable {
+enum AgentTurnStatus: Equatable {
   case started(String?)
   case completed(String?)
   case aborted(String?)
@@ -83,14 +83,6 @@ struct CodexConversationTurn: Equatable {
   var sources: [PaneAgentSource] = []
 }
 
-struct CodexSidebarSnapshot: Equatable {
-  var status: CodexTranscriptTurnStatus?
-  var detail: String?
-  var hoverMessages: [String]
-  var progressRows: [PaneAgentProgressRow] = []
-  var sources: [PaneAgentSource] = []
-}
-
 struct CodexConversationState: Equatable {
   var sessionID: String?
   var records: [CodexRolloutRecord]
@@ -123,7 +115,7 @@ struct CodexConversationState: Equatable {
     turns.last
   }
 
-  var activityStatus: CodexTranscriptTurnStatus? {
+  var activityStatus: AgentTurnStatus? {
     if let activeTurn {
       return .started(activeTurn.id)
     }
@@ -149,8 +141,8 @@ struct CodexConversationState: Equatable {
     return sourceTurn?.sources ?? []
   }
 
-  var sidebarSnapshot: CodexSidebarSnapshot {
-    CodexSidebarSnapshot(
+  var sidebarSnapshot: AgentMonitorSnapshot {
+    AgentMonitorSnapshot(
       status: activityStatus,
       detail: detail,
       hoverMessages: hoverMessages,
@@ -641,7 +633,7 @@ extension CodexConversationTurn {
     }
   }
 
-  fileprivate var transcriptStatus: CodexTranscriptTurnStatus {
+  fileprivate var transcriptStatus: AgentTurnStatus {
     switch status {
     case .inProgress:
       return .started(id)

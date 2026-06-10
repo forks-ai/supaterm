@@ -25,9 +25,7 @@ final class TerminalAgentSessionStore {
     var codexConversation = CodexConversationState()
   }
 
-  var onSidebarSnapshot: @MainActor (CodexSidebarSnapshot, SupatermAgentKind, String, SupatermCLIContext?) -> Void =
-    { _, _, _, _ in }
-  var onPanelSnapshot: @MainActor (AgentPanelSnapshot, SupatermAgentKind, String, SupatermCLIContext?) -> Void =
+  var onMonitorSnapshot: @MainActor (AgentMonitorSnapshot, SupatermAgentKind, String, SupatermCLIContext?) -> Void =
     { _, _, _, _ in }
   var onRunningTimeoutExpired: @MainActor (SupatermAgentKind, String, SupatermCLIContext?) -> Void = { _, _, _ in }
 
@@ -365,7 +363,7 @@ final class TerminalAgentSessionStore {
   }
 
   private func handleSidebarSnapshot(
-    _ snapshot: CodexSidebarSnapshot,
+    _ snapshot: AgentMonitorSnapshot,
     key: SessionKey,
     sessionID: String,
     context: SupatermCLIContext?
@@ -374,16 +372,16 @@ final class TerminalAgentSessionStore {
       agentPanelMonitorTasks.removeValue(forKey: key)
       cancelRunningTimeout(agent: key.agent, sessionID: sessionID)
     }
-    onSidebarSnapshot(snapshot, key.agent, sessionID, context)
+    onMonitorSnapshot(snapshot, key.agent, sessionID, context)
   }
 
   private func handleAgentPanelSnapshot(
-    _ snapshot: AgentPanelSnapshot,
+    _ snapshot: AgentMonitorSnapshot,
     key: SessionKey,
     sessionID: String,
     context: SupatermCLIContext?
   ) {
-    onPanelSnapshot(snapshot, key.agent, sessionID, context)
+    onMonitorSnapshot(snapshot, key.agent, sessionID, context)
   }
 
   private func handleRunningTimeoutExpiry(
@@ -427,7 +425,7 @@ final class TerminalAgentSessionStore {
 
   private func sidebarSnapshot(
     for key: SessionKey
-  ) -> CodexSidebarSnapshot? {
+  ) -> AgentMonitorSnapshot? {
     guard let session = sessions[key] else { return nil }
     return session.codexConversation.sidebarSnapshot
   }
@@ -452,8 +450,8 @@ final class TerminalAgentSessionStore {
   private func claudePanelSnapshot(
     sessionID: String,
     transcriptRows: [PaneAgentProgressRow]
-  ) -> AgentPanelSnapshot {
+  ) -> AgentMonitorSnapshot {
     let taskRows = claudeTaskProgressRows(sessionID: sessionID)
-    return AgentPanelSnapshot(progressRows: taskRows.isEmpty ? transcriptRows : taskRows)
+    return AgentMonitorSnapshot(progressRows: taskRows.isEmpty ? transcriptRows : taskRows)
   }
 }

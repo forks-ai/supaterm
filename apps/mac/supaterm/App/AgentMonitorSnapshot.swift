@@ -1,6 +1,9 @@
 import Foundation
 
-struct AgentPanelSnapshot: Equatable {
+struct AgentMonitorSnapshot: Equatable {
+  var status: AgentTurnStatus?
+  var detail: String?
+  var hoverMessages: [String] = []
   var progressRows: [PaneAgentProgressRow] = []
   var sources: [PaneAgentSource] = []
 }
