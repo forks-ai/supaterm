@@ -48,6 +48,10 @@ final class SupatermMenuController: NSObject {
     static let terminateAllTerminalSessions = NSUserInterfaceItemIdentifier(
       "app.supabit.supaterm.file.terminateAllTerminalSessions")
     static let openCommandPalette = NSUserInterfaceItemIdentifier("app.supabit.supaterm.file.openCommandPalette")
+    static let copy = NSUserInterfaceItemIdentifier("app.supabit.supaterm.edit.copy")
+    static let paste = NSUserInterfaceItemIdentifier("app.supabit.supaterm.edit.paste")
+    static let pasteSelection = NSUserInterfaceItemIdentifier("app.supabit.supaterm.edit.pasteSelection")
+    static let selectAll = NSUserInterfaceItemIdentifier("app.supabit.supaterm.edit.selectAll")
     static let find = NSUserInterfaceItemIdentifier("app.supabit.supaterm.edit.find")
     static let findNext = NSUserInterfaceItemIdentifier("app.supabit.supaterm.edit.findNext")
     static let findPrevious = NSUserInterfaceItemIdentifier("app.supabit.supaterm.edit.findPrevious")
@@ -122,10 +126,10 @@ final class SupatermMenuController: NSObject {
 
   private lazy var appMenu: NSMenu = {
     let menu = NSMenu(title: appName)
-    menu.addItem(aboutItem)
-    menu.addItem(settingsItem)
+    menu.addItem(menuItem(MenuItemIdentifier.about))
+    menu.addItem(menuItem(MenuItemIdentifier.settings))
     menu.addItem(.separator())
-    menu.addItem(checkForUpdatesItem)
+    menu.addItem(menuItem(MenuItemIdentifier.checkForUpdates))
     menu.addItem(.separator())
     let servicesItem = NSMenuItem(title: "Services", action: nil, keyEquivalent: "")
     servicesItem.submenu = servicesMenu
@@ -141,28 +145,28 @@ final class SupatermMenuController: NSObject {
     menu.addItem(hideOthers)
     menu.addItem(systemItem(title: "Show All", action: #selector(NSApplication.unhideAllApplications(_:))))
     menu.addItem(.separator())
-    menu.addItem(quitTerminatingSessionsItem)
-    menu.addItem(quitItem)
+    menu.addItem(menuItem(MenuItemIdentifier.quitTerminatingSessions))
+    menu.addItem(menuItem(MenuItemIdentifier.quit))
     return menu
   }()
 
   private lazy var fileMenu: NSMenu = {
     let menu = NSMenu(title: "File")
-    menu.addItem(newWindowItem)
-    menu.addItem(newTabItem)
-    menu.addItem(openCommandPaletteItem)
+    menu.addItem(menuItem(MenuItemIdentifier.newWindow))
+    menu.addItem(menuItem(MenuItemIdentifier.newTab))
+    menu.addItem(menuItem(MenuItemIdentifier.openCommandPalette))
     menu.addItem(.separator())
-    menu.addItem(splitRightItem)
-    menu.addItem(splitLeftItem)
-    menu.addItem(splitDownItem)
-    menu.addItem(splitUpItem)
+    menu.addItem(menuItem(MenuItemIdentifier.splitRight))
+    menu.addItem(menuItem(MenuItemIdentifier.splitLeft))
+    menu.addItem(menuItem(MenuItemIdentifier.splitDown))
+    menu.addItem(menuItem(MenuItemIdentifier.splitUp))
     menu.addItem(.separator())
-    menu.addItem(closeSurfaceItem)
-    menu.addItem(closeTabItem)
-    menu.addItem(closeWindowItem)
-    menu.addItem(closeAllWindowsItem)
+    menu.addItem(menuItem(MenuItemIdentifier.closeSurface))
+    menu.addItem(menuItem(MenuItemIdentifier.closeTab))
+    menu.addItem(menuItem(MenuItemIdentifier.closeWindow))
+    menu.addItem(menuItem(MenuItemIdentifier.closeAllWindows))
     menu.addItem(.separator())
-    menu.addItem(terminateAllTerminalSessionsItem)
+    menu.addItem(menuItem(MenuItemIdentifier.terminateAllTerminalSessions))
     return menu
   }()
 
@@ -171,10 +175,10 @@ final class SupatermMenuController: NSObject {
     menu.addItem(systemItem(title: "Undo", action: #selector(UndoManager.undo)))
     menu.addItem(systemItem(title: "Redo", action: #selector(UndoManager.redo)))
     menu.addItem(.separator())
-    menu.addItem(copyItem)
-    menu.addItem(pasteItem)
-    menu.addItem(pasteSelectionItem)
-    menu.addItem(selectAllItem)
+    menu.addItem(menuItem(MenuItemIdentifier.copy))
+    menu.addItem(menuItem(MenuItemIdentifier.paste))
+    menu.addItem(menuItem(MenuItemIdentifier.pasteSelection))
+    menu.addItem(menuItem(MenuItemIdentifier.selectAll))
     menu.addItem(.separator())
     let findMenuItem = NSMenuItem(title: "Find", action: nil, keyEquivalent: "")
     findMenuItem.submenu = findMenu
@@ -184,43 +188,43 @@ final class SupatermMenuController: NSObject {
 
   private lazy var findMenu: NSMenu = {
     let menu = NSMenu(title: "Find")
-    menu.addItem(findItem)
-    menu.addItem(findNextItem)
-    menu.addItem(findPreviousItem)
+    menu.addItem(menuItem(MenuItemIdentifier.find))
+    menu.addItem(menuItem(MenuItemIdentifier.findNext))
+    menu.addItem(menuItem(MenuItemIdentifier.findPrevious))
     menu.addItem(.separator())
-    menu.addItem(hideFindBarItem)
+    menu.addItem(menuItem(MenuItemIdentifier.hideFindBar))
     menu.addItem(.separator())
-    menu.addItem(selectionForFindItem)
+    menu.addItem(menuItem(MenuItemIdentifier.selectionForFind))
     return menu
   }()
 
   private lazy var viewMenu: NSMenu = {
     let menu = NSMenu(title: "View")
-    menu.addItem(toggleSidebarItem)
-    menu.addItem(toggleAgentPanelItem)
-    menu.addItem(forkAgentSessionItem)
-    menu.addItem(copyAgentSessionIDItem)
+    menu.addItem(menuItem(MenuItemIdentifier.toggleSidebar))
+    menu.addItem(menuItem(MenuItemIdentifier.toggleAgentPanel))
+    menu.addItem(menuItem(MenuItemIdentifier.forkAgentSession))
+    menu.addItem(menuItem(MenuItemIdentifier.copyAgentSessionID))
     menu.addItem(.separator())
-    menu.addItem(changeTabTitleItem)
-    menu.addItem(changeTerminalTitleItem)
+    menu.addItem(menuItem(MenuItemIdentifier.changeTabTitle))
+    menu.addItem(menuItem(MenuItemIdentifier.changeTerminalTitle))
     return menu
   }()
 
   private lazy var tabsMenu: NSMenu = {
     let menu = NSMenu(title: "Tabs")
-    menu.addItem(nextTabItem)
-    menu.addItem(previousTabItem)
+    menu.addItem(menuItem(MenuItemIdentifier.nextTab))
+    menu.addItem(menuItem(MenuItemIdentifier.previousTab))
     menu.addItem(.separator())
-    for item in selectTabItems {
+    for item in slotItems(withPrefix: MenuItemIdentifier.selectTabPrefix) {
       menu.addItem(item)
     }
-    menu.addItem(selectLastTabItem)
+    menu.addItem(menuItem(MenuItemIdentifier.selectLastTab))
     return menu
   }()
 
   private lazy var spacesMenu: NSMenu = {
     let menu = NSMenu(title: "Spaces")
-    for item in selectSpaceItems {
+    for item in slotItems(withPrefix: MenuItemIdentifier.selectSpacePrefix) {
       menu.addItem(item)
     }
     return menu
@@ -231,9 +235,9 @@ final class SupatermMenuController: NSObject {
     menu.addItem(systemItem(title: "Minimize", action: #selector(NSWindow.performMiniaturize(_:)), keyEquivalent: "m"))
     menu.addItem(systemItem(title: "Zoom", action: #selector(NSWindow.performZoom(_:))))
     menu.addItem(.separator())
-    menu.addItem(zoomSplitItem)
-    menu.addItem(previousSplitItem)
-    menu.addItem(nextSplitItem)
+    menu.addItem(menuItem(MenuItemIdentifier.zoomSplit))
+    menu.addItem(menuItem(MenuItemIdentifier.previousSplit))
+    menu.addItem(menuItem(MenuItemIdentifier.nextSplit))
     let selectSplitMenuItem = NSMenuItem(title: "Select Split", action: nil, keyEquivalent: "")
     selectSplitMenuItem.submenu = selectSplitMenu
     menu.addItem(selectSplitMenuItem)
@@ -247,334 +251,451 @@ final class SupatermMenuController: NSObject {
 
   private lazy var helpMenu: NSMenu = {
     let menu = NSMenu(title: "Help")
-    menu.addItem(changelogItem)
-    menu.addItem(submitGitHubIssueItem)
+    menu.addItem(menuItem(MenuItemIdentifier.changelog))
+    menu.addItem(menuItem(MenuItemIdentifier.submitGitHubIssue))
     return menu
   }()
 
   private lazy var selectSplitMenu: NSMenu = {
     let menu = NSMenu(title: "Select Split")
-    menu.addItem(selectSplitAboveItem)
-    menu.addItem(selectSplitBelowItem)
-    menu.addItem(selectSplitLeftItem)
-    menu.addItem(selectSplitRightItem)
+    menu.addItem(menuItem(MenuItemIdentifier.selectSplitAbove))
+    menu.addItem(menuItem(MenuItemIdentifier.selectSplitBelow))
+    menu.addItem(menuItem(MenuItemIdentifier.selectSplitLeft))
+    menu.addItem(menuItem(MenuItemIdentifier.selectSplitRight))
     return menu
   }()
 
   private lazy var resizeSplitMenu: NSMenu = {
     let menu = NSMenu(title: "Resize Split")
-    menu.addItem(equalizeSplitsItem)
+    menu.addItem(menuItem(MenuItemIdentifier.equalizeSplits))
     menu.addItem(.separator())
-    menu.addItem(moveSplitDividerUpItem)
-    menu.addItem(moveSplitDividerDownItem)
-    menu.addItem(moveSplitDividerLeftItem)
-    menu.addItem(moveSplitDividerRightItem)
+    menu.addItem(menuItem(MenuItemIdentifier.moveSplitDividerUp))
+    menu.addItem(menuItem(MenuItemIdentifier.moveSplitDividerDown))
+    menu.addItem(menuItem(MenuItemIdentifier.moveSplitDividerLeft))
+    menu.addItem(menuItem(MenuItemIdentifier.moveSplitDividerRight))
     return menu
   }()
 
-  private lazy var checkForUpdatesItem = makeItem(
-    title: "Check for Updates...",
-    action: #selector(checkForUpdates(_:)),
-    identifier: MenuItemIdentifier.checkForUpdates
-  )
-  private lazy var aboutItem = makeItem(
-    title: "About \(appName)",
-    action: #selector(about(_:)),
-    identifier: MenuItemIdentifier.about
-  )
-  private lazy var quitItem = makeItem(
-    title: "Quit \(appName)",
-    action: #selector(quit(_:)),
-    identifier: MenuItemIdentifier.quit
-  )
-  private lazy var quitTerminatingSessionsItem: NSMenuItem = {
-    let item = makeItem(
-      title: "Quit \(appName) and Close All Sessions",
-      action: #selector(quitTerminatingSessions(_:)),
-      identifier: MenuItemIdentifier.quitTerminatingSessions
-    )
-    item.keyEquivalentModifierMask = []
-    return item
-  }()
-  private lazy var settingsItem: NSMenuItem = {
-    let item = makeItem(
-      title: "Settings...",
-      action: #selector(showSettings(_:)),
-      identifier: MenuItemIdentifier.settings
-    )
-    item.keyEquivalent = ","
-    item.keyEquivalentModifierMask = .command
-    return item
-  }()
-  private lazy var newWindowItem = makeItem(
-    title: "New Window",
-    action: #selector(newWindow(_:)),
-    identifier: MenuItemIdentifier.newWindow,
-    symbol: "macwindow.badge.plus"
-  )
-  private lazy var newTabItem = makeItem(
-    title: "New Tab",
-    action: #selector(newTab(_:)),
-    identifier: MenuItemIdentifier.newTab,
-    symbol: "macwindow"
-  )
-  private lazy var splitRightItem = makeItem(
-    title: "Split Right",
-    action: #selector(splitRight(_:)),
-    identifier: MenuItemIdentifier.splitRight,
-    symbol: "rectangle.righthalf.inset.filled"
-  )
-  private lazy var splitLeftItem = makeItem(
-    title: "Split Left",
-    action: #selector(splitLeft(_:)),
-    identifier: MenuItemIdentifier.splitLeft,
-    symbol: "rectangle.leadinghalf.inset.filled"
-  )
-  private lazy var splitDownItem = makeItem(
-    title: "Split Down",
-    action: #selector(splitDown(_:)),
-    identifier: MenuItemIdentifier.splitDown,
-    symbol: "rectangle.bottomhalf.inset.filled"
-  )
-  private lazy var splitUpItem = makeItem(
-    title: "Split Up",
-    action: #selector(splitUp(_:)),
-    identifier: MenuItemIdentifier.splitUp,
-    symbol: "rectangle.tophalf.inset.filled"
-  )
-  private lazy var closeSurfaceItem = makeItem(
-    title: "Close Pane",
-    action: #selector(closeSurface(_:)),
-    identifier: MenuItemIdentifier.closeSurface,
-    symbol: "xmark"
-  )
-  private lazy var closeTabItem = makeItem(
-    title: "Close Tab",
-    action: #selector(closeTab(_:)),
-    identifier: MenuItemIdentifier.closeTab
-  )
-  private lazy var closeWindowItem = makeItem(
-    title: "Close Window",
-    action: #selector(closeWindow(_:)),
-    identifier: MenuItemIdentifier.closeWindow
-  )
-  private lazy var closeAllWindowsItem = makeItem(
-    title: "Close All Windows",
-    action: #selector(closeAllWindows(_:)),
-    identifier: MenuItemIdentifier.closeAllWindows
-  )
-  private lazy var terminateAllTerminalSessionsItem = makeItem(
-    title: "Terminate All Terminal Sessions...",
-    action: #selector(terminateAllTerminalSessions(_:)),
-    identifier: MenuItemIdentifier.terminateAllTerminalSessions
-  )
-  private lazy var openCommandPaletteItem = makeItem(
-    title: "Open Command Palette",
-    action: #selector(openCommandPalette(_:)),
-    identifier: MenuItemIdentifier.openCommandPalette,
-    symbol: "magnifyingglass"
-  )
-  private lazy var findItem = makeItem(
-    title: "Find...",
-    action: #selector(find(_:)),
-    identifier: MenuItemIdentifier.find
-  )
-  private lazy var findNextItem = makeItem(
-    title: "Find Next",
-    action: #selector(findNext(_:)),
-    identifier: MenuItemIdentifier.findNext
-  )
-  private lazy var findPreviousItem = makeItem(
-    title: "Find Previous",
-    action: #selector(findPrevious(_:)),
-    identifier: MenuItemIdentifier.findPrevious
-  )
-  private lazy var hideFindBarItem = makeItem(
-    title: "Hide Find Bar",
-    action: #selector(findHide(_:)),
-    identifier: MenuItemIdentifier.hideFindBar
-  )
-  private lazy var selectionForFindItem = makeItem(
-    title: "Use Selection for Find",
-    action: #selector(selectionForFind(_:)),
-    identifier: MenuItemIdentifier.selectionForFind
-  )
-  private lazy var copyItem = systemItem(title: "Copy", action: #selector(GhosttySurfaceView.copy(_:)))
-  private lazy var pasteItem = systemItem(title: "Paste", action: #selector(GhosttySurfaceView.paste(_:)))
-  private lazy var pasteSelectionItem = systemItem(
-    title: "Paste Selection",
-    action: #selector(GhosttySurfaceView.pasteSelection(_:))
-  )
-  private lazy var selectAllItem = systemItem(title: "Select All", action: #selector(GhosttySurfaceView.selectAll(_:)))
-  private lazy var toggleSidebarItem: NSMenuItem = {
-    let item = makeItem(
-      title: "Toggle Sidebar",
-      action: #selector(toggleSidebar(_:)),
-      identifier: MenuItemIdentifier.toggleSidebar
-    )
-    SupatermMenuShortcut.apply(KeyboardShortcut("s", modifiers: .command), to: item)
-    return item
-  }()
-  private lazy var toggleAgentPanelItem: NSMenuItem = {
-    let item = makeItem(
-      title: "Toggle Agent Panel",
-      action: #selector(toggleAgentPanel(_:)),
-      identifier: MenuItemIdentifier.toggleAgentPanel
-    )
-    SupatermMenuShortcut.apply(AgentPanelShortcut.toggleVisibility, to: item)
-    return item
-  }()
-  private lazy var forkAgentSessionItem: NSMenuItem = {
-    let item = makeItem(
-      title: "Fork Agent Session",
-      action: #selector(forkAgentSession(_:)),
-      identifier: MenuItemIdentifier.forkAgentSession
-    )
-    SupatermMenuShortcut.apply(AgentPanelShortcut.forkSession, to: item)
-    return item
-  }()
-  private lazy var copyAgentSessionIDItem: NSMenuItem = {
-    let item = makeItem(
-      title: "Copy Agent Session ID",
-      action: #selector(copyAgentSessionID(_:)),
-      identifier: MenuItemIdentifier.copyAgentSessionID
-    )
-    SupatermMenuShortcut.apply(AgentPanelShortcut.copySessionID, to: item)
-    return item
-  }()
-  private lazy var changeTabTitleItem = makeItem(
-    title: "Change Tab Title...",
-    action: #selector(changeTabTitle(_:)),
-    identifier: MenuItemIdentifier.changeTabTitle,
-    symbol: "pencil.line"
-  )
-  private lazy var changeTerminalTitleItem = makeItem(
-    title: "Change Terminal Title...",
-    action: #selector(changeTerminalTitle(_:)),
-    identifier: MenuItemIdentifier.changeTerminalTitle,
-    symbol: "pencil.line"
-  )
-  private lazy var nextTabItem = makeItem(
-    title: "Next Tab",
-    action: #selector(nextTab(_:)),
-    identifier: MenuItemIdentifier.nextTab
-  )
-  private lazy var previousTabItem = makeItem(
-    title: "Previous Tab",
-    action: #selector(previousTab(_:)),
-    identifier: MenuItemIdentifier.previousTab
-  )
-  private lazy var selectLastTabItem = makeItem(
-    title: "Last Tab",
-    action: #selector(selectLastTab(_:)),
-    identifier: MenuItemIdentifier.selectLastTab
-  )
-  private lazy var selectTabItems: [NSMenuItem] = (1...10).map { slot in
-    let item = makeItem(
-      title: "Tab \(slot)",
-      action: #selector(selectTab(_:)),
-      identifier: NSUserInterfaceItemIdentifier(MenuItemIdentifier.selectTabPrefix + "\(slot)")
-    )
-    item.representedObject = slot as NSNumber
-    return item
+  private struct MenuEntry {
+    let spec: SupatermMenuItemSpec
+    let item: NSMenuItem
   }
-  private lazy var zoomSplitItem = makeItem(
-    title: "Zoom Split",
-    action: #selector(zoomSplit(_:)),
-    identifier: MenuItemIdentifier.zoomSplit,
-    symbol: "arrow.up.left.and.arrow.down.right"
-  )
-  private lazy var previousSplitItem = makeItem(
-    title: "Select Previous Split",
-    action: #selector(previousSplit(_:)),
-    identifier: MenuItemIdentifier.previousSplit,
-    symbol: "chevron.backward.2"
-  )
-  private lazy var nextSplitItem = makeItem(
-    title: "Select Next Split",
-    action: #selector(nextSplit(_:)),
-    identifier: MenuItemIdentifier.nextSplit,
-    symbol: "chevron.forward.2"
-  )
-  private lazy var selectSplitAboveItem = makeItem(
-    title: "Select Split Above",
-    action: #selector(selectSplitAbove(_:)),
-    identifier: MenuItemIdentifier.selectSplitAbove,
-    symbol: "arrow.up"
-  )
-  private lazy var selectSplitBelowItem = makeItem(
-    title: "Select Split Below",
-    action: #selector(selectSplitBelow(_:)),
-    identifier: MenuItemIdentifier.selectSplitBelow,
-    symbol: "arrow.down"
-  )
-  private lazy var selectSplitLeftItem = makeItem(
-    title: "Select Split Left",
-    action: #selector(selectSplitLeft(_:)),
-    identifier: MenuItemIdentifier.selectSplitLeft,
-    symbol: "arrow.left"
-  )
-  private lazy var selectSplitRightItem = makeItem(
-    title: "Select Split Right",
-    action: #selector(selectSplitRight(_:)),
-    identifier: MenuItemIdentifier.selectSplitRight,
-    symbol: "arrow.right"
-  )
-  private lazy var equalizeSplitsItem = makeItem(
-    title: "Equalize Panes",
-    action: #selector(equalizeSplits(_:)),
-    identifier: MenuItemIdentifier.equalizeSplits,
-    symbol: "inset.filled.topleft.topright.bottomleft.bottomright.rectangle"
-  )
-  private lazy var moveSplitDividerUpItem = makeItem(
-    title: "Move Divider Up",
-    action: #selector(moveSplitDividerUp(_:)),
-    identifier: MenuItemIdentifier.moveSplitDividerUp,
-    symbol: "arrow.up.to.line"
-  )
-  private lazy var moveSplitDividerDownItem = makeItem(
-    title: "Move Divider Down",
-    action: #selector(moveSplitDividerDown(_:)),
-    identifier: MenuItemIdentifier.moveSplitDividerDown,
-    symbol: "arrow.down.to.line"
-  )
-  private lazy var moveSplitDividerLeftItem = makeItem(
-    title: "Move Divider Left",
-    action: #selector(moveSplitDividerLeft(_:)),
-    identifier: MenuItemIdentifier.moveSplitDividerLeft,
-    symbol: "arrow.left.to.line"
-  )
-  private lazy var moveSplitDividerRightItem = makeItem(
-    title: "Move Divider Right",
-    action: #selector(moveSplitDividerRight(_:)),
-    identifier: MenuItemIdentifier.moveSplitDividerRight,
-    symbol: "arrow.right.to.line"
-  )
-  private lazy var changelogItem = makeItem(
-    title: "Changelog",
-    action: #selector(openChangelog(_:)),
-    identifier: MenuItemIdentifier.changelog,
-    symbol: "list.bullet.rectangle"
-  )
-  private lazy var submitGitHubIssueItem = makeItem(
-    title: "Submit GitHub Issue",
-    action: #selector(submitGitHubIssue(_:)),
-    identifier: MenuItemIdentifier.submitGitHubIssue,
-    symbol: "exclamationmark.bubble"
-  )
-  private lazy var selectSpaceItems: [NSMenuItem] = (1...10).map { slot in
-    let item = makeItem(
-      title: "Space \(slot)",
-      action: #selector(selectSpace(_:)),
-      identifier: NSUserInterfaceItemIdentifier(MenuItemIdentifier.selectSpacePrefix + "\(slot)")
+
+  private lazy var menuEntries: [MenuEntry] = menuItemSpecs().map { spec in
+    MenuEntry(spec: spec, item: makeItem(from: spec))
+  }
+
+  private func menuItem(_ id: NSUserInterfaceItemIdentifier) -> NSMenuItem {
+    guard let entry = menuEntries.first(where: { $0.spec.id == id }) else {
+      preconditionFailure("Missing menu item spec for \(id.rawValue)")
+    }
+    return entry.item
+  }
+
+  private func slotItems(withPrefix prefix: String) -> [NSMenuItem] {
+    menuEntries
+      .filter { $0.spec.id?.rawValue.hasPrefix(prefix) == true }
+      .map(\.item)
+  }
+
+  func menuItemSpecs() -> [SupatermMenuItemSpec] {
+    appMenuSpecs() + fileMenuSpecs() + editMenuSpecs() + viewMenuSpecs()
+      + tabsMenuSpecs() + spacesMenuSpecs() + windowMenuSpecs() + helpMenuSpecs()
+  }
+
+  private func appMenuSpecs() -> [SupatermMenuItemSpec] {
+    [
+      SupatermMenuItemSpec(
+        id: MenuItemIdentifier.about,
+        title: "About \(appName)",
+        action: #selector(about(_:))
+      ),
+      SupatermMenuItemSpec(
+        id: MenuItemIdentifier.settings,
+        title: "Settings...",
+        action: #selector(showSettings(_:)),
+        shortcut: .ghosttyAction(
+          "open_config",
+          defaultShortcut: KeyboardShortcut(",", modifiers: .command)
+        )
+      ),
+      SupatermMenuItemSpec(
+        id: MenuItemIdentifier.checkForUpdates,
+        title: "Check for Updates...",
+        action: #selector(checkForUpdates(_:)),
+        shortcut: .ghosttyAction(
+          "check_for_updates",
+          defaultShortcut: KeyboardShortcut("u", modifiers: [.command, .shift])
+        )
+      ),
+      SupatermMenuItemSpec(
+        id: MenuItemIdentifier.quitTerminatingSessions,
+        title: "Quit \(appName) and Close All Sessions",
+        action: #selector(quitTerminatingSessions(_:))
+      ),
+      SupatermMenuItemSpec(
+        id: MenuItemIdentifier.quit,
+        title: "Quit \(appName)",
+        action: #selector(quit(_:)),
+        shortcut: .ghosttyAction(
+          "quit",
+          defaultShortcut: KeyboardShortcut("q", modifiers: .command)
+        )
+      ),
+    ]
+  }
+
+  private func fileMenuSpecs() -> [SupatermMenuItemSpec] {
+    [
+      SupatermMenuItemSpec(
+        id: MenuItemIdentifier.newWindow,
+        title: "New Window",
+        action: #selector(newWindow(_:)),
+        symbol: "macwindow.badge.plus",
+        shortcut: .command(.newWindow)
+      ),
+      SupatermMenuItemSpec(
+        id: MenuItemIdentifier.newTab,
+        title: "New Tab",
+        action: #selector(newTab(_:)),
+        symbol: "macwindow",
+        shortcut: .command(.newTab)
+      ),
+      SupatermMenuItemSpec(
+        id: MenuItemIdentifier.openCommandPalette,
+        title: "Open Command Palette",
+        action: #selector(openCommandPalette(_:)),
+        symbol: "magnifyingglass",
+        shortcut: .ghosttyAction(
+          "toggle_command_palette",
+          defaultShortcut: KeyboardShortcut("p", modifiers: [.command, .shift])
+        )
+      ),
+      SupatermMenuItemSpec(
+        id: MenuItemIdentifier.splitRight,
+        title: "Split Right",
+        action: #selector(splitRight(_:)),
+        symbol: "rectangle.righthalf.inset.filled",
+        shortcut: .command(.newSplit(.right))
+      ),
+      SupatermMenuItemSpec(
+        id: MenuItemIdentifier.splitLeft,
+        title: "Split Left",
+        action: #selector(splitLeft(_:)),
+        symbol: "rectangle.leadinghalf.inset.filled",
+        shortcut: .command(.newSplit(.left))
+      ),
+      SupatermMenuItemSpec(
+        id: MenuItemIdentifier.splitDown,
+        title: "Split Down",
+        action: #selector(splitDown(_:)),
+        symbol: "rectangle.bottomhalf.inset.filled",
+        shortcut: .command(.newSplit(.down))
+      ),
+      SupatermMenuItemSpec(
+        id: MenuItemIdentifier.splitUp,
+        title: "Split Up",
+        action: #selector(splitUp(_:)),
+        symbol: "rectangle.tophalf.inset.filled",
+        shortcut: .command(.newSplit(.up))
+      ),
+      SupatermMenuItemSpec(
+        id: MenuItemIdentifier.closeSurface,
+        title: "Close Pane",
+        action: #selector(closeSurface(_:)),
+        symbol: "xmark",
+        shortcut: .command(.closeSurface)
+      ),
+      SupatermMenuItemSpec(
+        id: MenuItemIdentifier.closeTab,
+        title: "Close Tab",
+        action: #selector(closeTab(_:)),
+        shortcut: .command(.closeTab)
+      ),
+      SupatermMenuItemSpec(
+        id: MenuItemIdentifier.closeWindow,
+        title: "Close Window",
+        action: #selector(closeWindow(_:)),
+        shortcut: .command(.closeWindow)
+      ),
+      SupatermMenuItemSpec(
+        id: MenuItemIdentifier.closeAllWindows,
+        title: "Close All Windows",
+        action: #selector(closeAllWindows(_:)),
+        shortcut: .command(.closeAllWindows)
+      ),
+      SupatermMenuItemSpec(
+        id: MenuItemIdentifier.terminateAllTerminalSessions,
+        title: "Terminate All Terminal Sessions...",
+        action: #selector(terminateAllTerminalSessions(_:))
+      ),
+    ]
+  }
+
+  private func editMenuSpecs() -> [SupatermMenuItemSpec] {
+    [
+      SupatermMenuItemSpec(
+        id: MenuItemIdentifier.copy,
+        title: "Copy",
+        action: #selector(GhosttySurfaceView.copy(_:)),
+        shortcut: .command(.copyToClipboard),
+        targetsController: false
+      ),
+      SupatermMenuItemSpec(
+        id: MenuItemIdentifier.paste,
+        title: "Paste",
+        action: #selector(GhosttySurfaceView.paste(_:)),
+        shortcut: .command(.pasteFromClipboard),
+        targetsController: false
+      ),
+      SupatermMenuItemSpec(
+        id: MenuItemIdentifier.pasteSelection,
+        title: "Paste Selection",
+        action: #selector(GhosttySurfaceView.pasteSelection(_:)),
+        shortcut: .command(.pasteFromSelection),
+        targetsController: false
+      ),
+      SupatermMenuItemSpec(
+        id: MenuItemIdentifier.selectAll,
+        title: "Select All",
+        action: #selector(GhosttySurfaceView.selectAll(_:)),
+        shortcut: .command(.selectAll),
+        targetsController: false
+      ),
+      SupatermMenuItemSpec(
+        id: MenuItemIdentifier.find,
+        title: "Find...",
+        action: #selector(find(_:)),
+        shortcut: .command(.startSearch)
+      ),
+      SupatermMenuItemSpec(
+        id: MenuItemIdentifier.findNext,
+        title: "Find Next",
+        action: #selector(findNext(_:)),
+        shortcut: .command(.navigateSearch(.next))
+      ),
+      SupatermMenuItemSpec(
+        id: MenuItemIdentifier.findPrevious,
+        title: "Find Previous",
+        action: #selector(findPrevious(_:)),
+        shortcut: .command(.navigateSearch(.previous))
+      ),
+      SupatermMenuItemSpec(
+        id: MenuItemIdentifier.hideFindBar,
+        title: "Hide Find Bar",
+        action: #selector(findHide(_:)),
+        shortcut: .command(.endSearch)
+      ),
+      SupatermMenuItemSpec(
+        id: MenuItemIdentifier.selectionForFind,
+        title: "Use Selection for Find",
+        action: #selector(selectionForFind(_:)),
+        shortcut: .command(.searchSelection)
+      ),
+    ]
+  }
+
+  private func viewMenuSpecs() -> [SupatermMenuItemSpec] {
+    [
+      SupatermMenuItemSpec(
+        id: MenuItemIdentifier.toggleSidebar,
+        title: "Toggle Sidebar",
+        action: #selector(toggleSidebar(_:)),
+        shortcut: .fixed(KeyboardShortcut("s", modifiers: .command))
+      ),
+      SupatermMenuItemSpec(
+        id: MenuItemIdentifier.toggleAgentPanel,
+        title: "Toggle Agent Panel",
+        action: #selector(toggleAgentPanel(_:)),
+        shortcut: .fixed(AgentPanelShortcut.toggleVisibility)
+      ),
+      SupatermMenuItemSpec(
+        id: MenuItemIdentifier.forkAgentSession,
+        title: "Fork Agent Session",
+        action: #selector(forkAgentSession(_:)),
+        shortcut: .fixedRouted(AgentPanelShortcut.forkSession)
+      ),
+      SupatermMenuItemSpec(
+        id: MenuItemIdentifier.copyAgentSessionID,
+        title: "Copy Agent Session ID",
+        action: #selector(copyAgentSessionID(_:)),
+        shortcut: .fixedRouted(AgentPanelShortcut.copySessionID)
+      ),
+      SupatermMenuItemSpec(
+        id: MenuItemIdentifier.changeTabTitle,
+        title: "Change Tab Title...",
+        action: #selector(changeTabTitle(_:)),
+        symbol: "pencil.line",
+        shortcut: .command(.promptTabTitle)
+      ),
+      SupatermMenuItemSpec(
+        id: MenuItemIdentifier.changeTerminalTitle,
+        title: "Change Terminal Title...",
+        action: #selector(changeTerminalTitle(_:)),
+        symbol: "pencil.line",
+        shortcut: .command(.promptSurfaceTitle)
+      ),
+    ]
+  }
+
+  private func tabsMenuSpecs() -> [SupatermMenuItemSpec] {
+    var specs: [SupatermMenuItemSpec] = [
+      SupatermMenuItemSpec(
+        id: MenuItemIdentifier.nextTab,
+        title: "Next Tab",
+        action: #selector(nextTab(_:)),
+        shortcut: .command(.nextTab)
+      ),
+      SupatermMenuItemSpec(
+        id: MenuItemIdentifier.previousTab,
+        title: "Previous Tab",
+        action: #selector(previousTab(_:)),
+        shortcut: .command(.previousTab)
+      ),
+      SupatermMenuItemSpec(
+        id: MenuItemIdentifier.selectLastTab,
+        title: "Last Tab",
+        action: #selector(selectLastTab(_:)),
+        shortcut: .command(.lastTab)
+      ),
+    ]
+    let lastTab = specs.removeLast()
+    specs.append(
+      contentsOf: (1...10).map { slot in
+        SupatermMenuItemSpec(
+          id: NSUserInterfaceItemIdentifier(MenuItemIdentifier.selectTabPrefix + "\(slot)"),
+          title: "Tab \(slot)",
+          action: #selector(selectTab(_:)),
+          shortcut: .command(.goToTab(slot)),
+          slot: slot
+        )
+      }
     )
-    let key = slot == 10 ? "0" : "\(slot)"
-    SupatermMenuShortcut.apply(
-      KeyboardShortcut(KeyEquivalent(Character(key)), modifiers: .control),
-      to: item
-    )
-    item.representedObject = slot as NSNumber
-    return item
+    specs.append(lastTab)
+    return specs
+  }
+
+  private func spacesMenuSpecs() -> [SupatermMenuItemSpec] {
+    (1...10).map { slot in
+      SupatermMenuItemSpec(
+        id: NSUserInterfaceItemIdentifier(MenuItemIdentifier.selectSpacePrefix + "\(slot)"),
+        title: "Space \(slot)",
+        action: #selector(selectSpace(_:)),
+        shortcut: .fixed(
+          KeyboardShortcut(
+            KeyEquivalent(Character(slot == 10 ? "0" : "\(slot)")),
+            modifiers: .control
+          )
+        ),
+        slot: slot
+      )
+    }
+  }
+
+  private func windowMenuSpecs() -> [SupatermMenuItemSpec] {
+    [
+      SupatermMenuItemSpec(
+        id: MenuItemIdentifier.zoomSplit,
+        title: "Zoom Split",
+        action: #selector(zoomSplit(_:)),
+        symbol: "arrow.up.left.and.arrow.down.right",
+        shortcut: .command(.toggleSplitZoom)
+      ),
+      SupatermMenuItemSpec(
+        id: MenuItemIdentifier.previousSplit,
+        title: "Select Previous Split",
+        action: #selector(previousSplit(_:)),
+        symbol: "chevron.backward.2",
+        shortcut: .command(.goToSplit(.previous))
+      ),
+      SupatermMenuItemSpec(
+        id: MenuItemIdentifier.nextSplit,
+        title: "Select Next Split",
+        action: #selector(nextSplit(_:)),
+        symbol: "chevron.forward.2",
+        shortcut: .command(.goToSplit(.next))
+      ),
+      SupatermMenuItemSpec(
+        id: MenuItemIdentifier.selectSplitAbove,
+        title: "Select Split Above",
+        action: #selector(selectSplitAbove(_:)),
+        symbol: "arrow.up",
+        shortcut: .command(.goToSplit(.up))
+      ),
+      SupatermMenuItemSpec(
+        id: MenuItemIdentifier.selectSplitBelow,
+        title: "Select Split Below",
+        action: #selector(selectSplitBelow(_:)),
+        symbol: "arrow.down",
+        shortcut: .command(.goToSplit(.down))
+      ),
+      SupatermMenuItemSpec(
+        id: MenuItemIdentifier.selectSplitLeft,
+        title: "Select Split Left",
+        action: #selector(selectSplitLeft(_:)),
+        symbol: "arrow.left",
+        shortcut: .command(.goToSplit(.left))
+      ),
+      SupatermMenuItemSpec(
+        id: MenuItemIdentifier.selectSplitRight,
+        title: "Select Split Right",
+        action: #selector(selectSplitRight(_:)),
+        symbol: "arrow.right",
+        shortcut: .command(.goToSplit(.right))
+      ),
+      SupatermMenuItemSpec(
+        id: MenuItemIdentifier.equalizeSplits,
+        title: "Equalize Panes",
+        action: #selector(equalizeSplits(_:)),
+        symbol: "inset.filled.topleft.topright.bottomleft.bottomright.rectangle",
+        shortcut: .command(.equalizeSplits)
+      ),
+      SupatermMenuItemSpec(
+        id: MenuItemIdentifier.moveSplitDividerUp,
+        title: "Move Divider Up",
+        action: #selector(moveSplitDividerUp(_:)),
+        symbol: "arrow.up.to.line",
+        shortcut: .command(.resizeSplit(.up, 10))
+      ),
+      SupatermMenuItemSpec(
+        id: MenuItemIdentifier.moveSplitDividerDown,
+        title: "Move Divider Down",
+        action: #selector(moveSplitDividerDown(_:)),
+        symbol: "arrow.down.to.line",
+        shortcut: .command(.resizeSplit(.down, 10))
+      ),
+      SupatermMenuItemSpec(
+        id: MenuItemIdentifier.moveSplitDividerLeft,
+        title: "Move Divider Left",
+        action: #selector(moveSplitDividerLeft(_:)),
+        symbol: "arrow.left.to.line",
+        shortcut: .command(.resizeSplit(.left, 10))
+      ),
+      SupatermMenuItemSpec(
+        id: MenuItemIdentifier.moveSplitDividerRight,
+        title: "Move Divider Right",
+        action: #selector(moveSplitDividerRight(_:)),
+        symbol: "arrow.right.to.line",
+        shortcut: .command(.resizeSplit(.right, 10))
+      ),
+    ]
+  }
+
+  private func helpMenuSpecs() -> [SupatermMenuItemSpec] {
+    [
+      SupatermMenuItemSpec(
+        id: MenuItemIdentifier.changelog,
+        title: "Changelog",
+        action: #selector(openChangelog(_:)),
+        symbol: "list.bullet.rectangle"
+      ),
+      SupatermMenuItemSpec(
+        id: MenuItemIdentifier.submitGitHubIssue,
+        title: "Submit GitHub Issue",
+        action: #selector(submitGitHubIssue(_:)),
+        symbol: "exclamationmark.bubble"
+      ),
+    ]
   }
 
   init(registry: TerminalWindowRegistry) {
@@ -611,75 +732,24 @@ final class SupatermMenuController: NSObject {
     }
 
     ghosttyBindingItems = []
-    agentSessionShortcutItems = [
-      GhosttyBindingMenuItem(
-        shortcut: MenuShortcutKey(shortcut: AgentPanelShortcut.forkSession),
-        item: forkAgentSessionItem
-      ),
-      GhosttyBindingMenuItem(
-        shortcut: MenuShortcutKey(shortcut: AgentPanelShortcut.copySessionID),
-        item: copyAgentSessionIDItem
-      ),
-    ]
-    syncShortcut(
-      action: "open_config",
-      item: settingsItem,
-      defaultShortcut: KeyboardShortcut(",", modifiers: .command)
-    )
-    syncShortcut(
-      action: "check_for_updates",
-      item: checkForUpdatesItem,
-      defaultShortcut: KeyboardShortcut("u", modifiers: [.command, .shift])
-    )
-    syncShortcut(
-      action: "quit",
-      item: quitItem,
-      defaultShortcut: KeyboardShortcut("q", modifiers: .command)
-    )
-    syncShortcut(command: .newWindow, item: newWindowItem)
-    syncShortcut(command: .newTab, item: newTabItem)
-    syncShortcut(
-      action: "toggle_command_palette",
-      item: openCommandPaletteItem,
-      defaultShortcut: KeyboardShortcut("p", modifiers: [.command, .shift])
-    )
-    syncShortcut(command: .newSplit(.right), item: splitRightItem)
-    syncShortcut(command: .newSplit(.left), item: splitLeftItem)
-    syncShortcut(command: .newSplit(.down), item: splitDownItem)
-    syncShortcut(command: .newSplit(.up), item: splitUpItem)
-    syncShortcut(command: .closeSurface, item: closeSurfaceItem)
-    syncShortcut(command: .closeTab, item: closeTabItem)
-    syncShortcut(command: .closeWindow, item: closeWindowItem)
-    syncShortcut(command: .closeAllWindows, item: closeAllWindowsItem)
-    syncShortcut(command: .copyToClipboard, item: copyItem)
-    syncShortcut(command: .pasteFromClipboard, item: pasteItem)
-    syncShortcut(command: .pasteFromSelection, item: pasteSelectionItem)
-    syncShortcut(command: .selectAll, item: selectAllItem)
-    syncShortcut(command: .startSearch, item: findItem)
-    syncShortcut(command: .navigateSearch(.next), item: findNextItem)
-    syncShortcut(command: .navigateSearch(.previous), item: findPreviousItem)
-    syncShortcut(command: .endSearch, item: hideFindBarItem)
-    syncShortcut(command: .searchSelection, item: selectionForFindItem)
-    syncShortcut(command: .promptTabTitle, item: changeTabTitleItem)
-    syncShortcut(command: .promptSurfaceTitle, item: changeTerminalTitleItem)
-    syncShortcut(command: .toggleSplitZoom, item: zoomSplitItem)
-    syncShortcut(command: .goToSplit(.previous), item: previousSplitItem)
-    syncShortcut(command: .goToSplit(.next), item: nextSplitItem)
-    syncShortcut(command: .goToSplit(.up), item: selectSplitAboveItem)
-    syncShortcut(command: .goToSplit(.down), item: selectSplitBelowItem)
-    syncShortcut(command: .goToSplit(.left), item: selectSplitLeftItem)
-    syncShortcut(command: .goToSplit(.right), item: selectSplitRightItem)
-    syncShortcut(command: .equalizeSplits, item: equalizeSplitsItem)
-    syncShortcut(command: .resizeSplit(.up, 10), item: moveSplitDividerUpItem)
-    syncShortcut(command: .resizeSplit(.down, 10), item: moveSplitDividerDownItem)
-    syncShortcut(command: .resizeSplit(.left, 10), item: moveSplitDividerLeftItem)
-    syncShortcut(command: .resizeSplit(.right, 10), item: moveSplitDividerRightItem)
-    syncShortcut(command: .nextTab, item: nextTabItem)
-    syncShortcut(command: .previousTab, item: previousTabItem)
-    for (offset, item) in selectTabItems.enumerated() {
-      syncShortcut(command: .goToTab(offset + 1), item: item)
+    agentSessionShortcutItems = []
+    for entry in menuEntries {
+      switch entry.spec.shortcut {
+      case .command(let command):
+        syncShortcut(command: command, item: entry.item)
+      case .ghosttyAction(let action, let defaultShortcut):
+        syncShortcut(action: action, item: entry.item, defaultShortcut: defaultShortcut)
+      case .fixed(let shortcut):
+        SupatermMenuShortcut.apply(shortcut, to: entry.item)
+      case .fixedRouted(let shortcut):
+        SupatermMenuShortcut.apply(shortcut, to: entry.item)
+        agentSessionShortcutItems.append(
+          GhosttyBindingMenuItem(shortcut: MenuShortcutKey(shortcut: shortcut), item: entry.item)
+        )
+      case .none:
+        break
+      }
     }
-    syncShortcut(command: .lastTab, item: selectLastTabItem)
     mainMenu.update()
   }
 
@@ -1027,17 +1097,20 @@ final class SupatermMenuController: NSObject {
     return item
   }
 
-  private func makeItem(
-    title: String,
-    action: Selector,
-    identifier: NSUserInterfaceItemIdentifier,
-    symbol: String? = nil
-  ) -> NSMenuItem {
-    let item = NSMenuItem(title: title, action: action, keyEquivalent: "")
-    item.identifier = identifier
-    item.target = self
-    if let symbol {
-      item.image = NSImage(systemSymbolName: symbol, accessibilityDescription: title)
+  private func makeItem(from spec: SupatermMenuItemSpec) -> NSMenuItem {
+    let item = NSMenuItem(title: spec.title, action: spec.action, keyEquivalent: "")
+    item.identifier = spec.id
+    if spec.targetsController {
+      item.target = self
+    }
+    if let symbol = spec.symbol {
+      item.image = NSImage(systemSymbolName: symbol, accessibilityDescription: spec.title)
+    }
+    if let slot = spec.slot {
+      item.representedObject = slot as NSNumber
+    }
+    if case .none = spec.shortcut {
+      SupatermMenuShortcut.apply(nil, to: item)
     }
     return item
   }
