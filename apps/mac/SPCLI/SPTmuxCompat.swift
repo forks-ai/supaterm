@@ -784,11 +784,7 @@ struct SPTmuxCommandRunner {
     let targetTab = try topology().resolveTab(raw: parsed.value("-t"))
     _ = try send(
       .selectTab(
-        .init(
-          targetWindowIndex: targetTab.window.index,
-          targetSpaceIndex: targetTab.space.index,
-          targetTabIndex: targetTab.tab.index
-        )
+        targetTab.targetRequest
       ),
       as: SupatermSelectTabResult.self
     )
@@ -803,12 +799,7 @@ struct SPTmuxCommandRunner {
     let targetPane = try topology().resolvePane(raw: parsed.value("-t"))
     _ = try send(
       .focusPane(
-        .init(
-          targetWindowIndex: targetPane.window.index,
-          targetSpaceIndex: targetPane.space.index,
-          targetTabIndex: targetPane.tab.index,
-          targetPaneIndex: targetPane.pane.index
-        )
+        targetPane.targetRequest
       ),
       as: SupatermFocusPaneResult.self
     )
@@ -819,11 +810,7 @@ struct SPTmuxCommandRunner {
     let targetTab = try topology().resolveTab(raw: parsed.value("-t"))
     _ = try send(
       .closeTab(
-        .init(
-          targetWindowIndex: targetTab.window.index,
-          targetSpaceIndex: targetTab.space.index,
-          targetTabIndex: targetTab.tab.index
-        )
+        targetTab.targetRequest
       ),
       as: SupatermCloseTabResult.self
     )
@@ -834,12 +821,7 @@ struct SPTmuxCommandRunner {
     let targetPane = try topology().resolvePane(raw: parsed.value("-t"))
     _ = try send(
       .closePane(
-        .init(
-          targetWindowIndex: targetPane.window.index,
-          targetSpaceIndex: targetPane.space.index,
-          targetTabIndex: targetPane.tab.index,
-          targetPaneIndex: targetPane.pane.index
-        )
+        targetPane.targetRequest
       ),
       as: SupatermClosePaneResult.self
     )
@@ -852,12 +834,7 @@ struct SPTmuxCommandRunner {
     guard !text.isEmpty else {
       return
     }
-    let target = SupatermPaneTargetRequest(
-      targetWindowIndex: targetPane.window.index,
-      targetSpaceIndex: targetPane.space.index,
-      targetTabIndex: targetPane.tab.index,
-      targetPaneIndex: targetPane.pane.index
-    )
+    let target = targetPane.targetRequest
     traceSendText(
       event: "send_keys_text",
       target: target,
@@ -892,12 +869,7 @@ struct SPTmuxCommandRunner {
         .init(
           lines: lines,
           scope: .scrollback,
-          target: .init(
-            targetWindowIndex: targetPane.window.index,
-            targetSpaceIndex: targetPane.space.index,
-            targetTabIndex: targetPane.tab.index,
-            targetPaneIndex: targetPane.pane.index
-          )
+          target: targetPane.targetRequest
         )
       ),
       as: SupatermCapturePaneResult.self
@@ -966,11 +938,7 @@ struct SPTmuxCommandRunner {
     _ = try send(
       .renameTab(
         .init(
-          target: .init(
-            targetWindowIndex: targetTab.window.index,
-            targetSpaceIndex: targetTab.space.index,
-            targetTabIndex: targetTab.tab.index
-          ),
+          target: targetTab.targetRequest,
           title: title
         )
       ),
@@ -985,12 +953,7 @@ struct SPTmuxCommandRunner {
       boolFlags: ["-D", "-L", "-R", "-U"]
     )
     let targetPane = try topology().resolvePane(raw: parsed.value("-t"))
-    let target = SupatermPaneTargetRequest(
-      targetWindowIndex: targetPane.window.index,
-      targetSpaceIndex: targetPane.space.index,
-      targetTabIndex: targetPane.tab.index,
-      targetPaneIndex: targetPane.pane.index
-    )
+    let target = targetPane.targetRequest
     let sizeRequest =
       try tmuxSetPaneSizeRequest(
         rawAmount: parsed.value("-x"),
@@ -1031,11 +994,7 @@ struct SPTmuxCommandRunner {
   private func runSelectLayout(_ arguments: [String]) throws {
     let parsed = try SPTmuxArgumentParser.parse(arguments, valueFlags: ["-t"], boolFlags: ["-E"])
     let targetTab = try topology().resolveTab(raw: parsed.value("-t"))
-    let target = SupatermTabTargetRequest(
-      targetWindowIndex: targetTab.window.index,
-      targetSpaceIndex: targetTab.space.index,
-      targetTabIndex: targetTab.tab.index
-    )
+    let target = targetTab.targetRequest
     let layout = parsed.positional.first?.trimmingCharacters(in: .whitespacesAndNewlines)
       .lowercased()
     switch layout {
@@ -1121,12 +1080,7 @@ struct SPTmuxCommandRunner {
     let targetPane = try topology().resolvePane(raw: parsed.value("-t"))
     _ = try send(
       .lastPane(
-        .init(
-          targetWindowIndex: targetPane.window.index,
-          targetSpaceIndex: targetPane.space.index,
-          targetTabIndex: targetPane.tab.index,
-          targetPaneIndex: targetPane.pane.index
-        )
+        targetPane.targetRequest
       ),
       as: SupatermFocusPaneResult.self
     )
@@ -1196,12 +1150,7 @@ struct SPTmuxCommandRunner {
     _ = try send(
       .sendText(
         .init(
-          target: .init(
-            targetWindowIndex: targetPane.window.index,
-            targetSpaceIndex: targetPane.space.index,
-            targetTabIndex: targetPane.tab.index,
-            targetPaneIndex: targetPane.pane.index
-          ),
+          target: targetPane.targetRequest,
           text: buffer
         )
       ),
@@ -1533,6 +1482,14 @@ private struct SPTmuxTopology {
     let window: Window
     let space: Space
     let tab: Tab
+
+    var targetRequest: SupatermTabTargetRequest {
+      .init(
+        targetWindowIndex: window.index,
+        targetSpaceIndex: space.index,
+        targetTabIndex: tab.index
+      )
+    }
   }
 
   struct PaneLocation: Equatable {
@@ -1540,6 +1497,15 @@ private struct SPTmuxTopology {
     let space: Space
     let tab: Tab
     let pane: Pane
+
+    var targetRequest: SupatermPaneTargetRequest {
+      .init(
+        targetWindowIndex: window.index,
+        targetSpaceIndex: space.index,
+        targetTabIndex: tab.index,
+        targetPaneIndex: pane.index
+      )
+    }
   }
 
   let snapshot: SupatermAppDebugSnapshot
