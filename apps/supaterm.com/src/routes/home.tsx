@@ -2,7 +2,7 @@ import { Copy01Icon, Tick01Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { posthog } from "posthog-js";
 import { type ReactNode, useEffect, useRef, useState } from "react";
-import demoUrl from "../assets/demo.mp4";
+import heroUrl from "../assets/hero.png";
 import agentsUrl from "../assets/agents.mp4";
 import splitUrl from "../assets/split.mp4";
 import pinUrl from "../assets/pin.mp4";
@@ -146,72 +146,52 @@ function HomePage() {
   return (
     <>
       <section className="relative isolate">
-        <div className="mx-auto flex w-full max-w-[1440px] flex-col px-6 pb-14 pt-[84px] md:px-10 md:pb-18 md:pt-[92px]">
-          <div className="grid flex-1 items-center gap-10 pt-6 md:pt-10 lg:grid-cols-[minmax(0,0.8fr)_minmax(0,1.2fr)] lg:gap-10 lg:pt-12">
-            <div className="max-w-[560px]">
-              <h1 className="text-[clamp(2.4rem,5.4vw,4.9rem)] leading-[0.94] font-medium tracking-[-0.06em] text-balance text-[#f4f0e8]">
-                The terminal with{" "}
-                <span
-                  className={cn(
-                    "rainbow-text inline-block transition-all duration-300",
-                    visible ? "translate-y-0 opacity-100" : "translate-y-1 opacity-0",
-                  )}
-                >
-                  {word}
-                </span>
-              </h1>
-              <ul className="mt-6 max-w-[29rem] list-disc space-y-2 pl-5 text-base leading-7 text-white/62 md:text-[1.04rem]">
-                <li>Fast - native macOS built with libghostty</li>
-                <li>Agent first - Glowing pane, notifications...</li>
-                <li>Tidy - Organize using tabs, spaces, pin tabs with your splits setup</li>
-                <li>
-                  Extensible - Automate via the <code className="text-white/72">sp</code> CLI and
-                  agent skill.
-                </li>
-                <li>Not vibe-coded - Natively built by ppls who know what they're doing.</li>
-              </ul>
-              <div className="mt-9 flex flex-col items-start gap-4 sm:flex-row sm:items-center">
-                <CtaLink
-                  href={downloadHref}
-                  icon="download"
-                  download
-                  onClick={() => posthog.capture("download_clicked")}
-                  className="rounded-full bg-[#f1ede4] px-7 text-base text-[#12100b] hover:bg-white"
-                >
-                  Download for macOS
-                </CtaLink>
-                <CtaLink
-                  href={githubHref}
-                  icon="github"
-                  variant="outline"
-                  onClick={() => posthog.capture("hero_github_clicked")}
-                  className="rounded-full border-white/12 bg-white/6 px-6 text-base text-white/88 hover:border-white/18 hover:bg-white/10"
-                >
-                  GitHub
-                </CtaLink>
-              </div>
-              <p className="mt-3 text-xs text-white/32">Requires macOS Tahoe.</p>
-            </div>
+        <div className="mx-auto flex w-full max-w-[1440px] flex-col items-center px-6 pb-14 pt-[120px] text-center md:px-10 md:pb-18 md:pt-[148px]">
+          <h1 className="max-w-[62rem] text-[clamp(2.6rem,6.2vw,5.6rem)] leading-[0.98] font-medium tracking-[-0.06em] text-balance text-[#f4f0e8]">
+            The terminal with{" "}
+            <span
+              className={cn(
+                "rainbow-text inline-block transition-all duration-300",
+                visible ? "translate-y-0 opacity-100" : "translate-y-1 opacity-0",
+              )}
+            >
+              {word}
+            </span>
+          </h1>
+          <p className="mt-7 max-w-[44rem] text-base leading-7 text-white/62 md:text-lg">
+            Agent-first, blazing fast, native macOS terminal built with libghostty. Organize with
+            spaces, tabs, and panes. Automate via the <code className="text-white/72">sp</code> CLI
+            and agent skills.
+          </p>
+          <div className="mt-9 flex flex-col items-center gap-4 sm:flex-row">
+            <CtaLink
+              href={downloadHref}
+              icon="download"
+              download
+              onClick={() => posthog.capture("download_clicked")}
+              className="rounded-full bg-[#f1ede4] px-7 text-base text-[#12100b] hover:bg-white"
+            >
+              Download for macOS
+            </CtaLink>
+            <CtaLink
+              href={githubHref}
+              icon="github"
+              variant="outline"
+              onClick={() => posthog.capture("hero_github_clicked")}
+              className="rounded-full border-white/12 bg-white/6 px-6 text-base text-white/88 hover:border-white/18 hover:bg-white/10"
+            >
+              GitHub
+            </CtaLink>
+          </div>
+          <p className="mt-3 text-xs text-white/32">Requires macOS Tahoe.</p>
 
-            <div className="relative">
-              <div className="group relative overflow-hidden rounded-[12px] border border-white/8 shadow-[0_40px_140px_-44px_rgba(0,0,0,0.9),0_8px_30px_-10px_rgba(0,0,0,0.5),inset_0_1px_0_rgba(255,255,255,0.06)]">
-                <div className="pointer-events-none absolute inset-px border border-white/[0.03]" />
-                <div className="relative overflow-hidden">
-                  <video
-                    src={demoUrl}
-                    controls
-                    autoPlay
-                    loop
-                    muted
-                    playsInline
-                    className="block h-auto w-full saturate-[1.02] contrast-[1.02]"
-                  />
-                </div>
-              </div>
-              <div className="mt-5 text-[0.7rem] font-medium tracking-[0.12em] text-white/42 uppercase">
-                Claude Code using Supaterm skills to spawn Codex agents working in tabs
-              </div>
-            </div>
+          <div className="group relative mt-14 w-full max-w-[1160px] overflow-hidden rounded-[12px] border border-white/8 shadow-[0_40px_140px_-44px_rgba(0,0,0,0.9),0_8px_30px_-10px_rgba(0,0,0,0.5),inset_0_1px_0_rgba(255,255,255,0.06)] md:mt-18">
+            <div className="pointer-events-none absolute inset-px z-10 border border-white/[0.03]" />
+            <img
+              src={heroUrl}
+              alt="Supaterm running coding agents across tabs and panes"
+              className="block h-auto w-full"
+            />
           </div>
         </div>
       </section>
