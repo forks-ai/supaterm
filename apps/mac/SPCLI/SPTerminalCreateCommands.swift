@@ -34,32 +34,15 @@ extension SP {
 
     mutating func run() throws {
       try validate()
-      applyOutputStyle(options.output)
-
-      let client = try socketClient(
-        path: options.connection.explicitSocketPath,
-        instance: options.connection.instance
+      try runControlCommand(
+        options: options,
+        request: { try .newTab(try requestPayload(client: $0)) },
+        as: SupatermNewTabResult.self,
+        plain: { plainTabSelector(spaceIndex: $0.spaceIndex, tabIndex: $0.tabIndex) },
+        human: {
+          "window \($0.windowIndex) space \($0.spaceIndex) tab \($0.tabIndex) pane \($0.paneIndex)"
+        }
       )
-      let response = try client.send(.newTab(try requestPayload(client: client)))
-      guard response.ok else {
-        throw ValidationError(response.error?.message ?? "Supaterm socket request failed.")
-      }
-
-      let result = try response.decodeResult(SupatermNewTabResult.self)
-      guard !options.output.quiet else {
-        return
-      }
-
-      switch options.output.mode {
-      case .json:
-        print(try jsonString(result))
-      case .plain:
-        print(plainTabSelector(spaceIndex: result.spaceIndex, tabIndex: result.tabIndex))
-      case .human:
-        print(
-          "window \(result.windowIndex) space \(result.spaceIndex) tab \(result.tabIndex) pane \(result.paneIndex)"
-        )
-      }
     }
 
     func validate() throws {
@@ -156,32 +139,17 @@ extension SP {
 
     mutating func run() throws {
       try validate()
-      applyOutputStyle(options.output)
-
-      let client = try socketClient(
-        path: options.connection.explicitSocketPath,
-        instance: options.connection.instance
+      try runControlCommand(
+        options: options,
+        request: { try .newPane(try requestPayload(client: $0)) },
+        as: SupatermNewPaneResult.self,
+        plain: {
+          plainPaneSelector(spaceIndex: $0.spaceIndex, tabIndex: $0.tabIndex, paneIndex: $0.paneIndex)
+        },
+        human: {
+          "window \($0.windowIndex) space \($0.spaceIndex) tab \($0.tabIndex) pane \($0.paneIndex)"
+        }
       )
-      let response = try client.send(.newPane(try requestPayload(client: client)))
-      guard response.ok else {
-        throw ValidationError(response.error?.message ?? "Supaterm socket request failed.")
-      }
-
-      let result = try response.decodeResult(SupatermNewPaneResult.self)
-      guard !options.output.quiet else {
-        return
-      }
-
-      switch options.output.mode {
-      case .json:
-        print(try jsonString(result))
-      case .plain:
-        print(plainPaneSelector(spaceIndex: result.spaceIndex, tabIndex: result.tabIndex, paneIndex: result.paneIndex))
-      case .human:
-        print(
-          "window \(result.windowIndex) space \(result.spaceIndex) tab \(result.tabIndex) pane \(result.paneIndex)"
-        )
-      }
     }
 
     func validate() throws {
@@ -257,30 +225,17 @@ extension SP {
     var options: SPCommandOptions
 
     mutating func run() throws {
-      applyOutputStyle(options.output)
-
-      let client = try socketClient(
-        path: options.connection.explicitSocketPath,
-        instance: options.connection.instance
+      try runControlCommand(
+        options: options,
+        request: { try .notify(try requestPayload(client: $0)) },
+        as: SupatermNotifyResult.self,
+        plain: {
+          plainPaneSelector(spaceIndex: $0.spaceIndex, tabIndex: $0.tabIndex, paneIndex: $0.paneIndex)
+        },
+        human: {
+          "window \($0.windowIndex) space \($0.spaceIndex) tab \($0.tabIndex) pane \($0.paneIndex)"
+        }
       )
-      let response = try client.send(.notify(try requestPayload(client: client)))
-      guard response.ok else {
-        throw ValidationError(response.error?.message ?? "Supaterm socket request failed.")
-      }
-
-      let result = try response.decodeResult(SupatermNotifyResult.self)
-      guard !options.output.quiet else {
-        return
-      }
-
-      switch options.output.mode {
-      case .json:
-        print(try jsonString(result))
-      case .plain:
-        print(plainPaneSelector(spaceIndex: result.spaceIndex, tabIndex: result.tabIndex, paneIndex: result.paneIndex))
-      case .human:
-        print("window \(result.windowIndex) space \(result.spaceIndex) tab \(result.tabIndex) pane \(result.paneIndex)")
-      }
     }
 
     private func requestPayload(client: SPSocketClient) throws -> SupatermNotifyRequest {

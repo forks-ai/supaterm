@@ -505,7 +505,6 @@ extension SP {
     var arguments: [String] = []
 
     mutating func run() throws {
-      applyOutputStyle(options.output)
       let resolvedInput = try resolveInput()
       try runControlCommand(
         options: options,
