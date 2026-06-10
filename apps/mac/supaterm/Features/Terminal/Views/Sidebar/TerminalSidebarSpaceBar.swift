@@ -1,11 +1,6 @@
-import AppKit
 import ComposableArchitecture
-import Sharing
-import SupatermCLIShared
-import SupatermSupport
-import SupatermUpdateFeature
+import Foundation
 import SwiftUI
-import Textual
 
 struct TerminalSidebarSpaceBar: View {
   let store: StoreOf<TerminalWindowFeature>

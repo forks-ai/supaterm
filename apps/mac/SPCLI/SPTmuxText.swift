@@ -244,11 +244,6 @@ func resolvePath(_ path: String) -> String {
     .path
 }
 
-func spWriteStandardError(_ message: String) {
-  guard !message.isEmpty else { return }
-  FileHandle.standardError.write(Data((message + "\n").utf8))
-}
-
 func setExecutablePermissions(at url: URL) throws {
   let result = url.path.withCString { pointer in
     chmod(pointer, mode_t(0o755))

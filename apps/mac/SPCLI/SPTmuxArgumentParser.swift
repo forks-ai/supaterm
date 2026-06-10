@@ -1,7 +1,4 @@
 import ArgumentParser
-import Darwin
-import Foundation
-import SupatermCLIShared
 
 struct SPTmuxArgumentParser {
   struct ParsedArguments: Equatable {

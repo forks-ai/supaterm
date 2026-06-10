@@ -2095,12 +2095,7 @@ final class TerminalHostState {
     _ surfaceID: UUID,
     in tabID: TerminalTabID
   ) {
-    if var history = focusHistoryByTab[tabID] {
-      history.updateCurrent(surfaceID)
-      focusHistoryByTab[tabID] = history
-    } else {
-      focusHistoryByTab[tabID] = FocusHistory(current: surfaceID)
-    }
+    focusHistoryByTab[tabID, default: FocusHistory(current: surfaceID)].updateCurrent(surfaceID)
   }
 
   func focusSurface(_ surface: GhosttySurfaceView, in tabID: TerminalTabID) {

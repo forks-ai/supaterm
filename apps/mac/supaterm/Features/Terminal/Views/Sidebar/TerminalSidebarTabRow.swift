@@ -1,11 +1,6 @@
 import AppKit
 import ComposableArchitecture
-import Sharing
-import SupatermCLIShared
-import SupatermSupport
-import SupatermUpdateFeature
 import SwiftUI
-import Textual
 
 struct TerminalSidebarTabRow: View {
   enum ContextMenuItem: Equatable {

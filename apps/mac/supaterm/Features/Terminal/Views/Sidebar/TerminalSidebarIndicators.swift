@@ -1,11 +1,5 @@
-import AppKit
-import ComposableArchitecture
-import Sharing
-import SupatermCLIShared
 import SupatermSupport
-import SupatermUpdateFeature
 import SwiftUI
-import Textual
 
 struct TerminalAgentBadgeGroupView: View {
   static let maxVisibleCount = 3
