@@ -493,7 +493,7 @@ private struct TerminalSidebarRegularSectionHeader: View {
       .padding(.horizontal, 10)
       .frame(height: 36)
     }
-    .buttonStyle(TerminalSidebarRectButtonStyle())
+    .buttonStyle(TerminalSidebarButtonStyle(layout: .rect))
   }
 }
 
