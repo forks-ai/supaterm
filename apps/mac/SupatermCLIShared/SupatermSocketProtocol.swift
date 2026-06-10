@@ -102,6 +102,14 @@ public struct SupatermSocketRequest: Equatable, Sendable, Codable {
     self.params = params
   }
 
+  private static func make(
+    _ method: String,
+    _ payload: some Encodable,
+    id: String
+  ) throws -> Self {
+    Self(id: id, method: method, params: try JSONObject(payload))
+  }
+
   public static func ping(id: String = UUID().uuidString) -> Self {
     Self(id: id, method: SupatermSocketMethod.systemPing)
   }
@@ -122,341 +130,217 @@ public struct SupatermSocketRequest: Equatable, Sendable, Codable {
     _ payload: SupatermDebugRequest = .init(),
     id: String = UUID().uuidString
   ) throws -> Self {
-    Self(
-      id: id,
-      method: SupatermSocketMethod.appDebug,
-      params: try JSONObject(payload)
-    )
+    try make(SupatermSocketMethod.appDebug, payload, id: id)
   }
 
   public static func newPane(
     _ payload: SupatermNewPaneRequest,
     id: String = UUID().uuidString
   ) throws -> Self {
-    Self(
-      id: id,
-      method: SupatermSocketMethod.terminalNewPane,
-      params: try JSONObject(payload)
-    )
+    try make(SupatermSocketMethod.terminalNewPane, payload, id: id)
   }
 
   public static func newTab(
     _ payload: SupatermNewTabRequest,
     id: String = UUID().uuidString
   ) throws -> Self {
-    Self(
-      id: id,
-      method: SupatermSocketMethod.terminalNewTab,
-      params: try JSONObject(payload)
-    )
+    try make(SupatermSocketMethod.terminalNewTab, payload, id: id)
   }
 
   public static func notify(
     _ payload: SupatermNotifyRequest,
     id: String = UUID().uuidString
   ) throws -> Self {
-    Self(
-      id: id,
-      method: SupatermSocketMethod.terminalNotify,
-      params: try JSONObject(payload)
-    )
+    try make(SupatermSocketMethod.terminalNotify, payload, id: id)
   }
 
   public static func agentHook(
     _ payload: SupatermAgentHookRequest,
     id: String = UUID().uuidString
   ) throws -> Self {
-    Self(
-      id: id,
-      method: SupatermSocketMethod.terminalAgentHook,
-      params: try JSONObject(payload)
-    )
+    try make(SupatermSocketMethod.terminalAgentHook, payload, id: id)
   }
 
   public static func capturePane(
     _ payload: SupatermCapturePaneRequest,
     id: String = UUID().uuidString
   ) throws -> Self {
-    Self(
-      id: id,
-      method: SupatermSocketMethod.terminalCapturePane,
-      params: try JSONObject(payload)
-    )
+    try make(SupatermSocketMethod.terminalCapturePane, payload, id: id)
   }
 
   public static func closePane(
     _ payload: SupatermPaneTargetRequest,
     id: String = UUID().uuidString
   ) throws -> Self {
-    Self(
-      id: id,
-      method: SupatermSocketMethod.terminalClosePane,
-      params: try JSONObject(payload)
-    )
+    try make(SupatermSocketMethod.terminalClosePane, payload, id: id)
   }
 
   public static func closeSpace(
     _ payload: SupatermSpaceTargetRequest,
     id: String = UUID().uuidString
   ) throws -> Self {
-    Self(
-      id: id,
-      method: SupatermSocketMethod.terminalCloseSpace,
-      params: try JSONObject(payload)
-    )
+    try make(SupatermSocketMethod.terminalCloseSpace, payload, id: id)
   }
 
   public static func closeTab(
     _ payload: SupatermTabTargetRequest,
     id: String = UUID().uuidString
   ) throws -> Self {
-    Self(
-      id: id,
-      method: SupatermSocketMethod.terminalCloseTab,
-      params: try JSONObject(payload)
-    )
+    try make(SupatermSocketMethod.terminalCloseTab, payload, id: id)
   }
 
   public static func createSpace(
     _ payload: SupatermCreateSpaceRequest,
     id: String = UUID().uuidString
   ) throws -> Self {
-    Self(
-      id: id,
-      method: SupatermSocketMethod.terminalCreateSpace,
-      params: try JSONObject(payload)
-    )
+    try make(SupatermSocketMethod.terminalCreateSpace, payload, id: id)
   }
 
   public static func focusPane(
     _ payload: SupatermPaneTargetRequest,
     id: String = UUID().uuidString
   ) throws -> Self {
-    Self(
-      id: id,
-      method: SupatermSocketMethod.terminalFocusPane,
-      params: try JSONObject(payload)
-    )
+    try make(SupatermSocketMethod.terminalFocusPane, payload, id: id)
   }
 
   public static func equalizePanes(
     _ payload: SupatermTabTargetRequest,
     id: String = UUID().uuidString
   ) throws -> Self {
-    Self(
-      id: id,
-      method: SupatermSocketMethod.terminalEqualizePanes,
-      params: try JSONObject(payload)
-    )
+    try make(SupatermSocketMethod.terminalEqualizePanes, payload, id: id)
   }
 
   public static func tilePanes(
     _ payload: SupatermTabTargetRequest,
     id: String = UUID().uuidString
   ) throws -> Self {
-    Self(
-      id: id,
-      method: SupatermSocketMethod.terminalTilePanes,
-      params: try JSONObject(payload)
-    )
+    try make(SupatermSocketMethod.terminalTilePanes, payload, id: id)
   }
 
   public static func mainVerticalPanes(
     _ payload: SupatermTabTargetRequest,
     id: String = UUID().uuidString
   ) throws -> Self {
-    Self(
-      id: id,
-      method: SupatermSocketMethod.terminalMainVerticalPanes,
-      params: try JSONObject(payload)
-    )
+    try make(SupatermSocketMethod.terminalMainVerticalPanes, payload, id: id)
   }
 
   public static func lastSpace(
     _ payload: SupatermSpaceNavigationRequest,
     id: String = UUID().uuidString
   ) throws -> Self {
-    Self(
-      id: id,
-      method: SupatermSocketMethod.terminalLastSpace,
-      params: try JSONObject(payload)
-    )
+    try make(SupatermSocketMethod.terminalLastSpace, payload, id: id)
   }
 
   public static func lastPane(
     _ payload: SupatermPaneTargetRequest,
     id: String = UUID().uuidString
   ) throws -> Self {
-    Self(
-      id: id,
-      method: SupatermSocketMethod.terminalLastPane,
-      params: try JSONObject(payload)
-    )
+    try make(SupatermSocketMethod.terminalLastPane, payload, id: id)
   }
 
   public static func lastTab(
     _ payload: SupatermTabNavigationRequest,
     id: String = UUID().uuidString
   ) throws -> Self {
-    Self(
-      id: id,
-      method: SupatermSocketMethod.terminalLastTab,
-      params: try JSONObject(payload)
-    )
+    try make(SupatermSocketMethod.terminalLastTab, payload, id: id)
   }
 
   public static func nextSpace(
     _ payload: SupatermSpaceNavigationRequest,
     id: String = UUID().uuidString
   ) throws -> Self {
-    Self(
-      id: id,
-      method: SupatermSocketMethod.terminalNextSpace,
-      params: try JSONObject(payload)
-    )
+    try make(SupatermSocketMethod.terminalNextSpace, payload, id: id)
   }
 
   public static func nextTab(
     _ payload: SupatermTabNavigationRequest,
     id: String = UUID().uuidString
   ) throws -> Self {
-    Self(
-      id: id,
-      method: SupatermSocketMethod.terminalNextTab,
-      params: try JSONObject(payload)
-    )
+    try make(SupatermSocketMethod.terminalNextTab, payload, id: id)
   }
 
   public static func pinTab(
     _ payload: SupatermTabTargetRequest,
     id: String = UUID().uuidString
   ) throws -> Self {
-    Self(
-      id: id,
-      method: SupatermSocketMethod.terminalPinTab,
-      params: try JSONObject(payload)
-    )
+    try make(SupatermSocketMethod.terminalPinTab, payload, id: id)
   }
 
   public static func previousSpace(
     _ payload: SupatermSpaceNavigationRequest,
     id: String = UUID().uuidString
   ) throws -> Self {
-    Self(
-      id: id,
-      method: SupatermSocketMethod.terminalPreviousSpace,
-      params: try JSONObject(payload)
-    )
+    try make(SupatermSocketMethod.terminalPreviousSpace, payload, id: id)
   }
 
   public static func previousTab(
     _ payload: SupatermTabNavigationRequest,
     id: String = UUID().uuidString
   ) throws -> Self {
-    Self(
-      id: id,
-      method: SupatermSocketMethod.terminalPreviousTab,
-      params: try JSONObject(payload)
-    )
+    try make(SupatermSocketMethod.terminalPreviousTab, payload, id: id)
   }
 
   public static func renameSpace(
     _ payload: SupatermRenameSpaceRequest,
     id: String = UUID().uuidString
   ) throws -> Self {
-    Self(
-      id: id,
-      method: SupatermSocketMethod.terminalRenameSpace,
-      params: try JSONObject(payload)
-    )
+    try make(SupatermSocketMethod.terminalRenameSpace, payload, id: id)
   }
 
   public static func renameTab(
     _ payload: SupatermRenameTabRequest,
     id: String = UUID().uuidString
   ) throws -> Self {
-    Self(
-      id: id,
-      method: SupatermSocketMethod.terminalRenameTab,
-      params: try JSONObject(payload)
-    )
+    try make(SupatermSocketMethod.terminalRenameTab, payload, id: id)
   }
 
   public static func resizePane(
     _ payload: SupatermResizePaneRequest,
     id: String = UUID().uuidString
   ) throws -> Self {
-    Self(
-      id: id,
-      method: SupatermSocketMethod.terminalResizePane,
-      params: try JSONObject(payload)
-    )
+    try make(SupatermSocketMethod.terminalResizePane, payload, id: id)
   }
 
   public static func selectSpace(
     _ payload: SupatermSpaceTargetRequest,
     id: String = UUID().uuidString
   ) throws -> Self {
-    Self(
-      id: id,
-      method: SupatermSocketMethod.terminalSelectSpace,
-      params: try JSONObject(payload)
-    )
+    try make(SupatermSocketMethod.terminalSelectSpace, payload, id: id)
   }
 
   public static func selectTab(
     _ payload: SupatermTabTargetRequest,
     id: String = UUID().uuidString
   ) throws -> Self {
-    Self(
-      id: id,
-      method: SupatermSocketMethod.terminalSelectTab,
-      params: try JSONObject(payload)
-    )
+    try make(SupatermSocketMethod.terminalSelectTab, payload, id: id)
   }
 
   public static func setPaneSize(
     _ payload: SupatermSetPaneSizeRequest,
     id: String = UUID().uuidString
   ) throws -> Self {
-    Self(
-      id: id,
-      method: SupatermSocketMethod.terminalSetPaneSize,
-      params: try JSONObject(payload)
-    )
+    try make(SupatermSocketMethod.terminalSetPaneSize, payload, id: id)
   }
 
   public static func sendText(
     _ payload: SupatermSendTextRequest,
     id: String = UUID().uuidString
   ) throws -> Self {
-    Self(
-      id: id,
-      method: SupatermSocketMethod.terminalSendText,
-      params: try JSONObject(payload)
-    )
+    try make(SupatermSocketMethod.terminalSendText, payload, id: id)
   }
 
   public static func sendKey(
     _ payload: SupatermSendKeyRequest,
     id: String = UUID().uuidString
   ) throws -> Self {
-    Self(
-      id: id,
-      method: SupatermSocketMethod.terminalSendKey,
-      params: try JSONObject(payload)
-    )
+    try make(SupatermSocketMethod.terminalSendKey, payload, id: id)
   }
 
   public static func unpinTab(
     _ payload: SupatermTabTargetRequest,
     id: String = UUID().uuidString
   ) throws -> Self {
-    Self(
-      id: id,
-      method: SupatermSocketMethod.terminalUnpinTab,
-      params: try JSONObject(payload)
-    )
+    try make(SupatermSocketMethod.terminalUnpinTab, payload, id: id)
   }
 
   public func decodeParams<T: Decodable>(_ type: T.Type = T.self) throws -> T {
