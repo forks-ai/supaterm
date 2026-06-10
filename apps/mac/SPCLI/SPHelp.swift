@@ -66,6 +66,7 @@ enum SPHelp {
 
     Example:
       sp pane split right
+      sp pane split right --cwd ~/tmp
       sp pane split down -- htop
       sp pane split down --script 'echo hi; pwd'
       sp pane split --layout keep right
@@ -211,7 +212,7 @@ enum SPHelp {
     Example:
       sp tab rename Build
       sp tab rename Logs 1/2
-      sp tab rename '' <tab-uuid>
+      sp tab rename Deploy <tab-uuid>
     """
 
   static let tmuxDiscussion = """

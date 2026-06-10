@@ -82,9 +82,18 @@ struct SPHelpTests {
     #expect(help.contains("SUPATERM_SURFACE_ID"))
     #expect(help.contains("SUPATERM_TAB_ID"))
     #expect(help.contains("sp pane split down -- htop"))
+    #expect(help.contains("sp pane split right --cwd ~/tmp"))
     #expect(help.contains("sp pane split --layout keep right"))
     #expect(help.contains("sp pane split --in 1/2 left"))
     #expect(help.contains("sp pane split --in <tab-uuid> left"))
+  }
+
+  @Test
+  func renameTabHelpShowsOnlyValidExamples() {
+    let help = SP.helpMessage(for: SP.RenameTab.self, columns: 100)
+
+    #expect(help.contains("sp tab rename Deploy <tab-uuid>"))
+    #expect(!help.contains("sp tab rename ''"))
   }
 
   @Test
