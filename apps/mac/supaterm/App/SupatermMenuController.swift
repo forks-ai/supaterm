@@ -92,7 +92,6 @@ final class SupatermMenuController: NSObject {
   private var requestSubmitGitHubIssue: @MainActor () -> Bool = {
     ExternalNavigationClient.liveValue.open(SupatermExternalURL.submitGitHubIssue)
   }
-  private var agentSessionShortcutItems: [GhosttyBindingMenuItem] = []
   private var ghosttyBindingItems: [GhosttyBindingMenuItem] = []
 
   private var appName: String {
@@ -732,22 +731,19 @@ final class SupatermMenuController: NSObject {
     }
 
     ghosttyBindingItems = []
-    agentSessionShortcutItems = []
     for entry in menuEntries {
       switch entry.spec.shortcut {
       case .command(let command):
         syncShortcut(command: command, item: entry.item)
       case .ghosttyAction(let action, let defaultShortcut):
         syncShortcut(action: action, item: entry.item, defaultShortcut: defaultShortcut)
-      case .fixed(let shortcut):
-        SupatermMenuShortcut.apply(shortcut, to: entry.item)
-      case .fixedRouted(let shortcut):
-        SupatermMenuShortcut.apply(shortcut, to: entry.item)
-        agentSessionShortcutItems.append(
-          GhosttyBindingMenuItem(shortcut: MenuShortcutKey(shortcut: shortcut), item: entry.item)
-        )
-      case .none:
+      case .fixed, .none:
         break
+      case .fixedRouted(let shortcut):
+        ghosttyBindingItems.insert(
+          GhosttyBindingMenuItem(shortcut: MenuShortcutKey(shortcut: shortcut), item: entry.item),
+          at: 0
+        )
       }
     }
     mainMenu.update()
@@ -756,7 +752,7 @@ final class SupatermMenuController: NSObject {
   @discardableResult
   func performGhosttyBindingMenuKeyEquivalent(with event: NSEvent) -> Bool {
     let item =
-      (agentSessionShortcutItems + ghosttyBindingItems)
+      ghosttyBindingItems
       .lazy
       .first { $0.shortcut.matches(event) }?.item
     guard let item else { return false }
@@ -1109,8 +1105,13 @@ final class SupatermMenuController: NSObject {
     if let slot = spec.slot {
       item.representedObject = slot as NSNumber
     }
-    if case .none = spec.shortcut {
+    switch spec.shortcut {
+    case .fixed(let shortcut), .fixedRouted(let shortcut):
+      SupatermMenuShortcut.apply(shortcut, to: item)
+    case .none:
       SupatermMenuShortcut.apply(nil, to: item)
+    case .command, .ghosttyAction:
+      break
     }
     return item
   }
