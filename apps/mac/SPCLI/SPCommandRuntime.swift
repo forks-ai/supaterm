@@ -73,6 +73,31 @@ func emitCommandResult<T: Encodable>(
   }
 }
 
+func runControlCommand<Result: Codable>(
+  options: SPCommandOptions,
+  request: (SPSocketClient) throws -> SupatermSocketRequest,
+  as resultType: Result.Type,
+  plain: (Result) -> String,
+  human: (Result) -> String
+) throws {
+  applyOutputStyle(options.output)
+  let client = try socketClient(
+    path: options.connection.explicitSocketPath,
+    instance: options.connection.instance
+  )
+  let response = try client.send(try request(client))
+  guard response.ok else {
+    throw ValidationError(response.error?.message ?? "Supaterm socket request failed.")
+  }
+  let result = try response.decodeResult(resultType)
+  try emitCommandResult(
+    result,
+    options: options.output,
+    plain: plain(result),
+    human: human(result)
+  )
+}
+
 func resolvedSocketTarget(
   explicitPath: String?,
   instance: String?,

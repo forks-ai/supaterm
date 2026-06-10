@@ -131,7 +131,7 @@ extension SP {
         }
       }
 
-      try emitMutatingResult(
+      try emitCommandResult(
         result,
         options: options.output,
         plain: plainSpaceSelector(spaceIndex: result.target.spaceIndex),
@@ -154,21 +154,12 @@ extension SP {
     var options: SPCommandOptions
 
     mutating func run() throws {
-      applyOutputStyle(options.output)
-      let client = try socketClient(
-        path: options.connection.explicitSocketPath,
-        instance: options.connection.instance
-      )
-      let response = try client.send(.selectSpace(try requestPayload(client: client)))
-      guard response.ok else {
-        throw ValidationError(response.error?.message ?? "Supaterm socket request failed.")
-      }
-      let result = try response.decodeResult(SupatermSelectSpaceResult.self)
-      try emitMutatingResult(
-        result,
-        options: options.output,
-        plain: plainSpaceSelector(spaceIndex: result.target.spaceIndex),
-        human: render(result)
+      try runControlCommand(
+        options: options,
+        request: { try .selectSpace(try requestPayload(client: $0)) },
+        as: SupatermSelectSpaceResult.self,
+        plain: { plainSpaceSelector(spaceIndex: $0.target.spaceIndex) },
+        human: { render($0) }
       )
     }
 
@@ -197,21 +188,12 @@ extension SP {
     var options: SPCommandOptions
 
     mutating func run() throws {
-      applyOutputStyle(options.output)
-      let client = try socketClient(
-        path: options.connection.explicitSocketPath,
-        instance: options.connection.instance
-      )
-      let response = try client.send(.closeSpace(try requestPayload(client: client)))
-      guard response.ok else {
-        throw ValidationError(response.error?.message ?? "Supaterm socket request failed.")
-      }
-      let result = try response.decodeResult(SupatermCloseSpaceResult.self)
-      try emitMutatingResult(
-        result,
-        options: options.output,
-        plain: plainSpaceSelector(spaceIndex: result.spaceIndex),
-        human: render(result)
+      try runControlCommand(
+        options: options,
+        request: { try .closeSpace(try requestPayload(client: $0)) },
+        as: SupatermCloseSpaceResult.self,
+        plain: { plainSpaceSelector(spaceIndex: $0.spaceIndex) },
+        human: { render($0) }
       )
     }
 
@@ -244,21 +226,12 @@ extension SP {
 
     mutating func run() throws {
       try validate()
-      applyOutputStyle(options.output)
-      let client = try socketClient(
-        path: options.connection.explicitSocketPath,
-        instance: options.connection.instance
-      )
-      let response = try client.send(.renameSpace(try requestPayload(client: client)))
-      guard response.ok else {
-        throw ValidationError(response.error?.message ?? "Supaterm socket request failed.")
-      }
-      let result = try response.decodeResult(SupatermSpaceTarget.self)
-      try emitMutatingResult(
-        result,
-        options: options.output,
-        plain: plainSpaceSelector(spaceIndex: result.spaceIndex),
-        human: render(result)
+      try runControlCommand(
+        options: options,
+        request: { try .renameSpace(try requestPayload(client: $0)) },
+        as: SupatermSpaceTarget.self,
+        plain: { plainSpaceSelector(spaceIndex: $0.spaceIndex) },
+        human: { render($0) }
       )
     }
 
@@ -343,25 +316,18 @@ extension SP {
     var options: SPCommandOptions
 
     mutating func run() throws {
-      applyOutputStyle(options.output)
-      let client = try socketClient(
-        path: options.connection.explicitSocketPath,
-        instance: options.connection.instance
-      )
-      let response = try client.send(.focusPane(try requestPayload(client: client)))
-      guard response.ok else {
-        throw ValidationError(response.error?.message ?? "Supaterm socket request failed.")
-      }
-      let result = try response.decodeResult(SupatermFocusPaneResult.self)
-      try emitMutatingResult(
-        result,
-        options: options.output,
-        plain: plainPaneSelector(
-          spaceIndex: result.target.spaceIndex,
-          tabIndex: result.target.tabIndex,
-          paneIndex: result.target.paneIndex
-        ),
-        human: render(result.target)
+      try runControlCommand(
+        options: options,
+        request: { try .focusPane(try requestPayload(client: $0)) },
+        as: SupatermFocusPaneResult.self,
+        plain: {
+          plainPaneSelector(
+            spaceIndex: $0.target.spaceIndex,
+            tabIndex: $0.target.tabIndex,
+            paneIndex: $0.target.paneIndex
+          )
+        },
+        human: { render($0.target) }
       )
     }
 
@@ -390,25 +356,18 @@ extension SP {
     var options: SPCommandOptions
 
     mutating func run() throws {
-      applyOutputStyle(options.output)
-      let client = try socketClient(
-        path: options.connection.explicitSocketPath,
-        instance: options.connection.instance
-      )
-      let response = try client.send(.closePane(try requestPayload(client: client)))
-      guard response.ok else {
-        throw ValidationError(response.error?.message ?? "Supaterm socket request failed.")
-      }
-      let result = try response.decodeResult(SupatermClosePaneResult.self)
-      try emitMutatingResult(
-        result,
-        options: options.output,
-        plain: plainPaneSelector(
-          spaceIndex: result.spaceIndex,
-          tabIndex: result.tabIndex,
-          paneIndex: result.paneIndex
-        ),
-        human: render(result)
+      try runControlCommand(
+        options: options,
+        request: { try .closePane(try requestPayload(client: $0)) },
+        as: SupatermClosePaneResult.self,
+        plain: {
+          plainPaneSelector(
+            spaceIndex: $0.spaceIndex,
+            tabIndex: $0.tabIndex,
+            paneIndex: $0.paneIndex
+          )
+        },
+        human: { render($0) }
       )
     }
 
@@ -437,22 +396,14 @@ extension SP {
     var options: SPCommandOptions
 
     mutating func run() throws {
-      applyOutputStyle(options.output)
-      let client = try socketClient(
-        path: options.connection.explicitSocketPath,
-        instance: options.connection.instance
-      )
-      let response = try client.send(.selectTab(try requestPayload(client: client)))
-      guard response.ok else {
-        throw ValidationError(response.error?.message ?? "Supaterm socket request failed.")
-      }
-      let result = try response.decodeResult(SupatermSelectTabResult.self)
-      try emitMutatingResult(
-        result,
-        options: options.output,
-        plain: plainTabSelector(
-          spaceIndex: result.target.spaceIndex, tabIndex: result.target.tabIndex),
-        human: render(result)
+      try runControlCommand(
+        options: options,
+        request: { try .selectTab(try requestPayload(client: $0)) },
+        as: SupatermSelectTabResult.self,
+        plain: {
+          plainTabSelector(spaceIndex: $0.target.spaceIndex, tabIndex: $0.target.tabIndex)
+        },
+        human: { render($0) }
       )
     }
 
@@ -481,21 +432,12 @@ extension SP {
     var options: SPCommandOptions
 
     mutating func run() throws {
-      applyOutputStyle(options.output)
-      let client = try socketClient(
-        path: options.connection.explicitSocketPath,
-        instance: options.connection.instance
-      )
-      let response = try client.send(.closeTab(try requestPayload(client: client)))
-      guard response.ok else {
-        throw ValidationError(response.error?.message ?? "Supaterm socket request failed.")
-      }
-      let result = try response.decodeResult(SupatermCloseTabResult.self)
-      try emitMutatingResult(
-        result,
-        options: options.output,
-        plain: plainTabSelector(spaceIndex: result.spaceIndex, tabIndex: result.tabIndex),
-        human: render(result)
+      try runControlCommand(
+        options: options,
+        request: { try .closeTab(try requestPayload(client: $0)) },
+        as: SupatermCloseTabResult.self,
+        plain: { plainTabSelector(spaceIndex: $0.spaceIndex, tabIndex: $0.tabIndex) },
+        human: { render($0) }
       )
     }
 
@@ -565,31 +507,18 @@ extension SP {
     mutating func run() throws {
       applyOutputStyle(options.output)
       let resolvedInput = try resolveInput()
-      let client = try socketClient(
-        path: options.connection.explicitSocketPath,
-        instance: options.connection.instance
-      )
-      let response = try client.send(
-        .sendText(
-          try requestPayload(
-            client: client,
-            resolvedInput: resolvedInput
+      try runControlCommand(
+        options: options,
+        request: { try .sendText(try requestPayload(client: $0, resolvedInput: resolvedInput)) },
+        as: SupatermSendTextResult.self,
+        plain: {
+          plainPaneSelector(
+            spaceIndex: $0.spaceIndex,
+            tabIndex: $0.tabIndex,
+            paneIndex: $0.paneIndex
           )
-        )
-      )
-      guard response.ok else {
-        throw ValidationError(response.error?.message ?? "Supaterm socket request failed.")
-      }
-      let result = try response.decodeResult(SupatermSendTextResult.self)
-      try emitMutatingResult(
-        result,
-        options: options.output,
-        plain: plainPaneSelector(
-          spaceIndex: result.spaceIndex,
-          tabIndex: result.tabIndex,
-          paneIndex: result.paneIndex
-        ),
-        human: render(result)
+        },
+        human: { render($0) }
       )
     }
 
@@ -739,25 +668,18 @@ extension SP {
     var options: SPCommandOptions
 
     mutating func run() throws {
-      applyOutputStyle(options.output)
-      let client = try socketClient(
-        path: options.connection.explicitSocketPath,
-        instance: options.connection.instance
-      )
-      let response = try client.send(.resizePane(try requestPayload(client: client)))
-      guard response.ok else {
-        throw ValidationError(response.error?.message ?? "Supaterm socket request failed.")
-      }
-      let result = try response.decodeResult(SupatermResizePaneResult.self)
-      try emitMutatingResult(
-        result,
-        options: options.output,
-        plain: plainPaneSelector(
-          spaceIndex: result.spaceIndex,
-          tabIndex: result.tabIndex,
-          paneIndex: result.paneIndex
-        ),
-        human: render(result)
+      try runControlCommand(
+        options: options,
+        request: { try .resizePane(try requestPayload(client: $0)) },
+        as: SupatermResizePaneResult.self,
+        plain: {
+          plainPaneSelector(
+            spaceIndex: $0.spaceIndex,
+            tabIndex: $0.tabIndex,
+            paneIndex: $0.paneIndex
+          )
+        },
+        human: { render($0) }
       )
     }
 
@@ -794,22 +716,14 @@ extension SP {
 
     mutating func run() throws {
       try validate()
-      applyOutputStyle(options.output)
-      let client = try socketClient(
-        path: options.connection.explicitSocketPath,
-        instance: options.connection.instance
-      )
-      let response = try client.send(.renameTab(try requestPayload(client: client)))
-      guard response.ok else {
-        throw ValidationError(response.error?.message ?? "Supaterm socket request failed.")
-      }
-      let result = try response.decodeResult(SupatermRenameTabResult.self)
-      try emitMutatingResult(
-        result,
-        options: options.output,
-        plain: plainTabSelector(
-          spaceIndex: result.target.spaceIndex, tabIndex: result.target.tabIndex),
-        human: render(result.target)
+      try runControlCommand(
+        options: options,
+        request: { try .renameTab(try requestPayload(client: $0)) },
+        as: SupatermRenameTabResult.self,
+        plain: {
+          plainTabSelector(spaceIndex: $0.target.spaceIndex, tabIndex: $0.target.tabIndex)
+        },
+        human: { render($0.target) }
       )
     }
 
@@ -910,28 +824,22 @@ extension SP {
     var options: SPCommandOptions
 
     mutating func run() throws {
-      applyOutputStyle(options.output)
-      let client = try socketClient(
-        path: options.connection.explicitSocketPath,
-        instance: options.connection.instance
-      )
-      let request = tabTargetRequest(
-        try resolvePublicTabTarget(
-          tab,
-          context: SupatermCLIContext.current,
-          snapshot: try treeSnapshot(client)
-        )
-      )
-      let response = try client.send(try socketRequest(target: request))
-      guard response.ok else {
-        throw ValidationError(response.error?.message ?? "Supaterm socket request failed.")
-      }
-      let result = try response.decodeResult(SupatermTabTarget.self)
-      try emitMutatingResult(
-        result,
-        options: options.output,
-        plain: plainTabSelector(spaceIndex: result.spaceIndex, tabIndex: result.tabIndex),
-        human: render(result)
+      try runControlCommand(
+        options: options,
+        request: { client in
+          try socketRequest(
+            target: tabTargetRequest(
+              try resolvePublicTabTarget(
+                tab,
+                context: SupatermCLIContext.current,
+                snapshot: try treeSnapshot(client)
+              )
+            )
+          )
+        },
+        as: SupatermTabTarget.self,
+        plain: { plainTabSelector(spaceIndex: $0.spaceIndex, tabIndex: $0.tabIndex) },
+        human: { render($0) }
       )
     }
 
@@ -1007,15 +915,6 @@ private func readStandardInput() -> String {
   String(decoding: FileHandle.standardInput.readDataToEndOfFile(), as: UTF8.self)
 }
 
-private func emitMutatingResult<T: Encodable>(
-  _ result: T,
-  options: SPOutputOptions,
-  plain: @autoclosure () -> String,
-  human: @autoclosure () -> String
-) throws {
-  try emitCommandResult(result, options: options, plain: plain(), human: human())
-}
-
 private func spaceTargetRequest(_ target: SPResolvedSpaceTarget) -> SupatermSpaceTargetRequest {
   switch target {
   case .context(let contextPaneID):
@@ -1059,25 +958,20 @@ private func runSpaceNavigation(
   _ navigation: SPSpaceNavigationKind,
   options: SPCommandOptions
 ) throws {
-  applyOutputStyle(options.output)
-  let client = try socketClient(
-    path: options.connection.explicitSocketPath,
-    instance: options.connection.instance
-  )
-  let request = try resolvePublicSpaceNavigationRequest(
-    context: SupatermCLIContext.current,
-    snapshot: try treeSnapshot(client)
-  )
-  let response = try client.send(try spaceNavigationRequest(navigation, request: request))
-  guard response.ok else {
-    throw ValidationError(response.error?.message ?? "Supaterm socket request failed.")
-  }
-  let result = try response.decodeResult(SupatermSelectSpaceResult.self)
-  try emitMutatingResult(
-    result,
-    options: options.output,
-    plain: plainSpaceSelector(spaceIndex: result.target.spaceIndex),
-    human: render(result)
+  try runControlCommand(
+    options: options,
+    request: { client in
+      try spaceNavigationRequest(
+        navigation,
+        request: try resolvePublicSpaceNavigationRequest(
+          context: SupatermCLIContext.current,
+          snapshot: try treeSnapshot(client)
+        )
+      )
+    },
+    as: SupatermSelectSpaceResult.self,
+    plain: { plainSpaceSelector(spaceIndex: $0.target.spaceIndex) },
+    human: { render($0) }
   )
 }
 
@@ -1100,26 +994,21 @@ private func runTabNavigation(
   space: SPSpaceReference?,
   options: SPCommandOptions
 ) throws {
-  applyOutputStyle(options.output)
-  let client = try socketClient(
-    path: options.connection.explicitSocketPath,
-    instance: options.connection.instance
-  )
-  let request = try resolvePublicTabNavigationRequest(
-    space,
-    context: SupatermCLIContext.current,
-    snapshot: try treeSnapshot(client)
-  )
-  let response = try client.send(try tabNavigationRequest(navigation, request: request))
-  guard response.ok else {
-    throw ValidationError(response.error?.message ?? "Supaterm socket request failed.")
-  }
-  let result = try response.decodeResult(SupatermSelectTabResult.self)
-  try emitMutatingResult(
-    result,
-    options: options.output,
-    plain: plainTabSelector(spaceIndex: result.target.spaceIndex, tabIndex: result.target.tabIndex),
-    human: render(result)
+  try runControlCommand(
+    options: options,
+    request: { client in
+      try tabNavigationRequest(
+        navigation,
+        request: try resolvePublicTabNavigationRequest(
+          space,
+          context: SupatermCLIContext.current,
+          snapshot: try treeSnapshot(client)
+        )
+      )
+    },
+    as: SupatermSelectTabResult.self,
+    plain: { plainTabSelector(spaceIndex: $0.target.spaceIndex, tabIndex: $0.target.tabIndex) },
+    human: { render($0) }
   )
 }
 
@@ -1128,28 +1017,23 @@ private func runTabPinnedState(
   tab: SPTabReference?,
   options: SPCommandOptions
 ) throws {
-  applyOutputStyle(options.output)
-  let client = try socketClient(
-    path: options.connection.explicitSocketPath,
-    instance: options.connection.instance
-  )
-  let request = tabTargetRequest(
-    try resolvePublicTabTarget(
-      tab,
-      context: SupatermCLIContext.current,
-      snapshot: try treeSnapshot(client)
-    )
-  )
-  let response = try client.send(try tabPinnedStateRequest(state, request: request))
-  guard response.ok else {
-    throw ValidationError(response.error?.message ?? "Supaterm socket request failed.")
-  }
-  let result = try response.decodeResult(SupatermPinTabResult.self)
-  try emitMutatingResult(
-    result,
-    options: options.output,
-    plain: plainTabSelector(spaceIndex: result.target.spaceIndex, tabIndex: result.target.tabIndex),
-    human: render(result.target)
+  try runControlCommand(
+    options: options,
+    request: { client in
+      try tabPinnedStateRequest(
+        state,
+        request: tabTargetRequest(
+          try resolvePublicTabTarget(
+            tab,
+            context: SupatermCLIContext.current,
+            snapshot: try treeSnapshot(client)
+          )
+        )
+      )
+    },
+    as: SupatermPinTabResult.self,
+    plain: { plainTabSelector(spaceIndex: $0.target.spaceIndex, tabIndex: $0.target.tabIndex) },
+    human: { render($0.target) }
   )
 }
 
