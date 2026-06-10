@@ -124,7 +124,7 @@ struct AgentPanelView: View {
 
   private func actionBar(_ session: PaneAgentPanelSession) -> some View {
     section("Agent actions") {
-      VStack(alignment: .leading, spacing: 2) {
+      VStack(alignment: .leading, spacing: 6) {
         AgentPanelActionRow(
           icon: .asset("git-fork"),
           title: Self.forkTitle(forksDown: forksDown),
@@ -434,9 +434,13 @@ private struct AgentPanelActionRow: View {
             .lineLimit(1)
         }
       }
-      .frame(height: 26)
       .frame(maxWidth: .infinity, alignment: .leading)
-      .background(rowBackground, in: .rect(cornerRadius: 5))
+      .background {
+        RoundedRectangle(cornerRadius: 5)
+          .fill(rowBackground)
+          .padding(.vertical, -4)
+          .padding(.horizontal, -5)
+      }
       .contentShape(.rect)
     }
     .buttonStyle(.plain)
