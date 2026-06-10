@@ -368,7 +368,7 @@ private struct TerminalSidebarUpdateStyle {
   }
 
   var secondaryText: Color {
-    usesSelectedRowStyle ? palette.selectedText.opacity(0.72) : palette.secondaryText
+    usesSelectedRowStyle ? palette.selectedSecondaryText : palette.secondaryText
   }
 
   var progress: Color {

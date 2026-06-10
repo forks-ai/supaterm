@@ -348,6 +348,10 @@ struct TerminalPalette {
   let violet: Color
   let slate: Color
 
+  var selectedSecondaryText: Color { selectedText.opacity(0.72) }
+  var selectedPillFill: Color { selectedText.opacity(0.12) }
+  var selectedPillStroke: Color { selectedText.opacity(0.14) }
+
   init(colorScheme: ColorScheme) {
     if colorScheme == .dark {
       windowBackgroundTint = Color(red: 0.078, green: 0.078, blue: 0.078, opacity: 0.3)

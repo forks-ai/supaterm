@@ -155,7 +155,7 @@ struct TerminalSidebarTabSummaryView: View {
             .font(.system(size: 11, weight: .regular, design: .monospaced))
             .foregroundStyle(
               isSelected
-                ? palette.selectedText.opacity(0.72)
+                ? palette.selectedSecondaryText
                 : palette.secondaryText
             )
             .lineLimit(1)
@@ -170,7 +170,7 @@ struct TerminalSidebarTabSummaryView: View {
             .font(.system(size: 11, weight: .semibold))
             .foregroundStyle(
               isSelected
-                ? palette.selectedText.opacity(0.72)
+                ? palette.selectedSecondaryText
                 : palette.secondaryText
             )
         }
@@ -241,7 +241,7 @@ struct TerminalSidebarTabSummaryView: View {
         .font(.system(size: 9, weight: .semibold))
         .foregroundStyle(
           isSelected
-            ? palette.selectedText.opacity(0.72)
+            ? palette.selectedSecondaryText
             : palette.secondaryText
         )
         .accessibilityLabel("Pinned")

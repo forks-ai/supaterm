@@ -65,11 +65,11 @@ struct TerminalAgentBadgeGroupView: View {
   @Environment(\.pixelLength) private var pixelLength
 
   private var badgeFill: Color {
-    isSelected ? palette.selectedText.opacity(0.12) : palette.pillFill
+    isSelected ? palette.selectedPillFill : palette.pillFill
   }
 
   private var badgeStroke: Color {
-    isSelected ? palette.selectedText.opacity(0.14) : palette.detailStroke
+    isSelected ? palette.selectedPillStroke : palette.detailStroke
   }
 }
 
@@ -97,11 +97,11 @@ private struct TerminalAgentBadgeView: View {
   @Environment(\.pixelLength) private var pixelLength
 
   private var badgeFill: Color {
-    isSelected ? palette.selectedText.opacity(0.12) : palette.pillFill
+    isSelected ? palette.selectedPillFill : palette.pillFill
   }
 
   private var badgeStroke: Color {
-    isSelected ? palette.selectedText.opacity(0.14) : palette.detailStroke
+    isSelected ? palette.selectedPillStroke : palette.detailStroke
   }
 }
 
@@ -166,7 +166,7 @@ struct TerminalSidebarProgressIndicatorView: View {
   private var color: Color {
     switch progress.tone {
     case .active:
-      return isSelected ? palette.selectedText.opacity(0.72) : palette.secondaryText
+      return isSelected ? palette.selectedSecondaryText : palette.secondaryText
     case .paused:
       return .orange
     case .error:
