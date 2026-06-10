@@ -249,6 +249,21 @@ final class TerminalHostState {
     let hoverMarkdown: String?
   }
 
+  struct FocusHistory: Equatable {
+    var current: UUID
+    var previous: UUID?
+
+    init(current: UUID) {
+      self.current = current
+    }
+
+    mutating func updateCurrent(_ surfaceID: UUID) {
+      guard surfaceID != current else { return }
+      previous = current
+      current = surfaceID
+    }
+  }
+
   struct SurfaceLaunchCommand: Equatable {
     let command: String?
     let commandWrapper: [String]
@@ -295,8 +310,7 @@ final class TerminalHostState {
   var pendingEvents: [TerminalClient.Event] = []
   var trees: [TerminalTabID: SplitTree<GhosttySurfaceView>] = [:]
   var surfaces: [UUID: GhosttySurfaceView] = [:]
-  var focusedSurfaceIDByTab: [TerminalTabID: UUID] = [:]
-  var previousFocusedSurfaceIDByTab: [TerminalTabID: UUID] = [:]
+  var focusHistoryByTab: [TerminalTabID: FocusHistory] = [:]
   var paneNotifications: [UUID: [PaneNotification]] = [:]
   var paneAgentMetadataBySurfaceID: [UUID: PaneAgentMetadata] = [:]
   var agentPresenceStore = TerminalAgentPresenceStore()
@@ -888,7 +902,7 @@ final class TerminalHostState {
 
   func updateWindowActivity(_ activity: WindowActivityState) {
     let selectedTabID = selectedTabID
-    let focusedSurfaceID = selectedTabID.flatMap { focusedSurfaceIDByTab[$0] }
+    let focusedSurfaceID = selectedTabID.flatMap { focusHistoryByTab[$0]?.current }
     SupatermLog.debug(
       SupatermLog.terminal,
       "terminal.windowActivity.update",
@@ -910,7 +924,7 @@ final class TerminalHostState {
     var surfaceToFocus: GhosttySurfaceView?
 
     for (tabID, tree) in trees {
-      let focusedSurfaceID = focusedSurfaceIDByTab[tabID]
+      let focusedSurfaceID = focusHistoryByTab[tabID]?.current
       let isSelectedTab = tabID == selectedTabID
       for surface in tree.leaves() {
         let activity = Self.surfaceActivity(
@@ -1163,7 +1177,7 @@ final class TerminalHostState {
     let wasSelectedSpace = selectedSpaceID == spaceID
 
     let nextSurface =
-      focusedSurfaceIDByTab[tabID] == surfaceID
+      focusHistoryByTab[tabID]?.current == surfaceID
       ? tree.focusTargetAfterClosing(node)
       : nil
     let newTree = tree.removing(node)
@@ -1176,7 +1190,7 @@ final class TerminalHostState {
         wasPinned: wasPinned,
         leafCount: tree.leaves().count,
         newTreeEmpty: newTree.isEmpty,
-        focusedSurfaceID: focusedSurfaceIDByTab[tabID],
+        focusedSurfaceID: focusHistoryByTab[tabID]?.current,
         nextSurfaceID: nextSurface?.id
       )
     )
@@ -1202,8 +1216,7 @@ final class TerminalHostState {
 
     if newTree.isEmpty {
       trees.removeValue(forKey: tabID)
-      focusedSurfaceIDByTab.removeValue(forKey: tabID)
-      previousFocusedSurfaceIDByTab.removeValue(forKey: tabID)
+      focusHistoryByTab.removeValue(forKey: tabID)
       spaceManager.space(for: tabID)
         .flatMap { spaceManager.tabManager(for: $0.id) }?
         .closeTab(tabID)
@@ -1220,12 +1233,11 @@ final class TerminalHostState {
     trees[tabID] = newTree
     updateRunningState(for: tabID)
     updateTabTitle(for: tabID)
-    if focusedSurfaceIDByTab[tabID] == surfaceID {
+    if focusHistoryByTab[tabID]?.current == surfaceID {
       if let nextSurface {
         focusSurface(nextSurface, in: tabID)
       } else {
-        focusedSurfaceIDByTab.removeValue(forKey: tabID)
-        previousFocusedSurfaceIDByTab.removeValue(forKey: tabID)
+        focusHistoryByTab.removeValue(forKey: tabID)
       }
     }
     syncFocus(windowActivity)
@@ -1695,7 +1707,7 @@ final class TerminalHostState {
     trees[tabID] = tree
     updateRunningState(for: tabID)
     updateTabTitle(for: tabID)
-    if focusedSurfaceIDByTab[tabID] == surfaceID {
+    if focusHistoryByTab[tabID]?.current == surfaceID {
       focusSurface(replacementSurface, in: tabID)
     }
     syncFocus(windowActivity)
@@ -1775,12 +1787,12 @@ final class TerminalHostState {
 
   func currentFocusedSurfaceID() -> UUID? {
     guard let selectedTabID = spaceManager.selectedTabID else { return nil }
-    return focusedSurfaceIDByTab[selectedTabID]
+    return focusHistoryByTab[selectedTabID]?.current
   }
 
   func inheritedSurfaceID(in spaceID: TerminalSpaceID) -> UUID? {
     if let selectedTabID = spaceManager.selectedTabID(in: spaceID) {
-      if let focusedSurfaceID = focusedSurfaceIDByTab[selectedTabID],
+      if let focusedSurfaceID = focusHistoryByTab[selectedTabID]?.current,
         surfaces[focusedSurfaceID] != nil
       {
         return focusedSurfaceID
@@ -1791,7 +1803,7 @@ final class TerminalHostState {
     }
 
     for tab in spaceManager.tabs(in: spaceID) {
-      if let focusedSurfaceID = focusedSurfaceIDByTab[tab.id], surfaces[focusedSurfaceID] != nil {
+      if let focusedSurfaceID = focusHistoryByTab[tab.id]?.current, surfaces[focusedSurfaceID] != nil {
         return focusedSurfaceID
       }
       if let surfaceID = trees[tab.id]?.root?.leftmostLeaf().id {
@@ -1956,7 +1968,7 @@ final class TerminalHostState {
       let resolvedTab = try resolveTab(
         windowIndex: windowIndex, spaceIndex: spaceIndex, tabIndex: tabIndex)
       let anchorSurface =
-        focusedSurfaceIDByTab[resolvedTab.tabID].flatMap { surfaces[$0] }
+        focusHistoryByTab[resolvedTab.tabID].flatMap { surfaces[$0.current] }
         ?? resolvedTab.tree.root?.leftmostLeaf()
       guard let anchorSurface else {
         throw TerminalCreatePaneError.creationFailed
@@ -2063,7 +2075,7 @@ final class TerminalHostState {
       focusSurface(surface, in: tabID)
       return
     }
-    if let focusedSurfaceID = focusedSurfaceIDByTab[tabID], let surface = surfaces[focusedSurfaceID] {
+    if let focusedSurfaceID = focusHistoryByTab[tabID]?.current, let surface = surfaces[focusedSurfaceID] {
       focusSurface(surface, in: tabID)
       return
     }
@@ -2077,15 +2089,16 @@ final class TerminalHostState {
     _ surfaceID: UUID,
     in tabID: TerminalTabID
   ) {
-    let currentFocusedSurfaceID = focusedSurfaceIDByTab[tabID]
-    if currentFocusedSurfaceID != surfaceID, let currentFocusedSurfaceID {
-      previousFocusedSurfaceIDByTab[tabID] = currentFocusedSurfaceID
+    if var history = focusHistoryByTab[tabID] {
+      history.updateCurrent(surfaceID)
+      focusHistoryByTab[tabID] = history
+    } else {
+      focusHistoryByTab[tabID] = FocusHistory(current: surfaceID)
     }
-    focusedSurfaceIDByTab[tabID] = surfaceID
   }
 
   func focusSurface(_ surface: GhosttySurfaceView, in tabID: TerminalTabID) {
-    let previousSurface = focusedSurfaceIDByTab[tabID].flatMap { surfaces[$0] }
+    let previousSurface = focusHistoryByTab[tabID].flatMap { surfaces[$0.current] }
     applyFocusedSurface(surface.id, in: tabID)
     updateTabTitle(for: tabID)
     clearNotificationAttention(for: surface.id)
@@ -2195,8 +2208,7 @@ final class TerminalHostState {
     for surface in tree.leaves() {
       cleanupSurface(surface)
     }
-    focusedSurfaceIDByTab.removeValue(forKey: tabID)
-    previousFocusedSurfaceIDByTab.removeValue(forKey: tabID)
+    focusHistoryByTab.removeValue(forKey: tabID)
     previousSelectedTabIDBySpace = previousSelectedTabIDBySpace.filter { $0.value != tabID }
   }
 
@@ -2234,7 +2246,7 @@ final class TerminalHostState {
   func clearUnreadOnFocusedSurfaceIfNeeded() {
     guard
       let selectedTabID = spaceManager.selectedTabID,
-      let surfaceID = focusedSurfaceIDByTab[selectedTabID]
+      let surfaceID = focusHistoryByTab[selectedTabID]?.current
     else {
       return
     }
@@ -2247,7 +2259,7 @@ final class TerminalHostState {
       isSelectedTab: tabID == spaceManager.selectedTabID,
       windowIsVisible: windowActivity.isVisible,
       windowIsKey: windowActivity.isKeyWindow,
-      focusedSurfaceID: focusedSurfaceIDByTab[tabID],
+      focusedSurfaceID: focusHistoryByTab[tabID]?.current,
       surfaceID: surfaceID
     )
     guard let notifications = paneNotifications[surfaceID] else {
@@ -2455,7 +2467,7 @@ final class TerminalHostState {
         "surfaceID=\(SupatermLog.uuid(surfaceID))",
         "tabID=\(SupatermLog.uuid(tabID?.rawValue))",
         "selectedTabID=\(SupatermLog.uuid(selectedTabID?.rawValue))",
-        "focusedSurfaceID=\(SupatermLog.uuid(tabID.flatMap { focusedSurfaceIDByTab[$0] }))",
+        "focusedSurfaceID=\(SupatermLog.uuid(tabID.flatMap { focusHistoryByTab[$0]?.current }))",
         "isPinned=\(tabID.map { spaceManager.tab(for: $0)?.isPinned == true } ?? false)",
         "needsConfirmationOverride=\(needsConfirmationOverride.map { "\($0)" } ?? "nil")",
         "resolvedTarget=\(resolvedTarget)",
@@ -2601,7 +2613,7 @@ final class TerminalHostState {
   }
 
   func titleSurface(for tabID: TerminalTabID) -> GhosttySurfaceView? {
-    if let focusedSurfaceID = focusedSurfaceIDByTab[tabID] {
+    if let focusedSurfaceID = focusHistoryByTab[tabID]?.current {
       return surfaces[focusedSurfaceID]
     }
     return trees[tabID]?.root?.leftmostLeaf()

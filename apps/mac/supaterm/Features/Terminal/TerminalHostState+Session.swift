@@ -235,7 +235,7 @@ extension TerminalHostState {
       return nil
     }
     let focusedPaneIndex =
-      focusedSurfaceIDByTab[tab.id].flatMap { focusedPaneID in
+      focusHistoryByTab[tab.id].map(\.current).flatMap { focusedPaneID in
         tree.leaves().firstIndex(where: { $0.id == focusedPaneID })
       }
       ?? 0
@@ -372,7 +372,9 @@ extension TerminalHostState {
     for space in spaces {
       _ = spaceManager.restoreTabs([], selectedTabID: nil, in: space.id)
     }
-    previousFocusedSurfaceIDByTab.removeAll()
+    for tabID in focusHistoryByTab.keys {
+      focusHistoryByTab[tabID]?.previous = nil
+    }
     previousSelectedTabIDBySpace.removeAll()
     previousSelectedSpaceID = nil
     lastEmittedFocusSurfaceID = nil

@@ -129,6 +129,33 @@ struct TerminalCommandExecutorTests {
     _ = try commandExecutor.closePane(.pane(windowIndex: 1, spaceIndex: 1, tabIndex: 1, paneIndex: 1))
     #expect(closeWindowCount == 1)
   }
+
+  @Test
+  func lastPaneRefocusesPreviouslyFocusedPane() throws {
+    initializeGhosttyForTests()
+
+    let host = TerminalHostState()
+    host.handleCommand(.ensureInitialTab(focusing: false, startupCommand: nil))
+    let tabID = try #require(host.selectedTabID)
+    let firstSurface = try #require(host.selectedSurfaceView)
+    host.focusSurface(firstSurface, in: tabID)
+
+    _ = try host.createPane(
+      TerminalCreatePaneRequest(
+        startupCommand: nil,
+        direction: .right,
+        focus: true,
+        equalize: false,
+        target: .contextPane(firstSurface.id)
+      )
+    )
+    #expect(host.focusHistoryByTab[tabID]?.current != firstSurface.id)
+    #expect(host.focusHistoryByTab[tabID]?.previous == firstSurface.id)
+
+    _ = try host.lastPane(.contextPane(firstSurface.id))
+
+    #expect(host.focusHistoryByTab[tabID]?.current == firstSurface.id)
+  }
   @Test
   func createTabUsesSelectedTabAsInsertionAnchorForExplicitSpaceTarget() throws {
     try withDependencies {

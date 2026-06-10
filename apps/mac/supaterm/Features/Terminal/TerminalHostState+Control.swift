@@ -27,7 +27,7 @@ extension TerminalHostState {
       isKey: windowActivity.isKeyWindow,
       spaces: spaces.enumerated().map { spaceOffset, space in
         let tabs = spaceManager.tabs(in: space.id).enumerated().map { tabOffset, tab in
-          let focusedSurfaceID = focusedSurfaceIDByTab[tab.id]
+          let focusedSurfaceID = focusHistoryByTab[tab.id]?.current
           let panes = (trees[tab.id]?.leaves() ?? []).enumerated().map { paneOffset, pane in
             SupatermTreeSnapshot.Pane(
               index: paneOffset + 1,
@@ -64,7 +64,7 @@ extension TerminalHostState {
       isVisible: windowActivity.isVisible,
       spaces: spaces.enumerated().map { spaceOffset, space in
         let tabs = spaceManager.tabs(in: space.id).enumerated().map { tabOffset, tab in
-          let focusedSurfaceID = focusedSurfaceIDByTab[tab.id]
+          let focusedSurfaceID = focusHistoryByTab[tab.id]?.current
           let panes = (trees[tab.id]?.leaves() ?? []).enumerated().map { paneOffset, pane in
             debugPaneSnapshot(
               pane,
@@ -149,7 +149,7 @@ extension TerminalHostState {
         selectedTabID: spaceManager.selectedTabID,
         targetTabID: resolvedTarget.tabID,
         windowActivity: windowActivity,
-        focusedSurfaceID: focusedSurfaceIDByTab[resolvedTarget.tabID],
+        focusedSurfaceID: focusHistoryByTab[resolvedTarget.tabID]?.current,
         surfaceID: newSurface.id
       )
 
@@ -251,7 +251,7 @@ extension TerminalHostState {
           selectedTabID: spaceManager.selectedTabID,
           targetTabID: tabID,
           windowActivity: windowActivity,
-          focusedSurfaceID: focusedSurfaceIDByTab[tabID],
+          focusedSurfaceID: focusHistoryByTab[tabID]?.current,
           surfaceID: surfaceID
         )
       )
@@ -313,7 +313,7 @@ extension TerminalHostState {
 
   func lastPane(_ target: TerminalPaneTarget) throws -> SupatermFocusPaneResult {
     let resolvedTarget = try resolvePaneTarget(target)
-    guard let lastSurfaceID = previousFocusedSurfaceIDByTab[resolvedTarget.tabID] else {
+    guard let lastSurfaceID = focusHistoryByTab[resolvedTarget.tabID]?.previous else {
       throw TerminalControlError.lastPaneNotFound
     }
     guard let lastSurface = surfaces[lastSurfaceID] else {
@@ -972,7 +972,7 @@ extension TerminalHostState {
     in tabID: TerminalTabID
   ) -> (tree: SplitTree<GhosttySurfaceView>, surface: GhosttySurfaceView)? {
     guard let tree = trees[tabID] else { return nil }
-    if let focusedSurfaceID = focusedSurfaceIDByTab[tabID], let surface = surfaces[focusedSurfaceID] {
+    if let focusedSurfaceID = focusHistoryByTab[tabID]?.current, let surface = surfaces[focusedSurfaceID] {
       return (tree, surface)
     }
     guard let surface = tree.root?.leftmostLeaf() else { return nil }
@@ -995,7 +995,7 @@ extension TerminalHostState {
       isSelectedTab: selectedTabID == tabID,
       windowIsVisible: windowActivity.isVisible,
       windowIsKey: windowActivity.isKeyWindow,
-      focusedSurfaceID: focusedSurfaceIDByTab[tabID],
+      focusedSurfaceID: focusHistoryByTab[tabID]?.current,
       surfaceID: surfaceID
     )
     return SupatermFocusPaneResult(
@@ -1023,7 +1023,7 @@ extension TerminalHostState {
       isSelectedTab: selectedTabID == tabID,
       windowIsVisible: windowActivity.isVisible,
       windowIsKey: windowActivity.isKeyWindow,
-      focusedSurfaceID: focusedSurfaceIDByTab[tabID],
+      focusedSurfaceID: focusHistoryByTab[tabID]?.current,
       surfaceID: resolvedSurface.surface.id
     )
     return SupatermSelectTabResult(
@@ -1066,7 +1066,7 @@ extension TerminalHostState {
       isSelectedTab: selectedTabID == tabID,
       windowIsVisible: windowActivity.isVisible,
       windowIsKey: windowActivity.isKeyWindow,
-      focusedSurfaceID: focusedSurfaceIDByTab[tabID],
+      focusedSurfaceID: focusHistoryByTab[tabID]?.current,
       surfaceID: resolvedSurface.surface.id
     )
     return SupatermSelectSpaceResult(
@@ -1096,7 +1096,7 @@ extension TerminalHostState {
       selectedTabID: spaceManager.selectedTabID,
       targetTabID: resolvedTarget.tabID,
       windowActivity: windowActivity,
-      focusedSurfaceID: focusedSurfaceIDByTab[resolvedTarget.tabID],
+      focusedSurfaceID: focusHistoryByTab[resolvedTarget.tabID]?.current,
       surfaceID: resolvedTarget.anchorSurface.id
     )
     let attentionState: SupatermNotificationAttentionState = .unread

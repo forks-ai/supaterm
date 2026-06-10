@@ -105,7 +105,7 @@ extension TerminalHostState {
     let leaves = tree.leaves()
     let workingDirectoryPaths = leaves.map(workingDirectoryPath(for:))
     let focusedPaneIndex =
-      focusedSurfaceIDByTab[tabID].flatMap { focusedSurfaceID in
+      focusHistoryByTab[tabID].map(\.current).flatMap { focusedSurfaceID in
         leaves.firstIndex(where: { $0.id == focusedSurfaceID })
       } ?? 0
     let tabs = synchronizedPinnedTabs(in: spaceID).map { entry in

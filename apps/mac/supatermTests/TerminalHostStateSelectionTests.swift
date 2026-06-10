@@ -248,4 +248,42 @@ struct TerminalHostStateSelectionTests {
     #expect(!state.isSelectedTab)
     #expect(!state.isFocused)
   }
+
+  @Test
+  func focusHistoryStartsWithoutPrevious() {
+    let surfaceID = UUID()
+
+    let history = TerminalHostState.FocusHistory(current: surfaceID)
+
+    #expect(history.current == surfaceID)
+    #expect(history.previous == nil)
+  }
+
+  @Test
+  func focusHistoryIgnoresRefocusOfCurrentSurface() {
+    let first = UUID()
+    let second = UUID()
+    var history = TerminalHostState.FocusHistory(current: first)
+    history.updateCurrent(second)
+
+    history.updateCurrent(second)
+
+    #expect(history.current == second)
+    #expect(history.previous == first)
+  }
+
+  @Test
+  func focusHistoryShiftsCurrentIntoPrevious() {
+    let first = UUID()
+    let second = UUID()
+    let third = UUID()
+    var history = TerminalHostState.FocusHistory(current: first)
+
+    history.updateCurrent(second)
+    #expect(history.previous == first)
+
+    history.updateCurrent(third)
+    #expect(history.current == third)
+    #expect(history.previous == second)
+  }
 }

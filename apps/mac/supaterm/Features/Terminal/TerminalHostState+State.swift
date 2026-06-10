@@ -54,7 +54,7 @@ extension TerminalHostState {
   var selectedSurfaceView: GhosttySurfaceView? {
     guard
       let selectedTabID,
-      let focusedSurfaceID = focusedSurfaceIDByTab[selectedTabID]
+      let focusedSurfaceID = focusHistoryByTab[selectedTabID]?.current
     else {
       return nil
     }
@@ -67,7 +67,7 @@ extension TerminalHostState {
 
   func sidebarTerminalProgress(for tabID: TerminalTabID) -> TerminalSidebarTerminalProgress? {
     Self.sidebarTerminalProgress(
-      state: focusedSurfaceIDByTab[tabID].flatMap { surfaceID in
+      state: focusHistoryByTab[tabID].map(\.current).flatMap { surfaceID in
         surfaces[surfaceID]?.bridge.state
       }
     )
@@ -97,7 +97,7 @@ extension TerminalHostState {
   }
 
   func contextSurfaceID(for tabID: TerminalTabID) -> UUID? {
-    if let focusedSurfaceID = focusedSurfaceIDByTab[tabID], surfaces[focusedSurfaceID] != nil {
+    if let focusedSurfaceID = focusHistoryByTab[tabID]?.current, surfaces[focusedSurfaceID] != nil {
       return focusedSurfaceID
     }
     return trees[tabID]?.root?.leftmostLeaf().id
@@ -209,7 +209,7 @@ extension TerminalHostState {
       )
     }
 
-    let focusedSurfaceID = focusedSurfaceIDByTab[tabID]
+    let focusedSurfaceID = focusHistoryByTab[tabID]?.current
     let detailActivity = agentPresenceStore.detailActivity(for: focusedSurfaceID)
     let hoverMarkdown = focusedSurfaceID.flatMap {
       Self.codexHoverMarkdown(
