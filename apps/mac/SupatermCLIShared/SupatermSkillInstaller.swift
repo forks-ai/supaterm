@@ -1,61 +1,47 @@
 import Foundation
 
 public struct SupatermSkillInstaller {
-  public struct CommandResult: Equatable, Sendable {
-    let status: Int32
-    let standardError: String
-  }
-
-  public static let manualInstallCommand =
-    "npx skills add supabitapp/supaterm-skills --skill supaterm -g"
-  public static let automatedInstallCommand = "\(manualInstallCommand) -y"
+  public static let manualInstallCommand = "sp agent install-skill"
 
   let homeDirectoryURL: URL
+  let bundledSkillDirectoryURL: URL?
   let fileManager: FileManager
-  let checkNPXAvailable: @Sendable () throws -> Bool
-  let runInstallCommand: @Sendable ([String]) throws -> CommandResult
 
   public init(
     homeDirectoryURL: URL = FileManager.default.homeDirectoryForCurrentUser,
+    bundledSkillDirectoryURL: URL? = Self.bundledSkillDirectoryURL(),
     fileManager: FileManager = .default
   ) {
-    self.init(
-      homeDirectoryURL: homeDirectoryURL,
-      fileManager: fileManager,
-      checkNPXAvailable: Self.checkNPXAvailable,
-      runInstallCommand: Self.runInstallCommand
-    )
-  }
-
-  init(
-    homeDirectoryURL: URL = FileManager.default.homeDirectoryForCurrentUser,
-    fileManager: FileManager = .default,
-    checkNPXAvailable: @escaping @Sendable () throws -> Bool,
-    runInstallCommand: @escaping @Sendable ([String]) throws -> CommandResult
-  ) {
     self.homeDirectoryURL = homeDirectoryURL
+    self.bundledSkillDirectoryURL = bundledSkillDirectoryURL
     self.fileManager = fileManager
-    self.checkNPXAvailable = checkNPXAvailable
-    self.runInstallCommand = runInstallCommand
-  }
-
-  public func isNPXAvailable() throws -> Bool {
-    try checkNPXAvailable()
   }
 
   public func hasSupatermSkillInstalled() -> Bool {
-    fileManager.fileExists(atPath: Self.skillDefinitionURL(homeDirectoryURL: homeDirectoryURL).path)
+    if symbolicLinkDestination(at: Self.skillDirectoryURL(homeDirectoryURL: homeDirectoryURL)) != nil {
+      return true
+    }
+    return fileManager.fileExists(atPath: Self.skillDefinitionURL(homeDirectoryURL: homeDirectoryURL).path)
   }
 
   public func installSupatermSkill() throws {
-    guard try isNPXAvailable() else {
-      throw SupatermSkillInstallerError.npxUnavailable
+    guard let bundledSkillDirectoryURL,
+      fileManager.fileExists(
+        atPath: Self.skillDefinitionURL(skillDirectoryURL: bundledSkillDirectoryURL).path
+      )
+    else {
+      throw SupatermSkillInstallerError.bundledSkillUnavailable(bundledSkillDirectoryURL?.path)
     }
 
-    let commandResult = try runInstallCommand(Self.automatedInstallCommandArguments())
-    guard commandResult.status == 0 else {
-      throw SupatermSkillInstallerError.installFailed(commandResult.standardError)
+    let skillDirectoryURL = Self.skillDirectoryURL(homeDirectoryURL: homeDirectoryURL)
+    try fileManager.createDirectory(
+      at: skillDirectoryURL.deletingLastPathComponent(),
+      withIntermediateDirectories: true
+    )
+    if symbolicLinkDestination(at: skillDirectoryURL) != nil || fileManager.fileExists(atPath: skillDirectoryURL.path) {
+      try fileManager.removeItem(at: skillDirectoryURL)
     }
+    try fileManager.createSymbolicLink(at: skillDirectoryURL, withDestinationURL: bundledSkillDirectoryURL)
   }
 
   public static func skillsDirectoryURL(homeDirectoryURL: URL) -> URL {
@@ -70,55 +56,59 @@ public struct SupatermSkillInstaller {
   }
 
   public static func skillDefinitionURL(homeDirectoryURL: URL) -> URL {
-    skillDirectoryURL(homeDirectoryURL: homeDirectoryURL)
+    skillDefinitionURL(skillDirectoryURL: skillDirectoryURL(homeDirectoryURL: homeDirectoryURL))
+  }
+
+  public static func skillDefinitionURL(skillDirectoryURL: URL) -> URL {
+    skillDirectoryURL
       .appendingPathComponent("SKILL.md", isDirectory: false)
   }
 
-  static func checkNPXAvailable() throws -> Bool {
-    try LoginShellCommandAvailability.isAvailable(["npx"])
+  public static func bundledSkillDirectoryURL(
+    resourceURL: URL? = Bundle.main.resourceURL,
+    executableURL: URL? = Bundle.main.executableURL,
+    fileManager: FileManager = .default
+  ) -> URL? {
+    var candidates = [
+      resourceURL?
+        .appendingPathComponent("skills", isDirectory: true)
+        .appendingPathComponent("supaterm", isDirectory: true),
+    ].compactMap { $0 }
+    if let executableURL {
+      candidates.append(skillDirectoryURL(nextToExecutableURL: executableURL))
+      let resolvedExecutableURL = executableURL.resolvingSymlinksInPath()
+      if resolvedExecutableURL != executableURL {
+        candidates.append(skillDirectoryURL(nextToExecutableURL: resolvedExecutableURL))
+      }
+    }
+    return candidates.first {
+      fileManager.fileExists(atPath: skillDefinitionURL(skillDirectoryURL: $0).path)
+    } ?? candidates.first
   }
 
-  static func automatedInstallCommandArguments() -> [String] {
-    LoginShellCommandAvailability.interactiveCommandArguments(for: automatedInstallCommand)
+  private static func skillDirectoryURL(nextToExecutableURL executableURL: URL) -> URL {
+    executableURL
+      .deletingLastPathComponent()
+      .deletingLastPathComponent()
+      .appendingPathComponent("skills", isDirectory: true)
+      .appendingPathComponent("supaterm", isDirectory: true)
   }
 
-  static func runInstallCommand(commandArguments: [String]) throws -> CommandResult {
-    let process = Process()
-    process.executableURL = CodexSettingsInstaller.loginShellURL()
-    process.arguments = commandArguments
-
-    let errorPipe = Pipe()
-    process.standardError = errorPipe
-
-    try process.run()
-    process.waitUntilExit()
-
-    let standardError =
-      String(
-        bytes: errorPipe.fileHandleForReading.readDataToEndOfFile(),
-        encoding: .utf8
-      ) ?? ""
-
-    return .init(
-      status: process.terminationStatus,
-      standardError: standardError.trimmingCharacters(in: .whitespacesAndNewlines)
-    )
+  private func symbolicLinkDestination(at url: URL) -> String? {
+    try? fileManager.destinationOfSymbolicLink(atPath: url.path)
   }
 }
 
 public enum SupatermSkillInstallerError: Error, Equatable, LocalizedError {
-  case installFailed(String)
-  case npxUnavailable
+  case bundledSkillUnavailable(String?)
 
   public var errorDescription: String? {
     switch self {
-    case .installFailed(let details):
-      if details.isEmpty {
-        return "Run \(SupatermSkillInstaller.manualInstallCommand) in a terminal to install the Supaterm skill."
+    case .bundledSkillUnavailable(let path):
+      guard let path else {
+        return "Supaterm bundled skill is missing."
       }
-      return details
-    case .npxUnavailable:
-      return "Install Node.js tooling and run \(SupatermSkillInstaller.manualInstallCommand) in a terminal."
+      return "Supaterm bundled skill is missing at \(path)."
     }
   }
 }

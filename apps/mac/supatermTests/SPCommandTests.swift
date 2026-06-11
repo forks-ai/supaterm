@@ -362,7 +362,7 @@ struct SPCommandTests {
 
         Install the Supaterm skill:
 
-        npx skills add supabitapp/supaterm-skills --skill supaterm -g
+        sp agent install-skill
 
         Run the commands that match your setup:
 

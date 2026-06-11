@@ -42,15 +42,16 @@ Future agent integrations should keep that split. The wrapper or adapter should 
 
 ## Supaterm Skill
 
-Supaterm also ships an agent skill from `supaterm-skills`.
+Supaterm ships its agent skill from `supaterm-skills` inside the app bundle.
 
 Install it with:
 
 ```bash
-npx skills add supabitapp/supaterm-skills --skill supaterm -g
+sp agent install-skill
 ```
 
-Settings > Coding Agents shows the exact command for installing only the public Supaterm skill.
+The install command links `~/.agents/skills/supaterm` to the bundled skill directory.
+On app launch, Supaterm silently refreshes existing Supaterm skill installs to the current bundle path.
 
 Install every supported hook bridge with:
 

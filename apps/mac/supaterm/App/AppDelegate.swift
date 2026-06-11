@@ -121,6 +121,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
     menuController.install()
     socketStore.send(.task)
     refreshInstalledAgentHooks()
+    refreshInstalledSupatermSkill()
     #if SUPATERM_DEMO
       DemoSeed.seedCatalogs()
     #endif
@@ -335,6 +336,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
   private func refreshInstalledAgentHooks() {
     Task.detached {
       StartupAgentHookRefresher.live.refreshInstalledHooks()
+    }
+  }
+
+  private func refreshInstalledSupatermSkill() {
+    Task.detached {
+      StartupSupatermSkillRefresher.live.refreshInstalledSkill()
     }
   }
 

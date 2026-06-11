@@ -258,14 +258,25 @@ enum SPHelp {
   static let receiveAgentHookDiscussion = """
     Reads one agent hook event JSON object from stdin and forwards it to Supaterm.
 
-    Manage coding-agent integrations from Supaterm Settings > Coding Agents. Use `sp agent install-hooks` to install every supported hook bridge, or `sp agent install-hook` and `sp agent remove-hook` for one agent.
+    Manage coding-agent integrations from Supaterm Settings > Coding Agents.
+    Use `sp agent install-skill` to install Supaterm's bundled skill.
+    Use `sp agent install-hooks` to install every supported hook bridge.
+    Use `sp agent install-hook` and `sp agent remove-hook` for one agent.
 
     Example:
+      sp agent install-skill
       sp agent install-hooks
       sp agent install-hook claude
       sp agent remove-hook claude
       printf '{"hook_event_name":"Notification","message":"Claude needs your attention"}' | sp agent receive-agent-hook --agent claude
       \(SupatermClaudeHookSettings.command)
+    """
+
+  static let installAgentSkillDiscussion = """
+    Install Supaterm's bundled agent skill into ~/.agents/skills/supaterm.
+
+    Example:
+      sp agent install-skill
     """
 
   static let installAgentHookDiscussion = """
@@ -463,6 +474,7 @@ enum SPHelp {
 
   static let agentDiscussion = """
     Example:
+      sp agent install-skill
       sp agent install-hooks
       sp agent install-hook claude
       sp agent install-hook codex

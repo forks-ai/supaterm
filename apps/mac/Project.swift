@@ -403,6 +403,30 @@ let project = Project(
             "$(TARGET_BUILD_DIR)/$(UNLOCALIZED_RESOURCES_FOLDER_PATH)/bin/sp",
           ]
         ),
+        .post(
+          script: """
+            set -euo pipefail
+
+            source_dir="${SRCROOT}/../../integrations/supaterm-skills/skills/supaterm"
+            destination_root="${TARGET_BUILD_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}/skills"
+            destination_dir="${destination_root}/supaterm"
+
+            if [ ! -f "${source_dir}/SKILL.md" ]; then
+              echo "error: missing Supaterm skill" >&2
+              exit 1
+            fi
+
+            mkdir -p "${destination_root}"
+            rsync -a --delete "${source_dir}/" "${destination_dir}/"
+            """,
+          name: "Embed Supaterm Skill",
+          inputPaths: [
+            "$(SRCROOT)/../../integrations/supaterm-skills/skills/supaterm/SKILL.md",
+          ],
+          outputPaths: [
+            "$(TARGET_BUILD_DIR)/$(UNLOCALIZED_RESOURCES_FOLDER_PATH)/skills/supaterm/SKILL.md",
+          ]
+        ),
       ],
       dependencies: [
         .target(name: "sp"),

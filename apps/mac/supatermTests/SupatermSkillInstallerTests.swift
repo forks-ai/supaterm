@@ -5,10 +5,11 @@ import Testing
 
 struct SupatermSkillInstallerTests {
   @Test
-  func hasSupatermSkillInstalledChecksSkillFile() throws {
-    let homeDirectoryURL = try temporarySkillHomeDirectory()
-    defer { try? FileManager.default.removeItem(at: homeDirectoryURL) }
+  func hasSupatermSkillInstalledChecksSkillPath() throws {
+    let rootURL = try temporarySkillRoot()
+    defer { try? FileManager.default.removeItem(at: rootURL) }
 
+    let homeDirectoryURL = rootURL.appendingPathComponent("home", isDirectory: true)
     let skillDefinitionURL = SupatermSkillInstaller.skillDefinitionURL(homeDirectoryURL: homeDirectoryURL)
     try FileManager.default.createDirectory(
       at: skillDefinitionURL.deletingLastPathComponent(),
@@ -18,104 +19,192 @@ struct SupatermSkillInstallerTests {
 
     let installer = SupatermSkillInstaller(
       homeDirectoryURL: homeDirectoryURL,
-      checkNPXAvailable: { true },
-      runInstallCommand: { _ in
-        SupatermSkillInstaller.CommandResult(status: 0, standardError: "")
-      }
+      bundledSkillDirectoryURL: nil
     )
 
     #expect(installer.hasSupatermSkillInstalled())
   }
 
   @Test
-  func installUsesAutomatedGlobalNPXCommand() throws {
-    let capture = SkillCommandCapture()
+  func installCreatesGlobalSkillSymlinkToBundledSkill() throws {
+    let rootURL = try temporarySkillRoot()
+    defer { try? FileManager.default.removeItem(at: rootURL) }
+
+    let homeDirectoryURL = rootURL.appendingPathComponent("home", isDirectory: true)
+    let bundledSkillDirectoryURL = try bundledSkillDirectory(in: rootURL)
     let installer = SupatermSkillInstaller(
-      checkNPXAvailable: { true },
-      runInstallCommand: { arguments in
-        capture.record(arguments)
-        return SupatermSkillInstaller.CommandResult(status: 0, standardError: "")
-      }
+      homeDirectoryURL: homeDirectoryURL,
+      bundledSkillDirectoryURL: bundledSkillDirectoryURL
     )
 
     try installer.installSupatermSkill()
 
     #expect(
-      capture.commands == [
-        SupatermSkillInstaller.automatedInstallCommandArguments()
-      ]
+      try symbolicLinkDestination(
+        at: SupatermSkillInstaller.skillDirectoryURL(homeDirectoryURL: homeDirectoryURL)
+      ) == bundledSkillDirectoryURL.path
     )
   }
 
   @Test
-  func manualInstallCommandTargetsGlobalSupatermSkill() {
+  func installRepairsStaleSymlink() throws {
+    let rootURL = try temporarySkillRoot()
+    defer { try? FileManager.default.removeItem(at: rootURL) }
+
+    let homeDirectoryURL = rootURL.appendingPathComponent("home", isDirectory: true)
+    let bundledSkillDirectoryURL = try bundledSkillDirectory(in: rootURL)
+    let staleSkillDirectoryURL = rootURL.appendingPathComponent("stale", isDirectory: true)
+    let skillDirectoryURL = SupatermSkillInstaller.skillDirectoryURL(homeDirectoryURL: homeDirectoryURL)
+    try FileManager.default.createDirectory(
+      at: skillDirectoryURL.deletingLastPathComponent(),
+      withIntermediateDirectories: true
+    )
+    try FileManager.default.createSymbolicLink(
+      at: skillDirectoryURL,
+      withDestinationURL: staleSkillDirectoryURL
+    )
+
+    try SupatermSkillInstaller(
+      homeDirectoryURL: homeDirectoryURL,
+      bundledSkillDirectoryURL: bundledSkillDirectoryURL
+    )
+    .installSupatermSkill()
+
+    #expect(try symbolicLinkDestination(at: skillDirectoryURL) == bundledSkillDirectoryURL.path)
+  }
+
+  @Test
+  func installReplacesExistingDirectory() throws {
+    let rootURL = try temporarySkillRoot()
+    defer { try? FileManager.default.removeItem(at: rootURL) }
+
+    let homeDirectoryURL = rootURL.appendingPathComponent("home", isDirectory: true)
+    let bundledSkillDirectoryURL = try bundledSkillDirectory(in: rootURL)
+    let skillDirectoryURL = SupatermSkillInstaller.skillDirectoryURL(homeDirectoryURL: homeDirectoryURL)
+    try FileManager.default.createDirectory(at: skillDirectoryURL, withIntermediateDirectories: true)
+    try Data("name: old".utf8)
+      .write(to: SupatermSkillInstaller.skillDefinitionURL(skillDirectoryURL: skillDirectoryURL))
+
+    try SupatermSkillInstaller(
+      homeDirectoryURL: homeDirectoryURL,
+      bundledSkillDirectoryURL: bundledSkillDirectoryURL
+    )
+    .installSupatermSkill()
+
+    #expect(try symbolicLinkDestination(at: skillDirectoryURL) == bundledSkillDirectoryURL.path)
+  }
+
+  @Test
+  func manualInstallCommandUsesBundledInstaller() {
+    #expect(SupatermSkillInstaller.manualInstallCommand == "sp agent install-skill")
+  }
+
+  @Test
+  func bundledSkillDirectoryUsesResourceURL() throws {
+    let rootURL = try temporarySkillRoot()
+    defer { try? FileManager.default.removeItem(at: rootURL) }
+
+    let bundledSkillDirectoryURL = try bundledSkillDirectory(in: rootURL)
+
     #expect(
-      SupatermSkillInstaller.manualInstallCommand
-        == "npx skills add supabitapp/supaterm-skills --skill supaterm -g"
+      SupatermSkillInstaller.bundledSkillDirectoryURL(
+        resourceURL: rootURL.appendingPathComponent("bundle", isDirectory: true),
+        executableURL: nil
+      ) == bundledSkillDirectoryURL
     )
   }
 
   @Test
-  func automatedInstallCommandArgumentsUseInteractiveLoginShell() {
+  func bundledSkillDirectoryUsesExecutableResourceSibling() throws {
+    let rootURL = try temporarySkillRoot()
+    defer { try? FileManager.default.removeItem(at: rootURL) }
+
+    let bundledSkillDirectoryURL = try bundledSkillDirectory(in: rootURL)
+    let executableURL = rootURL
+      .appendingPathComponent("bundle", isDirectory: true)
+      .appendingPathComponent("bin", isDirectory: true)
+      .appendingPathComponent("sp", isDirectory: false)
+
     #expect(
-      SupatermSkillInstaller.automatedInstallCommandArguments()
-        == ["-l", "-i", "-c", "npx skills add supabitapp/supaterm-skills --skill supaterm -g -y"]
+      SupatermSkillInstaller.bundledSkillDirectoryURL(
+        resourceURL: nil,
+        executableURL: executableURL
+      ) == bundledSkillDirectoryURL
     )
   }
 
   @Test
-  func installFailsWhenNPXIsUnavailable() {
-    let installer = SupatermSkillInstaller(
-      checkNPXAvailable: { false },
-      runInstallCommand: { _ in
-        Issue.record("runInstallCommand should not be called when npx is unavailable.")
-        return SupatermSkillInstaller.CommandResult(status: 0, standardError: "")
-      }
-    )
+  func bundledSkillDirectoryResolvesExecutableSymlink() throws {
+    let rootURL = try temporarySkillRoot()
+    defer { try? FileManager.default.removeItem(at: rootURL) }
 
-    #expect(throws: SupatermSkillInstallerError.npxUnavailable) {
-      try installer.installSupatermSkill()
-    }
+    let bundledSkillDirectoryURL = try bundledSkillDirectory(in: rootURL)
+    let executableURL = rootURL
+      .appendingPathComponent("bundle", isDirectory: true)
+      .appendingPathComponent("bin", isDirectory: true)
+      .appendingPathComponent("sp", isDirectory: false)
+    try FileManager.default.createDirectory(
+      at: executableURL.deletingLastPathComponent(),
+      withIntermediateDirectories: true
+    )
+    try Data().write(to: executableURL)
+
+    let symlinkURL = rootURL
+      .appendingPathComponent("external", isDirectory: true)
+      .appendingPathComponent("sp", isDirectory: false)
+    try FileManager.default.createDirectory(
+      at: symlinkURL.deletingLastPathComponent(),
+      withIntermediateDirectories: true
+    )
+    try FileManager.default.createSymbolicLink(at: symlinkURL, withDestinationURL: executableURL)
+
+    #expect(
+      SupatermSkillInstaller.bundledSkillDirectoryURL(
+        resourceURL: nil,
+        executableURL: symlinkURL
+      ) == bundledSkillDirectoryURL
+    )
   }
 
   @Test
-  func installSurfacesFailureOutput() {
-    let installer = SupatermSkillInstaller(
-      checkNPXAvailable: { true },
-      runInstallCommand: { _ in
-        SupatermSkillInstaller.CommandResult(status: 1, standardError: "skills install failed")
-      }
-    )
+  func installFailsWhenBundledSkillIsUnavailable() throws {
+    let rootURL = try temporarySkillRoot()
+    defer { try? FileManager.default.removeItem(at: rootURL) }
 
-    #expect(throws: SupatermSkillInstallerError.installFailed("skills install failed")) {
-      try installer.installSupatermSkill()
+    let missingSkillDirectoryURL = rootURL.appendingPathComponent("missing", isDirectory: true)
+
+    #expect(
+      throws: SupatermSkillInstallerError.bundledSkillUnavailable(missingSkillDirectoryURL.path)
+    ) {
+      try SupatermSkillInstaller(
+        homeDirectoryURL: rootURL.appendingPathComponent("home", isDirectory: true),
+        bundledSkillDirectoryURL: missingSkillDirectoryURL
+      )
+      .installSupatermSkill()
     }
   }
 }
 
-private func temporarySkillHomeDirectory() throws -> URL {
+private func bundledSkillDirectory(in rootURL: URL) throws -> URL {
+  let skillDirectoryURL = rootURL
+    .appendingPathComponent("bundle", isDirectory: true)
+    .appendingPathComponent("skills", isDirectory: true)
+    .appendingPathComponent("supaterm", isDirectory: true)
+  try FileManager.default.createDirectory(at: skillDirectoryURL, withIntermediateDirectories: true)
+  try Data("name: supaterm".utf8)
+    .write(to: SupatermSkillInstaller.skillDefinitionURL(skillDirectoryURL: skillDirectoryURL))
+  return skillDirectoryURL
+}
+
+private func symbolicLinkDestination(at url: URL) throws -> String {
+  try FileManager.default.destinationOfSymbolicLink(atPath: url.path)
+}
+
+private func temporarySkillRoot() throws -> URL {
   try FileManager.default.url(
     for: .itemReplacementDirectory,
     in: .userDomainMask,
     appropriateFor: FileManager.default.temporaryDirectory,
     create: true
   )
-}
-
-nonisolated final class SkillCommandCapture: @unchecked Sendable {
-  private let lock = NSLock()
-  private var value: [[String]] = []
-
-  func record(_ arguments: [String]) {
-    lock.lock()
-    value.append(arguments)
-    lock.unlock()
-  }
-
-  var commands: [[String]] {
-    lock.lock()
-    let commands = value
-    lock.unlock()
-    return commands
-  }
 }
