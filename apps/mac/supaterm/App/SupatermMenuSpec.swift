@@ -36,3 +36,22 @@ struct SupatermMenuItemSpec {
     self.targetsController = targetsController
   }
 }
+
+enum SupatermMenuEntrySpec {
+  case item(NSUserInterfaceItemIdentifier)
+  case separator
+  case system(
+    title: String,
+    action: Selector,
+    keyEquivalent: String,
+    modifiers: NSEvent.ModifierFlags?
+  )
+  case submenu(title: String, entries: [SupatermMenuEntrySpec])
+  case services(title: String)
+  case slots(prefix: String)
+}
+
+struct SupatermMenuSectionSpec {
+  let title: String
+  let entries: [SupatermMenuEntrySpec]
+}
