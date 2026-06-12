@@ -76,6 +76,10 @@ actor SocketControlRuntime {
     endpoint
   }
 
+  func isPending(_ handle: UUID) -> Bool {
+    pendingReplies[handle] != nil
+  }
+
   func requests() -> AsyncStream<SocketControlClient.Request> {
     requestsContinuation?.finish()
     let (stream, continuation) = AsyncStream.makeStream(of: SocketControlClient.Request.self)
@@ -245,6 +249,7 @@ actor SocketControlRuntime {
 
   private func expireReply(_ handle: UUID) {
     guard let pendingReply = pendingReplies.removeValue(forKey: handle) else { return }
+    bufferedRequests.removeAll { $0.handle == handle }
     Darwin.close(pendingReply.clientSocket)
   }
 

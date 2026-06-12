@@ -271,6 +271,46 @@ struct SocketControlRuntimeTests {
   }
 
   @Test
+  func expiredBufferedRequestIsNotEmitted() async throws {
+    let rootURL = try makeTemporaryDirectory()
+    defer { try? FileManager.default.removeItem(at: rootURL) }
+
+    let sleepRecorder = RuntimeSleepRecorder()
+    let replyTimeout = Duration.milliseconds(50)
+    let socketURL = rootURL.appendingPathComponent("control.sock", isDirectory: false)
+    let runtime = SocketControlRuntime(
+      endpointProvider: {
+        socketEndpoint(path: socketURL.path)
+      },
+      replyTimeout: replyTimeout,
+      sleep: { duration in
+        await sleepRecorder.record(duration)
+      }
+    )
+    let endpoint = try await runtime.start()
+    let socketDescriptor = try openConnectedSocket(path: endpoint.path)
+    defer { Darwin.close(socketDescriptor) }
+
+    do {
+      try writeRequest(.ping(id: "buffered-expire-1"), to: socketDescriptor)
+      #expect(try readByte(from: socketDescriptor) == 0)
+      #expect(await sleepRecorder.durations() == [replyTimeout])
+
+      let stream = await runtime.requests()
+      let requestTask = Task {
+        var iterator = stream.makeAsyncIterator()
+        return await iterator.next()
+      }
+
+      await runtime.stop()
+      #expect(await requestTask.value == nil)
+    } catch {
+      await runtime.stop()
+      throw error
+    }
+  }
+
+  @Test
   func repliedRequestIsNotExpiredTwice() async throws {
     let rootURL = try makeTemporaryDirectory()
     defer { try? FileManager.default.removeItem(at: rootURL) }

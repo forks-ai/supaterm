@@ -80,6 +80,7 @@ public struct SocketControlFeature {
       switch action {
       case .requestReceived(let request):
         return .run { [desktopNotificationClient, socketControlClient, socketRequestExecutor] _ in
+          guard await socketControlClient.isPending(request.handle) else { return }
           let response = await response(
             for: request.payload,
             desktopNotificationClient: desktopNotificationClient,
