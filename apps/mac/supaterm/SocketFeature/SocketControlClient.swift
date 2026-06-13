@@ -17,6 +17,7 @@ public struct SocketControlClient: Sendable {
   }
 
   public var currentEndpoint: @MainActor @Sendable () async -> SupatermSocketEndpoint?
+  public var isPending: @MainActor @Sendable (UUID) async -> Bool
   public var requests: @MainActor @Sendable () async -> AsyncStream<Request>
   public var reply: @MainActor @Sendable (UUID, SupatermSocketResponse) async -> Void
   public var start: @MainActor @Sendable () async throws -> SupatermSocketEndpoint
@@ -24,12 +25,14 @@ public struct SocketControlClient: Sendable {
 
   public nonisolated init(
     currentEndpoint: @escaping @MainActor @Sendable () async -> SupatermSocketEndpoint?,
+    isPending: @escaping @MainActor @Sendable (UUID) async -> Bool,
     requests: @escaping @MainActor @Sendable () async -> AsyncStream<Request>,
     reply: @escaping @MainActor @Sendable (UUID, SupatermSocketResponse) async -> Void,
     start: @escaping @MainActor @Sendable () async throws -> SupatermSocketEndpoint,
     stop: @escaping @MainActor @Sendable () async -> Void
   ) {
     self.currentEndpoint = currentEndpoint
+    self.isPending = isPending
     self.requests = requests
     self.reply = reply
     self.start = start
@@ -43,6 +46,9 @@ extension SocketControlClient: DependencyKey {
     return Self(
       currentEndpoint: {
         await runtime.currentEndpoint()
+      },
+      isPending: { handle in
+        await runtime.isPending(handle)
       },
       requests: {
         await runtime.requests()
@@ -63,6 +69,7 @@ extension SocketControlClient: DependencyKey {
     currentEndpoint: {
       nil
     },
+    isPending: { _ in true },
     requests: {
       AsyncStream { continuation in
         continuation.finish()

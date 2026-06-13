@@ -63,6 +63,40 @@ struct SocketControlFeatureLifecycleTests {
         )
     )
   }
+
+  @Test
+  func expiredRequestDoesNotExecuteSideEffects() async throws {
+    let recorder = SocketReplyRecorder()
+    let handle = UUID(uuidString: "A0BB14C3-962E-40E2-B105-503CF7B87B45")!
+    let request = SocketControlClient.Request(
+      handle: handle,
+      payload: try .newTab(
+        SupatermNewTabRequest(
+          startupCommand: "pwd",
+          focus: false,
+          targetWindowIndex: 1,
+          targetSpaceIndex: 1
+        ),
+        id: "expired-new-tab-1"
+      )
+    )
+
+    let store = makeStore {
+      $0.socketControlClient.isPending = { _ in false }
+      $0.socketControlClient.reply = { handle, response in
+        await recorder.record(handle: handle, response: response)
+      }
+      $0.terminalWindowsClient.createTab = { _ in
+        Issue.record("Expired request should not create a tab.")
+        throw POSIXError(.EIO)
+      }
+    }
+
+    await store.send(.requestReceived(request))
+
+    #expect(await recorder.snapshot().isEmpty)
+  }
+
   @Test
   func identityRequestRepliesWithEndpoint() async throws {
     let recorder = SocketReplyRecorder()
