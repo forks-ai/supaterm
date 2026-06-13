@@ -5,7 +5,6 @@ struct AgentMonitorSnapshot: Equatable {
   var detail: String?
   var hoverMessages: [String] = []
   var progressRows: [PaneAgentProgressRow] = []
-  var sources: [PaneAgentSource] = []
 }
 
 struct AgentPanelMonitorTick {

@@ -76,16 +76,6 @@ struct AgentPanelView: View {
         }
       }
 
-      if !presentation.sources.isEmpty {
-        section("Sources") {
-          VStack(alignment: .leading, spacing: 6) {
-            ForEach(presentation.sources) { source in
-              valueRow(icon: .system(sourceSymbol(source)), title: source.title)
-            }
-          }
-        }
-      }
-
       if let session = presentation.session {
         actionBar(session)
       }
@@ -368,12 +358,6 @@ struct AgentPanelView: View {
     }
   }
 
-  private func sourceSymbol(_ source: PaneAgentSource) -> String {
-    switch source.kind {
-    case .webSearch:
-      return "globe"
-    }
-  }
 }
 
 private enum AgentPanelIcon {

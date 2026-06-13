@@ -18,8 +18,6 @@ enum CodexTranscriptFixtures {
     case turnContext(turnID: String)
     case localShellCall(command: [String])
     case functionCall(name: String, arguments: [String: Any]? = nil)
-    case toolSearchCall(query: String)
-    case webSearch(query: String)
     case reasoning(String)
     case assistantMessage(String, phase: String? = nil)
     case agentReasoning(String)
@@ -107,29 +105,6 @@ enum CodexTranscriptFixtures {
             "name": name,
             "arguments": jsonString(arguments ?? [:]),
             "call_id": "call-1",
-          ]
-        )
-
-      case .toolSearchCall(let query):
-        object = responseItem(
-          payload: [
-            "type": "tool_search_call",
-            "execution": "search",
-            "arguments": [
-              "query": query
-            ],
-          ]
-        )
-
-      case .webSearch(let query):
-        object = responseItem(
-          payload: [
-            "type": "web_search_call",
-            "status": "completed",
-            "action": [
-              "type": "search",
-              "query": query,
-            ],
           ]
         )
 

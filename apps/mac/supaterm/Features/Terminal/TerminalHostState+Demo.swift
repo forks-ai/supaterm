@@ -134,9 +134,6 @@
             title: "localhost:3000",
             url: URL(string: "http://localhost:3000")!
           )
-        ],
-        sources: [
-          .webSearch
         ]
       )
     }

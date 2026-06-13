@@ -247,7 +247,7 @@ struct TerminalAgentPresenceStoreTests {
   }
 
   @Test
-  func restoredSessionIDsDoNotBecomePanelActionSources() throws {
+  func restoredSessionIDsDoNotBecomePanelActions() throws {
     var store = TerminalAgentPresenceStore()
     let surfaceID = UUID()
     let restoredRecord = TerminalPaneAgentRecord(

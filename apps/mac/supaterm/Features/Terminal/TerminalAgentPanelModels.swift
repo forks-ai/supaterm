@@ -5,14 +5,12 @@ nonisolated struct PaneAgentPanelPresentation: Equatable, Sendable {
   var progressRows: [PaneAgentProgressRow] = []
   var branchDetails: PaneAgentBranchDetails?
   var artifacts: [PaneAgentArtifact] = []
-  var sources: [PaneAgentSource] = []
   var session: PaneAgentPanelSession?
 
   var isEmpty: Bool {
     progressRows.isEmpty
       && branchDetails == nil
       && artifacts.isEmpty
-      && sources.isEmpty
       && session == nil
   }
 }
@@ -412,20 +410,4 @@ nonisolated struct PaneAgentArtifact: Equatable, Identifiable, Sendable {
     self.title = title
     self.url = url
   }
-}
-
-nonisolated struct PaneAgentSource: Equatable, Identifiable, Sendable {
-  enum Kind: Equatable, Sendable {
-    case webSearch
-  }
-
-  let id: String
-  let title: String
-  let kind: Kind
-
-  static let webSearch = Self(
-    id: "web-search",
-    title: "Web search",
-    kind: .webSearch
-  )
 }

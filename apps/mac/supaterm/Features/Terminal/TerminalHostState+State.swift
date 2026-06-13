@@ -518,10 +518,9 @@ extension TerminalHostState {
   @discardableResult
   func recordAgentPanelSnapshot(
     progressRows: [PaneAgentProgressRow],
-    sources: [PaneAgentSource],
     for surfaceID: UUID
   ) -> Bool {
-    guard agentPanelIsEnabled || progressRows.isEmpty && sources.isEmpty else {
+    guard agentPanelIsEnabled || progressRows.isEmpty else {
       return false
     }
     guard tabID(containing: surfaceID) != nil else {
@@ -530,7 +529,6 @@ extension TerminalHostState {
     var metadata = paneAgentMetadataBySurfaceID[surfaceID] ?? PaneAgentMetadata()
     let original = metadata
     metadata.progressRows = progressRows
-    metadata.sources = sources
     storePaneAgentMetadata(metadata, for: surfaceID)
     if metadata != original {
       agentPanelController?.surfaceAgentStateChanged(surfaceID)

@@ -166,23 +166,6 @@ struct CodexTranscriptMonitorTests {
   }
 
   @Test
-  func structuredSearchOperationsUpdateSources() throws {
-    let transcriptURL = try CodexTranscriptFixtures.makeTranscript()
-    defer { try? FileManager.default.removeItem(at: transcriptURL.deletingLastPathComponent()) }
-
-    try CodexTranscriptFixtures.append(.taskStarted(turnID: "turn-1"), to: transcriptURL)
-    try CodexTranscriptFixtures.append(.webSearch(query: "linear agent panel"), to: transcriptURL)
-    try CodexTranscriptFixtures.append(.toolSearchCall(query: "linear agent panel"), to: transcriptURL)
-
-    let result = try #require(CodexTranscriptMonitor.start(at: transcriptURL.path))
-    let batch = try #require(result.1)
-    var conversation = CodexConversationState()
-    conversation.absorb(batch.records)
-
-    #expect(conversation.sidebarSnapshot.sources == [.webSearch])
-  }
-
-  @Test
   func advanceReconstructsSyntheticReasoningStream() throws {
     let transcriptURL = try CodexTranscriptFixtures.makeTranscript()
     defer { try? FileManager.default.removeItem(at: transcriptURL.deletingLastPathComponent()) }

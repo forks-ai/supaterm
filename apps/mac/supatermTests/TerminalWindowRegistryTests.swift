@@ -802,7 +802,6 @@ struct TerminalWindowRegistryTests {
         progressRows: [
           PaneAgentProgressRow(id: "run-tests", title: "Run tests", status: .running)
         ],
-        sources: [],
         for: surfaceID
       )
       let store = Store(initialState: AppFeature.State()) {
@@ -1000,7 +999,6 @@ struct TerminalWindowRegistryTests {
           progressRows: [
             PaneAgentProgressRow(id: "run-tests", title: "Run tests", status: .running)
           ],
-          sources: [],
           for: surfaceID
         )
       )

@@ -235,7 +235,6 @@ struct TerminalAgentPanelTests {
         progressRows: [
           PaneAgentProgressRow(id: "run-tests", title: "Run tests", status: .running)
         ],
-        sources: [],
         for: surfaceID
       )
     )
