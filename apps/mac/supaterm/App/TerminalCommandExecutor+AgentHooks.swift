@@ -9,6 +9,16 @@ extension TerminalCommandExecutor {
     let subtitle: String
   }
 
+  struct AgentHookSessionRegistration {
+    let didBeginSession: Bool
+    let replacedForegroundSessionID: String?
+
+    static let none = AgentHookSessionRegistration(
+      didBeginSession: false,
+      replacedForegroundSessionID: nil
+    )
+  }
+
   func handleCommandFinished(for surfaceID: UUID) {
     agentSessionStore.clearSessions(for: surfaceID)
     for entry in registry.activeEntries() where entry.terminal.clearAgentPresence(for: surfaceID) {
@@ -25,7 +35,8 @@ extension TerminalCommandExecutor {
 
   func handleAgentHook(_ request: SupatermAgentHookRequest) throws -> TerminalAgentHookResult {
     pruneDeadAgentProcesses()
-    let didBeginSession = registerAgentHookSession(request)
+    let sessionRegistration = registerAgentHookSession(request)
+    clearReplacedForegroundSessionIfNeeded(request, sessionRegistration: sessionRegistration)
     let routesToForegroundSession = routesAgentHookToForegroundSession(request)
 
     switch request.event.hookEventName {
@@ -42,7 +53,7 @@ extension TerminalCommandExecutor {
       return handleToolStateAgentHook(
         request,
         routesToForegroundSession: routesToForegroundSession,
-        didBeginSession: didBeginSession
+        didBeginSession: sessionRegistration.didBeginSession
       )
 
     case .userPromptSubmit:
@@ -315,28 +326,54 @@ extension TerminalCommandExecutor {
 
   func registerAgentHookSession(
     _ request: SupatermAgentHookRequest
-  ) -> Bool {
-    guard let sessionID = request.event.sessionID else { return false }
+  ) -> AgentHookSessionRegistration {
+    guard let sessionID = request.event.sessionID else { return .none }
     let sessionExists = agentSessionStore.hasSession(agent: request.agent, sessionID: sessionID)
     if request.event.hookEventName == .sessionStart
       || shouldRecoverAgentSessionBinding(request, sessionExists: sessionExists)
     {
-      agentSessionStore.beginSession(
+      let replacedForegroundSessionID = agentSessionStore.beginSession(
         agent: request.agent,
         sessionID: sessionID,
         context: request.context,
         transcriptPath: request.event.transcriptPath
       )
-      return true
+      return AgentHookSessionRegistration(
+        didBeginSession: true,
+        replacedForegroundSessionID: replacedForegroundSessionID
+      )
     }
-    guard sessionExists else { return false }
+    guard sessionExists else { return .none }
     agentSessionStore.updateSession(
       agent: request.agent,
       sessionID: sessionID,
       context: request.context,
       transcriptPath: request.event.transcriptPath
     )
-    return false
+    return AgentHookSessionRegistration(didBeginSession: false, replacedForegroundSessionID: nil)
+  }
+
+  func clearReplacedForegroundSessionIfNeeded(
+    _ request: SupatermAgentHookRequest,
+    sessionRegistration: AgentHookSessionRegistration
+  ) {
+    guard let sessionID = sessionRegistration.replacedForegroundSessionID else { return }
+    _ = clearAgentPresence(
+      agent: request.agent,
+      sessionID: sessionID,
+      context: request.context,
+      processID: nil
+    )
+    _ = clearAgentHoverMessages(
+      agent: request.agent,
+      context: request.context,
+      sessionID: sessionID
+    )
+    _ = clearAgentPanelSnapshot(
+      agent: request.agent,
+      context: request.context,
+      sessionID: sessionID
+    )
   }
 
   func shouldRecoverAgentSessionBinding(

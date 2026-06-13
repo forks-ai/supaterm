@@ -912,7 +912,44 @@ struct TerminalCommandExecutorAgentHookTests {
     #expect(harness.host.codexHoverMarkdown(for: harness.tabID) == "Done.")
   }
   @Test
-  func codexBackgroundSessionStopDoesNotNotifyForegroundPane() throws {
+  func codexNewSamePaneSessionReplacesForkActionSource() throws {
+    let harness = try makeClaudeHookHarness()
+
+    _ = try harness.commandExecutor.handleAgentHook(
+      codexHookRequest(
+        sessionID: "parent-session",
+        hookEventName: .sessionStart,
+        context: harness.context
+      )
+    )
+    _ = try harness.commandExecutor.handleAgentHook(
+      codexHookRequest(
+        sessionID: "parent-session",
+        hookEventName: .userPromptSubmit,
+        context: harness.context
+      )
+    )
+    _ = try harness.commandExecutor.handleAgentHook(
+      codexHookRequest(
+        sessionID: "child-session",
+        hookEventName: .sessionStart,
+        context: harness.context
+      )
+    )
+    _ = try harness.commandExecutor.handleAgentHook(
+      codexHookRequest(
+        sessionID: "child-session",
+        hookEventName: .userPromptSubmit,
+        context: harness.context
+      )
+    )
+
+    let session = try #require(harness.host.agentPanelPresentation(for: harness.context.surfaceID)?.session)
+    #expect(session == PaneAgentPanelSession.supported(agent: .codex, sessionID: "child-session"))
+    #expect(session.forkStartupCommand.contains("codex fork child-session"))
+  }
+  @Test
+  func codexSamePaneSessionStartRoutesStopToNewestSession() throws {
     let harness = try makeClaudeHookHarness(windowActivity: .inactive)
 
     _ = try harness.commandExecutor.handleAgentHook(
@@ -938,11 +975,19 @@ struct TerminalCommandExecutorAgentHookTests {
       )
     )
 
-    #expect(result.desktopNotification == nil)
-    #expect(harness.host.unreadNotificationCount(for: harness.tabID) == 0)
-    #expect(harness.host.unreadNotifiedSurfaceIDs(in: harness.tabID).isEmpty)
-    #expect(harness.host.latestNotificationText(for: harness.tabID) == nil)
-    #expect(harness.host.codexHoverMarkdown(for: harness.tabID) == nil)
+    #expect(
+      result.desktopNotification
+        == DesktopNotificationRequest(
+          body: "Child done.",
+          subtitle: "Turn complete",
+          title: "Codex",
+          sourceSurfaceID: harness.context.surfaceID
+        )
+    )
+    #expect(harness.host.unreadNotificationCount(for: harness.tabID) == 1)
+    #expect(harness.host.unreadNotifiedSurfaceIDs(in: harness.tabID) == Set([harness.context.surfaceID]))
+    #expect(harness.host.latestNotificationText(for: harness.tabID) == "Child done.")
+    #expect(harness.host.codexHoverMarkdown(for: harness.tabID) == "Child done.")
   }
   @Test
   func codexStopAfterCommandFinishedDoesNotRoute() throws {

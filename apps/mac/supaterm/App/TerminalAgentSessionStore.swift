@@ -58,12 +58,13 @@ final class TerminalAgentSessionStore {
     }
   }
 
+  @discardableResult
   func beginSession(
     agent: SupatermAgentKind,
     sessionID: String,
     context: SupatermCLIContext?,
     transcriptPath: String?
-  ) {
+  ) -> String? {
     let key = SessionKey(agent: agent, sessionID: sessionID)
     var session =
       sessions[key]
@@ -72,22 +73,24 @@ final class TerminalAgentSessionStore {
         surfaceID: nil,
         transcriptPath: nil
       )
+    var replacedForegroundSessionID: String?
     if let surfaceID = context?.surfaceID {
       session.surfaceID = surfaceID
       let surfaceKey = SurfaceKey(agent: agent, surfaceID: surfaceID)
       if let foregroundSessionID = foregroundSessionsBySurface[surfaceKey],
         foregroundSessionID != sessionID
       {
-        session.routing = .background
-      } else {
-        foregroundSessionsBySurface[surfaceKey] = sessionID
-        session.routing = .foreground
+        removeSession(agent: agent, sessionID: foregroundSessionID)
+        replacedForegroundSessionID = foregroundSessionID
       }
+      foregroundSessionsBySurface[surfaceKey] = sessionID
+      session.routing = .foreground
     }
     if let transcriptPath {
       session.transcriptPath = transcriptPath
     }
     sessions[key] = session
+    return replacedForegroundSessionID
   }
 
   func updateSession(
@@ -132,11 +135,7 @@ final class TerminalAgentSessionStore {
     agent: SupatermAgentKind,
     sessionID: String
   ) {
-    let key = SessionKey(agent: agent, sessionID: sessionID)
-    cancelAgentPanelTracking(agent: agent, sessionID: sessionID)
-    cancelRunningTimeout(agent: agent, sessionID: sessionID)
-    removeForegroundSessionIfNeeded(for: key)
-    sessions.removeValue(forKey: key)
+    removeSession(agent: agent, sessionID: sessionID)
   }
 
   func clearSessions(for surfaceID: UUID) {
@@ -298,6 +297,17 @@ final class TerminalAgentSessionStore {
   ) {
     runningTimeoutTasks.removeValue(forKey: key)
     onRunningTimeoutExpired(agent, sessionID, context)
+  }
+
+  private func removeSession(
+    agent: SupatermAgentKind,
+    sessionID: String
+  ) {
+    let key = SessionKey(agent: agent, sessionID: sessionID)
+    cancelAgentPanelTracking(agent: agent, sessionID: sessionID)
+    cancelRunningTimeout(agent: agent, sessionID: sessionID)
+    removeForegroundSessionIfNeeded(for: key)
+    sessions.removeValue(forKey: key)
   }
 
   private func removeForegroundSessionIfNeeded(
