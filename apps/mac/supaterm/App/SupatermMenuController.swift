@@ -110,170 +110,30 @@ final class SupatermMenuController: NSObject {
 
   private lazy var servicesMenu = NSMenu(title: "Services")
 
+  private lazy var topLevelMenus: [String: NSMenu] = {
+    var menus: [String: NSMenu] = [:]
+    for section in menuLayout() {
+      precondition(menus[section.title] == nil, "Duplicate menu section \(section.title)")
+      menus[section.title] = buildMenu(title: section.title, entries: section.entries)
+    }
+    return menus
+  }()
+
   private lazy var mainMenu: NSMenu = {
     let menu = NSMenu(title: "Supaterm")
-    menu.addItem(topLevelMenuItem(title: appName, submenu: appMenu))
-    menu.addItem(topLevelMenuItem(title: "File", submenu: fileMenu))
-    menu.addItem(topLevelMenuItem(title: "Edit", submenu: editMenu))
-    menu.addItem(topLevelMenuItem(title: "View", submenu: viewMenu))
-    menu.addItem(topLevelMenuItem(title: "Tabs", submenu: tabsMenu))
-    menu.addItem(topLevelMenuItem(title: "Spaces", submenu: spacesMenu))
-    menu.addItem(topLevelMenuItem(title: "Window", submenu: windowMenu))
-    menu.addItem(topLevelMenuItem(title: "Help", submenu: helpMenu))
-    return menu
-  }()
-
-  private lazy var appMenu: NSMenu = {
-    let menu = NSMenu(title: appName)
-    menu.addItem(menuItem(MenuItemIdentifier.about))
-    menu.addItem(menuItem(MenuItemIdentifier.settings))
-    menu.addItem(.separator())
-    menu.addItem(menuItem(MenuItemIdentifier.checkForUpdates))
-    menu.addItem(.separator())
-    let servicesItem = NSMenuItem(title: "Services", action: nil, keyEquivalent: "")
-    servicesItem.submenu = servicesMenu
-    menu.addItem(servicesItem)
-    menu.addItem(.separator())
-    menu.addItem(systemItem(title: "Hide \(appName)", action: #selector(NSApplication.hide(_:)), keyEquivalent: "h"))
-    let hideOthers = systemItem(
-      title: "Hide Others",
-      action: #selector(NSApplication.hideOtherApplications(_:)),
-      keyEquivalent: "h"
-    )
-    hideOthers.keyEquivalentModifierMask = [.command, .option]
-    menu.addItem(hideOthers)
-    menu.addItem(systemItem(title: "Show All", action: #selector(NSApplication.unhideAllApplications(_:))))
-    menu.addItem(.separator())
-    menu.addItem(menuItem(MenuItemIdentifier.quitTerminatingSessions))
-    menu.addItem(menuItem(MenuItemIdentifier.quit))
-    return menu
-  }()
-
-  private lazy var fileMenu: NSMenu = {
-    let menu = NSMenu(title: "File")
-    menu.addItem(menuItem(MenuItemIdentifier.newWindow))
-    menu.addItem(menuItem(MenuItemIdentifier.newTab))
-    menu.addItem(menuItem(MenuItemIdentifier.openCommandPalette))
-    menu.addItem(.separator())
-    menu.addItem(menuItem(MenuItemIdentifier.splitRight))
-    menu.addItem(menuItem(MenuItemIdentifier.splitLeft))
-    menu.addItem(menuItem(MenuItemIdentifier.splitDown))
-    menu.addItem(menuItem(MenuItemIdentifier.splitUp))
-    menu.addItem(.separator())
-    menu.addItem(menuItem(MenuItemIdentifier.closeSurface))
-    menu.addItem(menuItem(MenuItemIdentifier.closeTab))
-    menu.addItem(menuItem(MenuItemIdentifier.closeWindow))
-    menu.addItem(menuItem(MenuItemIdentifier.closeAllWindows))
-    menu.addItem(.separator())
-    menu.addItem(menuItem(MenuItemIdentifier.terminateAllTerminalSessions))
-    return menu
-  }()
-
-  private lazy var editMenu: NSMenu = {
-    let menu = NSMenu(title: "Edit")
-    menu.addItem(systemItem(title: "Undo", action: #selector(UndoManager.undo)))
-    menu.addItem(systemItem(title: "Redo", action: #selector(UndoManager.redo)))
-    menu.addItem(.separator())
-    menu.addItem(menuItem(MenuItemIdentifier.copy))
-    menu.addItem(menuItem(MenuItemIdentifier.paste))
-    menu.addItem(menuItem(MenuItemIdentifier.pasteSelection))
-    menu.addItem(menuItem(MenuItemIdentifier.selectAll))
-    menu.addItem(.separator())
-    let findMenuItem = NSMenuItem(title: "Find", action: nil, keyEquivalent: "")
-    findMenuItem.submenu = findMenu
-    menu.addItem(findMenuItem)
-    return menu
-  }()
-
-  private lazy var findMenu: NSMenu = {
-    let menu = NSMenu(title: "Find")
-    menu.addItem(menuItem(MenuItemIdentifier.find))
-    menu.addItem(menuItem(MenuItemIdentifier.findNext))
-    menu.addItem(menuItem(MenuItemIdentifier.findPrevious))
-    menu.addItem(.separator())
-    menu.addItem(menuItem(MenuItemIdentifier.hideFindBar))
-    menu.addItem(.separator())
-    menu.addItem(menuItem(MenuItemIdentifier.selectionForFind))
-    return menu
-  }()
-
-  private lazy var viewMenu: NSMenu = {
-    let menu = NSMenu(title: "View")
-    menu.addItem(menuItem(MenuItemIdentifier.toggleSidebar))
-    menu.addItem(menuItem(MenuItemIdentifier.toggleAgentPanel))
-    menu.addItem(menuItem(MenuItemIdentifier.forkAgentSession))
-    menu.addItem(menuItem(MenuItemIdentifier.copyAgentSessionID))
-    menu.addItem(.separator())
-    menu.addItem(menuItem(MenuItemIdentifier.changeTabTitle))
-    menu.addItem(menuItem(MenuItemIdentifier.changeTerminalTitle))
-    return menu
-  }()
-
-  private lazy var tabsMenu: NSMenu = {
-    let menu = NSMenu(title: "Tabs")
-    menu.addItem(menuItem(MenuItemIdentifier.nextTab))
-    menu.addItem(menuItem(MenuItemIdentifier.previousTab))
-    menu.addItem(.separator())
-    for item in slotItems(withPrefix: MenuItemIdentifier.selectTabPrefix) {
-      menu.addItem(item)
-    }
-    menu.addItem(menuItem(MenuItemIdentifier.selectLastTab))
-    return menu
-  }()
-
-  private lazy var spacesMenu: NSMenu = {
-    let menu = NSMenu(title: "Spaces")
-    for item in slotItems(withPrefix: MenuItemIdentifier.selectSpacePrefix) {
-      menu.addItem(item)
+    for section in menuLayout() {
+      menu.addItem(topLevelMenuItem(title: section.title, submenu: topLevelMenu(section.title)))
     }
     return menu
   }()
 
-  private lazy var windowMenu: NSMenu = {
-    let menu = NSMenu(title: "Window")
-    menu.addItem(systemItem(title: "Minimize", action: #selector(NSWindow.performMiniaturize(_:)), keyEquivalent: "m"))
-    menu.addItem(systemItem(title: "Zoom", action: #selector(NSWindow.performZoom(_:))))
-    menu.addItem(.separator())
-    menu.addItem(menuItem(MenuItemIdentifier.zoomSplit))
-    menu.addItem(menuItem(MenuItemIdentifier.previousSplit))
-    menu.addItem(menuItem(MenuItemIdentifier.nextSplit))
-    let selectSplitMenuItem = NSMenuItem(title: "Select Split", action: nil, keyEquivalent: "")
-    selectSplitMenuItem.submenu = selectSplitMenu
-    menu.addItem(selectSplitMenuItem)
-    let resizeSplitMenuItem = NSMenuItem(title: "Resize Split", action: nil, keyEquivalent: "")
-    resizeSplitMenuItem.submenu = resizeSplitMenu
-    menu.addItem(resizeSplitMenuItem)
-    menu.addItem(.separator())
-    menu.addItem(systemItem(title: "Bring All to Front", action: #selector(NSApplication.arrangeInFront(_:))))
-    return menu
-  }()
+  private var windowMenu: NSMenu {
+    topLevelMenu("Window")
+  }
 
-  private lazy var helpMenu: NSMenu = {
-    let menu = NSMenu(title: "Help")
-    menu.addItem(menuItem(MenuItemIdentifier.changelog))
-    menu.addItem(menuItem(MenuItemIdentifier.submitGitHubIssue))
-    return menu
-  }()
-
-  private lazy var selectSplitMenu: NSMenu = {
-    let menu = NSMenu(title: "Select Split")
-    menu.addItem(menuItem(MenuItemIdentifier.selectSplitAbove))
-    menu.addItem(menuItem(MenuItemIdentifier.selectSplitBelow))
-    menu.addItem(menuItem(MenuItemIdentifier.selectSplitLeft))
-    menu.addItem(menuItem(MenuItemIdentifier.selectSplitRight))
-    return menu
-  }()
-
-  private lazy var resizeSplitMenu: NSMenu = {
-    let menu = NSMenu(title: "Resize Split")
-    menu.addItem(menuItem(MenuItemIdentifier.equalizeSplits))
-    menu.addItem(.separator())
-    menu.addItem(menuItem(MenuItemIdentifier.moveSplitDividerUp))
-    menu.addItem(menuItem(MenuItemIdentifier.moveSplitDividerDown))
-    menu.addItem(menuItem(MenuItemIdentifier.moveSplitDividerLeft))
-    menu.addItem(menuItem(MenuItemIdentifier.moveSplitDividerRight))
-    return menu
-  }()
+  private var helpMenu: NSMenu {
+    topLevelMenu("Help")
+  }
 
   private struct MenuEntry {
     let spec: SupatermMenuItemSpec
@@ -295,6 +155,241 @@ final class SupatermMenuController: NSObject {
     menuEntries
       .filter { $0.spec.id?.rawValue.hasPrefix(prefix) == true }
       .map(\.item)
+  }
+
+  private func topLevelMenu(_ title: String) -> NSMenu {
+    guard let menu = topLevelMenus[title] else {
+      preconditionFailure("Missing menu section \(title)")
+    }
+    return menu
+  }
+
+  private func buildMenu(title: String, entries: [SupatermMenuEntrySpec]) -> NSMenu {
+    let menu = NSMenu(title: title)
+    for entry in entries {
+      switch entry {
+      case .item(let id):
+        menu.addItem(menuItem(id))
+      case .separator:
+        menu.addItem(.separator())
+      case .system(let title, let action, let keyEquivalent, let modifiers):
+        let item = systemItem(title: title, action: action, keyEquivalent: keyEquivalent)
+        if let modifiers {
+          item.keyEquivalentModifierMask = modifiers
+        }
+        menu.addItem(item)
+      case .submenu(let title, let entries):
+        let item = NSMenuItem(title: title, action: nil, keyEquivalent: "")
+        item.submenu = buildMenu(title: title, entries: entries)
+        menu.addItem(item)
+      case .services(let title):
+        let item = NSMenuItem(title: title, action: nil, keyEquivalent: "")
+        item.submenu = servicesMenu
+        menu.addItem(item)
+      case .slots(let prefix):
+        for item in slotItems(withPrefix: prefix) {
+          menu.addItem(item)
+        }
+      }
+    }
+    return menu
+  }
+
+  func builtMainMenu() -> NSMenu {
+    mainMenu
+  }
+
+  func menuLayout() -> [SupatermMenuSectionSpec] {
+    [
+      appMenuLayout(),
+      fileMenuLayout(),
+      editMenuLayout(),
+      viewMenuLayout(),
+      tabsMenuLayout(),
+      spacesMenuLayout(),
+      windowMenuLayout(),
+      helpMenuLayout(),
+    ]
+  }
+
+  private func appMenuLayout() -> SupatermMenuSectionSpec {
+    SupatermMenuSectionSpec(
+      title: appName,
+      entries: [
+        .item(MenuItemIdentifier.about),
+        .item(MenuItemIdentifier.settings),
+        .separator,
+        .item(MenuItemIdentifier.checkForUpdates),
+        .separator,
+        .services(title: "Services"),
+        .separator,
+        .system(
+          title: "Hide \(appName)",
+          action: #selector(NSApplication.hide(_:)),
+          keyEquivalent: "h",
+          modifiers: nil
+        ),
+        .system(
+          title: "Hide Others",
+          action: #selector(NSApplication.hideOtherApplications(_:)),
+          keyEquivalent: "h",
+          modifiers: [.command, .option]
+        ),
+        .system(
+          title: "Show All",
+          action: #selector(NSApplication.unhideAllApplications(_:)),
+          keyEquivalent: "",
+          modifiers: nil
+        ),
+        .separator,
+        .item(MenuItemIdentifier.quitTerminatingSessions),
+        .item(MenuItemIdentifier.quit),
+      ]
+    )
+  }
+
+  private func fileMenuLayout() -> SupatermMenuSectionSpec {
+    SupatermMenuSectionSpec(
+      title: "File",
+      entries: [
+        .item(MenuItemIdentifier.newWindow),
+        .item(MenuItemIdentifier.newTab),
+        .item(MenuItemIdentifier.openCommandPalette),
+        .separator,
+        .item(MenuItemIdentifier.splitRight),
+        .item(MenuItemIdentifier.splitLeft),
+        .item(MenuItemIdentifier.splitDown),
+        .item(MenuItemIdentifier.splitUp),
+        .separator,
+        .item(MenuItemIdentifier.closeSurface),
+        .item(MenuItemIdentifier.closeTab),
+        .item(MenuItemIdentifier.closeWindow),
+        .item(MenuItemIdentifier.closeAllWindows),
+        .separator,
+        .item(MenuItemIdentifier.terminateAllTerminalSessions),
+      ]
+    )
+  }
+
+  private func editMenuLayout() -> SupatermMenuSectionSpec {
+    SupatermMenuSectionSpec(
+      title: "Edit",
+      entries: [
+        .system(title: "Undo", action: #selector(UndoManager.undo), keyEquivalent: "", modifiers: nil),
+        .system(title: "Redo", action: #selector(UndoManager.redo), keyEquivalent: "", modifiers: nil),
+        .separator,
+        .item(MenuItemIdentifier.copy),
+        .item(MenuItemIdentifier.paste),
+        .item(MenuItemIdentifier.pasteSelection),
+        .item(MenuItemIdentifier.selectAll),
+        .separator,
+        .submenu(
+          title: "Find",
+          entries: [
+            .item(MenuItemIdentifier.find),
+            .item(MenuItemIdentifier.findNext),
+            .item(MenuItemIdentifier.findPrevious),
+            .separator,
+            .item(MenuItemIdentifier.hideFindBar),
+            .separator,
+            .item(MenuItemIdentifier.selectionForFind),
+          ]
+        ),
+      ]
+    )
+  }
+
+  private func viewMenuLayout() -> SupatermMenuSectionSpec {
+    SupatermMenuSectionSpec(
+      title: "View",
+      entries: [
+        .item(MenuItemIdentifier.toggleSidebar),
+        .item(MenuItemIdentifier.toggleAgentPanel),
+        .item(MenuItemIdentifier.forkAgentSession),
+        .item(MenuItemIdentifier.copyAgentSessionID),
+        .separator,
+        .item(MenuItemIdentifier.changeTabTitle),
+        .item(MenuItemIdentifier.changeTerminalTitle),
+      ]
+    )
+  }
+
+  private func tabsMenuLayout() -> SupatermMenuSectionSpec {
+    SupatermMenuSectionSpec(
+      title: "Tabs",
+      entries: [
+        .item(MenuItemIdentifier.nextTab),
+        .item(MenuItemIdentifier.previousTab),
+        .separator,
+        .slots(prefix: MenuItemIdentifier.selectTabPrefix),
+        .item(MenuItemIdentifier.selectLastTab),
+      ]
+    )
+  }
+
+  private func spacesMenuLayout() -> SupatermMenuSectionSpec {
+    SupatermMenuSectionSpec(
+      title: "Spaces",
+      entries: [
+        .slots(prefix: MenuItemIdentifier.selectSpacePrefix)
+      ]
+    )
+  }
+
+  private func windowMenuLayout() -> SupatermMenuSectionSpec {
+    SupatermMenuSectionSpec(
+      title: "Window",
+      entries: [
+        .system(
+          title: "Minimize",
+          action: #selector(NSWindow.performMiniaturize(_:)),
+          keyEquivalent: "m",
+          modifiers: nil
+        ),
+        .system(title: "Zoom", action: #selector(NSWindow.performZoom(_:)), keyEquivalent: "", modifiers: nil),
+        .separator,
+        .item(MenuItemIdentifier.zoomSplit),
+        .item(MenuItemIdentifier.previousSplit),
+        .item(MenuItemIdentifier.nextSplit),
+        .submenu(
+          title: "Select Split",
+          entries: [
+            .item(MenuItemIdentifier.selectSplitAbove),
+            .item(MenuItemIdentifier.selectSplitBelow),
+            .item(MenuItemIdentifier.selectSplitLeft),
+            .item(MenuItemIdentifier.selectSplitRight),
+          ]
+        ),
+        .submenu(
+          title: "Resize Split",
+          entries: [
+            .item(MenuItemIdentifier.equalizeSplits),
+            .separator,
+            .item(MenuItemIdentifier.moveSplitDividerUp),
+            .item(MenuItemIdentifier.moveSplitDividerDown),
+            .item(MenuItemIdentifier.moveSplitDividerLeft),
+            .item(MenuItemIdentifier.moveSplitDividerRight),
+          ]
+        ),
+        .separator,
+        .system(
+          title: "Bring All to Front",
+          action: #selector(NSApplication.arrangeInFront(_:)),
+          keyEquivalent: "",
+          modifiers: nil
+        ),
+      ]
+    )
+  }
+
+  private func helpMenuLayout() -> SupatermMenuSectionSpec {
+    SupatermMenuSectionSpec(
+      title: "Help",
+      entries: [
+        .item(MenuItemIdentifier.changelog),
+        .item(MenuItemIdentifier.submitGitHubIssue),
+      ]
+    )
   }
 
   func menuItemSpecs() -> [SupatermMenuItemSpec] {
