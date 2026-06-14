@@ -181,6 +181,35 @@ enum ClaudeProgressFixtures {
     )
   }
 
+  static func appendGoalStatus(
+    condition: String,
+    met: Bool,
+    timestamp: String = "2026-06-14T14:24:06.660Z",
+    to transcriptURL: URL
+  ) throws {
+    var attachment: [String: Any] = [
+      "type": "goal_status",
+      "condition": condition,
+      "met": met,
+    ]
+    if !met {
+      attachment["sentinel"] = true
+    } else {
+      attachment["reason"] = "Condition met"
+      attachment["iterations"] = 1
+      attachment["durationMs"] = 7056
+      attachment["tokens"] = 76
+    }
+    try appendLine(
+      [
+        "type": "attachment",
+        "timestamp": timestamp,
+        "attachment": attachment,
+      ],
+      to: transcriptURL
+    )
+  }
+
   static func writeTask(
     id: String,
     subject: String,

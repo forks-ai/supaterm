@@ -176,6 +176,115 @@ struct ClaudeProgressMonitorTests {
   }
 
   @Test
+  func goalStatusTranscriptPrependsGoalProgressRow() throws {
+    let transcriptURL = try ClaudeProgressFixtures.makeTranscript()
+    defer { try? FileManager.default.removeItem(at: transcriptURL.deletingLastPathComponent()) }
+
+    try ClaudeProgressFixtures.appendGoalStatus(
+      condition: "Ship session goal progress",
+      met: false,
+      to: transcriptURL
+    )
+    try ClaudeProgressFixtures.appendTodoWrite(
+      [
+        ["content": "Read transcript", "status": "completed"],
+        ["content": "Wire rows", "status": "in_progress"],
+      ],
+      to: transcriptURL
+    )
+
+    let result = ClaudeTranscriptProgressMonitor.start(at: transcriptURL.path)
+
+    #expect(
+      result.rows == [
+        PaneAgentProgressRow(
+          id: "claude-goal:Ship session goal progress",
+          title: "Goal: Ship session goal progress",
+          status: .running
+        ),
+        PaneAgentProgressRow(
+          id: "claude-todo:0:Read transcript",
+          title: "Read transcript",
+          status: .completed
+        ),
+        PaneAgentProgressRow(
+          id: "claude-todo:1:Wire rows",
+          title: "Wire rows",
+          status: .running
+        ),
+      ]
+    )
+  }
+
+  @Test
+  func completedGoalStatusMarksGoalProgressRowCompleted() throws {
+    let transcriptURL = try ClaudeProgressFixtures.makeTranscript()
+    defer { try? FileManager.default.removeItem(at: transcriptURL.deletingLastPathComponent()) }
+
+    try ClaudeProgressFixtures.appendGoalStatus(
+      condition: "Ship session goal progress",
+      met: true,
+      to: transcriptURL
+    )
+
+    let result = ClaudeTranscriptProgressMonitor.start(at: transcriptURL.path)
+
+    #expect(
+      result.rows == [
+        PaneAgentProgressRow(
+          id: "claude-goal:Ship session goal progress",
+          title: "Goal: Ship session goal progress",
+          status: .completed
+        )
+      ]
+    )
+  }
+
+  @MainActor
+  @Test
+  func panelMonitorKeepsGoalRowWhenTaskFilesExist() throws {
+    let homeDirectoryURL = try ClaudeProgressFixtures.makeHomeDirectory()
+    defer { try? FileManager.default.removeItem(at: homeDirectoryURL) }
+    let transcriptURL = try ClaudeProgressFixtures.makeTranscript()
+    defer { try? FileManager.default.removeItem(at: transcriptURL.deletingLastPathComponent()) }
+
+    try ClaudeProgressFixtures.appendGoalStatus(
+      condition: "Ship session goal progress",
+      met: false,
+      to: transcriptURL
+    )
+    try ClaudeProgressFixtures.writeTask(
+      id: "1",
+      subject: "Task file row",
+      status: "in_progress",
+      sessionID: "session:123",
+      homeDirectoryURL: homeDirectoryURL
+    )
+
+    let monitor = ClaudePanelMonitor(
+      sessionID: "session:123",
+      homeDirectoryURL: homeDirectoryURL,
+      transcriptPath: { transcriptURL.path }
+    )
+    let tick = try #require(monitor.start())
+
+    #expect(
+      tick.snapshot.progressRows == [
+        PaneAgentProgressRow(
+          id: "claude-goal:Ship session goal progress",
+          title: "Goal: Ship session goal progress",
+          status: .running
+        ),
+        PaneAgentProgressRow(
+          id: "claude-task:1",
+          title: "Task file row",
+          status: .running
+        ),
+      ]
+    )
+  }
+
+  @Test
   func taskCreateAndUpdateTranscriptProducesProgressRows() throws {
     let transcriptURL = try ClaudeProgressFixtures.makeTranscript()
     defer { try? FileManager.default.removeItem(at: transcriptURL.deletingLastPathComponent()) }

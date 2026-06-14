@@ -67,6 +67,46 @@ struct TerminalCommandExecutorAgentHookTests {
     )
   }
   @Test
+  func sessionTranscriptGoalStatusUpdatesPanelProgressRows() async throws {
+    let clock = TestClock()
+    let harness = try makeClaudeHookHarness(
+      agentRunningTimeout: .milliseconds(10),
+      clock: clock
+    )
+    let transcriptURL = try ClaudeProgressFixtures.makeTranscript()
+    defer { try? FileManager.default.removeItem(at: transcriptURL.deletingLastPathComponent()) }
+
+    _ = try harness.commandExecutor.handleAgentHook(
+      SupatermAgentHookRequest(
+        agent: .claude,
+        context: harness.context,
+        event: SupatermAgentHookEvent(
+          cwd: ClaudeHookFixtures.cwd,
+          hookEventName: .sessionStart,
+          sessionID: ClaudeHookFixtures.sessionID,
+          transcriptPath: transcriptURL.path
+        )
+      )
+    )
+
+    try ClaudeProgressFixtures.appendGoalStatus(
+      condition: "Ship session goal progress",
+      met: false,
+      to: transcriptURL
+    )
+    await advanceClock(clock)
+
+    #expect(
+      harness.host.agentPanelPresentation(for: harness.context.surfaceID)?.progressRows == [
+        PaneAgentProgressRow(
+          id: "claude-goal:Ship session goal progress",
+          title: "Goal: Ship session goal progress",
+          status: .running
+        )
+      ]
+    )
+  }
+  @Test
   func claudePreToolUseMarksTabRunning() throws {
     let harness = try makeClaudeHookHarness()
 

@@ -158,9 +158,13 @@ private struct ClaudePendingTask: Equatable {
 private struct ClaudeTranscriptTaskState: Equatable {
   var tasks: [String: ClaudeProgressTask] = [:]
   var pendingCreates: [String: ClaudePendingTask] = [:]
+  var goalRow: PaneAgentProgressRow?
 
   mutating func apply(_ object: JSONObject) -> [PaneAgentProgressRow]? {
     let timestamp = Self.timestamp(in: object) ?? Date()
+    if let rows = applyGoalStatus(object) {
+      return rows
+    }
     if let rows = applyTaskReminder(object, timestamp: timestamp) {
       return rows
     }
@@ -195,7 +199,7 @@ private struct ClaudeTranscriptTaskState: Equatable {
       tasks[task.taskID] = task
     }
     pendingCreates.removeAll()
-    return taskRows()
+    return displayRows(taskRows())
   }
 
   private mutating func applyAssistantLine(
@@ -224,11 +228,11 @@ private struct ClaudeTranscriptTaskState: Equatable {
     }
     if let latestTodoRows {
       if taskRows().isEmpty {
-        return latestTodoRows
+        return displayRows(latestTodoRows)
       }
     }
     guard didChangeTasks else { return nil }
-    return taskRows()
+    return displayRows(taskRows())
   }
 
   private mutating func applyUserLine(
@@ -267,7 +271,7 @@ private struct ClaudeTranscriptTaskState: Equatable {
       didChangeTasks = true
     }
     guard didChangeTasks else { return nil }
-    return taskRows()
+    return displayRows(taskRows())
   }
 
   private mutating func applyTaskCreate(
@@ -356,6 +360,36 @@ private struct ClaudeTranscriptTaskState: Equatable {
 
   private func taskRows() -> [PaneAgentProgressRow] {
     ClaudeProgressTaskOrdering.rows(Array(tasks.values))
+  }
+
+  func displayRows(_ rows: [PaneAgentProgressRow]) -> [PaneAgentProgressRow] {
+    if let goalRow {
+      return [goalRow] + rows
+    }
+    return rows
+  }
+
+  private mutating func applyGoalStatus(_ object: JSONObject) -> [PaneAgentProgressRow]? {
+    guard
+      object["type"]?.stringValue == "attachment",
+      let attachment = object["attachment"]?.objectValue,
+      attachment["type"]?.stringValue == "goal_status"
+    else {
+      return nil
+    }
+    goalRow = Self.goalRow(from: attachment)
+    return displayRows(taskRows())
+  }
+
+  private static func goalRow(from object: JSONObject) -> PaneAgentProgressRow? {
+    guard let condition = AgentProgressParsing.normalizedTitle(object["condition"]?.stringValue) else {
+      return nil
+    }
+    return PaneAgentProgressRow(
+      id: "claude-goal:\(condition)",
+      title: "Goal: \(condition)",
+      status: object["met"]?.boolValue == true ? .completed : .running
+    )
   }
 
   private static func task(
@@ -468,7 +502,11 @@ final class ClaudePanelMonitor: AgentPanelMonitor {
       sessionID: sessionID,
       homeDirectoryURL: homeDirectoryURL
     )
-    return AgentMonitorSnapshot(progressRows: taskRows.isEmpty ? transcriptRows : taskRows)
+    let rows =
+      taskRows.isEmpty
+      ? transcriptRows
+      : cursor.transcriptState.displayRows(taskRows)
+    return AgentMonitorSnapshot(progressRows: rows)
   }
 }
 
