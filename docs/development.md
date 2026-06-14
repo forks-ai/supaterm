@@ -55,3 +55,5 @@ Panes inherit `SUPATERM_STATE_HOME`, so `sp` commands launched inside the app us
 Tests that exercise polling or timeout behavior should inject a clock and advance it instead of waiting on wall clock time.
 
 In tests, use `TestClock` from `Clocks` and call `advance(by:)` rather than sleeping for a real poll interval or timeout.
+
+When parsing Codex, Claude Code, or any coding-agent integration, inspect real JSONL files, transcript files, or hook payloads before designing parser behavior. Do not infer event shapes from UI text, source names, or assumptions.
