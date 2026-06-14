@@ -1049,7 +1049,6 @@ struct TerminalWindowFeatureTests {
     let tabID = UUID()
     let paneID = UUID()
     var requests: [TerminalCreatePaneRequest] = []
-    var registeredPanes: [(SupatermAgentKind, UUID)] = []
 
     let store = TestStore(initialState: TerminalWindowFeature.State()) {
       TerminalWindowFeature()
@@ -1068,9 +1067,6 @@ struct TerminalWindowFeatureTests {
           paneIndex: 2,
           paneID: paneID
         )
-      }
-      $0.terminalClient.registerForkedAgentPane = { agent, paneID in
-        registeredPanes.append((agent, paneID))
       }
     }
 
@@ -1096,9 +1092,6 @@ struct TerminalWindowFeatureTests {
         )
       ]
     )
-    #expect(registeredPanes.count == 1)
-    #expect(registeredPanes.first?.0 == .codex)
-    #expect(registeredPanes.first?.1 == paneID)
   }
 
   @Test

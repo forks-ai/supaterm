@@ -347,10 +347,9 @@ struct TerminalWindowFeature {
                 focus: true,
                 equalize: false,
                 target: .contextPane(surfaceID)
-              )
-            )
-          else { return }
-          await terminalClient.registerForkedAgentPane(session.agent, result.paneID)
+          )
+        )
+      else { return }
         }
 
       case .agentPanelURLTapped(let url):
