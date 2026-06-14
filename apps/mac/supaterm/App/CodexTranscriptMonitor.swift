@@ -81,6 +81,7 @@ struct CodexConversationTurn: Equatable {
   var lastAssistantDetail: String?
   var hoverMessages: [String] = []
   var progressRows: [PaneAgentProgressRow] = []
+  var goalRow: PaneAgentProgressRow?
 }
 
 struct CodexConversationState: Equatable {
@@ -178,7 +179,7 @@ struct CodexConversationState: Equatable {
     type: String,
     payload: JSONObject
   ) {
-    let preferredTurnID = payload["turn_id"]?.stringValue
+    let preferredTurnID = payload["turn_id"]?.stringValue ?? payload["turnId"]?.stringValue
     switch type {
     case "task_started", "turn_started":
       applyTurnStarted(payload: payload, preferredTurnID: preferredTurnID)
@@ -188,6 +189,8 @@ struct CodexConversationState: Equatable {
       applyTurnAborted(payload: payload, preferredTurnID: preferredTurnID)
     case "error":
       applyErrorEvent(payload: payload, preferredTurnID: preferredTurnID)
+    case "thread_goal_updated":
+      applyGoalUpdated(payload: payload, preferredTurnID: preferredTurnID)
     default:
       applyContentEvent(type: type, payload: payload, preferredTurnID: preferredTurnID)
     }
@@ -252,6 +255,19 @@ struct CodexConversationState: Equatable {
       }
     }
     appendItem(.event(type: "error", payload: payload), preferredTurnID: preferredTurnID)
+  }
+
+  private mutating func applyGoalUpdated(
+    payload: JSONObject,
+    preferredTurnID: String?
+  ) {
+    guard let row = Self.goalProgressRow(from: payload["goal"]?.objectValue) else {
+      appendItem(.event(type: "thread_goal_updated", payload: payload), preferredTurnID: preferredTurnID)
+      return
+    }
+    let index = ensureTurnForItem(preferredTurnID: preferredTurnID)
+    turns[index].items.append(.event(type: "thread_goal_updated", payload: payload))
+    turns[index].goalRow = row
   }
 
   private mutating func applyContentEvent(
@@ -457,6 +473,7 @@ struct CodexConversationState: Equatable {
     turns[index].lastAssistantDetail = state.lastAssistantDetail
     turns[index].hoverMessages = state.hoverMessages
     turns[index].progressRows = Self.structuredProgressRows(from: turns[index].items)
+    turns[index].goalRow = Self.structuredGoalRow(from: turns[index].items)
   }
 
   private mutating func updateDerivedMessageState(
@@ -480,6 +497,7 @@ struct CodexConversationState: Equatable {
     turn.lastAssistantDetail = state.lastAssistantDetail
     turn.hoverMessages = state.hoverMessages
     turn.progressRows = structuredProgressRows(from: turn.items)
+    turn.goalRow = structuredGoalRow(from: turn.items)
     return turn
   }
 
@@ -542,6 +560,22 @@ struct CodexConversationState: Equatable {
     return rows
   }
 
+  private static func structuredGoalRow(
+    from items: [CodexConversationItem]
+  ) -> PaneAgentProgressRow? {
+    var row: PaneAgentProgressRow?
+    for item in items {
+      guard case .event(let type, let payload) = item,
+        type == "thread_goal_updated",
+        let nextRow = goalProgressRow(from: payload["goal"]?.objectValue)
+      else {
+        continue
+      }
+      row = nextRow
+    }
+    return row
+  }
+
   static func progressRows(
     operationType: String,
     payload: JSONObject
@@ -570,6 +604,53 @@ struct CodexConversationState: Equatable {
     return rows
   }
 
+  static func goalProgressRow(
+    from goal: JSONObject?
+  ) -> PaneAgentProgressRow? {
+    guard let goal,
+      let objective = AgentProgressParsing.normalizedTitle(goal["objective"]?.stringValue)
+    else {
+      return nil
+    }
+    let statusValue = goal["status"]?.stringValue
+    let status = goalStatus(statusValue)
+    let title = goalTitle(statusValue: statusValue, objective: objective)
+    return PaneAgentProgressRow(
+      id: "goal:\(objective)",
+      title: title,
+      status: status
+    )
+  }
+
+  private static func goalStatus(_ rawValue: String?) -> PaneAgentProgressRow.Status {
+    switch rawValue?.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() {
+    case "complete", "completed":
+      return .completed
+    case "active":
+      return .running
+    default:
+      return .pending
+    }
+  }
+
+  private static func goalTitle(
+    statusValue: String?,
+    objective: String
+  ) -> String {
+    switch statusValue?.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() {
+    case "blocked":
+      return "Goal blocked: \(objective)"
+    case "budgetlimited", "budget_limited", "budget-limited":
+      return "Goal budget reached: \(objective)"
+    case "usagelimited", "usage_limited", "usage-limited":
+      return "Goal usage limited: \(objective)"
+    case "paused":
+      return "Goal paused: \(objective)"
+    default:
+      return "Goal: \(objective)"
+    }
+  }
+
   private mutating func makeImplicitTurnID() -> String {
     let id = "implicit-turn-\(nextImplicitTurnIndex)"
     nextImplicitTurnIndex += 1
@@ -588,6 +669,9 @@ extension CodexConversationTurn {
     case .completed:
       return []
     case .inProgress, .aborted, .failed:
+      if let goalRow {
+        return [goalRow] + progressRows
+      }
       return progressRows
     }
   }

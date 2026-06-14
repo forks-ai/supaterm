@@ -16,6 +16,7 @@ enum CodexTranscriptFixtures {
     case turnComplete(turnID: String)
     case turnAborted(turnID: String)
     case turnContext(turnID: String)
+    case threadGoalUpdated(turnID: String, objective: String, status: String)
     case localShellCall(command: [String])
     case functionCall(name: String, arguments: [String: Any]? = nil)
     case reasoning(String)
@@ -85,6 +86,24 @@ enum CodexTranscriptFixtures {
             "turn_id": turnID
           ],
         ]
+
+      case .threadGoalUpdated(let turnID, let objective, let status):
+        object = event(
+          type: "thread_goal_updated",
+          payload: [
+            "threadId": "thread-1",
+            "turnId": turnID,
+            "goal": [
+              "threadId": "thread-1",
+              "objective": objective,
+              "status": status,
+              "tokensUsed": 1200,
+              "timeUsedSeconds": 90,
+              "createdAt": 1,
+              "updatedAt": 2,
+            ],
+          ]
+        )
 
       case .localShellCall(let command):
         object = responseItem(

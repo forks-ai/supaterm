@@ -136,6 +136,84 @@ struct CodexTranscriptMonitorTests {
   }
 
   @Test
+  func threadGoalUpdatedAddsGoalProgressRow() throws {
+    let transcriptURL = try CodexTranscriptFixtures.makeTranscript()
+    defer { try? FileManager.default.removeItem(at: transcriptURL.deletingLastPathComponent()) }
+
+    try CodexTranscriptFixtures.append(.taskStarted(turnID: "turn-1"), to: transcriptURL)
+    try CodexTranscriptFixtures.append(
+      .threadGoalUpdated(
+        turnID: "turn-1",
+        objective: "Ship agent panel goal progress",
+        status: "active"
+      ),
+      to: transcriptURL
+    )
+    try CodexTranscriptFixtures.append(
+      .functionCall(
+        name: "update_plan",
+        arguments: [
+          "plan": [
+            ["step": "Wire goal parser", "status": "completed"],
+            ["step": "Run tests", "status": "in_progress"],
+          ]
+        ]
+      ),
+      to: transcriptURL
+    )
+
+    let result = try #require(CodexTranscriptMonitor.start(at: transcriptURL.path))
+    let batch = try #require(result.1)
+    var conversation = CodexConversationState()
+    conversation.absorb(batch.records)
+
+    #expect(
+      conversation.sidebarSnapshot.progressRows == [
+        PaneAgentProgressRow(
+          id: "goal:Ship agent panel goal progress",
+          title: "Goal: Ship agent panel goal progress",
+          status: .running
+        ),
+        PaneAgentProgressRow(
+          id: "0:Wire goal parser",
+          title: "Wire goal parser",
+          status: .completed
+        ),
+        PaneAgentProgressRow(
+          id: "1:Run tests",
+          title: "Run tests",
+          status: .running
+        ),
+      ]
+    )
+  }
+
+  @Test
+  func completedTurnHidesGoalProgressRow() throws {
+    let transcriptURL = try CodexTranscriptFixtures.makeTranscript()
+    defer { try? FileManager.default.removeItem(at: transcriptURL.deletingLastPathComponent()) }
+
+    try CodexTranscriptFixtures.append(.taskStarted(turnID: "turn-1"), to: transcriptURL)
+    try CodexTranscriptFixtures.append(
+      .threadGoalUpdated(
+        turnID: "turn-1",
+        objective: "Ship agent panel goal progress",
+        status: "complete"
+      ),
+      to: transcriptURL
+    )
+    try CodexTranscriptFixtures.append(.taskComplete(turnID: "turn-1"), to: transcriptURL)
+
+    let result = try #require(CodexTranscriptMonitor.start(at: transcriptURL.path))
+    let batch = try #require(result.1)
+    var conversation = CodexConversationState()
+    conversation.absorb(batch.records)
+
+    #expect(conversation.sidebarSnapshot.status == .completed("turn-1"))
+    #expect(conversation.sidebarSnapshot.progressRows.isEmpty)
+  }
+
+  @Test
   func completedTurnHidesProgressRows() throws {
     let transcriptURL = try CodexTranscriptFixtures.makeTranscript()
     defer { try? FileManager.default.removeItem(at: transcriptURL.deletingLastPathComponent()) }
