@@ -31,12 +31,20 @@ hooks {
         stdin = "{{ hook_stdin }}"
       }
       ["validate-release-tags"] {
-        check = "python3 .github/scripts/bump_and_release.py validate-pre-push"
+        check = """
+          repo_root=$(git rev-parse --show-toplevel)
+          cd "$repo_root"
+          [ ! -d apps/mac ] || python3 .github/scripts/bump_and_release.py validate-pre-push
+          """
         stdin = "{{ hook_stdin }}"
         depends = "git-lfs"
       }
       ["branch-checks"] {
-        check = "python3 .github/scripts/bump_and_release.py run-pre-push-branch-checks"
+        check = """
+          repo_root=$(git rev-parse --show-toplevel)
+          cd "$repo_root"
+          [ ! -d apps/mac ] || python3 .github/scripts/bump_and_release.py run-pre-push-branch-checks
+          """
         stdin = "{{ hook_stdin }}"
         depends = "validate-release-tags"
       }
