@@ -36,14 +36,20 @@ struct SupatermSkillExamplesTests {
       .deletingLastPathComponent()
       .appendingPathComponent("integrations/supaterm-skills/skills/supaterm")
 
-    return [
-      root.appendingPathComponent("SKILL.md"),
-      root.appendingPathComponent("references/agent.md"),
-      root.appendingPathComponent("references/pane.md"),
-      root.appendingPathComponent("references/space.md"),
-      root.appendingPathComponent("references/tab.md"),
-      root.appendingPathComponent("references/targeting-and-selectors.md"),
-    ]
+    guard
+      let enumerator = FileManager.default.enumerator(
+        at: root,
+        includingPropertiesForKeys: nil
+      )
+    else {
+      return []
+    }
+
+    return
+      enumerator
+      .compactMap { $0 as? URL }
+      .filter { $0.pathExtension == "md" }
+      .sorted { $0.path < $1.path }
   }
 
   private func documentedCommands(in fileURL: URL) throws -> [String] {

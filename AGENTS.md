@@ -8,7 +8,8 @@
 
 - `./docs/development.md` - general development doc
 - `./docs/coding-agents-integration.md` - how coding agents integration features work
-- `./docs/how-socket-works.md` - how the sp cli and the macOS app talk through socket IPC
+- `./docs/how-socket-works.md` - how the `sp` CLI and the macOS app talk through socket IPC
+- `integrations/supaterm-skills/skills/supaterm` - user-facing `sp` skill and command references
 - Keep `integrations/supaterm-skills` in sync when CLI behavior or coding-agent integrations change; we maintain the user-facing `supaterm` skill there
 - Read `apps/supaterm.com/AGENTS.md` before working in the web app
 
@@ -24,8 +25,10 @@ make mac-test           # full test suite
 Useful macOS development commands:
 
 ```bash
+make mac-generate       # Generate the Xcode workspace
 make mac-build          # Debug build
 make mac-run            # Debug run with isolated ephemeral state
+make mac-inspect-dependencies # Check Tuist dependency graph hygiene
 ```
 
 Run a single test class or method:

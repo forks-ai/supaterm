@@ -5,37 +5,162 @@ This document captures the stable rules of Supaterm's socket IPC. The source rem
 ## Model
 
 - Each running Supaterm app process owns one Unix domain socket endpoint.
-- The app and CLI share one protocol contract for discovery, requests, and responses.
+- Each endpoint has an ID, name, path, pid, and start time.
+- The app and CLI share one protocol contract for endpoint identity, discovery, requests, and responses.
 - Pane-launched CLI processes are wired back to the owning app through injected environment, so the common path does not require discovery.
-- CLI invocations outside Supaterm can discover managed endpoints, but they never guess when selection is ambiguous.
+- CLI invocations outside Supaterm can discover managed endpoints, but they never select when resolution is ambiguous.
+
+## Endpoint Identity
+
+- `SUPATERM_INSTANCE_NAME` names the app process endpoint.
+- Unnamed app processes use `default`.
+- Managed socket filenames include a normalized instance name, a stable name hash, and the process ID.
+- `sp instance ls` lists reachable managed endpoints.
+- `sp instance ls --json` returns endpoint IDs for unambiguous targeting.
 
 ## Target Resolution
 
-- An explicit socket target wins over every other signal.
-- Ambient pane context wins over discovery.
-- Discovery is a fallback for invocations that are not already inside a Supaterm pane.
+Socket selection and terminal object targeting are separate.
+
+Socket selection order:
+
+1. `--socket <path>`
+2. `SUPATERM_SOCKET_PATH`
+3. `--instance <name-or-endpoint-id>`
+4. The single reachable discovered endpoint
+
+Terminal object targeting happens after socket selection:
+
+- Pane context comes from `SUPATERM_SURFACE_ID` and `SUPATERM_TAB_ID`.
+- Inside Supaterm, commands can omit targets such as `sp tab new`, `sp pane split`, `sp tab focus`, and `sp pane focus`.
+- Outside Supaterm, pass selectors, UUIDs, or `--in` targets.
+
+Discovery rules:
+
 - Managed socket discovery stays scoped to the current user.
+- Discovery probes managed socket files and removes stale managed sockets.
+- Reachable sockets are never silently replaced.
+- If multiple reachable endpoints exist, the CLI requires `--instance` or `--socket`.
+- If more than one endpoint has the requested name, pass the endpoint ID or `--socket`.
 
 ## Request Handling
 
-- Requests and replies are newline-delimited JSON messages.
+- Requests and replies are newline-delimited JSON objects.
 - Transport concerns and command semantics are split cleanly.
 - The transport layer owns socket lifecycle, buffering, and I/O.
 - The app-side control layer interprets requests and produces typed responses.
+- Responses carry the original request ID, an `ok` flag, and either `result` or `error`.
+- Unknown methods return `method_not_found`.
+- Bad request shapes return `invalid_request`.
 
 ## Terminal Topology
 
 - Socket operations target the live terminal model exposed by the app.
 - Explicit hierarchical targeting resolves in window, then space, then tab, then pane order.
 - Pane-context targeting is available when the CLI is launched from inside Supaterm.
+- Public selectors are 1-based:
+  - Space: `1`
+  - Tab: `1/2`
+  - Pane: `1/2/3`
+- UUIDs are accepted anywhere the matching command accepts a space, tab, or pane.
+- Creation commands return typed IDs: `spaceID`, `tabID`, and `paneID`.
+
+## Public CLI Surface
+
+Tree and diagnostics:
+
+```bash
+sp ls
+sp ls --json
+sp onboard
+sp diagnostic
+sp instance ls
+```
+
+Connection flags:
+
+```bash
+sp ls --instance work-mac
+sp diagnostic --socket /path/to/socket
+sp pane capture --instance 2F4D3B19-91EC-4F78-9BCE-6F3F4E301E59 1/2/3
+```
+
+Terminal control:
+
+```bash
+sp space new --focus Work
+sp tab new --in 1 --cwd ~/tmp -- ping 1.1.1.1
+sp pane split --in 1/2 right
+sp pane send --newline 'echo hello'
+sp pane capture --scope scrollback --lines 200
+sp pane layout main-vertical 1/2
+```
+
+Compatibility and config:
+
+```bash
+sp run -- zsh -lc 'echo hi'
+sp tmux list-panes
+sp config validate
+```
 
 ## Runtime Guarantees
 
-- Managed socket paths are created in a per-user location with restrictive permissions.
-- Stale managed sockets can be removed and replaced.
-- Reachable sockets are never silently replaced.
+- Managed socket paths are created under `XDG_RUNTIME_DIR` when it fits the Unix socket path limit.
+- If `XDG_RUNTIME_DIR` is unavailable or too long, Supaterm falls back through `TMPDIR` and then `/tmp`.
+- Managed socket directories are per-user.
+- Stale managed sockets can be removed.
 - Path resolution is canonicalized so endpoint creation, discovery, and identity agree on the same location.
 - Incoming requests can be buffered briefly until the app starts consuming the stream.
+- Socket path generation respects the platform `sockaddr_un.sun_path` byte limit.
+
+## Method Families
+
+App methods:
+
+- `app.onboarding`
+- `app.debug`
+- `app.tree`
+
+System methods:
+
+- `system.identity`
+- `system.ping`
+
+Agent methods:
+
+- `terminal.agent_hook`
+
+Terminal methods:
+
+- `terminal.create_space`
+- `terminal.new_tab`
+- `terminal.new_pane`
+- `terminal.select_space`
+- `terminal.select_tab`
+- `terminal.focus_pane`
+- `terminal.close_space`
+- `terminal.close_tab`
+- `terminal.close_pane`
+- `terminal.rename_space`
+- `terminal.rename_tab`
+- `terminal.pin_tab`
+- `terminal.unpin_tab`
+- `terminal.next_space`
+- `terminal.previous_space`
+- `terminal.last_space`
+- `terminal.next_tab`
+- `terminal.previous_tab`
+- `terminal.last_tab`
+- `terminal.capture_pane`
+- `terminal.send_text`
+- `terminal.send_key`
+- `terminal.resize_pane`
+- `terminal.set_pane_size`
+- `terminal.equalize_panes`
+- `terminal.tile_panes`
+- `terminal.main_vertical_panes`
+- `terminal.notify`
 
 ## Code Index
 
