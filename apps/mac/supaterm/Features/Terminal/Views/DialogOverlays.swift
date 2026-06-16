@@ -154,7 +154,7 @@ struct QuitConfirmationOverlay: View {
           }
           .padding(.top, 28)
         }
-        .frame(width: 460)
+        .frame(minWidth: 460)
         .padding(12)
         .background(palette.dialogInnerBackground, in: .rect(cornerRadius: 11))
         .overlay {
@@ -226,6 +226,8 @@ private struct DialogActionButton: View {
       HStack(spacing: 6) {
         Text(title)
           .font(.system(size: 13, weight: .medium))
+          .lineLimit(1)
+          .fixedSize(horizontal: true, vertical: false)
 
         if let shortcut {
           Spacer()
