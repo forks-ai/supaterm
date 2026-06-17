@@ -76,6 +76,8 @@ struct SupatermSkillExamplesTests {
 
     #expect(process.terminationStatus == 0)
     #expect(launcher.contains("echo one\necho two\n"))
+    #expect(launcher.contains("launcher_status=$?"))
+    #expect(!launcher.contains("\nstatus=$?"))
     #expect(helper.contains("pane\", \"wait-ready\""))
     #expect(sendText == launcherPath)
     #expect(!tabCommand.contains("--"))
