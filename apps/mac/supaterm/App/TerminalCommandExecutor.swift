@@ -14,7 +14,7 @@ final class TerminalCommandExecutor {
 
   init<C: Clock<Duration>>(
     registry: TerminalWindowRegistry,
-    agentRunningTimeout: Duration = .seconds(15),
+    agentRunningTimeout: Duration = .seconds(30),
     transcriptPollInterval: Duration = .seconds(1),
     claudeTasksHomeDirectoryURL: URL = FileManager.default.homeDirectoryForCurrentUser,
     clock: C = ContinuousClock()
