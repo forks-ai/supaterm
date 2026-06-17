@@ -24,10 +24,6 @@ extension SettingsFeature {
       state.glowingPaneRingEnabled = isEnabled
       return persist(state)
 
-    case .newTabPositionSelected(let newTabPosition):
-      state.newTabPosition = newTabPosition
-      return persist(state)
-
     case .restoreTerminalLayoutEnabledChanged(let isEnabled):
       state.restoreTerminalLayoutEnabled = isEnabled
       return persist(state)

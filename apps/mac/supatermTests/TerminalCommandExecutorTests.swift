@@ -223,110 +223,92 @@ struct TerminalCommandExecutorTests {
     #expect(host.focusHistoryByTab[tabID]?.current == firstSurface.id)
   }
   @Test
-  func createTabUsesSelectedTabAsInsertionAnchorForExplicitSpaceTarget() throws {
-    try withDependencies {
-      $0.defaultFileStorage = .inMemory
-    } operation: {
-      initializeGhosttyForTests()
+  func createTabAppendsAtEndForExplicitSpaceTarget() throws {
+    initializeGhosttyForTests()
 
-      @Shared(.supatermSettings) var supatermSettings = .default
-      $supatermSettings.withLock {
-        $0.newTabPosition = .current
-      }
+    let registry = TerminalWindowRegistry()
+    let commandExecutor = makeCommandExecutor(registry: registry)
+    let host = TerminalHostState()
+    host.handleCommand(.ensureInitialTab(focusing: false, startupCommand: nil))
+    let firstTabID = try #require(host.selectedTabID)
+    host.handleCommand(.createTab(inheritingFromSurfaceID: nil))
+    let secondTabID = try #require(host.selectedTabID)
+    host.handleCommand(.selectTab(firstTabID))
 
-      let registry = TerminalWindowRegistry()
-      let commandExecutor = makeCommandExecutor(registry: registry)
-      let host = TerminalHostState()
-      host.handleCommand(.ensureInitialTab(focusing: false, startupCommand: nil))
-      let firstTabID = try #require(host.selectedTabID)
-      host.handleCommand(.createTab(inheritingFromSurfaceID: nil))
-      let secondTabID = try #require(host.selectedTabID)
-      host.handleCommand(.selectTab(firstTabID))
-
-      let store = Store(initialState: AppFeature.State()) {
-        AppFeature()
-      }
-      let windowControllerID = UUID()
-
-      registry.register(
-        keyboardShortcutForAction: { _ in nil },
-        windowControllerID: windowControllerID,
-        store: store,
-        terminal: host,
-        requestConfirmedWindowClose: {}
-      )
-      let window = makeWindow()
-      registry.updateWindow(window, for: windowControllerID)
-
-      let result = try commandExecutor.createTab(
-        TerminalCreateTabRequest(
-          startupCommand: nil,
-          cwd: nil,
-          focus: false,
-          target: .space(windowIndex: 1, spaceIndex: 1)
-        )
-      )
-
-      #expect(result.tabIndex == 2)
-      #expect(
-        host.spaceManager.tabs(in: host.spaces[0].id).map(\.id.rawValue)
-          == [firstTabID.rawValue, result.tabID, secondTabID.rawValue]
-      )
-      #expect(host.selectedTabID == firstTabID)
+    let store = Store(initialState: AppFeature.State()) {
+      AppFeature()
     }
+    let windowControllerID = UUID()
+
+    registry.register(
+      keyboardShortcutForAction: { _ in nil },
+      windowControllerID: windowControllerID,
+      store: store,
+      terminal: host,
+      requestConfirmedWindowClose: {}
+    )
+    let window = makeWindow()
+    registry.updateWindow(window, for: windowControllerID)
+
+    let result = try commandExecutor.createTab(
+      TerminalCreateTabRequest(
+        startupCommand: nil,
+        cwd: nil,
+        focus: false,
+        target: .space(windowIndex: 1, spaceIndex: 1)
+      )
+    )
+
+    #expect(result.tabIndex == 3)
+    #expect(
+      host.spaceManager.tabs(in: host.spaces[0].id).map(\.id.rawValue)
+        == [firstTabID.rawValue, secondTabID.rawValue, result.tabID]
+    )
+    #expect(host.selectedTabID == firstTabID)
   }
   @Test
-  func createTabUsesContextPaneTabAsInsertionAnchor() throws {
-    try withDependencies {
-      $0.defaultFileStorage = .inMemory
-    } operation: {
-      initializeGhosttyForTests()
+  func createTabAppendsAtEndForContextPaneTarget() throws {
+    initializeGhosttyForTests()
 
-      @Shared(.supatermSettings) var supatermSettings = .default
-      $supatermSettings.withLock {
-        $0.newTabPosition = .current
-      }
+    let registry = TerminalWindowRegistry()
+    let commandExecutor = makeCommandExecutor(registry: registry)
+    let host = TerminalHostState()
+    host.handleCommand(.ensureInitialTab(focusing: false, startupCommand: nil))
+    let firstTabID = try #require(host.selectedTabID)
+    let firstPaneID = try #require(host.selectedSurfaceView?.id)
+    host.handleCommand(.createTab(inheritingFromSurfaceID: nil))
+    let secondTabID = try #require(host.selectedTabID)
 
-      let registry = TerminalWindowRegistry()
-      let commandExecutor = makeCommandExecutor(registry: registry)
-      let host = TerminalHostState()
-      host.handleCommand(.ensureInitialTab(focusing: false, startupCommand: nil))
-      let firstTabID = try #require(host.selectedTabID)
-      let firstPaneID = try #require(host.selectedSurfaceView?.id)
-      host.handleCommand(.createTab(inheritingFromSurfaceID: nil))
-      let secondTabID = try #require(host.selectedTabID)
-
-      let store = Store(initialState: AppFeature.State()) {
-        AppFeature()
-      }
-      let windowControllerID = UUID()
-
-      registry.register(
-        keyboardShortcutForAction: { _ in nil },
-        windowControllerID: windowControllerID,
-        store: store,
-        terminal: host,
-        requestConfirmedWindowClose: {}
-      )
-      let window = makeWindow()
-      registry.updateWindow(window, for: windowControllerID)
-
-      let result = try commandExecutor.createTab(
-        TerminalCreateTabRequest(
-          startupCommand: nil,
-          cwd: nil,
-          focus: false,
-          target: .contextPane(firstPaneID)
-        )
-      )
-
-      #expect(result.tabIndex == 2)
-      #expect(
-        host.spaceManager.tabs(in: host.spaces[0].id).map(\.id.rawValue)
-          == [firstTabID.rawValue, result.tabID, secondTabID.rawValue]
-      )
-      #expect(host.selectedTabID == secondTabID)
+    let store = Store(initialState: AppFeature.State()) {
+      AppFeature()
     }
+    let windowControllerID = UUID()
+
+    registry.register(
+      keyboardShortcutForAction: { _ in nil },
+      windowControllerID: windowControllerID,
+      store: store,
+      terminal: host,
+      requestConfirmedWindowClose: {}
+    )
+    let window = makeWindow()
+    registry.updateWindow(window, for: windowControllerID)
+
+    let result = try commandExecutor.createTab(
+      TerminalCreateTabRequest(
+        startupCommand: nil,
+        cwd: nil,
+        focus: false,
+        target: .contextPane(firstPaneID)
+      )
+    )
+
+    #expect(result.tabIndex == 3)
+    #expect(
+      host.spaceManager.tabs(in: host.spaces[0].id).map(\.id.rawValue)
+        == [firstTabID.rawValue, secondTabID.rawValue, result.tabID]
+    )
+    #expect(host.selectedTabID == secondTabID)
   }
   @Test
   func rewriteNewTabResultPreservesSpaceIndexAndUpdatesWindowIndex() {

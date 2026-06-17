@@ -51,7 +51,6 @@ struct SupatermSettingsTests {
     #expect(prefs.confirmQuitMode == .auto)
     #expect(prefs.crashReportsEnabled)
     #expect(prefs.glowingPaneRingEnabled)
-    #expect(prefs.newTabPosition == .end)
     #expect(prefs.restoreTerminalLayoutEnabled)
     #expect(!prefs.systemNotificationsEnabled)
     #expect(prefs.updateChannel == .stable)
@@ -81,7 +80,6 @@ struct SupatermSettingsTests {
     #expect(prefs.codingAgentsShowSpinner)
     #expect(prefs.crashReportsEnabled)
     #expect(prefs.glowingPaneRingEnabled)
-    #expect(prefs.newTabPosition == .end)
     #expect(prefs.restoreTerminalLayoutEnabled)
     #expect(!prefs.systemNotificationsEnabled)
     #expect(prefs.updateChannel == .stable)
@@ -228,6 +226,22 @@ struct SupatermSettingsTests {
   }
 
   @Test
+  func prefsDecodeIgnoresRemovedNewTabPosition() throws {
+    let data = Data(
+      #"""
+      [terminal]
+      new_tab_position = "current"
+      """#.utf8
+    )
+
+    let prefs = try SupatermSettingsCodec.decode(data)
+    let encoded = try SupatermSettingsCodec.encode(prefs)
+    let string = try #require(String(data: encoded, encoding: .utf8)).trimmingCharacters(in: .newlines)
+
+    #expect(string.isEmpty)
+  }
+
+  @Test
   func prefsRoundTripThroughToml() throws {
     let data = try SupatermSettingsCodec.encode(
       SupatermSettings(
@@ -239,7 +253,6 @@ struct SupatermSettingsTests {
         confirmQuitMode: .always,
         crashReportsEnabled: false,
         glowingPaneRingEnabled: false,
-        newTabPosition: .current,
         restoreTerminalLayoutEnabled: false,
         systemNotificationsEnabled: true,
         updateChannel: .tip,
@@ -260,7 +273,6 @@ struct SupatermSettingsTests {
           confirmQuitMode: .always,
           crashReportsEnabled: false,
           glowingPaneRingEnabled: false,
-          newTabPosition: .current,
           restoreTerminalLayoutEnabled: false,
           systemNotificationsEnabled: true,
           updateChannel: .tip,
@@ -289,7 +301,6 @@ struct SupatermSettingsTests {
     #expect(prefs.confirmQuitMode == .auto)
     #expect(prefs.crashReportsEnabled)
     #expect(prefs.glowingPaneRingEnabled)
-    #expect(prefs.newTabPosition == .end)
     #expect(prefs.restoreTerminalLayoutEnabled)
     #expect(!prefs.systemNotificationsEnabled)
     #expect(prefs.updateChannel == .stable)

@@ -93,7 +93,6 @@ public struct SettingsFeature {
     )
     var crashReportsEnabled = SupatermSettings.default.crashReportsEnabled
     var glowingPaneRingEnabled = SupatermSettings.default.glowingPaneRingEnabled
-    var newTabPosition = SupatermSettings.default.newTabPosition
     var about = SettingsAboutState()
     var agentIntegrationInstallFailure: SettingsAgentIntegrationInstallFailure?
     var restoreTerminalLayoutEnabled = SupatermSettings.default.restoreTerminalLayoutEnabled
@@ -122,7 +121,6 @@ public struct SettingsFeature {
     case confirmQuitModeSelected(ConfirmQuitMode)
     case crashReportsEnabledChanged(Bool)
     case glowingPaneRingEnabledChanged(Bool)
-    case newTabPositionSelected(NewTabPosition)
     case restoreTerminalLayoutEnabledChanged(Bool)
     case settingsLoaded(SupatermSettings)
     case systemNotificationsAuthorizationChecked(DesktopNotificationClient.AuthorizationStatus)
@@ -263,7 +261,6 @@ public struct SettingsFeature {
         .confirmQuitModeSelected,
         .crashReportsEnabledChanged,
         .glowingPaneRingEnabledChanged,
-        .newTabPositionSelected,
         .restoreTerminalLayoutEnabledChanged,
         .zmxSessionsEnabledChanged:
         return reduceGeneral(&state, action: action)
@@ -334,7 +331,6 @@ public struct SettingsFeature {
     state.confirmQuitMode = supatermSettings.confirmQuitMode
     state.crashReportsEnabled = supatermSettings.crashReportsEnabled
     state.glowingPaneRingEnabled = supatermSettings.glowingPaneRingEnabled
-    state.newTabPosition = supatermSettings.newTabPosition
     state.restoreTerminalLayoutEnabled = supatermSettings.restoreTerminalLayoutEnabled
     state.systemNotificationsEnabled = supatermSettings.systemNotificationsEnabled
     state.about.updateChannel = supatermSettings.updateChannel
@@ -359,7 +355,6 @@ public struct SettingsFeature {
       confirmQuitMode: state.confirmQuitMode,
       crashReportsEnabled: state.crashReportsEnabled,
       glowingPaneRingEnabled: state.glowingPaneRingEnabled,
-      newTabPosition: state.newTabPosition,
       restoreTerminalLayoutEnabled: state.restoreTerminalLayoutEnabled,
       systemNotificationsEnabled: state.systemNotificationsEnabled,
       updateChannel: state.about.updateChannel,

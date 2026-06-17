@@ -9,7 +9,6 @@ public struct SupatermSettings: Codable, Equatable, Sendable {
   public var confirmQuitMode: ConfirmQuitMode
   public var crashReportsEnabled: Bool
   public var glowingPaneRingEnabled: Bool
-  public var newTabPosition: NewTabPosition
   public var restoreTerminalLayoutEnabled: Bool
   public var systemNotificationsEnabled: Bool
   public var updateChannel: UpdateChannel
@@ -25,7 +24,6 @@ public struct SupatermSettings: Codable, Equatable, Sendable {
     confirmQuitMode: ConfirmQuitMode = .auto,
     crashReportsEnabled: Bool,
     glowingPaneRingEnabled: Bool = true,
-    newTabPosition: NewTabPosition = .end,
     restoreTerminalLayoutEnabled: Bool = true,
     systemNotificationsEnabled: Bool = false,
     updateChannel: UpdateChannel,
@@ -40,7 +38,6 @@ public struct SupatermSettings: Codable, Equatable, Sendable {
     self.confirmQuitMode = confirmQuitMode
     self.crashReportsEnabled = crashReportsEnabled
     self.glowingPaneRingEnabled = glowingPaneRingEnabled
-    self.newTabPosition = newTabPosition
     self.restoreTerminalLayoutEnabled = restoreTerminalLayoutEnabled
     self.systemNotificationsEnabled = systemNotificationsEnabled
     self.updateChannel = updateChannel
@@ -57,7 +54,6 @@ public struct SupatermSettings: Codable, Equatable, Sendable {
     confirmQuitMode: .auto,
     crashReportsEnabled: true,
     glowingPaneRingEnabled: true,
-    newTabPosition: .end,
     restoreTerminalLayoutEnabled: true,
     systemNotificationsEnabled: false,
     updateChannel: .stable,
@@ -107,7 +103,6 @@ public struct SupatermSettings: Codable, Equatable, Sendable {
       confirmQuitMode: terminal?.confirmQuitMode ?? defaults.confirmQuitMode,
       crashReportsEnabled: privacy?.crashReportsEnabled ?? defaults.crashReportsEnabled,
       glowingPaneRingEnabled: notifications?.glowingPaneRing ?? defaults.glowingPaneRingEnabled,
-      newTabPosition: terminal?.newTabPosition ?? defaults.newTabPosition,
       restoreTerminalLayoutEnabled: terminal?.restoreLayout ?? defaults.restoreTerminalLayoutEnabled,
       systemNotificationsEnabled: notifications?.systemNotifications ?? defaults.systemNotificationsEnabled,
       updateChannel: updates?.channel ?? defaults.updateChannel,
@@ -162,15 +157,13 @@ public struct SupatermSettings: Codable, Equatable, Sendable {
         forKey: .notifications
       )
     }
-    if newTabPosition != defaults.newTabPosition
-      || restoreTerminalLayoutEnabled != defaults.restoreTerminalLayoutEnabled
+    if restoreTerminalLayoutEnabled != defaults.restoreTerminalLayoutEnabled
       || confirmQuitMode != defaults.confirmQuitMode
       || zmxSessionsEnabled != defaults.zmxSessionsEnabled
     {
       try container.encode(
         PersistedTerminal(
           confirmQuitMode: confirmQuitMode,
-          newTabPosition: newTabPosition,
           restoreLayout: restoreTerminalLayoutEnabled,
           zmxSessionsEnabled: zmxSessionsEnabled
         ),
@@ -368,18 +361,15 @@ extension SupatermSettings {
 
   struct PersistedTerminal: Codable, Equatable, Sendable {
     let confirmQuitMode: ConfirmQuitMode
-    let newTabPosition: NewTabPosition
     let restoreLayout: Bool
     let zmxSessionsEnabled: Bool
 
     init(
       confirmQuitMode: ConfirmQuitMode,
-      newTabPosition: NewTabPosition,
       restoreLayout: Bool,
       zmxSessionsEnabled: Bool
     ) {
       self.confirmQuitMode = confirmQuitMode
-      self.newTabPosition = newTabPosition
       self.restoreLayout = restoreLayout
       self.zmxSessionsEnabled = zmxSessionsEnabled
     }
@@ -390,9 +380,6 @@ extension SupatermSettings {
       confirmQuitMode =
         try container.decodeIfPresent(ConfirmQuitMode.self, forKey: .confirmQuitMode)
         ?? defaults.confirmQuitMode
-      newTabPosition =
-        try container.decodeIfPresent(NewTabPosition.self, forKey: .newTabPosition)
-        ?? defaults.newTabPosition
       restoreLayout =
         try container.decodeIfPresent(Bool.self, forKey: .restoreLayout)
         ?? defaults.restoreTerminalLayoutEnabled
@@ -405,7 +392,6 @@ extension SupatermSettings {
 
     enum CodingKeys: String, CodingKey {
       case confirmQuitMode = "confirm_quit"
-      case newTabPosition = "new_tab_position"
       case restoreLayout = "restore_layout"
       case terminateSessionsOnQuit = "terminate_sessions_on_quit"
       case zmxSessionsEnabled = "zmx_sessions_enabled"
@@ -417,9 +403,6 @@ extension SupatermSettings {
 
       if confirmQuitMode != defaults.confirmQuitMode {
         try container.encode(confirmQuitMode, forKey: .confirmQuitMode)
-      }
-      if newTabPosition != defaults.newTabPosition {
-        try container.encode(newTabPosition, forKey: .newTabPosition)
       }
       if restoreLayout != defaults.restoreTerminalLayoutEnabled {
         try container.encode(restoreLayout, forKey: .restoreLayout)
@@ -465,7 +448,6 @@ struct LegacySupatermSettingsFile: Decodable, Equatable, Sendable {
   var codingAgentsShowSpinner: Bool
   var crashReportsEnabled: Bool
   var glowingPaneRingEnabled: Bool
-  var newTabPosition: NewTabPosition
   var restoreTerminalLayoutEnabled: Bool
   var systemNotificationsEnabled: Bool
   var updateChannel: UpdateChannel
@@ -484,8 +466,6 @@ struct LegacySupatermSettingsFile: Decodable, Equatable, Sendable {
       try container.decodeIfPresent(Bool.self, forKey: .crashReportsEnabled) ?? defaults.crashReportsEnabled
     self.glowingPaneRingEnabled =
       try container.decodeIfPresent(Bool.self, forKey: .glowingPaneRingEnabled) ?? defaults.glowingPaneRingEnabled
-    self.newTabPosition =
-      try container.decodeIfPresent(NewTabPosition.self, forKey: .newTabPosition) ?? defaults.newTabPosition
     self.restoreTerminalLayoutEnabled =
       try container.decodeIfPresent(Bool.self, forKey: .restoreTerminalLayoutEnabled)
       ?? defaults.restoreTerminalLayoutEnabled
@@ -506,7 +486,6 @@ struct LegacySupatermSettingsFile: Decodable, Equatable, Sendable {
       confirmQuitMode: SupatermSettings.default.confirmQuitMode,
       crashReportsEnabled: crashReportsEnabled,
       glowingPaneRingEnabled: glowingPaneRingEnabled,
-      newTabPosition: newTabPosition,
       restoreTerminalLayoutEnabled: restoreTerminalLayoutEnabled,
       systemNotificationsEnabled: systemNotificationsEnabled,
       updateChannel: updateChannel,
@@ -519,7 +498,6 @@ struct LegacySupatermSettingsFile: Decodable, Equatable, Sendable {
     case analyticsEnabled
     case crashReportsEnabled
     case glowingPaneRingEnabled
-    case newTabPosition
     case restoreTerminalLayoutEnabled
     case systemNotificationsEnabled
     case updateChannel

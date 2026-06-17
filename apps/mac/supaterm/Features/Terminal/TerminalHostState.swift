@@ -991,13 +991,11 @@ final class TerminalHostState {
   }
 
   struct ResolvedCreateTabTarget {
-    let anchorTabID: TerminalTabID?
     let inheritedSurfaceID: UUID?
     let space: TerminalSpaceItem
   }
 
   struct ResolvedLocalCreateTabTarget {
-    let anchorTabID: TerminalTabID?
     let inheritedSurfaceID: UUID?
     let spaceID: TerminalSpaceID
   }

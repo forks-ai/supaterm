@@ -41,7 +41,6 @@ struct SettingsFeatureTests {
           codingAgentsShowSpinner: false,
           crashReportsEnabled: true,
           glowingPaneRingEnabled: false,
-          newTabPosition: .current,
           restoreTerminalLayoutEnabled: false,
           systemNotificationsEnabled: true,
           updateChannel: .tip,
@@ -69,7 +68,6 @@ struct SettingsFeatureTests {
         $0.crashReportsEnabled = true
         $0.glowingPaneRingEnabled = false
         $0.about.updateChannel = .tip
-        $0.newTabPosition = .current
         $0.restoreTerminalLayoutEnabled = false
         $0.systemNotificationsEnabled = true
         $0.verboseLoggingEnabled = true

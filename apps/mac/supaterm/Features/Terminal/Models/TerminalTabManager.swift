@@ -3,11 +3,6 @@ import Observation
 @MainActor
 @Observable
 final class TerminalTabManager {
-  enum Insertion: Equatable {
-    case end
-    case after(TerminalTabID)
-  }
-
   var tabs: [TerminalTabItem] = []
   var selectedTabId: TerminalTabID?
 
@@ -27,8 +22,7 @@ final class TerminalTabManager {
     title: String,
     icon: String?,
     isPinned: Bool = false,
-    isTitleLocked: Bool = false,
-    insertion: Insertion = .end
+    isTitleLocked: Bool = false
   ) -> TerminalTabID {
     let tab = TerminalTabItem(
       title: title,
@@ -39,7 +33,7 @@ final class TerminalTabManager {
     if isPinned {
       tabs = pinnedTabs + [tab] + regularTabs
     } else {
-      tabs.insert(tab, at: insertionIndex(for: insertion))
+      tabs.append(tab)
     }
     selectedTabId = tab.id
     return tab.id
@@ -208,18 +202,4 @@ final class TerminalTabManager {
     setVisibleTabs(pinnedTabs + regularTabs)
   }
 
-  private func insertionIndex(for insertion: Insertion) -> Int {
-    switch insertion {
-    case .end:
-      return tabs.endIndex
-    case .after(let anchorID):
-      guard let anchorIndex = tabs.firstIndex(where: { $0.id == anchorID }) else {
-        return tabs.endIndex
-      }
-      guard !tabs[anchorIndex].isPinned else {
-        return pinnedTabs.count
-      }
-      return tabs.index(after: anchorIndex)
-    }
-  }
 }

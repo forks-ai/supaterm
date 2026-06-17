@@ -98,24 +98,6 @@ struct SettingsFeatureGeneralTests {
   }
 
   @Test
-  func newTabPositionSettingPersistsPrefs() async throws {
-    await withDependencies {
-      $0.defaultFileStorage = .inMemory
-    } operation: {
-      let store = TestStore(initialState: SettingsFeature.State()) {
-        SettingsFeature()
-      }
-
-      await store.send(.newTabPositionSelected(.current)) {
-        $0.newTabPosition = .current
-      }
-
-      @Shared(.supatermSettings) var supatermSettings = .default
-      #expect(supatermSettings.newTabPosition == .current)
-    }
-  }
-
-  @Test
   func settingsChangeCapturesAnalyticsWhenEnabled() async throws {
     let recorder = AnalyticsEventRecorder()
 

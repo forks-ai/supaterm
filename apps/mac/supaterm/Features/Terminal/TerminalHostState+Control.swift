@@ -192,7 +192,6 @@ extension TerminalHostState {
           startupCommand: request.startupCommand,
           workingDirectory: request.cwd.map { URL(fileURLWithPath: $0, isDirectory: true) },
           inheritingFromSurfaceID: resolvedTarget.inheritedSurfaceID,
-          insertion: resolvedNewTabInsertion(anchorTabID: resolvedTarget.anchorTabID),
           sessionChangesEnabled: false,
           synchronizesFocus: Self.shouldSyncFocusDuringTabCreation(
             targetSpaceID: resolvedTarget.space.id,
