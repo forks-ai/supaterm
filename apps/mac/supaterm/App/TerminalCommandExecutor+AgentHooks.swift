@@ -244,6 +244,11 @@ extension TerminalCommandExecutor {
           sessionID: sessionID,
           context: request.context
         )
+        _ = clearAgentPanelSnapshot(
+          agent: request.agent,
+          context: request.context,
+          sessionID: sessionID
+        )
       }
     }
     guard

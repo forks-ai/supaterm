@@ -1173,6 +1173,58 @@ struct TerminalCommandExecutorAgentHookTests {
     #expect(harness.host.codexHoverMarkdown(for: harness.tabID) == "Done.")
   }
   @Test
+  func codexStopClearsPanelProgressBeforeTranscriptCompletionPoll() async throws {
+    let clock = TestClock()
+    let harness = try makeClaudeHookHarness(
+      agentRunningTimeout: .milliseconds(10),
+      clock: clock,
+      windowActivity: .inactive
+    )
+    let transcriptPath = try CodexTranscriptFixtures.makeTranscript()
+    defer { try? FileManager.default.removeItem(at: transcriptPath.deletingLastPathComponent()) }
+
+    _ = try harness.commandExecutor.handleAgentHook(
+      codexHook(
+        CodexHookFixtures.sessionStart,
+        transcriptPath: transcriptPath,
+        context: harness.context
+      )
+    )
+    try CodexTranscriptFixtures.append(.taskStarted(turnID: "turn-1"), to: transcriptPath)
+    try CodexTranscriptFixtures.append(
+      .functionCall(
+        name: "update_plan",
+        arguments: [
+          "plan": [
+            ["step": "Report validation and caveats", "status": "in_progress"]
+          ]
+        ]
+      ),
+      to: transcriptPath
+    )
+    await advanceClock(clock)
+
+    #expect(
+      harness.host.agentPanelPresentation(for: harness.context.surfaceID)?.progressRows == [
+        PaneAgentProgressRow(
+          id: "0:Report validation and caveats",
+          title: "Report validation and caveats",
+          status: .running
+        )
+      ]
+    )
+
+    _ = try harness.commandExecutor.handleAgentHook(
+      CodexHookFixtures.request(CodexHookFixtures.stop, context: harness.context)
+    )
+
+    #expect(harness.host.agentActivity(for: harness.tabID) == .codex(.idle))
+    #expect(
+      harness.host.agentPanelPresentation(for: harness.context.surfaceID)?.progressRows.isEmpty
+        == true
+    )
+  }
+  @Test
   func codexStopKeepsStructuredCompletionWhenTerminalFallbackArrives() throws {
     let harness = try makeClaudeHookHarness(windowActivity: .inactive)
 
