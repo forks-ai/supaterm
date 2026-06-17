@@ -89,6 +89,8 @@ struct QuitConfirmationOverlay: View {
   @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
   private static let actionButtonHeight: CGFloat = 52
+  private static let dialogMinWidth: CGFloat = 460
+  private static let dialogMaxWidth: CGFloat = 620
 
   private static let transition: AnyTransition = .asymmetric(
     insertion: .offset(y: -16).combined(with: .scale(scale: 0.96)).combined(with: .opacity),
@@ -154,7 +156,7 @@ struct QuitConfirmationOverlay: View {
           }
           .padding(.top, 28)
         }
-        .frame(minWidth: 460)
+        .frame(minWidth: Self.dialogMinWidth, maxWidth: Self.dialogMaxWidth)
         .padding(12)
         .background(palette.dialogInnerBackground, in: .rect(cornerRadius: 11))
         .overlay {
