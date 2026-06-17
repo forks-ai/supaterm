@@ -810,20 +810,6 @@ nonisolated struct TerminalAgentGithubClient: Sendable {
     return statuses
   }
 
-  nonisolated static func decodePullRequestStatus(_ output: String) -> PaneAgentPullRequestStatus {
-    let decoder = JSONDecoder()
-    decoder.dateDecodingStrategy = .iso8601
-    guard
-      let response = try? decoder.decode(GithubPullRequestResponse.self, from: Data(output.utf8))
-    else {
-      return .unavailable
-    }
-    guard let node = response.data.repository.pullRequests.nodes.first else {
-      return .none
-    }
-    return status(from: node)
-  }
-
   nonisolated private static func status(
     from node: GithubPullRequestNodeResponse
   ) -> PaneAgentPullRequestStatus {
@@ -980,18 +966,6 @@ nonisolated private struct GithubPullRequestBatchResponse: Decodable {
 
 nonisolated private struct GithubPullRequestBatchDataResponse: Decodable {
   let repository: [String: GithubPullRequestConnectionResponse?]
-}
-
-nonisolated private struct GithubPullRequestResponse: Decodable {
-  let data: GithubPullRequestDataResponse
-}
-
-nonisolated private struct GithubPullRequestDataResponse: Decodable {
-  let repository: GithubPullRequestRepositoryResponse
-}
-
-nonisolated private struct GithubPullRequestRepositoryResponse: Decodable {
-  let pullRequests: GithubPullRequestConnectionResponse
 }
 
 nonisolated private struct GithubPullRequestConnectionResponse: Decodable {

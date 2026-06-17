@@ -652,17 +652,6 @@ struct TerminalAgentPanelTests {
   }
 
   @Test
-  func githubPullRequestDecoderHandlesNoPullRequest() {
-    let status = TerminalAgentGithubClient.decodePullRequestStatus(
-      """
-      {"data":{"repository":{"pullRequests":{"nodes":[]}}}}
-      """
-    )
-
-    #expect(status == .none)
-  }
-
-  @Test
   func githubRemoteParserHandlesCommonRemoteURLs() throws {
     #expect(
       TerminalAgentGithubRemote(remoteURL: "git@github.com:supabitapp/supaterm.git")
@@ -972,12 +961,12 @@ struct TerminalAgentPanelTests {
 
   @Test
   func githubPullRequestDecoderUsesNumberChangesAndChecks() throws {
-    let status = TerminalAgentGithubClient.decodePullRequestStatus(
+    let status = Self.decodeSinglePullRequestStatus(
       """
       {
         "data": {
           "repository": {
-            "pullRequests": {
+            "branch0": {
               "nodes": [
                 {
                   "number": 39,
@@ -1042,12 +1031,12 @@ struct TerminalAgentPanelTests {
 
   @Test
   func githubPullRequestDecoderBuildsCheckDisplayText() throws {
-    let status = TerminalAgentGithubClient.decodePullRequestStatus(
+    let status = Self.decodeSinglePullRequestStatus(
       """
       {
         "data": {
           "repository": {
-            "pullRequests": {
+            "branch0": {
               "nodes": [
                 {
                   "number": 40,
@@ -1138,12 +1127,12 @@ struct TerminalAgentPanelTests {
 
   @Test
   func githubPullRequestDecoderBuildsCheckURLs() throws {
-    let status = TerminalAgentGithubClient.decodePullRequestStatus(
+    let status = Self.decodeSinglePullRequestStatus(
       """
       {
         "data": {
           "repository": {
-            "pullRequests": {
+            "branch0": {
               "nodes": [
                 {
                   "number": 41,
@@ -1234,12 +1223,12 @@ struct TerminalAgentPanelTests {
 
   @Test
   func githubPullRequestDecoderUsesRollupStateForCheckSummary() throws {
-    let status = TerminalAgentGithubClient.decodePullRequestStatus(
+    let status = Self.decodeSinglePullRequestStatus(
       """
       {
         "data": {
           "repository": {
-            "pullRequests": {
+            "branch0": {
               "nodes": [
                 {
                   "number": 39,
@@ -1280,6 +1269,14 @@ struct TerminalAgentPanelTests {
     )
 
     #expect(status.checks?.title == "Checks failing (25)")
+  }
+
+  private static func decodeSinglePullRequestStatus(_ json: String) -> PaneAgentPullRequestStatus {
+    TerminalAgentGithubClient.decodePullRequestStatuses(
+      json,
+      aliasMap: ["branch0": "feature"],
+      remote: TerminalAgentGithubRemote(host: "github.com", owner: "supabitapp", repo: "supaterm")
+    )["feature"] ?? .unavailable
   }
 }
 
