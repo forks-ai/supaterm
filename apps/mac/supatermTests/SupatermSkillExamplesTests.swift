@@ -28,13 +28,57 @@ struct SupatermSkillExamplesTests {
     }
   }
 
+  @Test
+  func startTabDryRunPreservesMultilineStdinLauncher() throws {
+    let scriptURL = skillRootURL().appendingPathComponent("scripts/start_tab.py")
+    let cwd = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+    try FileManager.default.createDirectory(at: cwd, withIntermediateDirectories: true)
+    defer { try? FileManager.default.removeItem(at: cwd) }
+
+    let process = Process()
+    process.executableURL = URL(fileURLWithPath: "/usr/bin/python3")
+    process.arguments = [scriptURL.path, "--cwd", cwd.path, "--dry-run", "--stdin"]
+
+    let stdin = Pipe()
+    let stdout = Pipe()
+    let stderr = Pipe()
+    process.standardInput = stdin
+    process.standardOutput = stdout
+    process.standardError = stderr
+
+    try process.run()
+    try stdin.fileHandleForWriting.write(contentsOf: Data("echo one\necho two\n".utf8))
+    try stdin.fileHandleForWriting.close()
+    process.waitUntilExit()
+
+    let output = try #require(
+      String(bytes: stdout.fileHandleForReading.readDataToEndOfFile(), encoding: .utf8)
+    )
+    if process.terminationStatus != 0 {
+      let error = try #require(
+        String(bytes: stderr.fileHandleForReading.readDataToEndOfFile(), encoding: .utf8)
+      )
+      Issue.record("start_tab.py failed: \(error)")
+    }
+
+    let data = try #require(output.data(using: .utf8))
+    let object = try #require(
+      JSONSerialization.jsonObject(with: data) as? [String: Any]
+    )
+    let launcher = try #require(object["launcher"] as? String)
+    let launcherPath = try #require(object["launcherPath"] as? String)
+    let outputCwd = try #require(object["cwd"] as? String)
+    let outputLaunchCwd = try #require(object["launchCwd"] as? String)
+    defer { try? FileManager.default.removeItem(atPath: launcherPath) }
+
+    #expect(process.terminationStatus == 0)
+    #expect(launcher.contains("echo one\necho two\n"))
+    #expect(outputCwd == outputLaunchCwd)
+    #expect(outputCwd.hasSuffix("/\(cwd.lastPathComponent)"))
+  }
+
   private func skillMarkdownFiles(filePath: StaticString = #filePath) -> [URL] {
-    let root = URL(fileURLWithPath: "\(filePath)")
-      .deletingLastPathComponent()
-      .deletingLastPathComponent()
-      .deletingLastPathComponent()
-      .deletingLastPathComponent()
-      .appendingPathComponent("integrations/supaterm-skills/skills/supaterm")
+    let root = skillRootURL(filePath: filePath)
 
     guard
       let enumerator = FileManager.default.enumerator(
@@ -50,6 +94,15 @@ struct SupatermSkillExamplesTests {
       .compactMap { $0 as? URL }
       .filter { $0.pathExtension == "md" }
       .sorted { $0.path < $1.path }
+  }
+
+  private func skillRootURL(filePath: StaticString = #filePath) -> URL {
+    URL(fileURLWithPath: "\(filePath)")
+      .deletingLastPathComponent()
+      .deletingLastPathComponent()
+      .deletingLastPathComponent()
+      .deletingLastPathComponent()
+      .appendingPathComponent("integrations/supaterm-skills/skills/supaterm")
   }
 
   private func documentedCommands(in fileURL: URL) throws -> [String] {
