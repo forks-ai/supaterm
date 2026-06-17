@@ -120,7 +120,8 @@ struct SupatermSkillInstallerTests {
     defer { try? FileManager.default.removeItem(at: rootURL) }
 
     let bundledSkillDirectoryURL = try bundledSkillDirectory(in: rootURL)
-    let executableURL = rootURL
+    let executableURL =
+      rootURL
       .appendingPathComponent("bundle", isDirectory: true)
       .appendingPathComponent("bin", isDirectory: true)
       .appendingPathComponent("sp", isDirectory: false)
@@ -139,7 +140,8 @@ struct SupatermSkillInstallerTests {
     defer { try? FileManager.default.removeItem(at: rootURL) }
 
     let bundledSkillDirectoryURL = try bundledSkillDirectory(in: rootURL)
-    let executableURL = rootURL
+    let executableURL =
+      rootURL
       .appendingPathComponent("bundle", isDirectory: true)
       .appendingPathComponent("bin", isDirectory: true)
       .appendingPathComponent("sp", isDirectory: false)
@@ -149,7 +151,8 @@ struct SupatermSkillInstallerTests {
     )
     try Data().write(to: executableURL)
 
-    let symlinkURL = rootURL
+    let symlinkURL =
+      rootURL
       .appendingPathComponent("external", isDirectory: true)
       .appendingPathComponent("sp", isDirectory: false)
     try FileManager.default.createDirectory(
@@ -186,7 +189,8 @@ struct SupatermSkillInstallerTests {
 }
 
 private func bundledSkillDirectory(in rootURL: URL) throws -> URL {
-  let skillDirectoryURL = rootURL
+  let skillDirectoryURL =
+    rootURL
     .appendingPathComponent("bundle", isDirectory: true)
     .appendingPathComponent("skills", isDirectory: true)
     .appendingPathComponent("supaterm", isDirectory: true)

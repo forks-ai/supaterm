@@ -67,6 +67,7 @@ struct SupatermSkillExamplesTests {
     )
     let launcher = try #require(object["launcher"] as? String)
     let launcherPath = try #require(object["launcherPath"] as? String)
+    let helper = try String(contentsOf: scriptURL, encoding: .utf8)
     let tabCommand = try #require(object["tabCommand"] as? [String])
     let sendText = try #require(object["sendText"] as? String)
     let outputCwd = try #require(object["cwd"] as? String)
@@ -75,6 +76,7 @@ struct SupatermSkillExamplesTests {
 
     #expect(process.terminationStatus == 0)
     #expect(launcher.contains("echo one\necho two\n"))
+    #expect(helper.contains("pane\", \"wait-ready\""))
     #expect(sendText == launcherPath)
     #expect(!tabCommand.contains("--"))
     #expect(outputCwd == outputLaunchCwd)

@@ -221,6 +221,14 @@ public struct SupatermCapturePaneRequest: Equatable, Sendable, Codable {
   }
 }
 
+public struct SupatermPaneHealthRequest: Equatable, Sendable, Codable {
+  public let target: SupatermPaneTargetRequest
+
+  public init(target: SupatermPaneTargetRequest) {
+    self.target = target
+  }
+}
+
 public enum SupatermResizePaneDirection: String, Equatable, Sendable, Codable {
   case down
   case left
@@ -498,6 +506,34 @@ public struct SupatermCapturePaneResult: Equatable, Sendable, Codable {
   ) {
     self.target = target
     self.text = text
+  }
+}
+
+public struct SupatermPaneHealthResult: Equatable, Sendable, Codable {
+  public let target: SupatermPaneTarget
+  public let isReady: Bool
+  public let hasSurface: Bool
+  public let hasBridgeSurface: Bool
+  public let isAttachedToWindow: Bool
+  public let isWindowVisible: Bool
+  public let canCaptureText: Bool
+
+  public init(
+    target: SupatermPaneTarget,
+    isReady: Bool,
+    hasSurface: Bool,
+    hasBridgeSurface: Bool,
+    isAttachedToWindow: Bool,
+    isWindowVisible: Bool,
+    canCaptureText: Bool
+  ) {
+    self.target = target
+    self.isReady = isReady
+    self.hasSurface = hasSurface
+    self.hasBridgeSurface = hasBridgeSurface
+    self.isAttachedToWindow = isAttachedToWindow
+    self.isWindowVisible = isWindowVisible
+    self.canCaptureText = canCaptureText
   }
 }
 

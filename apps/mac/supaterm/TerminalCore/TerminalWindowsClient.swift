@@ -21,6 +21,7 @@ public struct TerminalWindowsClient: Sendable {
   public var pinTab: @MainActor @Sendable (TerminalTabTarget) async throws -> SupatermPinTabResult
   public var focusPane: @MainActor @Sendable (TerminalPaneTarget) async throws -> SupatermFocusPaneResult
   public var lastPane: @MainActor @Sendable (TerminalPaneTarget) async throws -> SupatermFocusPaneResult
+  public var paneHealth: @MainActor @Sendable (TerminalPaneHealthRequest) async throws -> SupatermPaneHealthResult
   public var lastSpace: @MainActor @Sendable (TerminalSpaceNavigationRequest) async throws -> SupatermSelectSpaceResult
   public var lastTab: @MainActor @Sendable (TerminalTabNavigationRequest) async throws -> SupatermSelectTabResult
   public var nextSpace: @MainActor @Sendable (TerminalSpaceNavigationRequest) async throws -> SupatermSelectSpaceResult
@@ -64,6 +65,10 @@ public struct TerminalWindowsClient: Sendable {
     notify: @escaping @MainActor @Sendable (TerminalNotifyRequest) async throws -> SupatermNotifyResult,
     focusPane: @escaping @MainActor @Sendable (TerminalPaneTarget) async throws -> SupatermFocusPaneResult,
     lastPane: @escaping @MainActor @Sendable (TerminalPaneTarget) async throws -> SupatermFocusPaneResult,
+    paneHealth:
+      @escaping @MainActor @Sendable (
+        TerminalPaneHealthRequest
+      ) async throws -> SupatermPaneHealthResult,
     lastSpace:
       @escaping @MainActor @Sendable (
         TerminalSpaceNavigationRequest
@@ -149,6 +154,7 @@ public struct TerminalWindowsClient: Sendable {
     self.pinTab = pinTab
     self.focusPane = focusPane
     self.lastPane = lastPane
+    self.paneHealth = paneHealth
     self.lastSpace = lastSpace
     self.lastTab = lastTab
     self.nextSpace = nextSpace
@@ -213,6 +219,9 @@ extension TerminalWindowsClient: DependencyKey {
     },
     lastPane: { _ in
       throw TerminalControlError.lastPaneNotFound
+    },
+    paneHealth: { _ in
+      throw TerminalControlError.contextPaneNotFound
     },
     lastSpace: { _ in
       throw TerminalControlError.lastSpaceNotFound
@@ -311,6 +320,9 @@ extension TerminalWindowsClient: DependencyKey {
     },
     lastPane: { _ in
       throw TerminalControlError.lastPaneNotFound
+    },
+    paneHealth: { _ in
+      throw TerminalControlError.contextPaneNotFound
     },
     lastSpace: { _ in
       throw TerminalControlError.lastSpaceNotFound

@@ -82,6 +82,8 @@ extension SocketRequestExecutor {
       return .sendKey(try await terminalWindowsClient.sendKey(sendKeyRequest))
     case .capturePane(let capturePaneRequest):
       return .capturePane(try await terminalWindowsClient.capturePane(capturePaneRequest))
+    case .paneHealth(let paneHealthRequest):
+      return .paneHealth(try await terminalWindowsClient.paneHealth(paneHealthRequest))
     case .resizePane(let resizePaneRequest):
       return .resizePane(try await terminalWindowsClient.resizePane(resizePaneRequest))
     case .setPaneSize(let setPaneSizeRequest):

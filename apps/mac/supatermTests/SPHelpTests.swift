@@ -48,6 +48,8 @@ struct SPHelpTests {
       SP.helpMessage(for: SP.CloseTab.self, columns: 100),
       SP.helpMessage(for: SP.SendText.self, columns: 100),
       SP.helpMessage(for: SP.CapturePane.self, columns: 100),
+      SP.helpMessage(for: SP.PaneHealth.self, columns: 100),
+      SP.helpMessage(for: SP.PaneWaitReady.self, columns: 100),
       SP.helpMessage(for: SP.ResizePane.self, columns: 100),
       SP.helpMessage(for: SP.PaneLayout.self, columns: 100),
       SP.helpMessage(for: SP.RenameTab.self, columns: 100),
@@ -87,6 +89,18 @@ struct SPHelpTests {
     #expect(help.contains("sp pane split --layout keep right"))
     #expect(help.contains("sp pane split --in 1/2 left"))
     #expect(help.contains("sp pane split --in <tab-uuid> left"))
+  }
+
+  @Test
+  func paneHealthHelpShowsReadinessExamples() {
+    let paneHelp = SP.helpMessage(for: SP.Pane.self, columns: 100)
+    let healthHelp = SP.helpMessage(for: SP.PaneHealth.self, columns: 100)
+    let waitHelp = SP.helpMessage(for: SP.PaneWaitReady.self, columns: 100)
+
+    #expect(paneHelp.contains("sp pane health <pane-uuid> --json"))
+    #expect(paneHelp.contains("sp pane wait-ready <pane-uuid> --timeout 5"))
+    #expect(healthHelp.contains("sp pane health <pane-uuid> --json"))
+    #expect(waitHelp.contains("sp pane wait-ready <pane-uuid> --timeout 5"))
   }
 
   @Test

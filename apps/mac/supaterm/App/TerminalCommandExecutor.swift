@@ -79,6 +79,8 @@ final class TerminalCommandExecutor {
       return .sendKey(try sendKey(sendKeyRequest))
     case .capturePane(let capturePaneRequest):
       return .capturePane(try capturePane(capturePaneRequest))
+    case .paneHealth(let paneHealthRequest):
+      return .paneHealth(try paneHealth(paneHealthRequest))
     case .resizePane(let resizePaneRequest):
       return .resizePane(try resizePane(resizePaneRequest))
     case .setPaneSize(let setPaneSizeRequest):

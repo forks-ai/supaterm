@@ -739,6 +739,21 @@ final class TerminalWindowRegistry {
   }
 
   static func rewrite(
+    _ result: SupatermPaneHealthResult,
+    windowIndex: Int
+  ) -> SupatermPaneHealthResult {
+    SupatermPaneHealthResult(
+      target: rewrite(result.target, windowIndex: windowIndex),
+      isReady: result.isReady,
+      hasSurface: result.hasSurface,
+      hasBridgeSurface: result.hasBridgeSurface,
+      isAttachedToWindow: result.isAttachedToWindow,
+      isWindowVisible: result.isWindowVisible,
+      canCaptureText: result.canCaptureText
+    )
+  }
+
+  static func rewrite(
     _ result: SupatermRenameTabResult,
     windowIndex: Int
   ) -> SupatermRenameTabResult {

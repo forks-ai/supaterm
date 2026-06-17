@@ -347,9 +347,9 @@ struct TerminalWindowFeature {
                 focus: true,
                 equalize: false,
                 target: .contextPane(surfaceID)
-          )
-        )
-      else { return }
+              )
+            )
+          else { return }
         }
 
       case .agentPanelURLTapped(let url):

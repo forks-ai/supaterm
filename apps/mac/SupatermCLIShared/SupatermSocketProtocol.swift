@@ -20,6 +20,7 @@ public enum SupatermSocketMethod {
   public static let terminalMainVerticalPanes = "terminal.main_vertical_panes"
   public static let terminalNewTab = "terminal.new_tab"
   public static let terminalNewPane = "terminal.new_pane"
+  public static let terminalPaneHealth = "terminal.pane_health"
   public static let terminalNextSpace = "terminal.next_space"
   public static let terminalNextTab = "terminal.next_tab"
   public static let terminalNotify = "terminal.notify"
@@ -166,6 +167,13 @@ public struct SupatermSocketRequest: Equatable, Sendable, Codable {
     id: String = UUID().uuidString
   ) throws -> Self {
     try make(SupatermSocketMethod.terminalCapturePane, payload, id: id)
+  }
+
+  public static func paneHealth(
+    _ payload: SupatermPaneHealthRequest,
+    id: String = UUID().uuidString
+  ) throws -> Self {
+    try make(SupatermSocketMethod.terminalPaneHealth, payload, id: id)
   }
 
   public static func closePane(

@@ -453,6 +453,31 @@ extension TerminalHostState {
     )
   }
 
+  func paneHealth(_ request: TerminalPaneHealthRequest) throws -> SupatermPaneHealthResult {
+    let resolvedTarget = try resolvePaneTarget(request.target)
+    let surface = resolvedTarget.anchorSurface
+    let hasSurface = surface.surface != nil
+    let hasBridgeSurface = surface.bridge.surface != nil
+    let isAttachedToWindow = surface.window != nil
+    let isWindowVisible = surface.window?.isVisible == true
+    let canCaptureText = surface.captureText(scope: .visible, lines: 1) != nil
+    return SupatermPaneHealthResult(
+      target: try paneTarget(
+        spaceID: resolvedTarget.spaceID,
+        tabID: resolvedTarget.tabID,
+        surfaceID: surface.id,
+        tree: resolvedTarget.tree
+      ),
+      isReady: hasSurface && hasBridgeSurface && isAttachedToWindow && isWindowVisible
+        && canCaptureText,
+      hasSurface: hasSurface,
+      hasBridgeSurface: hasBridgeSurface,
+      isAttachedToWindow: isAttachedToWindow,
+      isWindowVisible: isWindowVisible,
+      canCaptureText: canCaptureText
+    )
+  }
+
   func resizePane(_ request: TerminalResizePaneRequest) throws -> SupatermResizePaneResult {
     let resolvedTarget = try resolvePaneTarget(request.target)
     guard let node = resolvedTarget.tree.find(id: resolvedTarget.anchorSurface.id) else {

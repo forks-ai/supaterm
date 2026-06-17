@@ -981,6 +981,57 @@ struct SupatermSocketProtocolTests {
   }
 
   @Test
+  func paneHealthRequestRoundTripsThroughTypedHelper() throws {
+    let paneTarget = SupatermPaneTarget(
+      windowIndex: 1,
+      spaceIndex: 2,
+      spaceID: UUID(uuidString: "A6E57B1B-0A61-4F72-BD52-B26DC5D3C497")!,
+      tabIndex: 3,
+      tabID: UUID(uuidString: "6BFC889D-2D0F-4675-924E-B15A6A4E372B")!,
+      paneIndex: 4,
+      paneID: UUID(uuidString: "2B8B3A57-D7F8-4EF7-930F-46B1F7281B2A")!
+    )
+    let request = try SupatermSocketRequest.paneHealth(
+      SupatermPaneHealthRequest(
+        target: SupatermPaneTargetRequest(
+          targetWindowIndex: 1,
+          targetSpaceIndex: 2,
+          targetTabIndex: 3,
+          targetPaneIndex: 4
+        )
+      ),
+      id: "pane-health-1"
+    )
+    let response = try SupatermSocketResponse.ok(
+      id: "pane-health-1",
+      encodableResult: SupatermPaneHealthResult(
+        target: paneTarget,
+        isReady: true,
+        hasSurface: true,
+        hasBridgeSurface: true,
+        isAttachedToWindow: true,
+        isWindowVisible: true,
+        canCaptureText: true
+      )
+    )
+
+    #expect(request.method == SupatermSocketMethod.terminalPaneHealth)
+    #expect(
+      try request.decodeParams(SupatermPaneHealthRequest.self)
+        == SupatermPaneHealthRequest(
+          target: SupatermPaneTargetRequest(
+            targetWindowIndex: 1,
+            targetSpaceIndex: 2,
+            targetTabIndex: 3,
+            targetPaneIndex: 4
+          )
+        )
+    )
+    #expect(try response.decodeResult(SupatermPaneHealthResult.self).target == paneTarget)
+    #expect(try response.decodeResult(SupatermPaneHealthResult.self).isReady)
+  }
+
+  @Test
   func spaceAndLayoutRequestsRoundTripThroughTypedHelpers() throws {
     let createSpaceRequest = try SupatermSocketRequest.createSpace(
       SupatermCreateSpaceRequest(

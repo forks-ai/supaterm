@@ -193,6 +193,26 @@ enum SPHelp {
       sp pane capture <pane-uuid> --json
     """
 
+  static let paneHealthDiscussion = """
+    If you omit the pane target inside Supaterm, this command inspects the current pane.
+
+    Pane targets accept either a `space/tab/pane` selector or a UUID.
+
+    Example:
+      sp pane health
+      sp pane health <pane-uuid> --json
+    """
+
+  static let paneWaitReadyDiscussion = """
+    If you omit the pane target inside Supaterm, this command waits for the current pane.
+
+    Pane targets accept either a `space/tab/pane` selector or a UUID.
+
+    Example:
+      sp pane wait-ready
+      sp pane wait-ready <pane-uuid> --timeout 5
+    """
+
   static let resizePaneDiscussion = """
     If you omit the pane target inside Supaterm, this command resizes the current pane.
 
@@ -421,6 +441,8 @@ enum SPHelp {
       sp pane split down -- htop
       sp pane focus 1/2/3
       sp pane send --newline 'echo hello'
+      sp pane health <pane-uuid> --json
+      sp pane wait-ready <pane-uuid> --timeout 5
       sp pane layout equalize 1/2
     """
 

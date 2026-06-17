@@ -20,13 +20,13 @@ nonisolated struct StartupSupatermSkillRefresher {
         SentrySDK.logger.warn(
           message,
           attributes: [
-            "error": error.localizedDescription,
+            "error": error.localizedDescription
           ]
         )
         let breadcrumb = Breadcrumb(level: .warning, category: "agent-skills")
         breadcrumb.message = message
         breadcrumb.data = [
-          "error": error.localizedDescription,
+          "error": error.localizedDescription
         ]
         SentrySDK.addBreadcrumb(breadcrumb)
       }

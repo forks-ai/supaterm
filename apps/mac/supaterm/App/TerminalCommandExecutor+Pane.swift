@@ -225,6 +225,43 @@ extension TerminalCommandExecutor {
     }
   }
 
+  func paneHealth(_ request: TerminalPaneHealthRequest) throws -> SupatermPaneHealthResult {
+    switch request.target {
+    case .contextPane:
+      for (offset, entry) in registry.activeEntries().enumerated() {
+        do {
+          let result = try entry.terminal.paneHealth(request)
+          return TerminalWindowRegistry.rewrite(result, windowIndex: offset + 1)
+        } catch let error as TerminalControlError {
+          if case .contextPaneNotFound = error {
+            continue
+          }
+          throw error
+        }
+      }
+      throw TerminalControlError.contextPaneNotFound
+
+    case .pane(let windowIndex, let spaceIndex, let tabIndex, let paneIndex):
+      let entry = try registry.entry(for: windowIndex)
+      let localRequest = TerminalPaneHealthRequest(
+        target: .pane(
+          windowIndex: 1,
+          spaceIndex: spaceIndex,
+          tabIndex: tabIndex,
+          paneIndex: paneIndex
+        )
+      )
+      do {
+        return TerminalWindowRegistry.rewrite(
+          try entry.terminal.paneHealth(localRequest),
+          windowIndex: windowIndex
+        )
+      } catch let error as TerminalControlError {
+        throw TerminalWindowRegistry.rewrite(error, windowIndex: windowIndex)
+      }
+    }
+  }
+
   func resizePane(_ request: TerminalResizePaneRequest) throws -> SupatermResizePaneResult {
     switch request.target {
     case .contextPane:

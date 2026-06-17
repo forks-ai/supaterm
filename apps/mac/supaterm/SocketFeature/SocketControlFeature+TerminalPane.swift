@@ -110,6 +110,20 @@ extension SocketControlFeature {
       }
       return try .ok(id: request.id, encodableResult: result)
 
+    case SupatermSocketMethod.terminalPaneHealth:
+      let payload = try request.decodeParams(SupatermPaneHealthRequest.self)
+      let execution = try await socketRequestExecutor.executeTerminalPane(
+        .paneHealth(
+          TerminalPaneHealthRequest(
+            target: try createPaneTarget(from: payload.target)
+          )
+        )
+      )
+      guard case .paneHealth(let result) = execution else {
+        throw SocketExecutorError.unexpectedResult
+      }
+      return try .ok(id: request.id, encodableResult: result)
+
     case SupatermSocketMethod.terminalResizePane:
       let payload = try request.decodeParams(SupatermResizePaneRequest.self)
       let execution = try await socketRequestExecutor.executeTerminalPane(

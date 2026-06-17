@@ -166,6 +166,14 @@ public struct TerminalCapturePaneRequest: Equatable, Sendable {
   }
 }
 
+public struct TerminalPaneHealthRequest: Equatable, Sendable {
+  public let target: TerminalPaneTarget
+
+  public init(target: TerminalPaneTarget) {
+    self.target = target
+  }
+}
+
 public struct TerminalResizePaneRequest: Equatable, Sendable {
   public let amount: UInt16
   public let direction: SupatermResizePaneDirection

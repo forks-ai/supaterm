@@ -72,7 +72,7 @@ public struct SupatermSkillInstaller {
     var candidates = [
       resourceURL?
         .appendingPathComponent("skills", isDirectory: true)
-        .appendingPathComponent("supaterm", isDirectory: true),
+        .appendingPathComponent("supaterm", isDirectory: true)
     ].compactMap { $0 }
     if let executableURL {
       candidates.append(skillDirectoryURL(nextToExecutableURL: executableURL))

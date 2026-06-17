@@ -42,6 +42,52 @@ struct TerminalCommandExecutorTests {
   }
 
   @Test
+  func paneHealthContextTargetSkipsMissingWindowsAndRewritesWindowIndex() throws {
+    initializeGhosttyForTests()
+
+    let registry = TerminalWindowRegistry()
+    let commandExecutor = makeCommandExecutor(registry: registry)
+    let firstHost = TerminalHostState()
+    let secondHost = TerminalHostState()
+    let firstStore = Store(initialState: AppFeature.State()) {
+      AppFeature()
+    }
+    let secondStore = Store(initialState: AppFeature.State()) {
+      AppFeature()
+    }
+    let firstWindowControllerID = UUID()
+    let secondWindowControllerID = UUID()
+
+    firstHost.handleCommand(.ensureInitialTab(focusing: false, startupCommand: nil))
+    secondHost.handleCommand(.ensureInitialTab(focusing: false, startupCommand: nil))
+    let secondSurfaceID = try #require(secondHost.selectedSurfaceView?.id)
+
+    registry.register(
+      keyboardShortcutForAction: { _ in nil },
+      windowControllerID: firstWindowControllerID,
+      store: firstStore,
+      terminal: firstHost,
+      requestConfirmedWindowClose: {}
+    )
+    registry.updateWindow(makeWindow(), for: firstWindowControllerID)
+    registry.register(
+      keyboardShortcutForAction: { _ in nil },
+      windowControllerID: secondWindowControllerID,
+      store: secondStore,
+      terminal: secondHost,
+      requestConfirmedWindowClose: {}
+    )
+    registry.updateWindow(makeWindow(), for: secondWindowControllerID)
+
+    let result = try commandExecutor.paneHealth(
+      TerminalPaneHealthRequest(target: .contextPane(secondSurfaceID))
+    )
+
+    #expect(result.target.windowIndex == 2)
+    #expect(result.target.paneID == secondSurfaceID)
+  }
+
+  @Test
   func closeTabClosesWindowWhenTargetIsTheLastTab() throws {
     initializeGhosttyForTests()
 

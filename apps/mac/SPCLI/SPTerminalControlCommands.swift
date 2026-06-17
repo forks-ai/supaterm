@@ -58,6 +58,8 @@ extension SP {
         ClosePane.self,
         SendText.self,
         CapturePane.self,
+        PaneHealth.self,
+        PaneWaitReady.self,
         ResizePane.self,
         PaneLayout.self,
         Notify.self,
@@ -627,6 +629,108 @@ extension SP {
     }
   }
 
+  struct PaneHealth: ParsableCommand {
+    static let configuration = CommandConfiguration(
+      commandName: "health",
+      abstract: "Inspect Supaterm pane readiness.",
+      discussion: SPHelp.paneHealthDiscussion
+    )
+
+    @Argument(help: "Optional pane target.")
+    var pane: SPPaneReference?
+
+    @OptionGroup
+    var options: SPCommandOptions
+
+    mutating func run() throws {
+      try runControlCommand(
+        options: options,
+        request: { try .paneHealth(try requestPayload(client: $0)) },
+        as: SupatermPaneHealthResult.self,
+        plain: { paneHealthSummary($0) },
+        human: { paneHealthSummary($0) }
+      )
+    }
+
+    private func requestPayload(client: SPSocketClient) throws -> SupatermPaneHealthRequest {
+      .init(
+        target: paneTargetRequest(
+          try resolvePublicPaneTarget(
+            pane,
+            context: SupatermCLIContext.current,
+            snapshot: try treeSnapshot(client)
+          )
+        )
+      )
+    }
+  }
+
+  struct PaneWaitReady: ParsableCommand {
+    static let configuration = CommandConfiguration(
+      commandName: "wait-ready",
+      abstract: "Wait for a Supaterm pane to become ready.",
+      discussion: SPHelp.paneWaitReadyDiscussion
+    )
+
+    @Argument(help: "Optional pane target.")
+    var pane: SPPaneReference?
+
+    @Option(name: .long, help: "Maximum seconds to wait.")
+    var timeout: Double = 5
+
+    @OptionGroup
+    var options: SPCommandOptions
+
+    mutating func run() throws {
+      guard timeout > 0 else {
+        throw ValidationError("--timeout must be greater than 0.")
+      }
+      applyOutputStyle(options.output)
+      let client = try socketClient(
+        path: options.connection.explicitSocketPath,
+        instance: options.connection.instance
+      )
+      let request = try requestPayload(client: client)
+      let deadline = Date().addingTimeInterval(timeout)
+      var lastResult: SupatermPaneHealthResult?
+      while true {
+        let response = try client.send(.paneHealth(request))
+        guard response.ok else {
+          throw ValidationError(response.error?.message ?? "Supaterm socket request failed.")
+        }
+        let result = try response.decodeResult(SupatermPaneHealthResult.self)
+        if result.isReady {
+          try emitCommandResult(
+            result,
+            options: options.output,
+            plain: paneHealthSummary(result),
+            human: paneHealthSummary(result)
+          )
+          return
+        }
+        lastResult = result
+        if Date() >= deadline {
+          break
+        }
+        Thread.sleep(forTimeInterval: 0.1)
+      }
+      let summary = lastResult.map(paneHealthSummary) ?? "no health result"
+      throw ValidationError("Timed out waiting for pane readiness: \(summary)")
+    }
+
+    private func requestPayload(client: SPSocketClient) throws -> SupatermPaneHealthRequest {
+      .init(
+        target: paneTargetRequest(
+          try resolvePublicPaneTarget(
+            pane,
+            context: SupatermCLIContext.current,
+            snapshot: try treeSnapshot(client)
+          )
+        )
+      )
+    }
+  }
+
   struct ResizePane: ParsableCommand {
     static let configuration = CommandConfiguration(
       commandName: "resize",
@@ -1072,6 +1176,12 @@ private func render(_ target: SupatermTabTarget) -> String {
 
 private func render(_ target: SupatermPaneTarget) -> String {
   "window \(target.windowIndex) space \(target.spaceIndex) tab \(target.tabIndex) pane \(target.paneIndex)"
+}
+
+private func paneHealthSummary(_ result: SupatermPaneHealthResult) -> String {
+  "ready=\(result.isReady) surface=\(result.hasSurface) bridge=\(result.hasBridgeSurface) "
+    + "attached=\(result.isAttachedToWindow) visible=\(result.isWindowVisible) "
+    + "capture=\(result.canCaptureText)"
 }
 
 private func render(_ result: SupatermSelectSpaceResult) -> String {
