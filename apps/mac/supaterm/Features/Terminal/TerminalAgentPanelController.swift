@@ -105,6 +105,23 @@ nonisolated struct TerminalAgentGitSnapshot: Equatable, Sendable {
   let branchName: String
   let addedLineCount: Int
   let removedLineCount: Int
+  let remoteURL: String?
+
+  init(
+    repoRoot: URL,
+    headURL: URL?,
+    branchName: String,
+    addedLineCount: Int,
+    removedLineCount: Int,
+    remoteURL: String? = nil
+  ) {
+    self.repoRoot = repoRoot
+    self.headURL = headURL
+    self.branchName = branchName
+    self.addedLineCount = addedLineCount
+    self.removedLineCount = removedLineCount
+    self.remoteURL = remoteURL
+  }
 }
 
 nonisolated struct TerminalAgentGitClient: Sendable {
@@ -132,12 +149,14 @@ nonisolated struct TerminalAgentGitClient: Sendable {
     let headURL = Self.headURL(for: repoRoot, fileManager: .default)
     let branchName = Self.branchName(headURL: headURL) ?? "HEAD"
     let changes = await lineChanges(repoRoot: repoRoot, headURL: headURL) ?? (added: 0, removed: 0)
+    let remoteURL = await remoteURL(repoRoot: repoRoot, branchName: branchName)
     let snapshot = TerminalAgentGitSnapshot(
       repoRoot: repoRoot,
       headURL: headURL,
       branchName: branchName,
       addedLineCount: changes.added,
-      removedLineCount: changes.removed
+      removedLineCount: changes.removed,
+      remoteURL: remoteURL
     )
     return snapshot
   }
@@ -187,6 +206,61 @@ nonisolated struct TerminalAgentGitClient: Sendable {
     arguments: [String]
   ) async throws -> TerminalAgentPanelCommandResult {
     try await runner.run(URL(fileURLWithPath: "/usr/bin/env"), ["git"] + arguments, nil)
+  }
+
+  nonisolated private func remoteURL(
+    repoRoot: URL,
+    branchName: String
+  ) async -> String? {
+    let configuredRemoteName = await gitOutput(
+      arguments: [
+        "-C",
+        repoRoot.path(percentEncoded: false),
+        "config",
+        "--get",
+        "branch.\(branchName).remote",
+      ]
+    )
+    let remoteName = configuredRemoteName.flatMap(Self.normalizedRemoteName) ?? "origin"
+    if let remoteURL = await gitOutput(
+      arguments: [
+        "-C",
+        repoRoot.path(percentEncoded: false),
+        "remote",
+        "get-url",
+        remoteName,
+      ]
+    ) {
+      return remoteURL
+    }
+    guard remoteName != "origin" else { return nil }
+    return await gitOutput(
+      arguments: [
+        "-C",
+        repoRoot.path(percentEncoded: false),
+        "remote",
+        "get-url",
+        "origin",
+      ]
+    )
+  }
+
+  nonisolated private func gitOutput(arguments: [String]) async -> String? {
+    guard
+      let result = try? await runGit(arguments: arguments),
+      result.status == 0
+    else {
+      return nil
+    }
+    let output = result.stdout.trimmingCharacters(in: .whitespacesAndNewlines)
+    guard !output.isEmpty else { return nil }
+    return output
+  }
+
+  nonisolated private static func normalizedRemoteName(_ value: String) -> String? {
+    let remoteName = value.trimmingCharacters(in: .whitespacesAndNewlines)
+    guard !remoteName.isEmpty, remoteName != "." else { return nil }
+    return remoteName
   }
 
   nonisolated static func parseShortstat(_ output: String) -> (added: Int, removed: Int) {
@@ -270,10 +344,26 @@ nonisolated struct TerminalAgentGitClient: Sendable {
   }
 }
 
-nonisolated struct TerminalAgentGithubRemote: Equatable, Sendable {
+nonisolated struct TerminalAgentGithubRemote: Equatable, Hashable, Sendable {
   let host: String
   let owner: String
   let repo: String
+
+  init(host: String, owner: String, repo: String) {
+    self.host = host
+    self.owner = owner
+    self.repo = repo
+  }
+
+  init?(remoteURL: String) {
+    let trimmed = remoteURL.trimmingCharacters(in: .whitespacesAndNewlines)
+    guard !trimmed.isEmpty else { return nil }
+    if let remote = Self.urlRemote(from: trimmed) ?? Self.scpRemote(from: trimmed) {
+      self = remote
+    } else {
+      return nil
+    }
+  }
 
   func createPullRequestURL(branchName: String) -> URL? {
     var components = URLComponents()
@@ -282,6 +372,94 @@ nonisolated struct TerminalAgentGithubRemote: Equatable, Sendable {
     components.path = "/\(owner)/\(repo)/compare/\(branchName)"
     components.queryItems = [URLQueryItem(name: "expand", value: "1")]
     return components.url
+  }
+
+  private static func urlRemote(from value: String) -> Self? {
+    guard let url = URL(string: value), let host = url.host else {
+      return nil
+    }
+    guard let repository = repository(fromPath: url.path) else {
+      return nil
+    }
+    return Self(host: host, owner: repository.owner, repo: repository.repo)
+  }
+
+  private static func scpRemote(from value: String) -> Self? {
+    guard
+      let colon = value.firstIndex(of: ":"),
+      !value[..<colon].contains("/")
+    else {
+      return nil
+    }
+    let userHost = value[..<colon]
+    let path = value[value.index(after: colon)...]
+    guard
+      let host = userHost.split(separator: "@").last,
+      let repository = repository(fromPath: String(path))
+    else {
+      return nil
+    }
+    return Self(host: String(host), owner: repository.owner, repo: repository.repo)
+  }
+
+  private static func repository(fromPath path: String) -> (owner: String, repo: String)? {
+    let components = path.split(separator: "/").filter { !$0.isEmpty }
+    guard components.count >= 2 else { return nil }
+    let owner = String(components[components.count - 2])
+    var repo = String(components[components.count - 1])
+    if repo.hasSuffix(".git") {
+      repo.removeLast(4)
+    }
+    guard !owner.isEmpty, !repo.isEmpty else { return nil }
+    return (owner, repo)
+  }
+}
+
+actor TerminalAgentGithubStatusCache {
+  private struct Key: Hashable, Sendable {
+    let remote: TerminalAgentGithubRemote
+    let branchName: String
+  }
+
+  private struct Entry: Sendable {
+    let status: PaneAgentPullRequestStatus
+    let createdAt: Date
+  }
+
+  private let ttl: TimeInterval
+  private let now: @Sendable () -> Date
+  private var entries: [Key: Entry] = [:]
+  private var tasks: [Key: Task<PaneAgentPullRequestStatus, Never>] = [:]
+
+  init(
+    ttl: TimeInterval = 120,
+    now: @escaping @Sendable () -> Date = { Date() }
+  ) {
+    self.ttl = ttl
+    self.now = now
+  }
+
+  func status(
+    remote: TerminalAgentGithubRemote,
+    branchName: String,
+    load: @escaping @Sendable () async -> PaneAgentPullRequestStatus
+  ) async -> PaneAgentPullRequestStatus {
+    let key = Key(remote: remote, branchName: branchName)
+    let currentDate = now()
+    if let entry = entries[key], currentDate.timeIntervalSince(entry.createdAt) < ttl {
+      return entry.status
+    }
+    if let task = tasks[key] {
+      return await task.value
+    }
+    let task = Task {
+      await load()
+    }
+    tasks[key] = task
+    let status = await task.value
+    tasks[key] = nil
+    entries[key] = Entry(status: status, createdAt: now())
+    return status
   }
 }
 
@@ -345,14 +523,17 @@ actor TerminalAgentGithubExecutableResolver {
 nonisolated struct TerminalAgentGithubClient: Sendable {
   let runner: TerminalAgentPanelCommandRunner
   let resolver: TerminalAgentGithubExecutableResolver
+  let statusCache: TerminalAgentGithubStatusCache
   private let pullRequestStatusProvider: (@Sendable (URL, String) async -> PaneAgentPullRequestStatus)?
 
   init(
     runner: TerminalAgentPanelCommandRunner = .live,
-    resolver: TerminalAgentGithubExecutableResolver = TerminalAgentGithubExecutableResolver()
+    resolver: TerminalAgentGithubExecutableResolver = TerminalAgentGithubExecutableResolver(),
+    statusCache: TerminalAgentGithubStatusCache = TerminalAgentGithubStatusCache()
   ) {
     self.runner = runner
     self.resolver = resolver
+    self.statusCache = statusCache
     pullRequestStatusProvider = nil
   }
 
@@ -361,19 +542,30 @@ nonisolated struct TerminalAgentGithubClient: Sendable {
   ) {
     runner = .live
     resolver = TerminalAgentGithubExecutableResolver()
+    statusCache = TerminalAgentGithubStatusCache()
     pullRequestStatusProvider = pullRequestStatus
   }
 
   nonisolated func pullRequestStatus(
     repoRoot: URL,
-    branchName: String
+    branchName: String,
+    remoteURL: String?
   ) async -> PaneAgentPullRequestStatus {
     if let pullRequestStatusProvider {
       return await pullRequestStatusProvider(repoRoot, branchName)
     }
-    guard let remote = await remoteInfo(repoRoot: repoRoot) else {
+    guard let remote = remoteURL.flatMap(TerminalAgentGithubRemote.init(remoteURL:)) else {
       return .unavailable
     }
+    return await statusCache.status(remote: remote, branchName: branchName) {
+      await fetchPullRequestStatus(remote: remote, branchName: branchName)
+    }
+  }
+
+  nonisolated private func fetchPullRequestStatus(
+    remote: TerminalAgentGithubRemote,
+    branchName: String
+  ) async -> PaneAgentPullRequestStatus {
     guard
       let output = try? await runGh(
         arguments: [
@@ -405,33 +597,6 @@ nonisolated struct TerminalAgentGithubClient: Sendable {
         status
       }
     return resolvedStatus
-  }
-
-  nonisolated private func remoteInfo(repoRoot: URL) async -> TerminalAgentGithubRemote? {
-    guard
-      let output = try? await runGh(
-        arguments: ["repo", "view", "--json", "owner,name,url"],
-        repoRoot: repoRoot
-      ), output.status == 0
-    else {
-      return nil
-    }
-    guard
-      let response = try? JSONDecoder().decode(
-        GithubRepoViewResponse.self,
-        from: Data(output.stdout.utf8)
-      )
-    else {
-      return nil
-    }
-    guard !response.owner.login.isEmpty, !response.name.isEmpty else {
-      return nil
-    }
-    return TerminalAgentGithubRemote(
-      host: Self.host(from: response.url) ?? "github.com",
-      owner: response.owner.login,
-      repo: response.name
-    )
   }
 
   nonisolated private func runGh(
@@ -587,13 +752,6 @@ nonisolated struct TerminalAgentGithubClient: Sendable {
     }
   }
 
-  nonisolated private static func host(from urlString: String?) -> String? {
-    guard let urlString, let url = URL(string: urlString), let host = url.host else {
-      return nil
-    }
-    return host
-  }
-
   private static let pullRequestQuery = """
     query($owner: String!, $repo: String!, $branch: String!) {
       repository(owner: $owner, name: $repo) {
@@ -651,16 +809,6 @@ nonisolated struct TerminalAgentGithubClient: Sendable {
       }
     }
     """
-}
-
-nonisolated private struct GithubRepoViewResponse: Decodable {
-  let name: String
-  let owner: GithubRepoViewOwnerResponse
-  let url: String?
-}
-
-nonisolated private struct GithubRepoViewOwnerResponse: Decodable {
-  let login: String
 }
 
 nonisolated private struct GithubPullRequestResponse: Decodable {
@@ -1135,7 +1283,8 @@ final class TerminalAgentPanelController {
     if let gitSnapshot {
       let pullRequestStatus = await githubClient.pullRequestStatus(
         repoRoot: gitSnapshot.repoRoot,
-        branchName: gitSnapshot.branchName
+        branchName: gitSnapshot.branchName,
+        remoteURL: gitSnapshot.remoteURL
       )
       branchDetails = PaneAgentBranchDetails(
         branchName: gitSnapshot.branchName,

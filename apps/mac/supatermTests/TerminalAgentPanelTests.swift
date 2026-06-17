@@ -577,25 +577,31 @@ struct TerminalAgentPanelTests {
   }
 
   @Test
+  func githubRemoteParserHandlesCommonRemoteURLs() throws {
+    #expect(
+      TerminalAgentGithubRemote(remoteURL: "git@github.com:supabitapp/supaterm.git")
+        == TerminalAgentGithubRemote(host: "github.com", owner: "supabitapp", repo: "supaterm")
+    )
+    #expect(
+      TerminalAgentGithubRemote(remoteURL: "https://github.com/supabitapp/supaterm.git")
+        == TerminalAgentGithubRemote(host: "github.com", owner: "supabitapp", repo: "supaterm")
+    )
+    #expect(
+      TerminalAgentGithubRemote(remoteURL: "ssh://git@github.example.com/supabitapp/supaterm.git")
+        == TerminalAgentGithubRemote(
+          host: "github.example.com",
+          owner: "supabitapp",
+          repo: "supaterm"
+        )
+    )
+  }
+
+  @Test
   func githubPullRequestStatusBuildsCreateURLWhenNoPullRequestExists() async {
     let runner = TerminalAgentPanelCommandRunner(
       run: { executableURL, arguments, _ in
         if executableURL.path == "/usr/bin/which" {
           return TerminalAgentPanelCommandResult(status: 0, stdout: "/usr/bin/gh\n")
-        }
-        if arguments.starts(with: ["repo", "view"]) {
-          return TerminalAgentPanelCommandResult(
-            status: 0,
-            stdout: """
-              {
-                "name": "supaterm",
-                "owner": {
-                  "login": "supabitapp"
-                },
-                "url": "https://github.com/supabitapp/supaterm"
-              }
-              """
-          )
         }
         if arguments.starts(with: ["api", "graphql"]) {
           return TerminalAgentPanelCommandResult(
@@ -618,7 +624,8 @@ struct TerminalAgentPanelTests {
 
     let status = await client.pullRequestStatus(
       repoRoot: URL(fileURLWithPath: "/tmp/repo", isDirectory: true),
-      branchName: "khoi/agent-panel"
+      branchName: "khoi/agent-panel",
+      remoteURL: "git@github.com:supabitapp/supaterm.git"
     )
 
     #expect(status.kind == .none)
@@ -627,6 +634,41 @@ struct TerminalAgentPanelTests {
       status.url?.absoluteString
         == "https://github.com/supabitapp/supaterm/compare/khoi/agent-panel?expand=1"
     )
+  }
+
+  @Test
+  func githubPullRequestStatusCoalescesDuplicateRequests() async {
+    let recorder = GithubPullRequestCommandRecorder()
+    let client = TerminalAgentGithubClient(
+      runner: await recorder.runner(),
+      resolver: TerminalAgentGithubExecutableResolver(),
+      statusCache: TerminalAgentGithubStatusCache(ttl: 120)
+    )
+    let repoRoot = URL(fileURLWithPath: "/tmp/repo", isDirectory: true)
+
+    async let first = client.pullRequestStatus(
+      repoRoot: repoRoot,
+      branchName: "khoi/agent-panel",
+      remoteURL: "https://github.com/supabitapp/supaterm.git"
+    )
+    async let second = client.pullRequestStatus(
+      repoRoot: repoRoot,
+      branchName: "khoi/agent-panel",
+      remoteURL: "https://github.com/supabitapp/supaterm.git"
+    )
+
+    #expect(await first.kind == .open)
+    #expect(await second.kind == .open)
+    #expect(await recorder.graphqlCallCount() == 1)
+
+    let cached = await client.pullRequestStatus(
+      repoRoot: repoRoot,
+      branchName: "khoi/agent-panel",
+      remoteURL: "https://github.com/supabitapp/supaterm.git"
+    )
+
+    #expect(cached.kind == .open)
+    #expect(await recorder.graphqlCallCount() == 1)
   }
 
   @Test
@@ -944,6 +986,76 @@ struct TerminalAgentPanelTests {
 
 private func isoDate(_ value: String) throws -> Date {
   try #require(ISO8601DateFormatter().date(from: value))
+}
+
+private actor GithubPullRequestCommandRecorder {
+  private var graphqlCalls = 0
+
+  func runner() -> TerminalAgentPanelCommandRunner {
+    TerminalAgentPanelCommandRunner(
+      run: { executableURL, arguments, _ in
+        await self.run(executableURL: executableURL, arguments: arguments)
+      },
+      runLoginCommand: { _, _ in
+        TerminalAgentPanelCommandResult(status: 1, stdout: "")
+      }
+    )
+  }
+
+  func graphqlCallCount() -> Int {
+    graphqlCalls
+  }
+
+  private func run(
+    executableURL: URL,
+    arguments: [String]
+  ) -> TerminalAgentPanelCommandResult {
+    if executableURL.path == "/usr/bin/which" {
+      return TerminalAgentPanelCommandResult(status: 0, stdout: "/usr/bin/gh\n")
+    }
+    if arguments.starts(with: ["api", "graphql"]) {
+      graphqlCalls += 1
+      return TerminalAgentPanelCommandResult(
+        status: 0,
+        stdout: """
+          {
+            "data": {
+              "repository": {
+                "pullRequests": {
+                  "nodes": [
+                    {
+                      "number": 39,
+                      "additions": 12,
+                      "deletions": 3,
+                      "state": "OPEN",
+                      "isDraft": false,
+                      "url": "https://github.com/supabitapp/supaterm/pull/39",
+                      "commits": {
+                        "nodes": [
+                          {
+                            "commit": {
+                              "statusCheckRollup": {
+                                "state": "SUCCESS",
+                                "contexts": {
+                                  "totalCount": 0,
+                                  "nodes": []
+                                }
+                              }
+                            }
+                          }
+                        ]
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          }
+          """
+      )
+    }
+    return TerminalAgentPanelCommandResult(status: 1, stdout: "")
+  }
 }
 
 private actor AgentPanelCommandRecorder {
