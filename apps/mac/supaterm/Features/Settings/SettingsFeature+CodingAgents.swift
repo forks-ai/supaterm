@@ -175,8 +175,10 @@ extension SettingsFeature {
     switch agent {
     case .claude:
       let client = claudeSettingsClient
+      let skillClient = supatermSkillClient
       return {
         if isEnabled {
+          try await skillClient.installSupatermSkill()
           try await client.installSupatermHooks()
         } else {
           try await client.removeSupatermHooks()
@@ -185,8 +187,10 @@ extension SettingsFeature {
       }
     case .codex:
       let client = codexSettingsClient
+      let skillClient = supatermSkillClient
       return {
         if isEnabled {
+          try await skillClient.installSupatermSkill()
           try await client.installSupatermHooks()
         } else {
           try await client.removeSupatermHooks()
@@ -195,8 +199,10 @@ extension SettingsFeature {
       }
     case .pi:
       let client = piSettingsClient
+      let skillClient = supatermSkillClient
       return {
         if isEnabled {
+          try await skillClient.installSupatermSkill()
           try await client.installSupatermIntegration()
         } else {
           try await client.removeSupatermIntegration()

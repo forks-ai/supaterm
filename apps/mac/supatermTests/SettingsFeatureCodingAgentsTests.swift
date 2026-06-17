@@ -106,6 +106,62 @@ struct SettingsFeatureCodingAgentsTests {
   }
 
   @Test
+  func enablingAgentIntegrationInstallsSupatermSkillFirst() async {
+    for agent in SupatermAgentKind.allCases {
+      let keyPath = SettingsFeature().agentIntegrationKeyPath(for: agent)
+      let recorder = SettingsAgentInstallRecorder()
+      let store = TestStore(initialState: SettingsFeature.State()) {
+        SettingsFeature()
+      } withDependencies: { dependencies in
+        configureEnableDependencies(&dependencies, agent: agent, recorder: recorder)
+      }
+
+      await store.send(.agentIntegrationToggled(agent, true)) {
+        $0[keyPath: keyPath].isEnabled = true
+        $0[keyPath: keyPath].isPending = true
+      }
+
+      await store.receive(.agentIntegrationToggleFinished(agent, .success(true)), timeout: 0) {
+        $0[keyPath: keyPath].confirmedEnabled = true
+        $0[keyPath: keyPath].isEnabled = true
+        $0[keyPath: keyPath].isPending = false
+      }
+
+      #expect(await recorder.commands() == [.skill, .integration(agent)])
+    }
+  }
+
+  @Test
+  func disablingAgentIntegrationDoesNotInstallSupatermSkill() async {
+    for agent in SupatermAgentKind.allCases {
+      let recorder = SettingsAgentInstallRecorder()
+      var state = SettingsFeature.State()
+      let keyPath = SettingsFeature().agentIntegrationKeyPath(for: agent)
+      state[keyPath: keyPath].confirmedEnabled = true
+      state[keyPath: keyPath].isEnabled = true
+
+      let store = TestStore(initialState: state) {
+        SettingsFeature()
+      } withDependencies: { dependencies in
+        configureDisableDependencies(&dependencies, agent: agent, recorder: recorder)
+      }
+
+      await store.send(.agentIntegrationToggled(agent, false)) {
+        $0[keyPath: keyPath].isEnabled = false
+        $0[keyPath: keyPath].isPending = true
+      }
+
+      await store.receive(.agentIntegrationToggleFinished(agent, .success(false)), timeout: 0) {
+        $0[keyPath: keyPath].confirmedEnabled = false
+        $0[keyPath: keyPath].isEnabled = false
+        $0[keyPath: keyPath].isPending = false
+      }
+
+      #expect(await recorder.commands() == [.integration(agent)])
+    }
+  }
+
+  @Test
   func claudeIntegrationToggleOnShowsSuccessState() async {
     let store = TestStore(initialState: SettingsFeature.State()) {
       SettingsFeature()
@@ -286,6 +342,77 @@ struct SettingsFeatureCodingAgentsTests {
 
     await store.send(.agentIntegrationInstallFailureDismissed) {
       $0.agentIntegrationInstallFailure = nil
+    }
+  }
+}
+
+enum SettingsAgentInstallCommand: Equatable {
+  case integration(SupatermAgentKind)
+  case skill
+}
+
+actor SettingsAgentInstallRecorder {
+  private var recordedCommands: [SettingsAgentInstallCommand] = []
+
+  func commands() -> [SettingsAgentInstallCommand] {
+    recordedCommands
+  }
+
+  func record(_ command: SettingsAgentInstallCommand) {
+    recordedCommands.append(command)
+  }
+}
+
+func configureEnableDependencies(
+  _ dependencies: inout DependencyValues,
+  agent: SupatermAgentKind,
+  recorder: SettingsAgentInstallRecorder
+) {
+  dependencies.supatermSkillClient.installSupatermSkill = {
+    await recorder.record(.skill)
+  }
+  switch agent {
+  case .claude:
+    dependencies.claudeSettingsClient.hasSupatermHooks = { true }
+    dependencies.claudeSettingsClient.installSupatermHooks = {
+      await recorder.record(.integration(agent))
+    }
+  case .codex:
+    dependencies.codexSettingsClient.hasSupatermHooks = { true }
+    dependencies.codexSettingsClient.installSupatermHooks = {
+      await recorder.record(.integration(agent))
+    }
+  case .pi:
+    dependencies.piSettingsClient.hasSupatermIntegration = { true }
+    dependencies.piSettingsClient.installSupatermIntegration = {
+      await recorder.record(.integration(agent))
+    }
+  }
+}
+
+func configureDisableDependencies(
+  _ dependencies: inout DependencyValues,
+  agent: SupatermAgentKind,
+  recorder: SettingsAgentInstallRecorder
+) {
+  dependencies.supatermSkillClient.installSupatermSkill = {
+    await recorder.record(.skill)
+  }
+  switch agent {
+  case .claude:
+    dependencies.claudeSettingsClient.hasSupatermHooks = { false }
+    dependencies.claudeSettingsClient.removeSupatermHooks = {
+      await recorder.record(.integration(agent))
+    }
+  case .codex:
+    dependencies.codexSettingsClient.hasSupatermHooks = { false }
+    dependencies.codexSettingsClient.removeSupatermHooks = {
+      await recorder.record(.integration(agent))
+    }
+  case .pi:
+    dependencies.piSettingsClient.hasSupatermIntegration = { false }
+    dependencies.piSettingsClient.removeSupatermIntegration = {
+      await recorder.record(.integration(agent))
     }
   }
 }

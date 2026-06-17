@@ -207,6 +207,7 @@ public struct SettingsFeature {
   @Dependency(AnalyticsClient.self) var analyticsClient
   @Dependency(DesktopNotificationClient.self) var desktopNotificationClient
   @Dependency(GhosttyTerminalSettingsClient.self) var ghosttyTerminalSettingsClient
+  @Dependency(SupatermSkillClient.self) var supatermSkillClient
   @Dependency(UpdateClient.self) var updateClient
 
   public init() {}
