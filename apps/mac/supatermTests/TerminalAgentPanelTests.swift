@@ -928,6 +928,49 @@ struct TerminalAgentPanelTests {
   }
 
   @Test
+  func githubPullRequestDecoderKeepsGoodBranchesWhenOneAliasIsNull() {
+    let statuses = TerminalAgentGithubClient.decodePullRequestStatuses(
+      """
+      {
+        "data": {
+          "repository": {
+            "branch0": {
+              "nodes": [
+                {
+                  "number": 39,
+                  "additions": 10,
+                  "deletions": 2,
+                  "state": "OPEN",
+                  "isDraft": false,
+                  "url": "https://github.com/supabitapp/supaterm/pull/39",
+                  "commits": {"nodes": []}
+                }
+              ]
+            },
+            "branch1": null
+          }
+        }
+      }
+      """,
+      aliasMap: ["branch0": "feature/a", "branch1": "feature/b"],
+      remote: TerminalAgentGithubRemote(
+        host: "github.com",
+        owner: "supabitapp",
+        repo: "supaterm"
+      )
+    )
+
+    #expect(statuses["feature/a"]?.kind == .open)
+    #expect(statuses["feature/a"]?.title == "#39")
+    #expect(statuses["feature/b"]?.kind == PaneAgentPullRequestStatus.Kind.none)
+    #expect(statuses["feature/b"]?.title == "Create pull request")
+    #expect(
+      statuses["feature/b"]?.url?.absoluteString
+        == "https://github.com/supabitapp/supaterm/compare/feature/b?expand=1"
+    )
+  }
+
+  @Test
   func githubPullRequestDecoderUsesNumberChangesAndChecks() throws {
     let status = TerminalAgentGithubClient.decodePullRequestStatus(
       """

@@ -683,7 +683,7 @@ nonisolated struct TerminalAgentGithubClient: Sendable {
   }
 
   nonisolated private static func isGatewayTimeout(_ result: TerminalAgentPanelCommandResult) -> Bool {
-    let output = "\(result.stdout)\n\(result.stderr)".lowercased()
+    let output = result.stderr.lowercased()
     return output.contains("504") || output.contains("gateway timeout")
   }
 
@@ -801,7 +801,7 @@ nonisolated struct TerminalAgentGithubClient: Sendable {
     }
     var statuses: [String: PaneAgentPullRequestStatus] = [:]
     for (alias, branchName) in aliasMap {
-      guard let node = response.data.repository[alias]?.nodes.first else {
+      guard let node = response.data.repository[alias].flatMap({ $0 })?.nodes.first else {
         statuses[branchName] = resolvedMissingStatus(remote: remote, branchName: branchName)
         continue
       }
@@ -979,7 +979,7 @@ nonisolated private struct GithubPullRequestBatchResponse: Decodable {
 }
 
 nonisolated private struct GithubPullRequestBatchDataResponse: Decodable {
-  let repository: [String: GithubPullRequestConnectionResponse]
+  let repository: [String: GithubPullRequestConnectionResponse?]
 }
 
 nonisolated private struct GithubPullRequestResponse: Decodable {
