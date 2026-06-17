@@ -785,16 +785,11 @@ final class TerminalHostState {
       trees[tabID] = tree.equalized()
       sessionDidChange()
 
-    case .agentPanelCopySessionID:
-      break
-
-    case .agentPanelForkSessionRequested:
-      break
-
-    case .agentPanelVisibilityToggled:
-      break
-
-    case .agentPanelURLTapped:
+    case .agentPanelCopyBranchName,
+      .agentPanelCopySessionID,
+      .agentPanelForkSessionRequested,
+      .agentPanelVisibilityToggled,
+      .agentPanelURLTapped:
       break
     }
   }

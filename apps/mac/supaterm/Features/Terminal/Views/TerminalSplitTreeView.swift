@@ -193,6 +193,7 @@ struct TerminalSplitTreeView: View {
     case resize(node: SplitTree<GhosttySurfaceView>.Node, ratio: Double)
     case drop(payloadId: UUID, destinationId: UUID, zone: DropZone)
     case equalize
+    case agentPanelCopyBranchName(String)
     case agentPanelCopySessionID(String)
     case agentPanelForkSessionRequested(
       surfaceID: UUID,
@@ -444,6 +445,9 @@ struct TerminalSplitTreeView: View {
           forksDown: agentPanelForksDown,
           reduceMotion: reduceMotion,
           shortcutHint: agentPanelShortcutHint,
+          copyBranchName: { branchName in
+            action(.agentPanelCopyBranchName(branchName))
+          },
           copySessionID: { sessionID in
             action(.agentPanelCopySessionID(sessionID))
           },
@@ -684,6 +688,7 @@ struct TerminalSplitTreeView: View {
     let forksDown: Bool
     let reduceMotion: Bool
     let shortcutHint: String?
+    let copyBranchName: (String) -> Void
     let copySessionID: (String) -> Void
     let forkSession: (SupatermPaneDirection, PaneAgentPanelSession) -> Void
     let toggle: () -> Void
@@ -698,6 +703,7 @@ struct TerminalSplitTreeView: View {
           palette: palette,
           forksDown: forksDown,
           showsShortcutHints: shortcutHint != nil,
+          copyBranchName: copyBranchName,
           copySessionID: copySessionID,
           forkSession: forkSession,
           openURL: openURL

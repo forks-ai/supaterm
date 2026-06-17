@@ -25,6 +25,7 @@ struct AgentPanelView: View {
   let palette: TerminalPalette
   let forksDown: Bool
   let showsShortcutHints: Bool
+  let copyBranchName: (String) -> Void
   let copySessionID: (String) -> Void
   let forkSession: (SupatermPaneDirection, PaneAgentPanelSession) -> Void
   let openURL: (URL) -> Void
@@ -53,10 +54,7 @@ struct AgentPanelView: View {
       if let branchDetails = presentation.branchDetails {
         section("Branch details") {
           VStack(alignment: .leading, spacing: AgentPanelMetrics.sectionContentSpacing) {
-            valueRow(
-              icon: .asset("git-branch"),
-              title: branchDetails.branchName
-            )
+            branchRow(branchDetails.branchName)
             changesRow(
               addedLineCount: branchDetails.addedLineCount,
               removedLineCount: branchDetails.removedLineCount
@@ -161,6 +159,18 @@ struct AgentPanelView: View {
 
   private func shortcutHint(_ shortcut: KeyboardShortcut) -> String? {
     showsShortcutHints ? shortcut.display : nil
+  }
+
+  private func branchRow(_ branchName: String) -> some View {
+    Button {
+      copyBranchName(branchName)
+    } label: {
+      valueRow(icon: .asset("git-branch"), title: branchName)
+    }
+    .buttonStyle(.plain)
+    .help("Copy branch name")
+    .accessibilityLabel("Copy branch name")
+    .accessibilityValue(branchName)
   }
 
   private func valueRow(

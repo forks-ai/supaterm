@@ -1043,6 +1043,23 @@ struct TerminalWindowFeatureTests {
   }
 
   @Test
+  func agentPanelCopyBranchNameWritesClipboard() async {
+    var copiedValues: [String] = []
+
+    let store = TestStore(initialState: TerminalWindowFeature.State()) {
+      TerminalWindowFeature()
+    } withDependencies: {
+      $0.clipboardClient.copyString = { value in
+        copiedValues.append(value)
+      }
+    }
+
+    await store.send(.agentPanelCopyBranchName("khoi/branch"))
+
+    #expect(copiedValues == ["khoi/branch"])
+  }
+
+  @Test
   func agentPanelForkSessionRequestedCreatesFocusedPaneInContextSurface() async throws {
     let surfaceID = UUID()
     let spaceID = UUID()
