@@ -4,11 +4,29 @@ import Testing
 
 struct ReleaseAnnouncementTests {
   @Test
-  func semanticVersionComparesNumericComponents() throws {
+  func calendarVersionComparesNumericComponents() throws {
     let lower = try #require(ReleaseAnnouncementVersion("1.3.2"))
     let higher = try #require(ReleaseAnnouncementVersion("1.3.10"))
 
     #expect(higher > lower)
+  }
+
+  @Test
+  func calendarVersionSortsAfterHistoricalVersion() throws {
+    let historical = try #require(ReleaseAnnouncementVersion("1.3.7"))
+    let current = try #require(ReleaseAnnouncementVersion("26.0.0"))
+
+    #expect(current > historical)
+  }
+
+  @Test
+  func calendarReleaseAndPatchCompareNumerically() throws {
+    let base = try #require(ReleaseAnnouncementVersion("26.0.9"))
+    let regular = try #require(ReleaseAnnouncementVersion("26.1.0"))
+    let hotfix = try #require(ReleaseAnnouncementVersion("26.1.1"))
+
+    #expect(regular > base)
+    #expect(hotfix > regular)
   }
 
   @Test

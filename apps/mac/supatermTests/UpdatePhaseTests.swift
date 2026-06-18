@@ -27,16 +27,16 @@ struct UpdatePhaseTests {
   func updateAvailableUsesVersionBadgeAndDetail() {
     let phase = UpdatePhase.updateAvailable(
       UpdatePhase.Available(
-        buildVersion: "1000",
+        buildVersion: "35000",
         contentLength: 1024,
         releaseDate: Date(timeIntervalSince1970: 0),
-        version: "1.2.3"
+        version: "26.0.0"
       )
     )
 
     #expect(phase.summaryText == "Update Available")
-    #expect(phase.badgeText == "1.2.3 (1000)")
-    #expect(phase.detailMessage == "Supaterm 1.2.3 (1000) is ready to download and install.")
+    #expect(phase.badgeText == "26.0.0 (35000)")
+    #expect(phase.detailMessage == "Supaterm 26.0.0 (35000) is ready to download and install.")
     #expect(phase.debugIdentifier == "update_available")
   }
 
@@ -75,14 +75,14 @@ struct UpdatePhaseTests {
   func installingBypassesQuitConfirmation() {
     let phase = UpdatePhase.installing(
       UpdatePhase.Installing(
-        buildVersion: "1000",
+        buildVersion: "35000",
         isAutoUpdate: true,
-        version: "1.2.3"
+        version: "26.0.0"
       )
     )
 
     #expect(phase.summaryText == "Restart to Complete Update")
-    #expect(phase.detailMessage == "Updated to 1.2.3 (1000). Restart Supaterm to complete installation.")
+    #expect(phase.detailMessage == "Updated to 26.0.0 (35000). Restart Supaterm to complete installation.")
     #expect(phase.bypassesQuitConfirmation)
     #expect(phase.debugIdentifier == "installing")
   }

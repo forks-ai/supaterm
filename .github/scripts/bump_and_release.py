@@ -9,8 +9,9 @@ import subprocess
 import sys
 import tempfile
 from dataclasses import dataclass
+from datetime import UTC, date, datetime
 from pathlib import Path
-from typing import TextIO
+from typing import Literal, TextIO
 
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
@@ -19,6 +20,9 @@ VERSION_STATE_PATH = XCCONFIG_PATH.relative_to(REPO_ROOT).as_posix()
 VERSION_PATTERN = re.compile(r"^\d+\.\d+\.\d+$")
 RELEASE_TAG_PATTERN = re.compile(r"^v(\d+\.\d+\.\d+)$")
 ZERO_OID_PATTERN = re.compile(r"^0+$")
+MAX_TIP_BUILD_OFFSET = 999
+RELEASE_KINDS = ("regular", "hotfix")
+ReleaseKind = Literal["regular", "hotfix"]
 
 
 @dataclass(frozen=True)
@@ -49,25 +53,73 @@ def parse_version_state(content: str) -> VersionState:
     raise ValueError("MARKETING_VERSION not found")
   if build_match is None:
     raise ValueError("CURRENT_PROJECT_VERSION not found")
+  marketing_version = marketing_match.group(1)
+  error = validate_version(marketing_version)
+  if error is not None:
+    raise ValueError(f"MARKETING_VERSION {error}")
   return VersionState(
-    marketing_version=marketing_match.group(1),
+    marketing_version=marketing_version,
     build_number=int(build_match.group(1)),
   )
 
 
+def validate_version(candidate: str) -> str | None:
+  if not VERSION_PATTERN.fullmatch(candidate):
+    return "must be in YY.release.patch format"
+  return None
+
+
 def version_tuple(version: str) -> tuple[int, int, int]:
+  error = validate_version(version)
+  if error is not None:
+    raise ValueError(f"version {error}")
   return tuple(int(part) for part in version.split("."))
 
 
 def validate_new_version(candidate: str, current: str) -> str | None:
-  if not VERSION_PATTERN.fullmatch(candidate):
-    return "version must be in x.y.z format"
+  error = validate_version(candidate)
+  if error is not None:
+    return f"version {error}"
   if version_tuple(candidate) <= version_tuple(current):
     return f"version must be greater than {current}"
   return None
 
 
+def parse_release_kind(candidate: str) -> ReleaseKind:
+  if candidate == "regular" or candidate == "hotfix":
+    return candidate
+  raise ValueError("release kind must be regular or hotfix")
+
+
+def current_date() -> date:
+  return datetime.now(UTC).date()
+
+
+def release_year(today: date) -> int:
+  return today.year % 100
+
+
+def next_calver_version(current: str, release_kind: ReleaseKind, today: date) -> str:
+  current_year, current_release, current_patch = version_tuple(current)
+  year = release_year(today)
+  if current_year > year:
+    raise ValueError(f"current version {current} is ahead of CalVer year {year}")
+  if release_kind == "hotfix":
+    if current_year != year:
+      raise ValueError(f"hotfix requires current version to be in {year}.x.x")
+    candidate = f"{current_year}.{current_release}.{current_patch + 1}"
+  else:
+    candidate = f"{year}.{current_release + 1}.0" if current_year == year else f"{year}.0.0"
+  error = validate_new_version(candidate, current)
+  if error is not None:
+    raise ValueError(error)
+  return candidate
+
+
 def update_version_state(content: str, version: str, build: int) -> str:
+  error = validate_version(version)
+  if error is not None:
+    raise ValueError(f"version {error}")
   content = re.sub(
     r"^MARKETING_VERSION = [0-9.]+$",
     f"MARKETING_VERSION = {version}",
@@ -93,13 +145,13 @@ def read_version_state_at_revision(revision: str) -> VersionState:
   return parse_version_state(run(["git", "show", f"{revision}:{VERSION_STATE_PATH}"]))
 
 
-def prompt_for_version(current: str) -> str:
+def prompt_for_release_kind() -> ReleaseKind:
   while True:
-    candidate = input("New version (x.y.z): ").strip()
-    error = validate_new_version(candidate, current)
-    if error is None:
-      return candidate
-    print(f"error: {error}")
+    candidate = input("Release kind [regular/hotfix] (regular): ").strip().lower() or "regular"
+    try:
+      return parse_release_kind(candidate)
+    except ValueError as error:
+      print(f"error: {error}")
 
 
 def prompt_for_confirmation(prompt: str) -> bool:
@@ -127,11 +179,31 @@ def run_interactive(command: list[str], cwd: Path = REPO_ROOT) -> None:
   subprocess.run(command, cwd=cwd, check=True)
 
 
-def bump_version() -> tuple[str, int]:
+def stable_build_number(build_number: int) -> int:
+  if build_number < 1:
+    raise ValueError("CURRENT_PROJECT_VERSION must be positive")
+  return build_number * 1000
+
+
+def tip_build_number(build_number: int, offset: int) -> int:
+  if offset < 1:
+    raise ValueError("tip run_number must be positive")
+  if offset > MAX_TIP_BUILD_OFFSET:
+    raise ValueError(
+      f"tip run_number ({offset}) exceeds {MAX_TIP_BUILD_OFFSET}; bump CURRENT_PROJECT_VERSION before the next tip release"
+    )
+  return stable_build_number(build_number) + offset
+
+
+def bump_version(release_kind: ReleaseKind | None = None, today: date | None = None) -> tuple[str, int]:
   current_state = read_version_state()
-  print(f"Current version: {current_state.marketing_version} ({current_state.build_number})")
-  new_version = prompt_for_version(current_state.marketing_version)
+  kind = release_kind or prompt_for_release_kind()
+  new_version = next_calver_version(current_state.marketing_version, kind, today or current_date())
   new_build = current_state.build_number + 1
+  print(f"Current version: {current_state.marketing_version} ({current_state.build_number})")
+  print(f"Next version: {new_version} ({new_build})")
+  if not prompt_for_confirmation(f"Bump to v{new_version}? [y/N]: "):
+    raise ValueError("release aborted")
   updated = update_version_state(
     XCCONFIG_PATH.read_text(encoding="utf-8"),
     version=new_version,
@@ -251,7 +323,7 @@ def push_release_tag(tag: str, force: bool = False) -> None:
 def release_tag_version(tag: str) -> str:
   match = RELEASE_TAG_PATTERN.fullmatch(tag)
   if match is None:
-    raise ValueError("release tag must be in vX.Y.Z format")
+    raise ValueError("release tag must be in vYY.release.patch format")
   return match.group(1)
 
 
@@ -364,12 +436,12 @@ def recover_pending_release(release: PendingRelease) -> None:
     notes_path.unlink(missing_ok=True)
 
 
-def bump_and_release() -> None:
+def bump_and_release(release_kind: ReleaseKind | None = None) -> None:
   release = pending_release()
   if release is not None:
     recover_pending_release(release)
     return
-  version, _ = bump_version()
+  version, _ = bump_version(release_kind)
   tag = f"v{version}"
   with tempfile.NamedTemporaryFile(
     mode="w+",
@@ -390,22 +462,30 @@ def bump_and_release() -> None:
 def main() -> int:
   os.chdir(REPO_ROOT)
   parser = argparse.ArgumentParser()
+  parser.add_argument("--kind", choices=RELEASE_KINDS)
   subparsers = parser.add_subparsers(dest="command")
   validate_release_tag_parser = subparsers.add_parser("validate-release-tag")
   validate_release_tag_parser.add_argument("tag")
   validate_release_tag_parser.add_argument("--ref")
+  tip_build_number_parser = subparsers.add_parser("tip-build-number")
+  tip_build_number_parser.add_argument("offset", type=int)
+  subparsers.add_parser("stable-build-number")
   subparsers.add_parser("validate-pre-push")
   subparsers.add_parser("run-pre-push-branch-checks")
   args = parser.parse_args()
   try:
     if args.command == "validate-release-tag":
       validate_release_tag(args.tag, args.ref)
+    elif args.command == "stable-build-number":
+      print(stable_build_number(read_version_state().build_number))
+    elif args.command == "tip-build-number":
+      print(tip_build_number(read_version_state().build_number, args.offset))
     elif args.command == "validate-pre-push":
       validate_pre_push(sys.stdin)
     elif args.command == "run-pre-push-branch-checks":
       run_pre_push_branch_checks(sys.stdin)
     else:
-      bump_and_release()
+      bump_and_release(args.kind)
   except ValueError as error:
     print(f"error: {error}", file=sys.stderr)
     return 1

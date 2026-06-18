@@ -22,7 +22,7 @@ help:  # Display this help.
 install-git-hooks:  # Install repo-local Git hooks.
 	@mise exec -- hk install --mise
 
-bump-and-release:  # Print the current version, ask for the next version, then push an annotated release tag for the stable build.
+bump-and-release:  # Compute the next CalVer version, then push an annotated release tag for the stable build.
 	@python3 .github/scripts/bump_and_release.py
 
 worktree-create:  # Create a worktree and copy ignored and untracked files. Example: make worktree-create WORKTREE=my-branch

@@ -1,3 +1,4 @@
+from datetime import date
 from io import StringIO
 from pathlib import Path
 import subprocess
@@ -5,69 +6,113 @@ import unittest
 from unittest.mock import call, patch
 
 from bump_and_release import (
-  MAX_NON_LFS_BLOB_BYTES,
   PendingRelease,
   PushUpdate,
   bump_and_release,
   create_annotated_tag_command,
-  oversized_staged_blobs,
-  pending_release,
+  next_calver_version,
+  parse_release_kind,
   parse_version_state,
   parse_push_update,
   branch_pre_push_checks_required,
   run_pre_push_branch_checks,
   release_state,
   recover_pending_release,
-  staged_blob_paths,
-  validate_pre_commit,
+  stable_build_number,
+  tip_build_number,
   update_version_state,
   validate_pre_push,
   validate_release_tag,
   validate_new_version,
   version_tuple,
+  pending_release,
 )
 
 
 class BumpAndReleaseTest(unittest.TestCase):
   def test_parse_version_state(self) -> None:
     state = parse_version_state(
-      "MARKETING_VERSION = 1.2.3\nCURRENT_PROJECT_VERSION = 45\nSPARKLE_PUBLIC_ED_KEY = key\n"
+      "MARKETING_VERSION = 26.0.0\nCURRENT_PROJECT_VERSION = 35\nSPARKLE_PUBLIC_ED_KEY = key\n"
     )
 
-    self.assertEqual(state.marketing_version, "1.2.3")
-    self.assertEqual(state.build_number, 45)
+    self.assertEqual(state.marketing_version, "26.0.0")
+    self.assertEqual(state.build_number, 35)
 
-  def test_validate_new_version_requires_semver(self) -> None:
-    self.assertEqual(validate_new_version("1.2", "1.1.0"), "version must be in x.y.z format")
+  def test_parse_version_state_rejects_malformed_marketing_version(self) -> None:
+    with self.assertRaisesRegex(ValueError, "MARKETING_VERSION must be in YY.release.patch format"):
+      parse_version_state("MARKETING_VERSION = 26.0\nCURRENT_PROJECT_VERSION = 35\n")
+
+  def test_validate_new_version_requires_calendar_shape(self) -> None:
+    self.assertEqual(validate_new_version("26.0", "1.3.7"), "version must be in YY.release.patch format")
 
   def test_validate_new_version_requires_greater_version(self) -> None:
-    self.assertEqual(validate_new_version("1.2.3", "1.2.3"), "version must be greater than 1.2.3")
-    self.assertEqual(validate_new_version("1.2.2", "1.2.3"), "version must be greater than 1.2.3")
+    self.assertEqual(validate_new_version("26.0.0", "26.0.0"), "version must be greater than 26.0.0")
+    self.assertEqual(validate_new_version("26.0.0", "26.0.1"), "version must be greater than 26.0.1")
 
-  def test_validate_new_version_accepts_greater_version(self) -> None:
-    self.assertIsNone(validate_new_version("1.2.4", "1.2.3"))
+  def test_validate_new_version_accepts_greater_calendar_version(self) -> None:
+    self.assertIsNone(validate_new_version("26.0.0", "1.3.7"))
+    self.assertIsNone(validate_new_version("26.1.0", "26.0.9"))
+
+  def test_version_tuple_sorts_numeric_components(self) -> None:
+    self.assertGreater(version_tuple("26.10.0"), version_tuple("26.2.9"))
+    self.assertGreater(version_tuple("26.0.0"), version_tuple("1.3.7"))
+
+  def test_parse_release_kind_accepts_supported_kinds(self) -> None:
+    self.assertEqual(parse_release_kind("regular"), "regular")
+    self.assertEqual(parse_release_kind("hotfix"), "hotfix")
+
+  def test_parse_release_kind_rejects_unknown_kind(self) -> None:
+    with self.assertRaisesRegex(ValueError, "release kind must be regular or hotfix"):
+      parse_release_kind("minor")
+
+  def test_next_regular_release_starts_current_year_series(self) -> None:
+    self.assertEqual(next_calver_version("1.3.7", "regular", date(2026, 6, 18)), "26.0.0")
+
+  def test_next_regular_release_increments_release_within_year(self) -> None:
+    self.assertEqual(next_calver_version("26.1.9", "regular", date(2026, 8, 1)), "26.2.0")
+
+  def test_next_regular_release_resets_for_new_year(self) -> None:
+    self.assertEqual(next_calver_version("26.8.4", "regular", date(2027, 1, 1)), "27.0.0")
+
+  def test_next_hotfix_release_increments_patch(self) -> None:
+    self.assertEqual(next_calver_version("26.1.9", "hotfix", date(2026, 8, 1)), "26.1.10")
+
+  def test_next_hotfix_rejects_previous_year_version(self) -> None:
+    with self.assertRaisesRegex(ValueError, "hotfix requires current version to be in 26.x.x"):
+      next_calver_version("25.3.0", "hotfix", date(2026, 8, 1))
+
+  def test_next_release_rejects_future_year_version(self) -> None:
+    with self.assertRaisesRegex(ValueError, "current version 27.0.0 is ahead of CalVer year 26"):
+      next_calver_version("27.0.0", "regular", date(2026, 8, 1))
 
   def test_update_version_state_rewrites_version_lines(self) -> None:
-    content = "MARKETING_VERSION = 0.0.1\nCURRENT_PROJECT_VERSION = 1\nSPARKLE_PUBLIC_ED_KEY = key\n"
+    content = "MARKETING_VERSION = 1.3.7\nCURRENT_PROJECT_VERSION = 34\nSPARKLE_PUBLIC_ED_KEY = key\n"
 
-    updated = update_version_state(content, version="1.4.0", build=27)
+    updated = update_version_state(content, version="26.0.0", build=35)
 
     self.assertEqual(
       updated,
-      "MARKETING_VERSION = 1.4.0\nCURRENT_PROJECT_VERSION = 27\nSPARKLE_PUBLIC_ED_KEY = key\n",
+      "MARKETING_VERSION = 26.0.0\nCURRENT_PROJECT_VERSION = 35\nSPARKLE_PUBLIC_ED_KEY = key\n",
     )
 
-  def test_version_tuple_sorts_semantic_parts_numerically(self) -> None:
-    self.assertGreater(version_tuple("1.10.0"), version_tuple("1.2.9"))
+  def test_stable_build_number_uses_private_monotonic_build(self) -> None:
+    self.assertEqual(stable_build_number(35), 35000)
+
+  def test_tip_build_number_adds_run_offset(self) -> None:
+    self.assertEqual(tip_build_number(35, 42), 35042)
+
+  def test_tip_build_number_rejects_exhausted_offset_range(self) -> None:
+    with self.assertRaisesRegex(ValueError, "tip run_number \\(1000\\) exceeds 999"):
+      tip_build_number(35, 1000)
 
   def test_create_annotated_tag_command_uses_release_notes_file(self) -> None:
     self.assertEqual(
-      create_annotated_tag_command("v1.4.0", Path("/tmp/release-notes.md")),
+      create_annotated_tag_command("v26.0.0", Path("/tmp/release-notes.md")),
       [
         "git",
         "tag",
         "-a",
-        "v1.4.0",
+        "v26.0.0",
         "-F",
         "/tmp/release-notes.md",
       ],
@@ -75,12 +120,12 @@ class BumpAndReleaseTest(unittest.TestCase):
 
   def test_create_annotated_tag_command_force_updates_existing_tag(self) -> None:
     self.assertEqual(
-      create_annotated_tag_command("v1.4.0", Path("/tmp/release-notes.md"), force=True),
+      create_annotated_tag_command("v26.0.0", Path("/tmp/release-notes.md"), force=True),
       [
         "git",
         "tag",
         "-fa",
-        "v1.4.0",
+        "v26.0.0",
         "-F",
         "/tmp/release-notes.md",
       ],
@@ -88,12 +133,12 @@ class BumpAndReleaseTest(unittest.TestCase):
 
   def test_create_annotated_tag_command_can_target_specific_commit(self) -> None:
     self.assertEqual(
-      create_annotated_tag_command("v1.4.0", Path("/tmp/release-notes.md"), force=True, commit="abc123"),
+      create_annotated_tag_command("v26.0.0", Path("/tmp/release-notes.md"), force=True, commit="abc123"),
       [
         "git",
         "tag",
         "-fa",
-        "v1.4.0",
+        "v26.0.0",
         "-F",
         "/tmp/release-notes.md",
         "abc123",
@@ -101,50 +146,50 @@ class BumpAndReleaseTest(unittest.TestCase):
     )
 
   def test_validate_release_tag_requires_stable_format(self) -> None:
-    with self.assertRaisesRegex(ValueError, "release tag must be in vX.Y.Z format"):
-      validate_release_tag("v1.4")
+    with self.assertRaisesRegex(ValueError, "release tag must be in vYY.release.patch format"):
+      validate_release_tag("v26.0")
 
   @patch("bump_and_release.run")
   def test_validate_release_tag_requires_annotated_tag(self, run_mock) -> None:
     run_mock.return_value = "commit"
 
-    with self.assertRaisesRegex(ValueError, "v1.4.0 must be an annotated tag"):
-      validate_release_tag("v1.4.0")
+    with self.assertRaisesRegex(ValueError, "v26.0.0 must be an annotated tag"):
+      validate_release_tag("v26.0.0")
 
   @patch("bump_and_release.run")
   def test_validate_release_tag_requires_matching_marketing_version(self, run_mock) -> None:
     run_mock.side_effect = [
       "tag",
-      "MARKETING_VERSION = 1.3.0\nCURRENT_PROJECT_VERSION = 27\nSPARKLE_PUBLIC_ED_KEY = key\n",
+      "MARKETING_VERSION = 26.0.1\nCURRENT_PROJECT_VERSION = 35\nSPARKLE_PUBLIC_ED_KEY = key\n",
     ]
 
-    with self.assertRaisesRegex(ValueError, "v1.4.0 does not match MARKETING_VERSION 1.3.0"):
-      validate_release_tag("v1.4.0")
+    with self.assertRaisesRegex(ValueError, "v26.0.0 does not match MARKETING_VERSION 26.0.1"):
+      validate_release_tag("v26.0.0")
 
   @patch("bump_and_release.run")
   def test_validate_release_tag_accepts_matching_annotated_tag(self, run_mock) -> None:
     run_mock.side_effect = [
       "tag",
-      "MARKETING_VERSION = 1.4.0\nCURRENT_PROJECT_VERSION = 27\nSPARKLE_PUBLIC_ED_KEY = key\n",
+      "MARKETING_VERSION = 26.0.0\nCURRENT_PROJECT_VERSION = 35\nSPARKLE_PUBLIC_ED_KEY = key\n",
     ]
 
-    validate_release_tag("v1.4.0")
+    validate_release_tag("v26.0.0")
 
   @patch("bump_and_release.run")
   def test_release_state_returns_missing_for_absent_release(self, run_mock) -> None:
     run_mock.side_effect = subprocess.CalledProcessError(
       1,
-      ["gh", "release", "view", "v1.4.0"],
+      ["gh", "release", "view", "v26.0.0"],
       stderr="release not found",
     )
 
-    self.assertEqual(release_state("v1.4.0"), "missing")
+    self.assertEqual(release_state("v26.0.0"), "missing")
 
   @patch("bump_and_release.run")
   def test_release_state_returns_draft_for_draft_release(self, run_mock) -> None:
     run_mock.return_value = "true"
 
-    self.assertEqual(release_state("v1.4.0"), "draft")
+    self.assertEqual(release_state("v26.0.0"), "draft")
 
   @patch("bump_and_release.release_commit")
   @patch("bump_and_release.release_state")
@@ -158,15 +203,15 @@ class BumpAndReleaseTest(unittest.TestCase):
     release_commit_mock,
   ) -> None:
     read_version_state_mock.return_value = parse_version_state(
-      "MARKETING_VERSION = 1.4.0\nCURRENT_PROJECT_VERSION = 27\n"
+      "MARKETING_VERSION = 26.0.0\nCURRENT_PROJECT_VERSION = 35\n"
     )
-    previous_release_tag_mock.return_value = "v1.3.9"
+    previous_release_tag_mock.return_value = "v1.3.7"
     release_state_mock.return_value = "missing"
     release_commit_mock.return_value = "abc123"
 
     self.assertEqual(
       pending_release(),
-      PendingRelease(tag="v1.4.0", release_state="missing", commit="abc123"),
+      PendingRelease(tag="v26.0.0", release_state="missing", commit="abc123"),
     )
 
   @patch("bump_and_release.release_commit")
@@ -181,9 +226,9 @@ class BumpAndReleaseTest(unittest.TestCase):
     release_commit_mock,
   ) -> None:
     read_version_state_mock.return_value = parse_version_state(
-      "MARKETING_VERSION = 1.4.0\nCURRENT_PROJECT_VERSION = 27\n"
+      "MARKETING_VERSION = 26.0.0\nCURRENT_PROJECT_VERSION = 35\n"
     )
-    previous_release_tag_mock.return_value = "v1.3.9"
+    previous_release_tag_mock.return_value = "v1.3.7"
     release_state_mock.return_value = "published"
     release_commit_mock.return_value = "abc123"
 
@@ -204,7 +249,7 @@ class BumpAndReleaseTest(unittest.TestCase):
   ) -> None:
     events: list[str] = []
     pending_release_mock.return_value = None
-    bump_version_mock.return_value = ("1.4.0", 27)
+    bump_version_mock.return_value = ("26.0.0", 35)
     push_current_branch_mock.side_effect = lambda: events.append("push")
     write_release_notes_mock.side_effect = lambda *_: events.append("write")
     publish_release_tag_mock.side_effect = lambda *_: events.append("publish")
@@ -236,64 +281,15 @@ class BumpAndReleaseTest(unittest.TestCase):
     push_release_tag_mock.side_effect = lambda *_args, **_kwargs: events.append("push-tag")
     sync_draft_release_notes_mock.side_effect = lambda *_: events.append("sync")
 
-    recover_pending_release(PendingRelease(tag="v1.4.0", release_state="missing", commit="abc123"))
+    with patch("builtins.print"):
+      recover_pending_release(PendingRelease(tag="v26.0.0", release_state="missing", commit="abc123"))
 
     self.assertEqual(events, ["push", "write", "tag", "push-tag"])
 
   def test_parse_push_update_reads_all_fields(self) -> None:
     self.assertEqual(
-      parse_push_update("refs/tags/v1.4.0 abc refs/tags/v1.4.0 def\n"),
-      PushUpdate("refs/tags/v1.4.0", "abc", "refs/tags/v1.4.0", "def"),
-    )
-
-  @patch("bump_and_release.run")
-  def test_staged_blob_paths_reads_added_and_modified_blob_oids(self, run_mock) -> None:
-    run_mock.return_value = (
-      ":100644 100644 old-blob new-blob M\0path/to/file.txt\0"
-      ":000000 100644 " + ("0" * 40) + " fresh-blob A\0path/to/new.bin\0"
-    )
-
-    self.assertEqual(
-      staged_blob_paths(),
-      {
-        "new-blob": "path/to/file.txt",
-        "fresh-blob": "path/to/new.bin",
-      },
-    )
-
-  @patch("bump_and_release.run")
-  def test_staged_blob_paths_ignores_gitlinks(self, run_mock) -> None:
-    run_mock.return_value = (
-      ":160000 160000 old-submodule new-submodule M\0integrations/supaterm-skills\0"
-      ":100644 100644 old-blob new-blob M\0path/to/file.txt\0"
-    )
-
-    self.assertEqual(
-      staged_blob_paths(),
-      {
-        "new-blob": "path/to/file.txt",
-      },
-    )
-
-  @patch("bump_and_release.read_object_metadata")
-  @patch("bump_and_release.staged_blob_paths")
-  def test_oversized_staged_blobs_reports_large_staged_blobs(
-    self,
-    staged_blob_paths_mock,
-    read_object_metadata_mock,
-  ) -> None:
-    staged_blob_paths_mock.return_value = {
-      "big-blob": "path/to/big.bin",
-      "small-blob": "path/to/small.txt",
-    }
-    read_object_metadata_mock.return_value = {
-      "big-blob": ("blob", MAX_NON_LFS_BLOB_BYTES + 1),
-      "small-blob": ("blob", 128),
-    }
-
-    self.assertEqual(
-      oversized_staged_blobs(),
-      [f"path/to/big.bin ({MAX_NON_LFS_BLOB_BYTES + 1} bytes)"],
+      parse_push_update("refs/tags/v26.0.0 abc refs/tags/v26.0.0 def\n"),
+      PushUpdate("refs/tags/v26.0.0", "abc", "refs/tags/v26.0.0", "def"),
     )
 
   @patch("bump_and_release.validate_release_tag")
@@ -309,7 +305,7 @@ class BumpAndReleaseTest(unittest.TestCase):
 
   def test_branch_pre_push_checks_required_ignores_tag_pushes(self) -> None:
     self.assertFalse(
-      branch_pre_push_checks_required(StringIO("refs/tags/v1.4.0 abc refs/tags/v1.4.0 def\n"))
+      branch_pre_push_checks_required(StringIO("refs/tags/v26.0.0 abc refs/tags/v26.0.0 def\n"))
     )
 
   @patch("bump_and_release.run_interactive")
@@ -327,37 +323,26 @@ class BumpAndReleaseTest(unittest.TestCase):
 
   @patch("bump_and_release.run_interactive")
   def test_run_pre_push_branch_checks_skips_tag_pushes(self, run_interactive_mock) -> None:
-    run_pre_push_branch_checks(StringIO("refs/tags/v1.4.0 abc refs/tags/v1.4.0 def\n"))
+    run_pre_push_branch_checks(StringIO("refs/tags/v26.0.0 abc refs/tags/v26.0.0 def\n"))
 
     run_interactive_mock.assert_not_called()
 
   @patch("bump_and_release.validate_release_tag")
   def test_validate_pre_push_ignores_tag_deletions(self, validate_release_tag_mock) -> None:
-    validate_pre_push(StringIO("(delete) 0000000000000000000000000000000000000000 refs/tags/v1.4.0 def\n"))
+    validate_pre_push(StringIO("(delete) 0000000000000000000000000000000000000000 refs/tags/v26.0.0 def\n"))
 
     validate_release_tag_mock.assert_not_called()
 
   @patch("bump_and_release.validate_release_tag")
   def test_validate_pre_push_validates_release_tag_pushes(self, validate_release_tag_mock) -> None:
-    validate_pre_push(StringIO("refs/tags/v1.4.0 abc refs/tags/v1.4.0 def\n"))
+    validate_pre_push(StringIO("refs/tags/v26.0.0 abc refs/tags/v26.0.0 def\n"))
 
-    validate_release_tag_mock.assert_called_once_with("v1.4.0", "refs/tags/v1.4.0")
+    validate_release_tag_mock.assert_called_once_with("v26.0.0", "refs/tags/v26.0.0")
 
-  @patch("bump_and_release.validate_release_tag", side_effect=ValueError("release tag must be in vX.Y.Z format"))
+  @patch("bump_and_release.validate_release_tag", side_effect=ValueError("release tag must be in vYY.release.patch format"))
   def test_validate_pre_push_rejects_invalid_release_tags(self, _validate_release_tag) -> None:
-    with self.assertRaisesRegex(ValueError, "v1.4: release tag must be in vX.Y.Z format"):
-      validate_pre_push(StringIO("refs/tags/v1.4 abc refs/tags/v1.4 def\n"))
-
-  @patch(
-    "bump_and_release.oversized_staged_blobs",
-    return_value=[f"path/to/big.bin ({MAX_NON_LFS_BLOB_BYTES + 1} bytes)"],
-  )
-  def test_validate_pre_commit_rejects_large_non_lfs_blobs(self, _) -> None:
-    with self.assertRaisesRegex(
-      ValueError,
-      rf"files larger than {MAX_NON_LFS_BLOB_BYTES} bytes must be stored in Git LFS",
-    ):
-      validate_pre_commit()
+    with self.assertRaisesRegex(ValueError, "v26.0: release tag must be in vYY.release.patch format"):
+      validate_pre_push(StringIO("refs/tags/v26.0 abc refs/tags/v26.0 def\n"))
 
 
 if __name__ == "__main__":

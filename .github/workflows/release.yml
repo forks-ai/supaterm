@@ -50,8 +50,7 @@ jobs:
           fi
       - name: Compute stable build number
         run: |
-          BASE=$(awk -F' = ' '/^CURRENT_PROJECT_VERSION = [0-9]+$/{print $2; exit}' apps/mac/Configurations/Project.xcconfig)
-          BUILD_NUMBER=$((BASE * 1000))
+          BUILD_NUMBER=$(/usr/bin/python3 .github/scripts/bump_and_release.py stable-build-number)
           echo "BUILD_NUMBER=$BUILD_NUMBER" >> "$GITHUB_ENV"
       - name: Setup keychain
         run: |

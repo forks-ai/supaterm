@@ -1,6 +1,6 @@
 ---
 name: supaterm-release
-description: Prepare and ship Supaterm stable releases. Use when the user asks to bump a Supaterm version, cut a stable release, write or publish release notes, update announcement cards, update the `supaterm.com` changelog, or run `make bump-and-release`. Always draft the changelog and confirm the announcement-card decision before editing `apps/supaterm.com`, creating GitHub release notes, or running the release command.
+description: Prepare and ship Supaterm CalVer stable releases. Use when the user asks to bump a Supaterm version, cut a stable release, write or publish release notes, update announcement cards, update the `supaterm.com` changelog, or run `make bump-and-release`. Always draft the changelog and confirm the announcement-card decision before editing `apps/supaterm.com`, creating GitHub release notes, or running the release command.
 ---
 
 # Supaterm Release
@@ -88,9 +88,9 @@ Run:
 make bump-and-release
 ```
 
-Pass the user-requested version when prompted.
+Choose `regular` for the first yearly release or a normal release, and `hotfix` for patch-only follow-ups.
 
-This command updates `apps/mac/Configurations/Project.xcconfig`, creates the bump commit, pushes the branch, creates the annotated tag, and pushes the tag. Never run it before changelog approval because it publishes immediately.
+This command computes the next CalVer version, updates `apps/mac/Configurations/Project.xcconfig`, creates the bump commit, pushes the branch, creates the annotated tag, and pushes the tag. Never run it before changelog approval because it publishes immediately.
 
 9. Sync the GitHub release notes.
 
@@ -99,8 +99,8 @@ This command updates `apps/mac/Configurations/Project.xcconfig`, creates the bum
 Run one of:
 
 ```bash
-gh release edit vX.Y.Z --title "vX.Y.Z" --notes-file <notes-file>
-gh release create vX.Y.Z --draft --verify-tag --title "vX.Y.Z" --notes-file <notes-file>
+gh release edit v26.0.0 --title "v26.0.0" --notes-file <notes-file>
+gh release create v26.0.0 --draft --verify-tag --title "v26.0.0" --notes-file <notes-file>
 ```
 
 Prefer `gh release edit` when the draft already exists.
