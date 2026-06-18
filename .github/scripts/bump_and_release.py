@@ -9,7 +9,7 @@ import subprocess
 import sys
 import tempfile
 from dataclasses import dataclass
-from datetime import UTC, date, datetime
+from datetime import date, datetime, timezone
 from pathlib import Path
 from typing import Literal, TextIO
 
@@ -92,7 +92,7 @@ def parse_release_kind(candidate: str) -> ReleaseKind:
 
 
 def current_date() -> date:
-  return datetime.now(UTC).date()
+  return datetime.now(timezone.utc).date()
 
 
 def release_year(today: date) -> int:
