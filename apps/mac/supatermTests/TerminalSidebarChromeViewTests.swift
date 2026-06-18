@@ -244,9 +244,8 @@ struct TerminalSidebarChromeViewTests {
   }
 
   @Test
-  func agentBadgeMarksUseTemplateRenderingWhenSelected() {
-    #expect(TerminalAgentBadgeGroupView.markRenderingMode(isSelected: false) == .original)
-    #expect(TerminalAgentBadgeGroupView.markRenderingMode(isSelected: true) == .template)
+  func agentBadgeMarksUseTemplateRendering() {
+    #expect(TerminalAgentBadgeGroupView.markRenderingMode == .template)
   }
 
   @Test

@@ -22,9 +22,7 @@ struct TerminalAgentBadgeGroupView: View {
     max(0, activities.count - maxVisibleCount)
   }
 
-  static func markRenderingMode(isSelected: Bool) -> Image.TemplateRenderingMode {
-    isSelected ? .template : .original
-  }
+  static let markRenderingMode: Image.TemplateRenderingMode = .template
 
   var body: some View {
     let visibleActivities = Self.visibleActivities(activities)
@@ -75,7 +73,7 @@ private struct TerminalAgentBadgeView: View {
 
   var body: some View {
     Image(activity.kind.markImageName)
-      .renderingMode(TerminalAgentBadgeGroupView.markRenderingMode(isSelected: isSelected))
+      .renderingMode(TerminalAgentBadgeGroupView.markRenderingMode)
       .resizable()
       .aspectRatio(contentMode: .fit)
       .padding(3)
