@@ -3,6 +3,7 @@ import SwiftUI
 
 struct TerminalAgentBadgeGroupView: View {
   static let maxVisibleCount = 3
+  static let badgeSpacing: CGFloat = 2
 
   let activities: [TerminalHostState.AgentActivity]
   let isSelected: Bool
@@ -28,14 +29,13 @@ struct TerminalAgentBadgeGroupView: View {
     let visibleActivities = Self.visibleActivities(activities)
     let overflowCount = Self.overflowCount(for: activities)
 
-    HStack(spacing: -5.5) {
-      ForEach(Array(visibleActivities.enumerated()), id: \.offset) { index, activity in
+    HStack(spacing: Self.badgeSpacing) {
+      ForEach(Array(visibleActivities.enumerated()), id: \.offset) { _, activity in
         TerminalAgentBadgeView(
           activity: activity,
           isSelected: isSelected,
           palette: palette
         )
-        .zIndex(Double(visibleActivities.count - index))
       }
 
       if overflowCount > 0 {

@@ -231,7 +231,7 @@ struct TerminalSidebarChromeViewTests {
   }
 
   @Test
-  func agentBadgeGroupStacksThreeVisibleActivitiesThenOverflow() {
+  func agentBadgeGroupShowsThreeVisibleActivitiesThenOverflow() {
     let activities: [TerminalHostState.AgentActivity] = [
       .claude(.running),
       .codex(.running),
@@ -241,6 +241,11 @@ struct TerminalSidebarChromeViewTests {
 
     #expect(TerminalAgentBadgeGroupView.visibleActivities(activities).count == 3)
     #expect(TerminalAgentBadgeGroupView.overflowCount(for: activities) == 1)
+  }
+
+  @Test
+  func agentBadgeGroupSpacingDoesNotOverlapBadges() {
+    #expect(TerminalAgentBadgeGroupView.badgeSpacing >= 0)
   }
 
   @Test
