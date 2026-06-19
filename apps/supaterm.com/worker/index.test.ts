@@ -177,6 +177,40 @@ describe("worker", () => {
     expect(upstreamFetch).not.toHaveBeenCalled();
   });
 
+  it("keeps volatile cache control on tip cache hits", async () => {
+    installDownloadCache();
+    const body = "tip dmg";
+    const digest = await sha256(body);
+    const upstreamFetch = vi.fn(async (input: RequestInfo | URL) => {
+      if (fetchUrl(input).endsWith("/checksums.json")) {
+        return Response.json({
+          assets: {
+            "supaterm.dmg": {
+              sha256: digest,
+              size: textEncoder.encode(body).byteLength,
+            },
+          },
+        });
+      }
+
+      return new Response(body, { headers: { "cache-control": "public, max-age=14400" } });
+    });
+
+    vi.stubGlobal("fetch", upstreamFetch);
+
+    await worker.fetch(new Request("https://supaterm.com/download/tip/supaterm.dmg?build=1"), {
+      ASSETS: { fetch: vi.fn() } as AssetBinding,
+    });
+
+    const response = await worker.fetch(
+      new Request("https://supaterm.com/download/tip/supaterm.dmg?build=1"),
+      { ASSETS: { fetch: vi.fn() } as AssetBinding },
+    );
+
+    expect(response.headers.get("cache-control")).toBe("public, max-age=300");
+    expect(response.headers.get("x-supaterm-cache")).toBe("hit");
+  });
+
   it("blocks checksum mismatches without caching", async () => {
     const { store } = installDownloadCache();
     const upstreamFetch = vi.fn(async (input: RequestInfo | URL) => {

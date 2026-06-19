@@ -279,7 +279,10 @@ const proxyDownloadAsset = async (request: Request) => {
   const cacheKey = new Request(requestUrl.toString(), { method: "GET" });
   const cached = await cache.match(cacheKey);
   if (cached) {
-    return withResponseHeaders(cached, { [downloadCacheHeader]: "hit" });
+    return withResponseHeaders(cached, {
+      "cache-control": download.cacheControl,
+      [downloadCacheHeader]: "hit",
+    });
   }
 
   const entry = await checksumEntry(download.manifestUrl, download.assetName);
