@@ -167,10 +167,15 @@ jobs:
           STAGING=$(mktemp -d)
           cp apps/mac/build/supaterm.app.zip "$STAGING/"
           printf "%s" "$SPARKLE_PRIVATE_KEY" | tr -d '\r\n\t ' | apps/mac/build/sparkle-tools/bin/generate_appcast \
-            --download-url-prefix "https://supaterm.com/download/latest/" \
+            --download-url-prefix "https://supaterm.com/download/$RELEASE_TAG/" \
             --maximum-versions 1 \
             --ed-key-file - "$STAGING"
           cp "$STAGING/appcast.xml" apps/mac/build/appcast.xml
+      - name: Generate checksums
+        run: |
+          /usr/bin/python3 .github/scripts/generate_release_checksums.py "$RELEASE_TAG" apps/mac/build/checksums.json \
+            apps/mac/build/supaterm.dmg \
+            apps/mac/build/supaterm.app.zip
       - uses: actions/upload-artifact@v6
         with:
           name: build-artifacts
@@ -179,6 +184,7 @@ jobs:
             apps/mac/build/supaterm.dmg
             apps/mac/build/supaterm.app.zip
             apps/mac/build/appcast.xml
+            apps/mac/build/checksums.json
 
   sentry-dsym:
     runs-on: ubuntu-latest
@@ -216,6 +222,7 @@ jobs:
             apps/mac/build/supaterm.dmg \
             apps/mac/build/supaterm.app.zip \
             apps/mac/build/appcast.xml \
+            apps/mac/build/checksums.json \
             --clobber \
             -R "${{ github.repository }}"
       - name: Publish release

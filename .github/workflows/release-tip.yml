@@ -163,6 +163,11 @@ jobs:
             --ed-key-file - "$STAGING"
           sed -i '' 's|<enclosure |<sparkle:channel>tip</sparkle:channel>\n            <enclosure |' "$STAGING/appcast.xml"
           cp "$STAGING/appcast.xml" apps/mac/build/appcast.xml
+      - name: Generate checksums
+        run: |
+          /usr/bin/python3 .github/scripts/generate_release_checksums.py tip apps/mac/build/checksums.json \
+            apps/mac/build/supaterm.dmg \
+            apps/mac/build/supaterm.app.zip
       - uses: actions/upload-artifact@v6
         with:
           name: build-artifacts
@@ -171,6 +176,7 @@ jobs:
             apps/mac/build/supaterm.dmg
             apps/mac/build/supaterm.app.zip
             apps/mac/build/appcast.xml
+            apps/mac/build/checksums.json
 
   sentry-dsym:
     runs-on: ubuntu-latest
@@ -214,7 +220,7 @@ jobs:
         run: |
           gh release create tip --prerelease --title "Supaterm Tip" --target "${{ github.sha }}" --notes "" -R "${{ github.repository }}" 2>/dev/null || \
           gh release edit tip --prerelease --title "Supaterm Tip" --target "${{ github.sha }}" -R "${{ github.repository }}"
-          gh release upload tip apps/mac/build/supaterm.dmg apps/mac/build/supaterm.app.zip apps/mac/build/appcast.xml --clobber -R "${{ github.repository }}"
+          gh release upload tip apps/mac/build/supaterm.dmg apps/mac/build/supaterm.app.zip apps/mac/build/appcast.xml apps/mac/build/checksums.json --clobber -R "${{ github.repository }}"
       - name: Merge tip item into stable appcast
         run: |
           LATEST_TAG=$(gh release list --exclude-drafts --exclude-pre-releases -R "${{ github.repository }}" --json tagName --jq '.[0].tagName' 2>/dev/null || echo "")

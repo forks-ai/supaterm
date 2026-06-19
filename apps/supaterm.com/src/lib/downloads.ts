@@ -1,20 +1,42 @@
 const githubOrigin = "https://github.com";
+const releaseBasePath = "/supabitapp/supaterm/releases/download/";
+const latestBasePath = "/supabitapp/supaterm/releases/latest/download/";
+const checksumAssetName = "checksums.json";
+const appcastAssetName = "appcast.xml";
+const volatileCacheControl = "public, max-age=300";
+const immutableCacheControl = "public, max-age=31536000, immutable";
+const versionedTagPattern = /^v\d+\.\d+\.\d+$/;
+const checksumGatedAssetNames = new Set(["supaterm.app.zip", "supaterm.dmg"]);
 
 const downloadRoutes = [
   {
     prefix: "/download/latest/",
-    basePath: "/supabitapp/supaterm/releases/latest/download/",
+    basePath: latestBasePath,
   },
   {
     prefix: "/download/tip/",
-    basePath: "/supabitapp/supaterm/releases/download/tip/",
-    appcastBasePath: "/supabitapp/supaterm/releases/latest/download/",
+    basePath: `${releaseBasePath}tip/`,
+    appcastBasePath: latestBasePath,
   },
 ] as const;
 
 const downloadHref = "/download/latest/supaterm.dmg";
 
-const buildDownloadTargetUrl = (requestUrl: URL) => {
+type DownloadResolution = {
+  assetName: string;
+  cacheControl: string;
+  manifestUrl: URL;
+  targetUrl: URL;
+  verifiesChecksum: boolean;
+};
+
+const buildUrl = (basePath: string, assetName: string, search = "") => {
+  const url = new URL(`${githubOrigin}${basePath}${assetName}`);
+  url.search = search;
+  return url;
+};
+
+const resolveNamedDownload = (requestUrl: URL): DownloadResolution | null => {
   const route = downloadRoutes.find(({ prefix }) => requestUrl.pathname.startsWith(prefix));
   if (!route) {
     return null;
@@ -26,11 +48,56 @@ const buildDownloadTargetUrl = (requestUrl: URL) => {
   }
 
   const basePath =
-    assetPath === "appcast.xml" && "appcastBasePath" in route && route.appcastBasePath
+    assetPath === appcastAssetName && "appcastBasePath" in route && route.appcastBasePath
       ? route.appcastBasePath
       : route.basePath;
 
-  return new URL(`${githubOrigin}${basePath}${assetPath}${requestUrl.search}`);
+  const verifiesChecksum = checksumGatedAssetNames.has(assetPath);
+
+  return {
+    assetName: assetPath,
+    cacheControl: volatileCacheControl,
+    manifestUrl: buildUrl(route.basePath, checksumAssetName),
+    targetUrl: buildUrl(basePath, assetPath, requestUrl.search),
+    verifiesChecksum,
+  };
 };
 
-export { buildDownloadTargetUrl, downloadHref, downloadRoutes, githubOrigin };
+const resolveVersionedDownload = (requestUrl: URL): DownloadResolution | null => {
+  if (!requestUrl.pathname.startsWith("/download/v")) {
+    return null;
+  }
+
+  const segments = requestUrl.pathname.slice("/download/".length).split("/").filter(Boolean);
+  const [tag, ...assetSegments] = segments;
+  const assetName = assetSegments.join("/");
+
+  if (!tag || !assetName || !versionedTagPattern.test(tag)) {
+    return null;
+  }
+
+  const basePath = `${releaseBasePath}${tag}/`;
+  const verifiesChecksum = checksumGatedAssetNames.has(assetName);
+
+  return {
+    assetName,
+    cacheControl: verifiesChecksum ? immutableCacheControl : volatileCacheControl,
+    manifestUrl: buildUrl(basePath, checksumAssetName),
+    targetUrl: buildUrl(basePath, assetName, requestUrl.search),
+    verifiesChecksum,
+  };
+};
+
+const resolveDownload = (requestUrl: URL) =>
+  resolveNamedDownload(requestUrl) ?? resolveVersionedDownload(requestUrl);
+
+const buildDownloadTargetUrl = (requestUrl: URL) => {
+  const download = resolveDownload(requestUrl);
+  return download?.targetUrl ?? null;
+};
+
+const isDownloadPath = (pathname: string) =>
+  downloadRoutes.some((route) => pathname.startsWith(route.prefix)) ||
+  pathname.startsWith("/download/v");
+
+export { buildDownloadTargetUrl, downloadHref, githubOrigin, isDownloadPath, resolveDownload };

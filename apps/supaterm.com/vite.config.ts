@@ -26,6 +26,11 @@ export default defineConfig({
         changeOrigin: true,
         rewrite: rewriteDownloadPath,
       },
+      "/download/v": {
+        target: githubOrigin,
+        changeOrigin: true,
+        rewrite: rewriteDownloadPath,
+      },
     },
   },
   resolve: {

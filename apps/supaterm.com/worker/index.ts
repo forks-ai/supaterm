@@ -1,4 +1,4 @@
-import { buildDownloadTargetUrl, downloadRoutes } from "../src/lib/downloads";
+import { isDownloadPath, resolveDownload } from "../src/lib/downloads";
 
 type AssetBinding = {
   fetch(input: RequestInfo | URL, init?: RequestInit): Promise<Response>;
@@ -8,11 +8,8 @@ type Env = {
   ASSETS?: AssetBinding;
 };
 
-type CloudflareRequestInit = RequestInit & {
-  cf?: {
-    cacheEverything?: boolean;
-    cacheTtl?: number;
-  };
+type WorkerCacheStorage = CacheStorage & {
+  default?: Cache;
 };
 
 const routeMeta: Record<string, Record<string, string>> = {
@@ -50,6 +47,8 @@ const rewriteMeta = async (response: Response, meta: Record<string, string>): Pr
 };
 
 const cacheControl = "public, max-age=300";
+const noStoreCacheControl = "no-store";
+const downloadCacheHeader = "x-supaterm-cache";
 const byteRangePattern = /^bytes=(\d*)-(\d*)$/;
 const methodNotAllowed = () =>
   new Response("Method Not Allowed", {
@@ -60,19 +59,35 @@ const methodNotAllowed = () =>
 const notFound = () => new Response("Not Found", { status: 404 });
 
 const getAssets = (env: Env) => env.ASSETS;
-const getDownloadRoute = (pathname: string) =>
-  downloadRoutes.find((route) => pathname.startsWith(route.prefix));
 const isVideoAsset = (pathname: string) => pathname.endsWith(".mp4");
 
-const withCacheControl = (response: Response) => {
+const withResponseHeaders = (response: Response, additions: Record<string, string>) => {
   const headers = new Headers(response.headers);
-  headers.set("cache-control", cacheControl);
+  for (const [key, value] of Object.entries(additions)) {
+    headers.set(key, value);
+  }
+
   return new Response(response.body, {
     status: response.status,
     statusText: response.statusText,
     headers,
   });
 };
+
+const uncachedDownloadResponse = (response: Response, cacheStatus: string) =>
+  withResponseHeaders(response, {
+    "cache-control": noStoreCacheControl,
+    [downloadCacheHeader]: cacheStatus,
+  });
+
+const upstreamFailureResponse = () =>
+  new Response("Upstream fetch failed", {
+    status: 502,
+    headers: {
+      "cache-control": noStoreCacheControl,
+      [downloadCacheHeader]: "bypass",
+    },
+  });
 
 const withAcceptRanges = (response: Response) => {
   const headers = new Headers(response.headers);
@@ -83,6 +98,22 @@ const withAcceptRanges = (response: Response) => {
     headers,
   });
 };
+
+const hexDigest = (buffer: ArrayBuffer) =>
+  Array.from(new Uint8Array(buffer))
+    .map((byte) => byte.toString(16).padStart(2, "0"))
+    .join("");
+
+const normalizeSHA256 = (value: unknown) =>
+  typeof value === "string" ? value.toLowerCase().replace(/^sha256:/, "") : null;
+
+const downloadRequestHeaders = (request: Request) => {
+  const headers = new Headers(request.headers);
+  headers.delete("host");
+  return headers;
+};
+
+const downloadCache = () => (globalThis.caches as WorkerCacheStorage | undefined)?.default;
 
 const parseByteRange = (header: string, size: number) => {
   if (header.includes(",")) {
@@ -165,36 +196,139 @@ const serveVideoAsset = async (request: Request, assets: AssetBinding) => {
   });
 };
 
+const proxyDownload = async (
+  request: Request,
+  targetUrl: URL,
+  cacheStatus: string,
+  responseCacheControl: string,
+) => {
+  let response: Response;
+  try {
+    response = await fetch(targetUrl, {
+      method: request.method,
+      headers: downloadRequestHeaders(request),
+    });
+  } catch {
+    return upstreamFailureResponse();
+  }
+
+  return withResponseHeaders(response, {
+    "cache-control": responseCacheControl,
+    [downloadCacheHeader]: cacheStatus,
+  });
+};
+
+const checksumEntry = async (manifestUrl: URL, assetName: string) => {
+  let response: Response;
+  try {
+    response = await fetch(manifestUrl, { method: "GET" });
+  } catch {
+    return null;
+  }
+
+  if (!response.ok) {
+    return null;
+  }
+
+  let manifest: unknown;
+  try {
+    manifest = await response.json();
+  } catch {
+    return null;
+  }
+
+  const assets = manifest && typeof manifest === "object" ? Reflect.get(manifest, "assets") : null;
+  const entry = assets && typeof assets === "object" ? Reflect.get(assets, assetName) : null;
+  const sha256 =
+    entry && typeof entry === "object"
+      ? normalizeSHA256(Reflect.get(entry, "sha256") ?? Reflect.get(entry, "digest"))
+      : null;
+  const size = entry && typeof entry === "object" ? Number(Reflect.get(entry, "size")) : NaN;
+
+  if (!sha256 || !Number.isSafeInteger(size) || size < 0) {
+    return null;
+  }
+
+  return { sha256, size };
+};
+
 const proxyDownloadAsset = async (request: Request) => {
   if (request.method !== "GET" && request.method !== "HEAD") {
     return methodNotAllowed();
   }
 
-  const targetUrl = buildDownloadTargetUrl(new URL(request.url));
-  if (!targetUrl) {
+  const download = resolveDownload(new URL(request.url));
+  if (!download) {
     return notFound();
   }
 
-  const headers = new Headers(request.headers);
-  headers.delete("host");
+  if (request.method === "HEAD" || request.headers.has("range")) {
+    return proxyDownload(request, download.targetUrl, "bypass", noStoreCacheControl);
+  }
 
-  const init: CloudflareRequestInit = {
-    method: request.method,
+  if (!download.verifiesChecksum) {
+    return proxyDownload(request, download.targetUrl, "bypass", cacheControl);
+  }
+
+  const cache = downloadCache();
+  if (!cache) {
+    return proxyDownload(request, download.targetUrl, "bypass", noStoreCacheControl);
+  }
+
+  const requestUrl = new URL(request.url);
+  const cacheKey = new Request(requestUrl.toString(), { method: "GET" });
+  const cached = await cache.match(cacheKey);
+  if (cached) {
+    return withResponseHeaders(cached, { [downloadCacheHeader]: "hit" });
+  }
+
+  const entry = await checksumEntry(download.manifestUrl, download.assetName);
+
+  let response: Response;
+  try {
+    response = await fetch(download.targetUrl, {
+      method: "GET",
+      headers: downloadRequestHeaders(request),
+    });
+  } catch {
+    return upstreamFailureResponse();
+  }
+
+  if (!response.ok) {
+    return uncachedDownloadResponse(response, "bypass");
+  }
+
+  if (!entry) {
+    return uncachedDownloadResponse(response, "bypass");
+  }
+
+  const buffer = await response.arrayBuffer();
+  const actualSHA256 = hexDigest(await crypto.subtle.digest("SHA-256", buffer));
+  if (buffer.byteLength !== entry.size || actualSHA256 !== entry.sha256) {
+    return new Response("Checksum mismatch", {
+      status: 502,
+      headers: {
+        "cache-control": noStoreCacheControl,
+        [downloadCacheHeader]: "checksum-mismatch",
+      },
+    });
+  }
+
+  const headers = new Headers(response.headers);
+  headers.set("cache-control", download.cacheControl);
+  const cacheResponse = new Response(buffer, {
+    status: response.status,
+    statusText: response.statusText,
     headers,
-    cf: {
-      cacheEverything: true,
-      cacheTtl: 300,
-    },
-  };
+  });
 
-  const response = await fetch(targetUrl, init);
-  return withCacheControl(response);
+  await cache.put(cacheKey, cacheResponse.clone());
+  return withResponseHeaders(cacheResponse, { [downloadCacheHeader]: "validated" });
 };
 
 export default {
   async fetch(request: Request, env: Env) {
-    const route = getDownloadRoute(new URL(request.url).pathname);
-    if (route) {
+    if (isDownloadPath(new URL(request.url).pathname)) {
       return proxyDownloadAsset(request);
     }
 

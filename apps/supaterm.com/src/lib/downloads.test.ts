@@ -26,6 +26,16 @@ describe("downloads", () => {
     );
   });
 
+  it("builds versioned release target URLs", () => {
+    const targetUrl = buildDownloadTargetUrl(
+      new URL("https://supaterm.com/download/v26.0.0/supaterm.dmg?build=1"),
+    );
+
+    expect(targetUrl?.toString()).toBe(
+      "https://github.com/supabitapp/supaterm/releases/download/v26.0.0/supaterm.dmg?build=1",
+    );
+  });
+
   it("merges the tip appcast through the latest release", () => {
     const targetUrl = buildDownloadTargetUrl(
       new URL("https://supaterm.com/download/tip/appcast.xml?build=1"),
@@ -38,6 +48,12 @@ describe("downloads", () => {
 
   it("returns null when the asset name is missing", () => {
     const targetUrl = buildDownloadTargetUrl(new URL("https://supaterm.com/download/latest/"));
+
+    expect(targetUrl).toBeNull();
+  });
+
+  it("returns null when a versioned asset name is missing", () => {
+    const targetUrl = buildDownloadTargetUrl(new URL("https://supaterm.com/download/v26.0.0/"));
 
     expect(targetUrl).toBeNull();
   });
