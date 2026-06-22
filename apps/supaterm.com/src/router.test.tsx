@@ -4,10 +4,15 @@ import { RouterProvider, createMemoryHistory, createRouter } from "@tanstack/rea
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vite-plus/test";
 import { downloadHref } from "@/lib/downloads";
+import { homebrewInstallCommand } from "@/routes/home";
 import { routeTree } from "./router";
 
 const { capture } = vi.hoisted(() => ({
   capture: vi.fn(),
+}));
+
+const { clipboardWriteText } = vi.hoisted(() => ({
+  clipboardWriteText: vi.fn(),
 }));
 
 vi.mock("posthog-js", () => ({
@@ -51,6 +56,10 @@ const renderRoute = async (initialPath: string) => {
 beforeEach(() => {
   vi.stubGlobal("IntersectionObserver", MockIntersectionObserver);
   vi.stubGlobal("scrollTo", vi.fn());
+  Object.defineProperty(navigator, "clipboard", {
+    configurable: true,
+    value: { writeText: clipboardWriteText },
+  });
 });
 
 afterEach(() => {
@@ -110,6 +119,16 @@ describe("router", () => {
 
     expect(brandMark?.getAttribute("src")).toBe("/logo-mark.svg");
     expect(brandMark?.getAttribute("alt")).toBe("");
+  });
+
+  it("renders a copyable Homebrew install command", async () => {
+    await renderRoute("/");
+
+    expect(screen.getByText(`$ ${homebrewInstallCommand}`)).toBeTruthy();
+
+    fireEvent.click(screen.getByRole("button", { name: `Copy ${homebrewInstallCommand}` }));
+
+    expect(clipboardWriteText).toHaveBeenCalledWith(homebrewInstallCommand);
   });
 
   it("renders the changelog page for direct navigation", async () => {

@@ -17,26 +17,46 @@ type FeatureSection = {
   video?: string;
 };
 
+const homebrewInstallCommand = "brew install supaterm";
 const skillsCommand = "npx skills add supabitapp/supaterm-skills";
 
-function NpxSkillsBox() {
+function CommandCopyBox({
+  command,
+  className,
+  codeClassName,
+}: {
+  command: string;
+  className?: string;
+  codeClassName?: string;
+}) {
   const [copied, setCopied] = useState(false);
 
   function copy() {
-    void navigator.clipboard.writeText(skillsCommand);
+    void navigator.clipboard.writeText(command);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   }
 
   return (
-    <div className="mt-5 flex items-center gap-3">
-      <code className="flex items-center rounded-lg border border-white/10 bg-white/5 px-4 py-2.5 font-mono text-sm text-white/80">
-        $ {skillsCommand}
+    <div
+      className={cn(
+        "flex max-w-full items-center gap-3 rounded-lg border border-white/10 bg-white/5 px-4 py-2.5",
+        className,
+      )}
+    >
+      <code
+        className={cn(
+          "flex min-w-0 flex-1 items-center font-mono text-sm text-white/80",
+          codeClassName,
+        )}
+      >
+        <span className="break-all">$ {command}</span>
       </code>
       <button
         type="button"
         onClick={copy}
-        className="flex size-9 items-center justify-center rounded-lg border border-white/10 bg-white/5 text-white/50 transition-colors hover:bg-white/10 hover:text-white/80"
+        aria-label={`Copy ${command}`}
+        className="-mr-1 flex size-8 shrink-0 items-center justify-center rounded-md text-white/50 transition-colors hover:bg-white/10 hover:text-white/80"
       >
         <HugeiconsIcon icon={copied ? Tick01Icon : Copy01Icon} size={16} strokeWidth={1.8} />
       </button>
@@ -54,7 +74,7 @@ const featureSections: FeatureSection[] = [
           Want to spawn new worktrees in new panes or tabs? Just tell your agents to do it in
           Supaterm.
         </p>
-        <NpxSkillsBox />
+        <CommandCopyBox command={skillsCommand} className="mt-5 w-fit" />
       </>
     ),
     align: "right",
@@ -183,7 +203,15 @@ function HomePage() {
               GitHub
             </CtaLink>
           </div>
-          <p className="mt-3 text-xs text-white/32">Requires macOS Tahoe.</p>
+          <div className="mt-7 flex w-full max-w-[32rem] flex-col items-center gap-4">
+            <div className="text-sm font-medium text-white/42">or</div>
+            <CommandCopyBox
+              command={homebrewInstallCommand}
+              className="w-full max-w-[22rem] rounded-[10px] px-5 py-3.5 md:max-w-[24rem] md:px-6 md:py-4"
+              codeClassName="text-base md:text-lg"
+            />
+          </div>
+          <p className="mt-4 text-xs text-white/32">Requires macOS Tahoe.</p>
 
           <div className="group relative mt-14 w-full max-w-[1160px] overflow-hidden rounded-[12px] border border-white/8 shadow-[0_40px_140px_-44px_rgba(0,0,0,0.9),0_8px_30px_-10px_rgba(0,0,0,0.5),inset_0_1px_0_rgba(255,255,255,0.06)] md:mt-18">
             <div className="pointer-events-none absolute inset-px z-10 border border-white/[0.03]" />
@@ -304,4 +332,4 @@ function HomePage() {
   );
 }
 
-export { HomePage };
+export { HomePage, homebrewInstallCommand };
