@@ -28,4 +28,5 @@ jobs:
       - run: make mac-tuist-generate
       - run: make mac-build-ghostty
       - run: make mac-build-zmx
+      - run: make mac-scan-dead-code
       - run: make mac-test-xcodebuild
