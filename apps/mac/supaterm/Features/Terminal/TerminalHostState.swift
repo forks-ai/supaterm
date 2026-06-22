@@ -615,8 +615,11 @@ final class TerminalHostState {
       }
     }
 
-    if let surfaceToFocus, surfaceToFocus.window?.firstResponder is GhosttySurfaceView {
-      surfaceToFocus.window?.makeFirstResponder(surfaceToFocus)
+    if let surfaceToFocus,
+      let window = surfaceToFocus.window,
+      Self.shouldRestoreSurfaceFirstResponder(window.firstResponder, to: surfaceToFocus)
+    {
+      window.makeFirstResponder(surfaceToFocus)
     }
     SupatermLog.debug(
       SupatermLog.terminal,
@@ -628,6 +631,19 @@ final class TerminalHostState {
         "focusedSurfaceID=\(SupatermLog.uuid(surfaceToFocus?.id))",
       ]
     )
+  }
+
+  static func shouldRestoreSurfaceFirstResponder(
+    _ responder: NSResponder?,
+    to surface: GhosttySurfaceView
+  ) -> Bool {
+    guard let responder else { return true }
+    if responder === surface { return true }
+    if responder is GhosttySurfaceView { return true }
+    if responder is NSText { return false }
+    if responder is NSControl { return false }
+    guard let view = responder as? NSView else { return false }
+    return view.window === surface.window
   }
 
   func splitTree(

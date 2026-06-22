@@ -118,6 +118,64 @@ struct GhosttySurfaceViewTests {
 
     #expect(window.firstResponder === targetSurface)
   }
+
+  @Test
+  @MainActor
+  func syncFocusRestoresSurfaceFirstResponderFromPassiveWindowView() async throws {
+    initializeGhosttyForTests()
+
+    let host = TerminalHostState(runtime: GhosttyRuntime(), zmxClient: .noop, zmxSessionsEnabled: false)
+    host.ensureInitialTab(focusing: false)
+    let surface = try #require(host.selectedSurfaceView)
+    let window = NSWindow(
+      contentRect: NSRect(x: 0, y: 0, width: 400, height: 300),
+      styleMask: [.titled],
+      backing: .buffered,
+      defer: false
+    )
+    let wrapper = FocusableWrapperView(frame: window.contentView?.bounds ?? .zero)
+    wrapper.addSubview(surface)
+    window.contentView = wrapper
+    window.makeFirstResponder(wrapper)
+
+    try #require(window.firstResponder === wrapper)
+
+    host.updateWindowActivity(WindowActivityState(isKeyWindow: true, isVisible: true))
+    await Task.yield()
+
+    #expect(window.firstResponder === surface)
+  }
+
+  @Test
+  @MainActor
+  func syncFocusDoesNotRestoreSurfaceFirstResponderFromTextInput() async throws {
+    initializeGhosttyForTests()
+
+    let host = TerminalHostState(runtime: GhosttyRuntime(), zmxClient: .noop, zmxSessionsEnabled: false)
+    host.ensureInitialTab(focusing: false)
+    let surface = try #require(host.selectedSurfaceView)
+    let window = NSWindow(
+      contentRect: NSRect(x: 0, y: 0, width: 400, height: 300),
+      styleMask: [.titled],
+      backing: .buffered,
+      defer: false
+    )
+    let textField = NSTextField(frame: NSRect(x: 0, y: 0, width: 120, height: 24))
+    let wrapper = FocusableWrapperView(frame: window.contentView?.bounds ?? .zero)
+    wrapper.addSubview(surface)
+    wrapper.addSubview(textField)
+    window.contentView = wrapper
+    window.makeFirstResponder(textField)
+
+    host.updateWindowActivity(WindowActivityState(isKeyWindow: true, isVisible: true))
+    await Task.yield()
+
+    #expect(window.firstResponder !== surface)
+  }
+}
+
+private final class FocusableWrapperView: NSView {
+  override var acceptsFirstResponder: Bool { true }
 }
 
 @MainActor
