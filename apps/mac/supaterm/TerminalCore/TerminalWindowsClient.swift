@@ -5,8 +5,6 @@ import SupatermCLIShared
 public struct TerminalWindowsClient: Sendable {
   public var agentHook: @MainActor @Sendable (SupatermAgentHookRequest) async throws -> TerminalAgentHookResult
   public var capturePane: @MainActor @Sendable (TerminalCapturePaneRequest) async throws -> SupatermCapturePaneResult
-  public var closeWindow: @MainActor @Sendable (ObjectIdentifier) async -> Void
-  public var closeWindows: @MainActor @Sendable ([ObjectIdentifier]) async -> Void
   public var closePane: @MainActor @Sendable (TerminalPaneTarget) async throws -> SupatermClosePaneResult
   public var closeSpace: @MainActor @Sendable (TerminalSpaceTarget) async throws -> SupatermCloseSpaceResult
   public var closeTab: @MainActor @Sendable (TerminalTabTarget) async throws -> SupatermCloseTabResult
@@ -46,8 +44,6 @@ public struct TerminalWindowsClient: Sendable {
   public init(
     agentHook: @escaping @MainActor @Sendable (SupatermAgentHookRequest) async throws -> TerminalAgentHookResult,
     capturePane: @escaping @MainActor @Sendable (TerminalCapturePaneRequest) async throws -> SupatermCapturePaneResult,
-    closeWindow: @escaping @MainActor @Sendable (ObjectIdentifier) async -> Void,
-    closeWindows: @escaping @MainActor @Sendable ([ObjectIdentifier]) async -> Void,
     closePane: @escaping @MainActor @Sendable (TerminalPaneTarget) async throws -> SupatermClosePaneResult,
     closeSpace: @escaping @MainActor @Sendable (TerminalSpaceTarget) async throws -> SupatermCloseSpaceResult,
     closeTab: @escaping @MainActor @Sendable (TerminalTabTarget) async throws -> SupatermCloseTabResult,
@@ -140,8 +136,6 @@ public struct TerminalWindowsClient: Sendable {
   ) {
     self.agentHook = agentHook
     self.capturePane = capturePane
-    self.closeWindow = closeWindow
-    self.closeWindows = closeWindows
     self.closePane = closePane
     self.closeSpace = closeSpace
     self.closeTab = closeTab
@@ -185,8 +179,6 @@ extension TerminalWindowsClient: DependencyKey {
     capturePane: { _ in
       throw TerminalControlError.captureFailed
     },
-    closeWindow: { _ in },
-    closeWindows: { _ in },
     closePane: { _ in
       throw TerminalControlError.contextPaneNotFound
     },
@@ -286,8 +278,6 @@ extension TerminalWindowsClient: DependencyKey {
     capturePane: { _ in
       throw TerminalControlError.captureFailed
     },
-    closeWindow: { _ in },
-    closeWindows: { _ in },
     closePane: { _ in
       throw TerminalControlError.contextPaneNotFound
     },

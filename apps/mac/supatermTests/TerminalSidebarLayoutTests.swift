@@ -5,26 +5,6 @@ import Testing
 
 struct TerminalSidebarLayoutTests {
   @Test
-  func spaceBarLayoutUsesNormalModeWhenWidthFitsBadges() {
-    #expect(
-      TerminalSidebarSpaceBarLayoutMode.determine(
-        spaceCount: 3,
-        availableWidth: 104
-      ) == .normal
-    )
-  }
-
-  @Test
-  func spaceBarLayoutUsesCompactModeWhenWidthIsTight() {
-    #expect(
-      TerminalSidebarSpaceBarLayoutMode.determine(
-        spaceCount: 3,
-        availableWidth: 103
-      ) == .compact
-    )
-  }
-
-  @Test
   func spaceMonogramUsesFirstNonWhitespaceCharacter() {
     #expect(
       TerminalSidebarLayout.spaceMonogram(

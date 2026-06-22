@@ -13,13 +13,6 @@ enum TerminalMotion {
     allowsMotion(reduceMotion: reduceMotion) ? transition : .identity
   }
 
-  static func contentTransition(
-    _ transition: ContentTransition,
-    reduceMotion: Bool
-  ) -> ContentTransition {
-    allowsMotion(reduceMotion: reduceMotion) ? transition : .identity
-  }
-
   static func animate(
     _ animation: Animation,
     reduceMotion: Bool,
@@ -58,12 +51,4 @@ extension View {
     self.transition(TerminalMotion.transition(transition, reduceMotion: reduceMotion))
   }
 
-  func terminalContentTransition(
-    _ transition: ContentTransition,
-    reduceMotion: Bool
-  ) -> some View {
-    self.contentTransition(
-      TerminalMotion.contentTransition(transition, reduceMotion: reduceMotion)
-    )
-  }
 }

@@ -59,8 +59,6 @@ private final class TerminalGestureWindow: NSWindow {
 
 @MainActor
 final class TerminalWindowController: NSWindowController {
-  let ghostty: GhosttyRuntime
-  let ghosttyShortcuts: GhosttyShortcutManager
   let terminal: TerminalHostState
   let store: StoreOf<AppFeature>
   let windowControllerID: UUID
@@ -75,7 +73,7 @@ final class TerminalWindowController: NSWindowController {
     registry: TerminalWindowRegistry,
     session: TerminalWindowSession? = nil,
     startupCommand: String? = nil,
-    zmxClient: ZmxClient = .liveValue,
+    zmxClient: ZmxClient = .live,
     zmxSessionsEnabled: Bool = true,
     onSessionChange: @escaping @MainActor () -> Void = {}
   ) {
@@ -112,8 +110,6 @@ final class TerminalWindowController: NSWindowController {
     let ghosttyShortcuts = GhosttyShortcutManager(runtime: ghostty)
     let commandHoldObserver = CommandHoldObserver()
 
-    self.ghostty = ghostty
-    self.ghosttyShortcuts = ghosttyShortcuts
     self.commandHoldObserver = commandHoldObserver
     self.terminal = terminal
     self.store = store

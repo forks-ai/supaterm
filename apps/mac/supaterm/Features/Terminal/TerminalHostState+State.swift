@@ -5,7 +5,6 @@ import Observation
 import Sharing
 import SupatermCLIShared
 import SupatermSupport
-import SupatermTerminalCore
 import SwiftUI
 
 extension TerminalHostState {
@@ -39,11 +38,6 @@ extension TerminalHostState {
 
   var selectedTabID: TerminalTabID? {
     spaceManager.selectedTabID
-  }
-
-  var selectedTab: TerminalTabItem? {
-    guard let selectedTabID else { return nil }
-    return spaceManager.tab(for: selectedTabID)
   }
 
   var selectedTree: SplitTree<GhosttySurfaceView>? {
@@ -487,15 +481,6 @@ extension TerminalHostState {
 
   var hasActiveAgentWorkForQuit: Bool {
     agentPresenceStore.hasActiveWorkForQuit
-  }
-
-  @discardableResult
-  func clearAgentHoverMessages(for surfaceID: UUID) -> Bool {
-    guard tabID(containing: surfaceID) != nil else { return false }
-    guard var metadata = paneAgentMetadataBySurfaceID[surfaceID] else { return true }
-    metadata.agentHoverMessages = []
-    storePaneAgentMetadata(metadata, for: surfaceID)
-    return true
   }
 
   @discardableResult

@@ -155,9 +155,9 @@ struct TerminalHostStateSpaceSharingTests {
       let firstSpaceID = catalog.spaces[0].id
       let secondSpaceID = catalog.spaces[1].id
       let firstTabID = host.spaceManager.tabManager(for: firstSpaceID)?
-        .createTab(title: "Terminal 1", icon: "terminal")
+        .createTab(title: "Terminal 1")
       let secondTabID = host.spaceManager.tabManager(for: secondSpaceID)?
-        .createTab(title: "Terminal 2", icon: "terminal")
+        .createTab(title: "Terminal 2")
       _ = host.applySelectedSpace(firstSpaceID)
 
       host.performCloseTab(try #require(firstTabID))
@@ -265,7 +265,7 @@ struct TerminalHostStateSpaceSharingTests {
       _ = TerminalHostState(managesTerminalSurfaces: false)
       let secondHost = TerminalHostState(managesTerminalSurfaces: false)
       let removedTabID = secondHost.spaceManager.tabManager(for: catalog.spaces[1].id)?
-        .createTab(title: "Terminal 1", icon: "terminal")
+        .createTab(title: "Terminal 1")
       #expect(removedTabID != nil)
       _ = secondHost.spaceManager.selectSpace(catalog.spaces[1].id)
 

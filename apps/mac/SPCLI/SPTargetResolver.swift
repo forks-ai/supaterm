@@ -5,44 +5,12 @@ import SupatermCLIShared
 enum SPTargetSelector: Equatable, Sendable {
   case index(Int)
   case id(UUID)
-
-  static func parse(
-    _ argument: String,
-    flag: String
-  ) throws -> Self {
-    let trimmed = argument.trimmingCharacters(in: .whitespacesAndNewlines)
-    guard !trimmed.isEmpty else {
-      throw ValidationError("\(flag) must be a 1-based index or UUID.")
-    }
-
-    if let index = Int(trimmed) {
-      guard index > 0 else {
-        throw ValidationError("\(flag) must be 1 or greater.")
-      }
-      return .index(index)
-    }
-
-    guard let id = UUID(uuidString: trimmed) else {
-      throw ValidationError("\(flag) must be a 1-based index or UUID.")
-    }
-    return .id(id)
-  }
-
   var index: Int? {
     switch self {
     case .index(let index):
       return index
     case .id:
       return nil
-    }
-  }
-
-  var usesUUID: Bool {
-    switch self {
-    case .index:
-      return false
-    case .id:
-      return true
     }
   }
 
@@ -85,12 +53,33 @@ enum SPResolvedPaneTarget: Equatable {
 private struct SPSpacePathKey: Hashable {
   let windowIndex: Int
   let spaceIndex: Int
+
+  static func == (lhs: Self, rhs: Self) -> Bool {
+    lhs.windowIndex == rhs.windowIndex && lhs.spaceIndex == rhs.spaceIndex
+  }
+
+  func hash(into hasher: inout Hasher) {
+    hasher.combine(windowIndex)
+    hasher.combine(spaceIndex)
+  }
 }
 
 private struct SPTabPathKey: Hashable {
   let windowIndex: Int
   let spaceIndex: Int
   let tabIndex: Int
+
+  static func == (lhs: Self, rhs: Self) -> Bool {
+    lhs.windowIndex == rhs.windowIndex
+      && lhs.spaceIndex == rhs.spaceIndex
+      && lhs.tabIndex == rhs.tabIndex
+  }
+
+  func hash(into hasher: inout Hasher) {
+    hasher.combine(windowIndex)
+    hasher.combine(spaceIndex)
+    hasher.combine(tabIndex)
+  }
 }
 
 private struct SPTreeIndex {
@@ -428,184 +417,6 @@ enum SPTargetResolver {
     return .context(context.surfaceID)
   }
 
-  static func resolveSpaceTarget(
-    window: Int?,
-    space: SPTargetSelector?,
-    context: SupatermCLIContext?,
-    snapshot: @autoclosure () throws -> SupatermTreeSnapshot
-  ) throws -> SPResolvedSpaceTarget {
-    let index = SPTreeIndex(snapshot: try snapshot())
-    if let window, window < 1 {
-      throw ValidationError("--window must be 1 or greater.")
-    }
-    if window != nil && space == nil {
-      throw ValidationError("--window requires --space.")
-    }
-
-    guard let space else {
-      guard let context else {
-        throw ValidationError("Run this command inside a Supaterm pane or provide --space.")
-      }
-      return .context(context.surfaceID)
-    }
-
-    switch space {
-    case .index(let spaceIndex):
-      return .space(windowIndex: window ?? 1, spaceIndex: spaceIndex)
-
-    case .id(let spaceID):
-      guard window == nil else {
-        throw ValidationError("--window cannot be used when --space is a UUID.")
-      }
-      let location = try index.requireSpaceLocation(id: spaceID)
-      return .space(windowIndex: location.windowIndex, spaceIndex: location.spaceIndex)
-    }
-  }
-
-  static func resolveTabTarget(
-    window: Int?,
-    space: SPTargetSelector?,
-    tab: SPTargetSelector?,
-    context: SupatermCLIContext?,
-    snapshot: @autoclosure () throws -> SupatermTreeSnapshot
-  ) throws -> SPResolvedTabTarget {
-    let index = SPTreeIndex(snapshot: try snapshot())
-    if let tabID = tab?.uuid {
-      guard space == nil, window == nil else {
-        throw ValidationError("--tab cannot be combined with --space or --window when using a UUID.")
-      }
-      let location = try index.requireTabLocation(id: tabID)
-      return .tab(
-        windowIndex: location.windowIndex,
-        spaceIndex: location.spaceIndex,
-        tabIndex: location.tabIndex
-      )
-    }
-
-    if let spaceID = space?.uuid {
-      guard window == nil else {
-        throw ValidationError("--window cannot be used when --space is a UUID.")
-      }
-      let location = try index.requireSpaceLocation(id: spaceID)
-      guard let tabIndex = tab?.index else {
-        throw ValidationError("--space requires --tab.")
-      }
-      return .tab(
-        windowIndex: location.windowIndex,
-        spaceIndex: location.spaceIndex,
-        tabIndex: tabIndex
-      )
-    }
-
-    if let window, window < 1 {
-      throw ValidationError("--window must be 1 or greater.")
-    }
-    if let spaceIndex = space?.index, spaceIndex < 1 {
-      throw ValidationError("--space must be 1 or greater.")
-    }
-    if let tabIndex = tab?.index, tabIndex < 1 {
-      throw ValidationError("--tab must be 1 or greater.")
-    }
-    if tab == nil {
-      guard let context else {
-        throw ValidationError("Run this command inside a Supaterm pane or provide --space and --tab.")
-      }
-      return .context(context.surfaceID)
-    }
-    guard let spaceIndex = space?.index else {
-      throw ValidationError("--tab requires --space.")
-    }
-    return .tab(
-      windowIndex: window ?? 1,
-      spaceIndex: spaceIndex,
-      tabIndex: tab!.index!
-    )
-  }
-
-  static func resolvePaneOnlyTarget(
-    window: Int?,
-    space: SPTargetSelector?,
-    tab: SPTargetSelector?,
-    pane: SPTargetSelector?,
-    context: SupatermCLIContext?,
-    snapshot: @autoclosure () throws -> SupatermTreeSnapshot
-  ) throws -> SPResolvedPaneOnlyTarget {
-    let index = SPTreeIndex(snapshot: try snapshot())
-    if let paneID = pane?.uuid {
-      guard tab == nil, space == nil, window == nil else {
-        throw ValidationError("--pane cannot be combined with --tab, --space, or --window when using a UUID.")
-      }
-      let location = try index.requirePaneLocation(id: paneID)
-      return .pane(
-        windowIndex: location.windowIndex,
-        spaceIndex: location.spaceIndex,
-        tabIndex: location.tabIndex,
-        paneIndex: location.paneIndex
-      )
-    }
-
-    if let spaceID = space?.uuid {
-      guard window == nil else {
-        throw ValidationError("--window cannot be used when --space is a UUID.")
-      }
-      let location = try index.requireSpaceLocation(id: spaceID)
-      guard let tabIndex = tab?.index else {
-        throw ValidationError("--pane requires --tab.")
-      }
-      guard let paneIndex = pane?.index else {
-        throw ValidationError("--pane requires --tab and --pane.")
-      }
-      return .pane(
-        windowIndex: location.windowIndex,
-        spaceIndex: location.spaceIndex,
-        tabIndex: tabIndex,
-        paneIndex: paneIndex
-      )
-    }
-
-    if let window, window < 1 {
-      throw ValidationError("--window must be 1 or greater.")
-    }
-    if let spaceIndex = space?.index, spaceIndex < 1 {
-      throw ValidationError("--space must be 1 or greater.")
-    }
-    if let tabIndex = tab?.index, tabIndex < 1 {
-      throw ValidationError("--tab must be 1 or greater.")
-    }
-    if let paneIndex = pane?.index, paneIndex < 1 {
-      throw ValidationError("--pane must be 1 or greater.")
-    }
-    if pane == nil {
-      guard let context else {
-        throw ValidationError("Run this command inside a Supaterm pane or provide --space, --tab, and --pane.")
-      }
-      return .context(context.surfaceID)
-    }
-    guard let spaceIndex = space?.index else {
-      throw ValidationError("--tab requires --space.")
-    }
-    guard let tabIndex = tab?.index else {
-      throw ValidationError("--pane requires --tab.")
-    }
-    return .pane(
-      windowIndex: window ?? 1,
-      spaceIndex: spaceIndex,
-      tabIndex: tabIndex,
-      paneIndex: pane!.index!
-    )
-  }
-}
-
-func parseSpaceTarget(_ argument: String) throws -> SPTargetSelector {
-  try SPTargetSelector.parse(argument, flag: "--space")
-}
-
-func parseTabTarget(_ argument: String) throws -> SPTargetSelector {
-  try SPTargetSelector.parse(argument, flag: "--tab")
-}
-
-func parsePaneTarget(_ argument: String) throws -> SPTargetSelector {
-  try SPTargetSelector.parse(argument, flag: "--pane")
 }
 
 enum SPSpaceReference: Equatable, Sendable {

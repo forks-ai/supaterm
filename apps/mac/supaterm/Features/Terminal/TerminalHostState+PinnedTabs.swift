@@ -192,7 +192,6 @@ extension TerminalHostState {
             TerminalTabItem(
               id: desiredTab.id,
               title: desiredTab.session.lockedTitle ?? restoredTabTitle(at: index),
-              icon: "terminal",
               isPinned: true,
               isTitleLocked: desiredTab.session.lockedTitle != nil
             )

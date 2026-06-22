@@ -130,7 +130,7 @@ final class GhosttySurfaceBridge {
       NSAccessibility.post(element: surfaceView, notification: .titleChanged)
     }
   }
-  func handleAction(target: ghostty_target_s, action: ghostty_action_s) -> Bool {
+  func handleAction(target _: ghostty_target_s, action: ghostty_action_s) -> Bool {
     if let handled = handleAppAction(action) { return handled }
     if let handled = handleSplitAction(action) { return handled }
     if let handled = handleTabAction(action) { return handled }
@@ -242,11 +242,6 @@ final class GhosttySurfaceBridge {
       event.text = nil
       _ = ghostty_surface_key(surface, event)
     }
-  }
-
-  func sendCommand(_ command: String) {
-    let finalCommand = command.hasSuffix("\n") ? command : "\(command)\n"
-    sendText(finalCommand)
   }
 
   func closeSurface(processAlive: Bool) {
@@ -677,7 +672,4 @@ final class GhosttySurfaceBridge {
     string(from: pointer, length: Int(length))
   }
 
-  private func string(from pointer: UnsafePointer<CChar>?, length: UInt64) -> String? {
-    string(from: pointer, length: Int(length))
-  }
 }

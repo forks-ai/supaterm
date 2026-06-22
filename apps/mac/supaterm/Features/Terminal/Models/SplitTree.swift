@@ -87,14 +87,6 @@ struct SplitTree<ViewType: NSView & Identifiable> {
     self.init(root: .leaf(view: view), zoomed: nil)
   }
 
-  func contains(_ view: ViewType) -> Bool {
-    root?.node(view: view) != nil
-  }
-
-  func contains(_ node: Node) -> Bool {
-    root?.path(to: node) != nil
-  }
-
   func find(id: ViewType.ID) -> Node? {
     root?.find(id: id)
   }
@@ -346,10 +338,6 @@ struct SplitTree<ViewType: NSView & Identifiable> {
     root?.leaves() ?? []
   }
 
-  var structuralIdentity: StructuralIdentity {
-    StructuralIdentity(self)
-  }
-
   private static func leafNode(_ view: ViewType) -> Node {
     .leaf(view: view)
   }
@@ -386,43 +374,6 @@ struct SplitTree<ViewType: NSView & Identifiable> {
     }
 
     throw SplitError.viewNotFound
-  }
-
-  struct StructuralIdentity: Hashable {
-    private let root: Node?
-    private let zoomed: Node?
-
-    init(_ tree: SplitTree) {
-      self.root = tree.root
-      self.zoomed = tree.zoomed
-    }
-
-    static func == (lhs: Self, rhs: Self) -> Bool {
-      areNodesStructurallyEqual(lhs.root, rhs.root)
-        && areNodesStructurallyEqual(lhs.zoomed, rhs.zoomed)
-    }
-
-    func hash(into hasher: inout Hasher) {
-      hasher.combine(0)
-      if let root {
-        root.hashStructure(into: &hasher)
-      }
-      hasher.combine(1)
-      if let zoomed {
-        zoomed.hashStructure(into: &hasher)
-      }
-    }
-
-    private static func areNodesStructurallyEqual(_ lhs: Node?, _ rhs: Node?) -> Bool {
-      switch (lhs, rhs) {
-      case (nil, nil):
-        return true
-      case (let node1?, let node2?):
-        return node1.isStructurallyEqual(to: node2)
-      default:
-        return false
-      }
-    }
   }
 
   init(root: Node?, zoomed: Node?) {

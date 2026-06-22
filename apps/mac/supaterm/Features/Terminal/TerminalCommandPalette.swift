@@ -156,14 +156,6 @@ enum TerminalCommandPalettePresentation {
     return visibleRows[nextIndex].id
   }
 
-  static func selectedIndex(
-    _ selectedRowID: TerminalCommandPaletteRow.ID?,
-    in visibleRows: [TerminalCommandPaletteRow]
-  ) -> Int? {
-    guard let selectedRowID = normalizedSelection(selectedRowID, in: visibleRows) else { return nil }
-    return visibleRows.firstIndex(where: { $0.id == selectedRowID })
-  }
-
   static func row(
     atVisibleIndex index: Int,
     in visibleRows: [TerminalCommandPaletteRow]

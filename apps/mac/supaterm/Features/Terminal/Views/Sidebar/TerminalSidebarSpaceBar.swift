@@ -8,17 +8,9 @@ struct TerminalSidebarSpaceBar: View {
   let terminal: TerminalHostState
 
   @Environment(\.accessibilityReduceMotion) private var reduceMotion
-  @State private var availableWidth: CGFloat = 0
   @State private var hoveredSpaceID: TerminalSpaceID?
   @State private var showPreview = false
   @State private var isHoveringList = false
-
-  private var layoutMode: TerminalSidebarSpaceBarLayoutMode {
-    TerminalSidebarSpaceBarLayoutMode.determine(
-      spaceCount: terminal.spaces.count,
-      availableWidth: availableWidth
-    )
-  }
 
   var body: some View {
     HStack(alignment: .bottom, spacing: 10) {
@@ -69,14 +61,6 @@ struct TerminalSidebarSpaceBar: View {
             }
           }
       }
-      .background {
-        GeometryReader { geometry in
-          Color.clear
-            .task(id: geometry.size.width) {
-              availableWidth = geometry.size.width
-            }
-        }
-      }
       .frame(maxWidth: .infinity)
   }
 
@@ -92,7 +76,6 @@ struct TerminalSidebarSpaceBar: View {
               fallbackIndex: index
             ),
             isSelected: terminal.selectedSpaceID == space.id,
-            compact: layoutMode == .compact,
             palette: palette,
             spacesCount: terminal.spaces.count,
             onHoverChange: { isHovering in
@@ -145,7 +128,6 @@ private struct TerminalSidebarSpaceItemView: View {
   let space: TerminalSpaceItem
   let monogram: String
   let isSelected: Bool
-  let compact: Bool
   let palette: TerminalPalette
   let spacesCount: Int
   let onHoverChange: (Bool) -> Void

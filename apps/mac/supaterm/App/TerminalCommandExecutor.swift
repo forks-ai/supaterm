@@ -5,7 +5,6 @@ import SupatermCLIShared
 import SupatermSocketFeature
 import SupatermSupport
 import SupatermTerminalCore
-import SupatermUpdateFeature
 
 @MainActor
 final class TerminalCommandExecutor {

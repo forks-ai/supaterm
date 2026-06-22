@@ -20,13 +20,11 @@ final class TerminalTabManager {
 
   func createTab(
     title: String,
-    icon: String?,
     isPinned: Bool = false,
     isTitleLocked: Bool = false
   ) -> TerminalTabID {
     let tab = TerminalTabItem(
       title: title,
-      icon: icon,
       isPinned: isPinned,
       isTitleLocked: isTitleLocked
     )
@@ -152,11 +150,6 @@ final class TerminalTabManager {
 
   func otherTabIDs(_ id: TerminalTabID) -> [TerminalTabID] {
     tabs.map(\.id).filter { $0 != id }
-  }
-
-  func closeAll() {
-    tabs.removeAll()
-    selectedTabId = nil
   }
 
   func restoreTabs(

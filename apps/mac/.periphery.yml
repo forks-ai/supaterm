@@ -1,0 +1,14 @@
+project: supaterm.xcworkspace
+schemes:
+  - supaterm
+format: xcode
+relative_results: true
+strict: true
+disable_update_check: true
+clean_build: true
+retain_codable_properties: true
+retain_objc_accessible: true
+retain_swift_ui_previews: true
+build_arguments:
+  - -destination
+  - platform=macOS

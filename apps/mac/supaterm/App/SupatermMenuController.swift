@@ -893,11 +893,6 @@ final class SupatermMenuController: NSObject {
   }
 
   @discardableResult
-  func performCloseAllWindows() -> Bool {
-    registry.requestCloseAllWindows()
-  }
-
-  @discardableResult
   func performQuit() -> Bool {
     if let performer = NSApp.delegate as? any GhosttyAppActionPerforming {
       return performer.performQuit()

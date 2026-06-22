@@ -7,6 +7,7 @@ swiftlint = "0.63.2"
 xcbeautify = "3.2.1"
 pnpm = "10.32.1"
 "npm:create-dmg" = { version = "8.1.0", os = ["macos"] }
+periphery = "3.7.4"
 
 [env]
 HK_MISE = "1"

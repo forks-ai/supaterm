@@ -37,10 +37,6 @@ final class TerminalSpaceManager {
     activeTabManager?.selectedTabId
   }
 
-  var hasSelectedSpace: Bool {
-    selectedSpaceID != nil
-  }
-
   func bootstrap(
     from catalog: TerminalSpaceCatalog,
     initialSelectedSpaceID: TerminalSpaceID?

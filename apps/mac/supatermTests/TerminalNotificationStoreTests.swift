@@ -9,7 +9,6 @@ struct TerminalNotificationStoreTests {
       attentionState: .unread,
       body: "body",
       createdAt: Date(timeIntervalSince1970: createdAt),
-      subtitle: "",
       title: "title"
     )
   }

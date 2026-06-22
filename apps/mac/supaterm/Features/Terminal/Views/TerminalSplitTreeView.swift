@@ -63,6 +63,12 @@ struct TerminalSplitTreeView: View {
     let viewSize: CGSize
     let gridSize: ResizeOverlayGridSize
     let fontSizePoints: Double?
+
+    static func == (lhs: Self, rhs: Self) -> Bool {
+      lhs.viewSize == rhs.viewSize
+        && lhs.gridSize == rhs.gridSize
+        && lhs.fontSizePoints == rhs.fontSizePoints
+    }
   }
 
   enum OuterEdgeBranch {

@@ -1319,8 +1319,8 @@ private func makeCommandPaletteSnapshot() -> TerminalCommandPaletteSnapshot {
     ],
     selectedTabID: selectedTabID,
     visibleTabs: [
-      TerminalTabItem(id: selectedTabID, title: "Main", icon: nil),
-      TerminalTabItem(id: otherTabID, title: "Logs", icon: "doc.plaintext"),
+      TerminalTabItem(id: selectedTabID, title: "Main"),
+      TerminalTabItem(id: otherTabID, title: "Logs"),
     ]
   )
 }

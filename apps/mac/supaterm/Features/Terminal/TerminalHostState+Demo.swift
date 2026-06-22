@@ -45,7 +45,6 @@
           attentionState: .unread,
           body: "Deploy preview is ready for approval.",
           createdAt: Date(),
-          subtitle: "supaterm/deploy",
           title: "Approval needed",
           origin: .structuredAgent(.attention)
         ),

@@ -918,7 +918,6 @@ struct TerminalHostStateNotificationTests {
       attentionState: attentionState,
       body: body,
       createdAt: Date(timeIntervalSince1970: createdAt),
-      subtitle: "",
       title: title
     )
   }

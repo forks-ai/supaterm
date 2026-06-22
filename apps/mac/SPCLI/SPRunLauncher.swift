@@ -5,12 +5,8 @@ import SupatermCLIShared
 
 enum SPRunLauncher {
   struct FocusedContext: Equatable {
-    let windowIndex: Int
-    let spaceIndex: Int
     let spaceID: UUID
-    let tabIndex: Int
     let tabID: UUID
-    let paneIndex: Int
     let paneID: UUID
   }
 

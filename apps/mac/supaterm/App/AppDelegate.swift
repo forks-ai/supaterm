@@ -5,7 +5,6 @@ import SupatermCLIShared
 import SupatermSettingsFeature
 import SupatermSocketFeature
 import SupatermSupport
-import SupatermTerminalCore
 import UserNotifications
 
 @MainActor
@@ -75,7 +74,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
     @Shared(.supatermSettings) var launchSupatermSettings = .default
     SupatermLog.setVerboseLoggingEnabled(launchSupatermSettings.verboseLoggingEnabled)
     let zmxSessionsEnabledAtLaunch = launchSupatermSettings.zmxSessionsEnabled
-    let zmxClient = zmxSessionsEnabledAtLaunch ? ZmxClient.liveValue : .noop
+    let zmxClient = zmxSessionsEnabledAtLaunch ? ZmxClient.live : .noop
     let terminalWindowRegistry = TerminalWindowRegistry(zmxClient: zmxClient)
     let terminalCommandExecutor = TerminalCommandExecutor(registry: terminalWindowRegistry)
     let menuController = SupatermMenuController(registry: terminalWindowRegistry)
@@ -111,7 +110,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
   }
 
   private var launchZmxClient: ZmxClient {
-    zmxSessionsEnabledAtLaunch ? .liveValue : .noop
+    zmxSessionsEnabledAtLaunch ? .live : .noop
   }
 
   func applicationDidFinishLaunching(_ notification: Notification) {

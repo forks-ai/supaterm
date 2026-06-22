@@ -27,7 +27,6 @@ struct TerminalClient: Sendable {
   var createPane: @MainActor @Sendable (TerminalCreatePaneRequest) async throws -> SupatermNewPaneResult
   var events: @MainActor @Sendable () -> AsyncStream<Event>
   var send: @MainActor @Sendable (Command) -> Void
-  var treeSnapshot: @MainActor @Sendable () async -> SupatermTreeSnapshot
 
   enum Command: Equatable, @unchecked Sendable {
     case closeSurface(UUID)
@@ -82,9 +81,6 @@ struct TerminalClient: Sendable {
       },
       send: { command in
         host.handleCommand(command)
-      },
-      treeSnapshot: {
-        host.treeSnapshot()
       }
     )
   }
@@ -103,8 +99,7 @@ extension TerminalClient: DependencyKey {
       throw TerminalCreatePaneError.creationFailed
     },
     events: { AsyncStream { $0.finish() } },
-    send: { _ in },
-    treeSnapshot: { SupatermTreeSnapshot(windows: []) }
+    send: { _ in }
   )
 
   static let testValue = Self(
@@ -112,8 +107,7 @@ extension TerminalClient: DependencyKey {
       throw TerminalCreatePaneError.creationFailed
     },
     events: { AsyncStream { $0.finish() } },
-    send: { _ in },
-    treeSnapshot: { SupatermTreeSnapshot(windows: []) }
+    send: { _ in }
   )
 }
 

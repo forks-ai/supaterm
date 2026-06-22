@@ -4,7 +4,6 @@ import GhosttyKit
 import Observation
 import Sharing
 import SupatermCLIShared
-import SupatermSupport
 import SupatermTerminalCore
 import SwiftUI
 
@@ -1153,7 +1152,6 @@ extension TerminalHostState {
         attentionState: attentionState,
         body: request.body,
         createdAt: createdAt,
-        subtitle: request.subtitle,
         title: resolvedTitle,
         origin: origin
       ),

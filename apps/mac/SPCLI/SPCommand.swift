@@ -1,7 +1,7 @@
 import ArgumentParser
 
-public struct SP: ParsableCommand {
-  public static let configuration = CommandConfiguration(
+struct SP: ParsableCommand {
+  static let configuration = CommandConfiguration(
     commandName: "sp",
     abstract: "Supaterm pane command-line interface.",
     discussion: SPHelp.rootDiscussion,
@@ -23,9 +23,9 @@ public struct SP: ParsableCommand {
     Internal.self,
   ]
 
-  public init() {}
+  init() {}
 
-  public mutating func run() throws {
+  mutating func run() throws {
     print(Self.helpMessage())
   }
 }

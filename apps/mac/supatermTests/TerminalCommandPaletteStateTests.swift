@@ -117,13 +117,11 @@ struct TerminalCommandPaletteStateTests {
   private var visibleTabs: [TerminalTabItem] = [
     TerminalTabItem(
       id: TerminalTabID(rawValue: UUID(uuidString: "00000000-0000-0000-0000-000000000010")!),
-      title: "Main",
-      icon: nil
+      title: "Main"
     ),
     TerminalTabItem(
       id: TerminalTabID(rawValue: UUID(uuidString: "00000000-0000-0000-0000-000000000011")!),
-      title: "Logs",
-      icon: "doc.plaintext"
+      title: "Logs"
     ),
   ]
 

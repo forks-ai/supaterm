@@ -109,10 +109,10 @@ public nonisolated struct GhosttyTerminalSettingsValues: Equatable, Sendable {
   }
 }
 
-public nonisolated enum GhosttyTerminalSettingsClientError: LocalizedError {
+nonisolated enum GhosttyTerminalSettingsClientError: LocalizedError {
   case unavailable
 
-  public var errorDescription: String? {
+  var errorDescription: String? {
     switch self {
     case .unavailable:
       "Ghostty terminal settings are unavailable."

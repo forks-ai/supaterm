@@ -62,6 +62,6 @@ public enum SupatermCodexHookSettings {
   }
 }
 
-public enum SupatermCodexHookSettingsError: Error {
+enum SupatermCodexHookSettingsError: Error {
   case invalidConfiguration
 }

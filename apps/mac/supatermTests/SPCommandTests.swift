@@ -240,7 +240,6 @@ struct SPCommandTests {
   func diagnosticSocketProbeDecodesSuccessfulDebugResponse() throws {
     let endpoint = spCommandTestSocketEndpoint(path: "/tmp/live.sock")
     let target = SupatermResolvedSocketTarget(
-      endpoint: endpoint,
       path: endpoint.path,
       source: .discoveredSingleton
     )
@@ -269,7 +268,6 @@ struct SPCommandTests {
   func diagnosticSocketProbeReportsSocketErrorResponse() {
     let endpoint = spCommandTestSocketEndpoint(path: "/tmp/live.sock")
     let target = SupatermResolvedSocketTarget(
-      endpoint: endpoint,
       path: endpoint.path,
       source: .discoveredSingleton
     )
@@ -295,7 +293,6 @@ struct SPCommandTests {
   func diagnosticSocketProbeReportsThrownSocketRequestError() {
     let endpoint = spCommandTestSocketEndpoint(path: "/tmp/live.sock")
     let target = SupatermResolvedSocketTarget(
-      endpoint: endpoint,
       path: endpoint.path,
       source: .discoveredSingleton
     )

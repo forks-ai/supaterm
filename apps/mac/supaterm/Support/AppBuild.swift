@@ -1,9 +1,6 @@
-import ComposableArchitecture
 import Foundation
 
 public enum AppBuild {
-  public nonisolated static let developmentBuildMessage = "This is a development build"
-
   public nonisolated static var usesStubUpdateChecks: Bool {
     #if DEBUG
       true
@@ -44,37 +41,5 @@ public enum AppBuild {
   public nonisolated static func infoString(_ key: String) -> String {
     let value = Bundle.main.object(forInfoDictionaryKey: key) as? String
     return value?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
-  }
-}
-
-struct AppBuildClient: Sendable {
-  var isDevelopmentBuild: @Sendable () -> Bool
-  var usesStubUpdateChecks: @Sendable () -> Bool
-}
-
-extension AppBuildClient: DependencyKey {
-  static let liveValue = Self(
-    isDevelopmentBuild: {
-      AppBuild.isDevelopmentBuild
-    },
-    usesStubUpdateChecks: {
-      AppBuild.usesStubUpdateChecks
-    }
-  )
-
-  static let testValue = Self(
-    isDevelopmentBuild: {
-      false
-    },
-    usesStubUpdateChecks: {
-      false
-    }
-  )
-}
-
-extension DependencyValues {
-  var appBuildClient: AppBuildClient {
-    get { self[AppBuildClient.self] }
-    set { self[AppBuildClient.self] = newValue }
   }
 }

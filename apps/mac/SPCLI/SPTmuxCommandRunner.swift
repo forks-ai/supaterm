@@ -118,12 +118,8 @@ struct SPTmuxCommandRunner {
   func focusedContext() throws -> SPRunLauncher.FocusedContext {
     let current = try topology().current
     return .init(
-      windowIndex: current.window.index,
-      spaceIndex: current.space.index,
       spaceID: current.space.id,
-      tabIndex: current.tab.index,
       tabID: current.tab.id,
-      paneIndex: current.pane.index,
       paneID: current.pane.id
     )
   }

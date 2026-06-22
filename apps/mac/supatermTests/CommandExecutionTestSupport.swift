@@ -1,6 +1,5 @@
 import Darwin
 import Foundation
-import Testing
 
 @testable import SupatermCLIShared
 
@@ -25,45 +24,6 @@ func setExecutablePermissions(at url: URL) throws {
   }
 }
 
-func runExecutable(
-  at executableURL: URL,
-  arguments: [String],
-  environment: [String: String]
-) throws -> String {
-  let process = Process()
-  process.executableURL = executableURL
-  process.arguments = arguments
-  var processEnvironment = ProcessInfo.processInfo.environment
-  for (key, value) in environment {
-    processEnvironment[key] = value
-  }
-  process.environment = processEnvironment
-
-  let stdoutPipe = Pipe()
-  let stderrPipe = Pipe()
-  process.standardOutput = stdoutPipe
-  process.standardError = stderrPipe
-
-  try process.run()
-  process.waitUntilExit()
-
-  let stdout =
-    String(
-      data: stdoutPipe.fileHandleForReading.readDataToEndOfFile(),
-      encoding: .utf8
-    ) ?? ""
-  let stderr =
-    String(
-      data: stderrPipe.fileHandleForReading.readDataToEndOfFile(),
-      encoding: .utf8
-    ) ?? ""
-
-  if process.terminationStatus != 0 {
-    Issue.record("Command failed with status \(process.terminationStatus): \(stderr)")
-  }
-  return stdout
-}
-
 func makeCommandExecutionTemporaryDirectory() throws -> URL {
   var template = Array("/tmp/stm.XXXXXX".utf8CString)
   guard let pointer = mkdtemp(&template) else {
@@ -71,15 +31,4 @@ func makeCommandExecutionTemporaryDirectory() throws -> URL {
   }
   let path = SupatermSocketPath.canonicalized(String(cString: pointer)) ?? String(cString: pointer)
   return URL(fileURLWithPath: path, isDirectory: true)
-}
-
-func executableURL(named name: String) -> URL? {
-  for directory in ProcessInfo.processInfo.environment["PATH"]?.split(separator: ":") ?? [] {
-    let url = URL(fileURLWithPath: String(directory), isDirectory: true)
-      .appendingPathComponent(name, isDirectory: false)
-    if FileManager.default.isExecutableFile(atPath: url.path) {
-      return url
-    }
-  }
-  return nil
 }

@@ -99,10 +99,10 @@ public struct SupatermSkillInstaller {
   }
 }
 
-public enum SupatermSkillInstallerError: Error, Equatable, LocalizedError {
+enum SupatermSkillInstallerError: Error, Equatable, LocalizedError {
   case bundledSkillUnavailable(String?)
 
-  public var errorDescription: String? {
+  var errorDescription: String? {
     switch self {
     case .bundledSkillUnavailable(let path):
       guard let path else {

@@ -57,12 +57,8 @@ struct SPTmuxCompatTests {
     try writeExecutable(at: spURL, script: "#!/bin/sh\nexit 0\n")
 
     let context = SPRunLauncher.FocusedContext(
-      windowIndex: 1,
-      spaceIndex: 2,
       spaceID: UUID(uuidString: "A6E57B1B-0A61-4F72-BD52-B26DC5D3C497")!,
-      tabIndex: 3,
       tabID: UUID(uuidString: "6BFC889D-2D0F-4675-924E-B15A6A4E372B")!,
-      paneIndex: 4,
       paneID: UUID(uuidString: "2B8B3A57-D7F8-4EF7-930F-46B1F7281B2A")!
     )
 

@@ -111,12 +111,11 @@ func makeClaudeHookHarness<C: Clock<Duration>>(
     requestConfirmedWindowClose: {}
   )
   let window = makeWindow()
-  registry.updateWindow(window, for: windowControllerID)
   host.handleCommand(.ensureInitialTab(focusing: false, startupCommand: nil))
 
   let surfaceID = try #require(host.selectedSurfaceView?.id)
   let tabID = try #require(host.selectedTabID)
-  return ClaudeHookHarness(
+  let harness = ClaudeHookHarness(
     commandExecutor: commandExecutor,
     context: SupatermCLIContext(surfaceID: surfaceID, tabID: tabID.rawValue),
     host: host,
@@ -126,6 +125,8 @@ func makeClaudeHookHarness<C: Clock<Duration>>(
     window: window,
     windowControllerID: windowControllerID
   )
+  registry.updateWindow(harness.window, for: windowControllerID)
+  return harness
 }
 
 struct ClaudeHookHarness {

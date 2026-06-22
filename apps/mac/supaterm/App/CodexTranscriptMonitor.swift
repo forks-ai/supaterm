@@ -7,15 +7,6 @@ enum AgentTurnStatus: Equatable {
   case aborted(String?)
   case failed(String?)
 
-  var startsNewTurn: Bool {
-    switch self {
-    case .started:
-      true
-    case .completed, .aborted, .failed:
-      false
-    }
-  }
-
   var isFinal: Bool {
     switch self {
     case .started:
@@ -75,8 +66,6 @@ struct CodexConversationTurn: Equatable {
   var status: CodexConversationTurnState
   var error: String?
   var items: [CodexConversationItem]
-  var startedAt: String?
-  var completedAt: String?
   var durationMs: Int?
   var lastAssistantDetail: String?
   var hoverMessages: [String] = []
@@ -209,7 +198,6 @@ struct CodexConversationState: Equatable {
     let index = ensureTurn(id: turnID)
     turns[index].status = .inProgress
     turns[index].error = nil
-    turns[index].startedAt = payload["started_at"]?.stringValue
     turns[index].durationMs = payload["duration_ms"]?.intValue
     activeTurnIndex = index
   }
@@ -222,7 +210,6 @@ struct CodexConversationState: Equatable {
       return
     }
     turns[index].status = turns[index].status == .failed ? .failed : .completed
-    turns[index].completedAt = payload["completed_at"]?.stringValue
     turns[index].durationMs = payload["duration_ms"]?.intValue ?? turns[index].durationMs
     if let message = normalizedMessage(payload["last_agent_message"]?.stringValue) {
       appendAssistantMessage(
@@ -243,7 +230,6 @@ struct CodexConversationState: Equatable {
       return
     }
     turns[index].status = .aborted
-    turns[index].completedAt = payload["completed_at"]?.stringValue
     turns[index].durationMs = payload["duration_ms"]?.intValue ?? turns[index].durationMs
     clearActiveTurnIfMatching(index: index)
   }
@@ -446,8 +432,6 @@ struct CodexConversationState: Equatable {
         status: .inProgress,
         error: nil,
         items: [],
-        startedAt: nil,
-        completedAt: nil,
         durationMs: nil
       )
     )

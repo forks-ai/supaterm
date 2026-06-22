@@ -6,11 +6,29 @@ final class TerminalAgentSessionStore {
   private struct SessionKey: Hashable {
     let agent: SupatermAgentKind
     let sessionID: String
+
+    static func == (lhs: Self, rhs: Self) -> Bool {
+      lhs.agent == rhs.agent && lhs.sessionID == rhs.sessionID
+    }
+
+    func hash(into hasher: inout Hasher) {
+      hasher.combine(agent)
+      hasher.combine(sessionID)
+    }
   }
 
   private struct SurfaceKey: Hashable {
     let agent: SupatermAgentKind
     let surfaceID: UUID
+
+    static func == (lhs: Self, rhs: Self) -> Bool {
+      lhs.agent == rhs.agent && lhs.surfaceID == rhs.surfaceID
+    }
+
+    func hash(into hasher: inout Hasher) {
+      hasher.combine(agent)
+      hasher.combine(surfaceID)
+    }
   }
 
   private enum SessionRouting {

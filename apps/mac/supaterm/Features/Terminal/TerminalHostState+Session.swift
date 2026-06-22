@@ -5,7 +5,6 @@ import Observation
 import Sharing
 import SupatermCLIShared
 import SupatermSupport
-import SupatermTerminalCore
 import SwiftUI
 
 extension TerminalHostState {
@@ -280,7 +279,6 @@ extension TerminalHostState {
     TerminalTabItem(
       id: id,
       title: session.lockedTitle ?? restoredTabTitle(at: index),
-      icon: "terminal",
       isPinned: session.isPinned,
       isTitleLocked: session.lockedTitle != nil
     )

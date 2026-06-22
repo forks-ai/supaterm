@@ -60,8 +60,7 @@ extension TerminalHostState {
       ? GHOSTTY_SURFACE_CONTEXT_WINDOW
       : GHOSTTY_SURFACE_CONTEXT_TAB
     let tabID = tabManager.createTab(
-      title: "Terminal \(nextTabIndex(in: spaceID))",
-      icon: "terminal"
+      title: "Terminal \(nextTabIndex(in: spaceID))"
     )
     let tree = splitTree(
       for: tabID,

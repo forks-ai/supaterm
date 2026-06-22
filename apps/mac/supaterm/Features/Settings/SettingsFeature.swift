@@ -30,16 +30,11 @@ struct SettingsTerminalState: Equatable {
 }
 
 struct SettingsAgentIntegrationState: Equatable {
-  let settingsPath: String
   var confirmedEnabled = false
   var errorMessage: String?
   var isAvailable = true
   var isEnabled = false
   var isPending = false
-
-  var isFailure: Bool {
-    errorMessage != nil
-  }
 }
 
 struct SettingsAgentIntegrationInstallFailure: Equatable, Identifiable {
@@ -78,19 +73,13 @@ public struct SettingsFeature {
     var appearanceMode = SupatermSettings.default.appearanceMode
     var analyticsEnabled = SupatermSettings.default.analyticsEnabled
     @Presents var alert: AlertState<Alert>?
-    var claudeIntegration = SettingsAgentIntegrationState(
-      settingsPath: SupatermAgentKind.claude.settingsPathDescription
-    )
+    var claudeIntegration = SettingsAgentIntegrationState()
     var codingAgentsShowPanel = SupatermSettings.default.codingAgentsShowPanel
     var codingAgentsShowIcons = SupatermSettings.default.codingAgentsShowIcons
     var codingAgentsShowSpinner = SupatermSettings.default.codingAgentsShowSpinner
     var confirmQuitMode = SupatermSettings.default.confirmQuitMode
-    var codexIntegration = SettingsAgentIntegrationState(
-      settingsPath: SupatermAgentKind.codex.settingsPathDescription
-    )
-    var piIntegration = SettingsAgentIntegrationState(
-      settingsPath: SupatermAgentKind.pi.settingsPathDescription
-    )
+    var codexIntegration = SettingsAgentIntegrationState()
+    var piIntegration = SettingsAgentIntegrationState()
     var crashReportsEnabled = SupatermSettings.default.crashReportsEnabled
     var glowingPaneRingEnabled = SupatermSettings.default.glowingPaneRingEnabled
     var about = SettingsAboutState()

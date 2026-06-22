@@ -8,11 +8,11 @@ struct TerminalTabManagerTests {
   func createTabAppendsRegularTabsAfterPinnedSectionAndSelectsIt() {
     let manager = TerminalTabManager()
 
-    let pinned = manager.createTab(title: "Pinned", icon: "terminal", isPinned: true)
-    let first = manager.createTab(title: "Terminal 1", icon: "terminal")
+    let pinned = manager.createTab(title: "Pinned", isPinned: true)
+    let first = manager.createTab(title: "Terminal 1")
 
     manager.selectTab(pinned)
-    let second = manager.createTab(title: "Terminal 2", icon: "terminal")
+    let second = manager.createTab(title: "Terminal 2")
 
     #expect(manager.tabs.map(\.id) == [pinned, first, second])
     #expect(manager.selectedTabId == second)
@@ -22,10 +22,9 @@ struct TerminalTabManagerTests {
   func lockedTitlesAreNotOverwritten() {
     let manager = TerminalTabManager()
 
-    let editable = manager.createTab(title: "Terminal 1", icon: "terminal")
+    let editable = manager.createTab(title: "Terminal 1")
     let locked = manager.createTab(
       title: "Pinned",
-      icon: "terminal",
       isTitleLocked: true
     )
 
@@ -39,7 +38,7 @@ struct TerminalTabManagerTests {
   @Test
   func setLockedTitlePreservesLiteralValueAndUnlocks() {
     let manager = TerminalTabManager()
-    let tabID = manager.createTab(title: "Terminal 1", icon: "terminal")
+    let tabID = manager.createTab(title: "Terminal 1")
 
     manager.setLockedTitle(tabID, title: "  ")
 
@@ -57,9 +56,9 @@ struct TerminalTabManagerTests {
   func closingSelectedTabPrefersNextTabBeforePrevious() {
     let manager = TerminalTabManager()
 
-    let first = manager.createTab(title: "Terminal 1", icon: "terminal")
-    let second = manager.createTab(title: "Terminal 2", icon: "terminal")
-    let third = manager.createTab(title: "Terminal 3", icon: "terminal")
+    let first = manager.createTab(title: "Terminal 1")
+    let second = manager.createTab(title: "Terminal 2")
+    let third = manager.createTab(title: "Terminal 3")
 
     manager.selectTab(second)
     manager.closeTab(second)
@@ -77,9 +76,9 @@ struct TerminalTabManagerTests {
   func closingUnselectedTabKeepsSelection() {
     let manager = TerminalTabManager()
 
-    let first = manager.createTab(title: "Terminal 1", icon: "terminal")
-    let second = manager.createTab(title: "Terminal 2", icon: "terminal")
-    let third = manager.createTab(title: "Terminal 3", icon: "terminal")
+    let first = manager.createTab(title: "Terminal 1")
+    let second = manager.createTab(title: "Terminal 2")
+    let third = manager.createTab(title: "Terminal 3")
 
     manager.selectTab(second)
     manager.closeTab(first)
@@ -92,9 +91,9 @@ struct TerminalTabManagerTests {
   func tabIDsBelowFollowVisibleOrder() {
     let manager = TerminalTabManager()
 
-    let pinned = manager.createTab(title: "Pinned", icon: "terminal", isPinned: true)
-    let regularA = manager.createTab(title: "Terminal 1", icon: "terminal")
-    let regularB = manager.createTab(title: "Terminal 2", icon: "terminal")
+    let pinned = manager.createTab(title: "Pinned", isPinned: true)
+    let regularA = manager.createTab(title: "Terminal 1")
+    let regularB = manager.createTab(title: "Terminal 2")
 
     #expect(manager.tabIDsBelow(pinned) == [regularA, regularB])
     #expect(manager.tabIDsBelow(regularA) == [regularB])
@@ -105,9 +104,9 @@ struct TerminalTabManagerTests {
   func otherTabIDsExcludeAnchorAndPreserveOrder() {
     let manager = TerminalTabManager()
 
-    let first = manager.createTab(title: "Terminal 1", icon: "terminal")
-    let second = manager.createTab(title: "Terminal 2", icon: "terminal")
-    let third = manager.createTab(title: "Terminal 3", icon: "terminal")
+    let first = manager.createTab(title: "Terminal 1")
+    let second = manager.createTab(title: "Terminal 2")
+    let third = manager.createTab(title: "Terminal 3")
 
     #expect(manager.otherTabIDs(second) == [first, third])
   }
@@ -116,8 +115,8 @@ struct TerminalTabManagerTests {
   func togglePinnedMovesTabsAcrossSections() {
     let manager = TerminalTabManager()
 
-    let first = manager.createTab(title: "Terminal 1", icon: "terminal")
-    let second = manager.createTab(title: "Terminal 2", icon: "terminal")
+    let first = manager.createTab(title: "Terminal 1")
+    let second = manager.createTab(title: "Terminal 2")
 
     manager.togglePinned(second)
     #expect(manager.pinnedTabs.map(\.id) == [second])
@@ -133,10 +132,10 @@ struct TerminalTabManagerTests {
   func sectionReorderingOnlyAffectsThatSection() {
     let manager = TerminalTabManager()
 
-    let pinnedA = manager.createTab(title: "Pinned A", icon: "terminal", isPinned: true)
-    let pinnedB = manager.createTab(title: "Pinned B", icon: "terminal", isPinned: true)
-    let regularA = manager.createTab(title: "Regular A", icon: "terminal")
-    let regularB = manager.createTab(title: "Regular B", icon: "terminal")
+    let pinnedA = manager.createTab(title: "Pinned A", isPinned: true)
+    let pinnedB = manager.createTab(title: "Pinned B", isPinned: true)
+    let regularA = manager.createTab(title: "Regular A")
+    let regularB = manager.createTab(title: "Regular B")
 
     manager.setPinnedTabOrder([pinnedB, pinnedA])
     #expect(manager.tabs.map(\.id) == [pinnedB, pinnedA, regularA, regularB])
@@ -149,9 +148,9 @@ struct TerminalTabManagerTests {
   func moveTabAppliesCrossSectionOrdersAtomically() {
     let manager = TerminalTabManager()
 
-    let pinned = manager.createTab(title: "Pinned", icon: "terminal", isPinned: true)
-    let regularA = manager.createTab(title: "Regular A", icon: "terminal")
-    let regularB = manager.createTab(title: "Regular B", icon: "terminal")
+    let pinned = manager.createTab(title: "Pinned", isPinned: true)
+    let regularA = manager.createTab(title: "Regular A")
+    let regularB = manager.createTab(title: "Regular B")
 
     manager.moveTab(
       regularA,

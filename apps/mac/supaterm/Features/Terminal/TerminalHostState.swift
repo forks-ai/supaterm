@@ -71,13 +71,6 @@ final class TerminalHostState {
     let isSelectedTab: Bool
   }
 
-  struct TabIndicators: Equatable {
-    var isRunning = false
-    var hasBell = false
-    var isReadOnly = false
-    var hasSecureInput = false
-  }
-
   struct SurfaceActivity: Equatable {
     let isVisible: Bool
     let isFocused: Bool
@@ -102,7 +95,6 @@ final class TerminalHostState {
     var attentionState: SupatermNotificationAttentionState?
     var body: String
     let createdAt: Date
-    var subtitle: String
     var title: String
     let origin: NotificationOrigin
 
@@ -110,14 +102,12 @@ final class TerminalHostState {
       attentionState: SupatermNotificationAttentionState?,
       body: String,
       createdAt: Date,
-      subtitle: String,
       title: String
     ) {
       self.init(
         attentionState: attentionState,
         body: body,
         createdAt: createdAt,
-        subtitle: subtitle,
         title: title,
         origin: .generic
       )
@@ -127,14 +117,12 @@ final class TerminalHostState {
       attentionState: SupatermNotificationAttentionState?,
       body: String,
       createdAt: Date,
-      subtitle: String,
       title: String,
       origin: NotificationOrigin
     ) {
       self.attentionState = attentionState
       self.body = body
       self.createdAt = createdAt
-      self.subtitle = subtitle
       self.title = title
       self.origin = origin
     }
@@ -143,7 +131,6 @@ final class TerminalHostState {
   enum NotificationSemantic: Equatable, Sendable {
     case completion
     case attention
-    case other
   }
 
   enum NotificationOrigin: Equatable, Sendable {
@@ -328,7 +315,7 @@ final class TerminalHostState {
   init(
     runtime: GhosttyRuntime? = nil,
     managesTerminalSurfaces: Bool = true,
-    zmxClient: ZmxClient = .liveValue,
+    zmxClient: ZmxClient = .live,
     zmxSessionsEnabled: Bool = true
   ) {
     self.managesTerminalSurfaces = managesTerminalSurfaces
@@ -1235,10 +1222,6 @@ final class TerminalHostState {
         lhs.1.createdAt < rhs.1.createdAt
       }?
       .0
-  }
-
-  func latestNotification(for tabID: TerminalTabID) -> PaneNotification? {
-    Self.latestNotification(in: notifications(for: tabID).values.flatMap { $0 })
   }
 
   func clearUnreadOnFocusedSurfaceIfNeeded() {

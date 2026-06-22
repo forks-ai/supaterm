@@ -65,7 +65,7 @@ enum AppTelemetry {
       config.enableSwizzling = false
       config.personProfiles = configuration.personProfiles
       PostHogSDK.shared.setup(config)
-      if let hardwareUUID = HardwareInfo.uuid {
+      if let hardwareUUID = hardwareUUID() {
         PostHogSDK.shared.identify(hardwareUUID)
       }
       PostHogSDK.shared.capture("app_launched")

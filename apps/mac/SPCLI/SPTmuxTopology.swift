@@ -11,9 +11,6 @@ struct SPTmuxTopology {
   struct SpaceLocation: Equatable {
     let window: Window
     let space: Space
-
-    var windowIndex: Int { window.index }
-    var spaceIndex: Int { space.index }
   }
 
   struct TabLocation: Equatable {

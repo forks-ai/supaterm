@@ -1,16 +1,6 @@
-import Darwin
 import Foundation
 
 enum LoginShellCommandAvailability {
-  static func isAvailable(_ commandNames: [String]) throws -> Bool {
-    let process = Process()
-    process.executableURL = CodexSettingsInstaller.loginShellURL()
-    process.arguments = commandArguments(for: commandNames)
-    try process.run()
-    process.waitUntilExit()
-    return process.terminationStatus == 0
-  }
-
   static func commandArguments(for commandNames: [String]) -> [String] {
     let checks = commandNames.map { "command -v \($0) >/dev/null 2>&1" }
     return interactiveCommandArguments(for: checks.joined(separator: " || "))
@@ -29,7 +19,6 @@ public struct CodexSettingsInstaller {
 
   let homeDirectoryURL: URL
   let fileManager: FileManager
-  let checkCodexAvailable: @Sendable () throws -> Bool
   let runEnableHooksCommand: @Sendable () throws -> CommandResult
 
   public init(
@@ -39,7 +28,6 @@ public struct CodexSettingsInstaller {
     self.init(
       homeDirectoryURL: homeDirectoryURL,
       fileManager: fileManager,
-      checkCodexAvailable: Self.checkCodexAvailable,
       runEnableHooksCommand: Self.runEnableHooksCommand
     )
   }
@@ -47,17 +35,11 @@ public struct CodexSettingsInstaller {
   init(
     homeDirectoryURL: URL = FileManager.default.homeDirectoryForCurrentUser,
     fileManager: FileManager = .default,
-    checkCodexAvailable: @escaping @Sendable () throws -> Bool = Self.checkCodexAvailable,
     runEnableHooksCommand: @escaping @Sendable () throws -> CommandResult
   ) {
     self.homeDirectoryURL = homeDirectoryURL
     self.fileManager = fileManager
-    self.checkCodexAvailable = checkCodexAvailable
     self.runEnableHooksCommand = runEnableHooksCommand
-  }
-
-  public func isCodexAvailable() throws -> Bool {
-    try checkCodexAvailable()
   }
 
   public func installSupatermHooks() throws {
@@ -105,10 +87,6 @@ public struct CodexSettingsInstaller {
     homeDirectoryURL
       .appendingPathComponent(".codex", isDirectory: true)
       .appendingPathComponent("config.toml", isDirectory: false)
-  }
-
-  static func checkCodexAvailable() throws -> Bool {
-    try LoginShellCommandAvailability.isAvailable(["codex"])
   }
 
   static func runEnableHooksCommand() throws -> CommandResult {
@@ -183,7 +161,7 @@ public struct CodexSettingsInstaller {
   }
 }
 
-public enum CodexSettingsInstallerError: Error, Equatable, LocalizedError {
+enum CodexSettingsInstallerError: Error, Equatable, LocalizedError {
   case codexUnavailable
   case enableHooksFailed(String)
   case invalidEventHooks(String)
@@ -192,7 +170,7 @@ public enum CodexSettingsInstallerError: Error, Equatable, LocalizedError {
   case invalidJSON
   case invalidRootObject
 
-  public var errorDescription: String? {
+  var errorDescription: String? {
     switch self {
     case .codexUnavailable:
       return "Codex must be installed and available in your login shell before Supaterm can install hooks."

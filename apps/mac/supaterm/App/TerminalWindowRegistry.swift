@@ -63,7 +63,7 @@ final class TerminalWindowRegistry {
   private let zmxClient: ZmxClient
   var onChange: @MainActor () -> Void = {}
 
-  init(zmxClient: ZmxClient = .liveValue) {
+  init(zmxClient: ZmxClient = .live) {
     self.zmxClient = zmxClient
   }
 
@@ -155,10 +155,6 @@ final class TerminalWindowRegistry {
       spaceCount: entry.terminal.spaces.count,
       isUpdateMenuItemEnabled: updateMenuItemAction != nil
     )
-  }
-
-  func keyboardShortcut(for command: SupatermCommand) -> KeyboardShortcut? {
-    keyboardShortcut(forAction: command.ghosttyBindingAction)
   }
 
   func keyboardShortcut(forAction action: String) -> KeyboardShortcut? {
@@ -352,12 +348,6 @@ final class TerminalWindowRegistry {
     }
   }
 
-  func terminateLiveTerminalSessions() {
-    for entry in activeEntries() {
-      entry.terminal.terminateLiveTerminalSessions()
-    }
-  }
-
   func terminateLiveTerminalSessionsAndWait() async {
     for entry in activeEntries() {
       await entry.terminal.terminateLiveTerminalSessionsAndWait()
@@ -378,14 +368,6 @@ final class TerminalWindowRegistry {
       await terminateLiveTerminalSessionsAndWait()
       await terminateAllZmxSessionsAndWait()
       closeWindows(windowIDs)
-    }
-  }
-
-  func terminateAllZmxSessions() {
-    SupatermLog.debug(SupatermLog.zmx, "zmx.terminateAll.enqueue")
-    let zmxClient = zmxClient
-    Task.detached(priority: .utility) {
-      await Self.terminateAllZmxSessions(using: zmxClient)
     }
   }
 

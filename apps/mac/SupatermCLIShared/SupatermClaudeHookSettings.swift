@@ -69,6 +69,6 @@ public enum SupatermClaudeHookSettings {
   }
 }
 
-public enum SupatermClaudeHookSettingsError: Error {
+enum SupatermClaudeHookSettingsError: Error {
   case invalidConfiguration
 }

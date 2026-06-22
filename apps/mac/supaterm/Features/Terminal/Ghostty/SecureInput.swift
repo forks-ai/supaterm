@@ -67,7 +67,7 @@ final class SecureInput: Observable {
     }
   }
 
-  @objc private func onDidBecomeActive(notification: NSNotification) {
+  @objc private func onDidBecomeActive(notification _: NSNotification) {
     guard !enabled && desired else { return }
     let err = EnableSecureEventInput()
     if err == noErr {
@@ -76,7 +76,7 @@ final class SecureInput: Observable {
     }
   }
 
-  @objc private func onDidResignActive(notification: NSNotification) {
+  @objc private func onDidResignActive(notification _: NSNotification) {
     guard enabled else { return }
     let err = DisableSecureEventInput()
     if err == noErr {

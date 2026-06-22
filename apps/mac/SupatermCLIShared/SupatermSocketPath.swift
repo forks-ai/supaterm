@@ -349,16 +349,13 @@ public enum SupatermSocketSelectionSource: String, Equatable, Sendable, Codable 
 }
 
 public struct SupatermResolvedSocketTarget: Equatable, Sendable {
-  public let endpoint: SupatermSocketEndpoint?
   public let path: String
   public let source: SupatermSocketSelectionSource
 
   public init(
-    endpoint: SupatermSocketEndpoint?,
     path: String,
     source: SupatermSocketSelectionSource
   ) {
-    self.endpoint = endpoint
     self.path = path
     self.source = source
   }
@@ -393,7 +390,6 @@ public enum SupatermSocketTargetResolver {
   ) throws -> SupatermResolvedSocketTarget {
     if let explicitPath = SupatermSocketPath.normalized(explicitPath) {
       return .init(
-        endpoint: nil,
         path: explicitPath,
         source: .explicitPath
       )
@@ -401,7 +397,6 @@ public enum SupatermSocketTargetResolver {
 
     if let environmentPath = SupatermSocketPath.normalized(environmentPath) {
       return .init(
-        endpoint: nil,
         path: environmentPath,
         source: .environmentPath
       )
@@ -412,7 +407,6 @@ public enum SupatermSocketTargetResolver {
         let matchedByID = discoveredEndpoints.first(where: { $0.id == instanceID })
       {
         return .init(
-          endpoint: matchedByID,
           path: matchedByID.path,
           source: .explicitInstance
         )
@@ -421,7 +415,6 @@ public enum SupatermSocketTargetResolver {
       let matchedByName = discoveredEndpoints.filter { $0.name == instance }
       if matchedByName.count == 1, let endpoint = matchedByName.first {
         return .init(
-          endpoint: endpoint,
           path: endpoint.path,
           source: .explicitInstance
         )
@@ -434,7 +427,6 @@ public enum SupatermSocketTargetResolver {
 
     if discoveredEndpoints.count == 1, let endpoint = discoveredEndpoints.first {
       return .init(
-        endpoint: endpoint,
         path: endpoint.path,
         source: .discoveredSingleton
       )

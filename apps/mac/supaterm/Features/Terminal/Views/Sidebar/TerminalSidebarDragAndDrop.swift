@@ -1,11 +1,6 @@
 @preconcurrency import AppKit
 import Combine
 import SwiftUI
-import UniformTypeIdentifiers
-
-extension UTType {
-  static let terminalSidebarTabItem = UTType(exportedAs: "app.supaterm.sidebar-tab-item")
-}
 
 extension NSPasteboard.PasteboardType {
   static let terminalSidebarTabItem = NSPasteboard.PasteboardType(

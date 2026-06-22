@@ -432,7 +432,7 @@ struct TerminalSidebarChromeViewTests {
   @Test
   func shortcutHintsFollowVisibleTabOrderThroughSlotTen() {
     let tabs = (1...11).map { index in
-      TerminalTabItem(title: "Tab \(index)", icon: nil)
+      TerminalTabItem(title: "Tab \(index)")
     }
 
     let hints = TerminalSidebarTabShortcutHints.byTabID(for: tabs) { slot in
@@ -447,9 +447,9 @@ struct TerminalSidebarChromeViewTests {
 
   @Test
   func shortcutHintsUseProvidedVisibleOrder() {
-    let first = TerminalTabItem(title: "First", icon: nil)
-    let second = TerminalTabItem(title: "Second", icon: nil)
-    let third = TerminalTabItem(title: "Third", icon: nil)
+    let first = TerminalTabItem(title: "First")
+    let second = TerminalTabItem(title: "Second")
+    let third = TerminalTabItem(title: "Third")
 
     let hints = TerminalSidebarTabShortcutHints.byTabID(for: [third, first, second]) { slot in
       SupatermCommand.goToTab(slot).defaultKeyboardShortcut

@@ -23,7 +23,7 @@ TUIST_GENERATE_CACHE_PROFILE ?= $(TUIST_BINARY_CACHE_PROFILE)
 TUIST_CACHE_CONFIGURATION ?= Debug
 XCODEBUILD_FLAGS ?=
 .DEFAULT_GOAL := help
-.PHONY: tuist-install tuist-generate tuist-generate-sources tuist-generate-release tuist-generate-release-cached build-ghostty build-zmx build-app build-app-demo run-app run-app-demo install-tip archive archive-xcodebuild export-archive format lint check test test-xcodebuild inspect-dependencies warm-cache
+.PHONY: tuist-install tuist-generate tuist-generate-sources tuist-generate-release tuist-generate-release-cached build-ghostty build-zmx build-app build-app-demo run-app run-app-demo install-tip archive archive-xcodebuild export-archive format lint check test test-xcodebuild scan-dead-code inspect-dependencies warm-cache
 
 ifdef CI
 TUIST_INSTALL_FLAGS := --force-resolved-versions
@@ -153,6 +153,9 @@ test-xcodebuild:
 	else \
 		xcodebuild test -workspace "$(PROJECT_WORKSPACE)" -scheme "$(APP_SCHEME)" -destination "platform=macOS" CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY=""; \
 	fi
+
+scan-dead-code: tuist-generate build-ghostty build-zmx
+	mise exec -- periphery scan
 
 format: # Format code with swift format (local only)
 	swift format -p --in-place --recursive --configuration ./.swift-format.json SupatermCLIShared SPCLI sp supaterm supatermTests

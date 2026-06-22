@@ -32,16 +32,8 @@ enum SPTreeRenderer {
     let windows: [Window]
   }
 
-  static func render(_ snapshot: SupatermTreeSnapshot) -> String {
-    render(projectedSnapshot(from: snapshot))
-  }
-
   static func render(_ snapshot: SupatermAppDebugSnapshot) -> String {
     render(projectedSnapshot(from: snapshot))
-  }
-
-  static func renderPlain(_ snapshot: SupatermTreeSnapshot) -> String {
-    renderPlain(projectedSnapshot(from: snapshot))
   }
 
   static func renderPlain(_ snapshot: SupatermAppDebugSnapshot) -> String {
@@ -87,38 +79,6 @@ enum SPTreeRenderer {
       }
     }
     .joined(separator: "\n")
-  }
-
-  private static func projectedSnapshot(from snapshot: SupatermTreeSnapshot) -> Snapshot {
-    .init(
-      windows: snapshot.windows.map { window in
-        .init(
-          index: window.index,
-          isKey: window.isKey,
-          spaces: window.spaces.map { space in
-            .init(
-              index: space.index,
-              name: space.name,
-              isSelected: space.isSelected,
-              tabs: space.tabs.map { tab in
-                .init(
-                  index: tab.index,
-                  title: tab.title,
-                  isSelected: tab.isSelected,
-                  panes: tab.panes.map { pane in
-                    .init(
-                      index: pane.index,
-                      displayTitle: nil,
-                      isFocused: pane.isFocused
-                    )
-                  }
-                )
-              }
-            )
-          }
-        )
-      }
-    )
   }
 
   private static func projectedSnapshot(from snapshot: SupatermAppDebugSnapshot) -> Snapshot {

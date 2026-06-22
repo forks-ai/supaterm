@@ -48,6 +48,18 @@ struct TerminalSidebarTabRow: View {
     let showsAgentSpinner: Bool
     let terminalProgress: TerminalSidebarTerminalProgress?
     let unreadCount: Int
+
+    static func == (lhs: Self, rhs: Self) -> Bool {
+      lhs.badgeActivities == rhs.badgeActivities
+        && lhs.badgeActivity == rhs.badgeActivity
+        && lhs.hasTerminalBell == rhs.hasTerminalBell
+        && lhs.notificationPreviewMarkdown == rhs.notificationPreviewMarkdown
+        && lhs.paneWorkingDirectories == rhs.paneWorkingDirectories
+        && lhs.showsAgentMarks == rhs.showsAgentMarks
+        && lhs.showsAgentSpinner == rhs.showsAgentSpinner
+        && lhs.terminalProgress == rhs.terminalProgress
+        && lhs.unreadCount == rhs.unreadCount
+    }
   }
 
   let store: StoreOf<TerminalWindowFeature>

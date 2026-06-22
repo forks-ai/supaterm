@@ -4,8 +4,6 @@ import GhosttyKit
 import Observation
 import Sharing
 import SupatermCLIShared
-import SupatermSupport
-import SupatermTerminalCore
 import SwiftUI
 
 extension TerminalHostState {

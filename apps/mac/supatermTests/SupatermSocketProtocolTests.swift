@@ -451,7 +451,7 @@ struct SupatermSocketProtocolTests {
         environmentPath: "/tmp/environment.sock",
         instance: "alpha",
         discoveredEndpoints: [alpha, beta]
-      ) == SupatermResolvedSocketTarget(endpoint: nil, path: "/tmp/explicit.sock", source: .explicitPath)
+      ) == SupatermResolvedSocketTarget(path: "/tmp/explicit.sock", source: .explicitPath)
     )
 
     #expect(
@@ -460,7 +460,7 @@ struct SupatermSocketProtocolTests {
         environmentPath: "/tmp/environment.sock",
         instance: "alpha",
         discoveredEndpoints: [alpha, beta]
-      ) == SupatermResolvedSocketTarget(endpoint: nil, path: "/tmp/environment.sock", source: .environmentPath)
+      ) == SupatermResolvedSocketTarget(path: "/tmp/environment.sock", source: .environmentPath)
     )
 
     #expect(
@@ -469,7 +469,7 @@ struct SupatermSocketProtocolTests {
         environmentPath: nil,
         instance: alpha.id.uuidString,
         discoveredEndpoints: [alpha, beta]
-      ) == SupatermResolvedSocketTarget(endpoint: alpha, path: alpha.path, source: .explicitInstance)
+      ) == SupatermResolvedSocketTarget(path: alpha.path, source: .explicitInstance)
     )
 
     #expect(
@@ -478,7 +478,7 @@ struct SupatermSocketProtocolTests {
         environmentPath: nil,
         instance: "beta",
         discoveredEndpoints: [alpha, beta]
-      ) == SupatermResolvedSocketTarget(endpoint: beta, path: beta.path, source: .explicitInstance)
+      ) == SupatermResolvedSocketTarget(path: beta.path, source: .explicitInstance)
     )
 
     #expect(
@@ -487,7 +487,7 @@ struct SupatermSocketProtocolTests {
         environmentPath: nil,
         instance: alpha.id.uuidString.lowercased(),
         discoveredEndpoints: [alpha, beta]
-      ) == SupatermResolvedSocketTarget(endpoint: alpha, path: alpha.path, source: .explicitInstance)
+      ) == SupatermResolvedSocketTarget(path: alpha.path, source: .explicitInstance)
     )
 
     do {

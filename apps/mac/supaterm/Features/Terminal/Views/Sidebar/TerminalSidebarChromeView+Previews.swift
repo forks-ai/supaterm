@@ -21,7 +21,6 @@ private struct TerminalSidebarTabPreviewItem: Identifiable {
   let section: TerminalSidebarTabPreviewSection
   let scenario: String
   let title: String
-  let icon: String?
   let isSelected: Bool
   let notificationPreviewMarkdown: String?
   let paneWorkingDirectories: [String]
@@ -38,7 +37,6 @@ private struct TerminalSidebarTabPreviewItem: Identifiable {
     TerminalTabItem(
       id: tabID,
       title: title,
-      icon: icon,
       isDirty: section == .terminalProgress
     )
   }
@@ -96,7 +94,6 @@ private struct TerminalSidebarTabPreviewItem: Identifiable {
     scenario: String,
     title: String,
     id: String,
-    icon: String? = nil,
     isSelected: Bool = false,
     notificationPreviewMarkdown: String? = nil,
     paneWorkingDirectories: [String] = [],
@@ -110,7 +107,6 @@ private struct TerminalSidebarTabPreviewItem: Identifiable {
     self.section = section
     self.scenario = scenario
     self.title = title
-    self.icon = icon
     self.isSelected = isSelected
     self.notificationPreviewMarkdown = notificationPreviewMarkdown
     self.paneWorkingDirectories = paneWorkingDirectories
@@ -153,7 +149,6 @@ private enum TerminalSidebarTabPreviewFixtures {
       scenario: "Selected manual title for focused work",
       title: "Sidebar polish",
       id: "A379CB4E-2B01-4A6F-9388-A06B4E9C1A02",
-      icon: "pencil.and.scribble",
       isSelected: true,
       paneWorkingDirectories: cwdList(
         cwd("apps", "mac", "supaterm", "Features", "Terminal", "Views", "Sidebar")
@@ -164,7 +159,6 @@ private enum TerminalSidebarTabPreviewFixtures {
       scenario: "Three panes with distinct working trees",
       title: "Socket routing",
       id: "A379CB4E-2B01-4A6F-9388-A06B4E9C1A03",
-      icon: "square.split.2x2",
       paneWorkingDirectories: cwdList(
         cwd(),
         cwd("apps", "mac", "supaterm"),
@@ -176,7 +170,6 @@ private enum TerminalSidebarTabPreviewFixtures {
       scenario: "Four panes with duplicate roots collapsed",
       title: "mac-check",
       id: "A379CB4E-2B01-4A6F-9388-A06B4E9C1A04",
-      icon: "hammer",
       paneWorkingDirectories: cwdList(
         cwd("apps", "mac"),
         cwd("apps", "mac", "supatermTests")
@@ -199,7 +192,6 @@ private enum TerminalSidebarTabPreviewFixtures {
       scenario: "Agent is waiting for input",
       title: "Release note pass",
       id: "A379CB4E-2B01-4A6F-9388-A06B4E9C1A06",
-      icon: "doc.text",
       notificationPreviewMarkdown: "Need approval before publishing the release notes",
       paneWorkingDirectories: cwdList(
         cwd("apps", "supaterm.com"),
@@ -212,7 +204,6 @@ private enum TerminalSidebarTabPreviewFixtures {
       scenario: "Agent finished and the leading indicator is hidden",
       title: "Docs audit",
       id: "A379CB4E-2B01-4A6F-9388-A06B4E9C1A07",
-      icon: "doc.text.magnifyingglass",
       notificationPreviewMarkdown: "Review complete: no further changes needed",
       paneWorkingDirectories: cwdList(cwd("docs")),
       agentActivity: TerminalHostState.AgentActivity(kind: .pi, phase: .idle)
@@ -222,7 +213,6 @@ private enum TerminalSidebarTabPreviewFixtures {
       scenario: "Shell command is reporting OSC 9;4 progress",
       title: "Archive export",
       id: "A379CB4E-2B01-4A6F-9388-A06B4E9C1A10",
-      icon: "shippingbox",
       paneWorkingDirectories: cwdList(
         cwd("apps", "mac"),
         cwd("docs")
@@ -234,7 +224,6 @@ private enum TerminalSidebarTabPreviewFixtures {
       scenario: "Raw terminal bell",
       title: "Background job done",
       id: "A379CB4E-2B01-4A6F-9388-A06B4E9C1A11",
-      icon: "bell",
       paneWorkingDirectories: cwdList(cwd("apps", "mac")),
       hasTerminalBell: true
     ),
@@ -243,7 +232,6 @@ private enum TerminalSidebarTabPreviewFixtures {
       scenario: "Single unread pane",
       title: "Deploy smoke test",
       id: "A379CB4E-2B01-4A6F-9388-A06B4E9C1A08",
-      icon: "shippingbox",
       notificationPreviewMarkdown: [
         "Local preview server is ready with a deliberately long line",
         "that truncates at the end",
@@ -259,7 +247,6 @@ private enum TerminalSidebarTabPreviewFixtures {
       scenario: "Unread count overrides agent attention",
       title: "Build failures",
       id: "A379CB4E-2B01-4A6F-9388-A06B4E9C1A09",
-      icon: "hammer",
       notificationPreviewMarkdown: "2 failures in TerminalSidebarChromeViewTests",
       paneWorkingDirectories: cwdList(
         cwd("apps", "mac"),
@@ -423,7 +410,6 @@ private enum TerminalSidebarGroupedTabPreviewFixtures {
     item(
       title: "Socket routing",
       id: "A379CB4E-2B01-4A6F-9388-A06B4E9C1B01",
-      icon: "square.split.2x2",
       paneWorkingDirectories: [
         cwd("apps", "mac", "supaterm"),
         cwd("docs"),
@@ -432,7 +418,6 @@ private enum TerminalSidebarGroupedTabPreviewFixtures {
     item(
       title: "Ghostty vendor bump",
       id: "A379CB4E-2B01-4A6F-9388-A06B4E9C1B02",
-      icon: "shippingbox",
       paneWorkingDirectories: [
         cwd("apps", "mac")
       ],
@@ -447,7 +432,6 @@ private enum TerminalSidebarGroupedTabPreviewFixtures {
       item(
         title: "supaterm.com polish",
         id: "A379CB4E-2B01-4A6F-9388-A06B4E9C1B03",
-        icon: "sparkles",
         isSelected: true,
         paneWorkingDirectories: [
           cwd("apps", "supaterm.com")
@@ -456,7 +440,6 @@ private enum TerminalSidebarGroupedTabPreviewFixtures {
       item(
         title: "Release notes",
         id: "A379CB4E-2B01-4A6F-9388-A06B4E9C1B04",
-        icon: "doc.text",
         paneWorkingDirectories: [
           cwd("docs")
         ]
@@ -464,7 +447,6 @@ private enum TerminalSidebarGroupedTabPreviewFixtures {
       item(
         title: "Smoke test",
         id: "A379CB4E-2B01-4A6F-9388-A06B4E9C1B05",
-        icon: "checkmark.seal",
         paneWorkingDirectories: [
           cwd("apps", "mac"),
           cwd("apps", "supaterm.com"),
@@ -477,7 +459,6 @@ private enum TerminalSidebarGroupedTabPreviewFixtures {
   private static func item(
     title: String,
     id: String,
-    icon: String? = nil,
     isSelected: Bool = false,
     paneWorkingDirectories: [String] = [],
     unreadCount: Int = 0,
@@ -488,7 +469,6 @@ private enum TerminalSidebarGroupedTabPreviewFixtures {
       scenario: "",
       title: title,
       id: id,
-      icon: icon,
       isSelected: isSelected,
       paneWorkingDirectories: paneWorkingDirectories,
       unreadCount: unreadCount,

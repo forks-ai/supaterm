@@ -113,15 +113,6 @@ nonisolated struct PaneAgentPullRequestStatus: Equatable, Sendable {
     checks: nil
   )
 
-  static let none = Self(
-    kind: .none,
-    title: "No pull request",
-    url: nil,
-    addedLineCount: nil,
-    removedLineCount: nil,
-    checks: nil
-  )
-
   static func createPullRequest(url: URL?) -> Self {
     Self(
       kind: .none,
@@ -140,13 +131,6 @@ nonisolated struct PaneAgentPullRequestChecks: Equatable, Sendable {
     case passing
     case failing
 
-    var isPending: Bool {
-      self == .pending
-    }
-
-    var isFailing: Bool {
-      self == .failing
-    }
   }
 
   let status: Status
@@ -167,10 +151,10 @@ nonisolated struct PaneAgentPullRequestChecks: Equatable, Sendable {
     if totalCount == 0 {
       return "Checks (0)"
     }
-    if status.isFailing {
+    if status == .failing {
       return "Checks failing (\(totalCount))"
     }
-    if status.isPending {
+    if status == .pending {
       return "Checks pending (\(totalCount))"
     }
     return "Checks passed (\(totalCount))"
@@ -189,14 +173,6 @@ nonisolated struct PaneAgentPullRequestCheck: Equatable, Identifiable, Sendable 
     case passing
     case failing
     case skipped
-
-    var isPending: Bool {
-      self == .pending
-    }
-
-    var isFailing: Bool {
-      self == .failing
-    }
   }
 
   enum State: Equatable, Sendable {

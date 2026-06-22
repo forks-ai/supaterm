@@ -475,8 +475,6 @@ struct CodexTranscriptMonitorTests {
             .message(CodexConversationMessage(role: "assistant", text: "Inspecting the repo", phase: nil)),
             .message(CodexConversationMessage(role: "assistant", text: "Done.", phase: "final_answer")),
           ],
-          startedAt: nil,
-          completedAt: nil,
           durationMs: nil
         )
       ]

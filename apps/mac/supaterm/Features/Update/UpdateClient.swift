@@ -448,9 +448,11 @@ final class UpdateRuntime: NSObject, @unchecked Sendable {
     case relaunch
   }
 
-  private var automaticallyChecksForUpdatesObservation: NSKeyValueObservation?
-  private var automaticallyDownloadsUpdatesObservation: NSKeyValueObservation?
-  private var canCheckForUpdatesObservation: NSKeyValueObservation?
+  #if !DEBUG
+    private var automaticallyChecksForUpdatesObservation: NSKeyValueObservation?
+    private var automaticallyDownloadsUpdatesObservation: NSKeyValueObservation?
+    private var canCheckForUpdatesObservation: NSKeyValueObservation?
+  #endif
   private var continuations: [UUID: AsyncStream<UpdateClient.Snapshot>.Continuation] = [:]
   private var hidesNextManualInstallPrompt = false
   private var interaction: Interaction = .none
@@ -466,7 +468,7 @@ final class UpdateRuntime: NSObject, @unchecked Sendable {
 
   private override init() {
     #if DEBUG
-      userDriver = nil
+      userDriver = UpdateDriver(hostBundle: Bundle.main)
       updater = nil
       super.init()
     #else
