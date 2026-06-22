@@ -207,7 +207,7 @@ function HomePage() {
             <div className="text-sm font-medium text-white/42">or</div>
             <CommandCopyBox
               command={homebrewInstallCommand}
-              className="w-full max-w-[22rem] rounded-[10px] px-5 py-3.5 md:max-w-[24rem] md:px-6 md:py-4"
+              className="w-full max-w-[22rem] rounded-2xl px-5 py-2.5 md:max-w-[24rem] md:px-6"
               codeClassName="text-base md:text-lg"
             />
           </div>
