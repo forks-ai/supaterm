@@ -454,7 +454,7 @@ private struct AgentPanelRowContent<Leading: View, Trailing: View>: View {
         .font(.system(size: 12, weight: .medium))
         .foregroundStyle(titleColor)
         .lineLimit(1)
-        .truncationMode(.middle)
+        .truncationMode(.tail)
       if let trailingSpacing {
         Spacer(minLength: trailingSpacing)
       }
