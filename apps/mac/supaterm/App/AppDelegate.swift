@@ -137,6 +137,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
   }
 
   func applicationDidBecomeActive(_ notification: Notification) {
+    AppTelemetry.capture("app_activated")
     guard toggleVisibilityState == nil else { return }
     guard !NSApp.windows.contains(where: \.isVisible) else { return }
     _ = showExistingWindowOrCreate()
@@ -155,6 +156,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
   }
 
   func applicationWillTerminate(_ notification: Notification) {
+    AppTelemetry.capture("app_terminated")
     persistSession(
       sessionPersistenceState.catalogToPersist(
         liveCatalog: terminalWindowRegistry.restorationSnapshot()
