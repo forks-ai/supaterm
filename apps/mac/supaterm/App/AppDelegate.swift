@@ -68,8 +68,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
   }
 
   override init() {
-    AppCrashReporting.setup()
-    AppTelemetry.setup()
+    AppPostHog.setup()
     GhosttyBootstrap.initialize()
     @Shared(.supatermSettings) var launchSupatermSettings = .default
     SupatermLog.setVerboseLoggingEnabled(launchSupatermSettings.verboseLoggingEnabled)
@@ -137,7 +136,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
   }
 
   func applicationDidBecomeActive(_ notification: Notification) {
-    AppTelemetry.capture("app_activated")
+    AppPostHog.capture("app_activated")
     guard toggleVisibilityState == nil else { return }
     guard !NSApp.windows.contains(where: \.isVisible) else { return }
     _ = showExistingWindowOrCreate()
@@ -156,7 +155,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
   }
 
   func applicationWillTerminate(_ notification: Notification) {
-    AppTelemetry.capture("app_terminated")
+    AppPostHog.capture("app_terminated")
     persistSession(
       sessionPersistenceState.catalogToPersist(
         liveCatalog: terminalWindowRegistry.restorationSnapshot()
@@ -240,7 +239,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
   @discardableResult
   func performNewWindow() -> Bool {
     let controller = createWindow()
-    AppTelemetry.capture("window_created")
+    AppPostHog.capture("window_created")
     NSApp.activate(ignoringOtherApps: true)
     controller.window?.makeKeyAndOrderFront(nil)
     return true

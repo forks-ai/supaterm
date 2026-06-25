@@ -1,7 +1,6 @@
 import ComposableArchitecture
 import Foundation
 import OSLog
-import Sentry
 import SupatermSupport
 
 nonisolated enum AppLogCategory: String, Equatable, Sendable {
@@ -14,7 +13,7 @@ nonisolated enum AppLogCategory: String, Equatable, Sendable {
 }
 
 nonisolated struct AppLogEvent: Equatable, Sendable {
-  let addsBreadcrumb: Bool
+  let addsExceptionStep: Bool
   let category: AppLogCategory
   let label: String
 }
@@ -32,12 +31,8 @@ extension AppLogClient: DependencyKey {
       )
       SupatermLog.debug(logger, event.label)
 
-      guard event.addsBreadcrumb else { return }
-      AppCrashReporting.withStartedSDK {
-        let breadcrumb = Breadcrumb(level: .debug, category: event.category.rawValue)
-        breadcrumb.message = event.label
-        SentrySDK.addBreadcrumb(breadcrumb)
-      }
+      guard event.addsExceptionStep else { return }
+      AppPostHog.addExceptionStep(event.label, category: event.category)
     }
   )
 
@@ -74,7 +69,7 @@ nonisolated enum ActionLogPolicy {
   static func event(for actionLabel: String) -> AppLogEvent {
     let category = category(for: actionLabel)
     return AppLogEvent(
-      addsBreadcrumb: shouldBreadcrumb(label: actionLabel, category: category),
+      addsExceptionStep: shouldAddExceptionStep(label: actionLabel, category: category),
       category: category,
       label: actionLabel
     )
@@ -96,24 +91,24 @@ nonisolated enum ActionLogPolicy {
     return .actions
   }
 
-  private static func shouldBreadcrumb(label: String, category: AppLogCategory) -> Bool {
+  private static func shouldAddExceptionStep(label: String, category: AppLogCategory) -> Bool {
     switch category {
     case .actions:
       return false
     case .settings:
-      return containsAny(label, settingsBreadcrumbFragments)
+      return containsAny(label, settingsExceptionStepFragments)
     case .socket:
-      return containsAny(label, socketBreadcrumbFragments)
+      return containsAny(label, socketExceptionStepFragments)
     case .terminal:
-      return containsAny(label, terminalBreadcrumbFragments)
+      return containsAny(label, terminalExceptionStepFragments)
     case .update:
-      return containsAny(label, updateBreadcrumbFragments)
+      return containsAny(label, updateExceptionStepFragments)
     case .zmx:
       return false
     }
   }
 
-  private static let settingsBreadcrumbFragments = [
+  private static let settingsExceptionStepFragments = [
     "analyticsEnabledChanged",
     "crashReportsEnabledChanged",
     "restoreTerminalLayoutEnabledChanged",
@@ -121,7 +116,7 @@ nonisolated enum ActionLogPolicy {
     "zmxSessionsEnabledChanged",
   ]
 
-  private static let socketBreadcrumbFragments = [
+  private static let socketExceptionStepFragments = [
     "requestReceived",
     "shutdown",
     "startFailed",
@@ -129,7 +124,7 @@ nonisolated enum ActionLogPolicy {
     "task",
   ]
 
-  private static let terminalBreadcrumbFragments = [
+  private static let terminalExceptionStepFragments = [
     "closeAllWindowsRequested",
     "closeConfirmationConfirmButtonTapped",
     "closeOtherTabsRequested",
@@ -162,7 +157,7 @@ nonisolated enum ActionLogPolicy {
     "windowCloseRequested",
   ]
 
-  private static let updateBreadcrumbFragments = [
+  private static let updateExceptionStepFragments = [
     "perform",
     "task",
     "updateClientSnapshotReceived",

@@ -109,9 +109,9 @@ make web-dev            # dev server
 /usr/bin/log show --last 30m --debug --style compact --predicate 'subsystem == "app.supabit.supaterm" && (category == "terminal" || category == "zmx")'
 ```
 
-- Sentry breadcrumbs are allowlisted release diagnostics only; local OSLog is the source of truth for action tracing
+- PostHog exception steps are allowlisted release diagnostics only; local OSLog is the source of truth for action tracing
 
 ## Tools
 
 - Issues are tracked on: https://linear.app/supaterm
-- Sentry org `supabit`, project `supaterm`
+- Error reporting uses PostHog

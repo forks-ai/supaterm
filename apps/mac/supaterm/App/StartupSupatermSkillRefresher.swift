@@ -1,5 +1,4 @@
 import Foundation
-import Sentry
 import SupatermCLIShared
 
 nonisolated struct StartupSupatermSkillRefresher {
@@ -16,20 +15,13 @@ nonisolated struct StartupSupatermSkillRefresher {
     },
     logFailure: { error in
       let message = "Failed to refresh Supaterm skill at launch."
-      AppCrashReporting.withStartedSDK {
-        SentrySDK.logger.warn(
-          message,
-          attributes: [
-            "error": error.localizedDescription
-          ]
-        )
-        let breadcrumb = Breadcrumb(level: .warning, category: "agent-skills")
-        breadcrumb.message = message
-        breadcrumb.data = [
-          "error": error.localizedDescription
+      AppPostHog.captureException(
+        error,
+        properties: [
+          "category": "agent-skills",
+          "message": message,
         ]
-        SentrySDK.addBreadcrumb(breadcrumb)
-      }
+      )
     }
   )
 

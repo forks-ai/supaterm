@@ -1,5 +1,4 @@
 import Foundation
-import Sentry
 import SupatermCLIShared
 
 nonisolated struct StartupAgentHookRefresher {
@@ -35,22 +34,14 @@ nonisolated struct StartupAgentHookRefresher {
     ],
     logFailure: { agent, error in
       let message = "Failed to refresh \(agent.notificationTitle) hooks at launch."
-      AppCrashReporting.withStartedSDK {
-        SentrySDK.logger.warn(
-          message,
-          attributes: [
-            "agent": agent.rawValue,
-            "error": error.localizedDescription,
-          ]
-        )
-        let breadcrumb = Breadcrumb(level: .warning, category: "agent-hooks")
-        breadcrumb.message = message
-        breadcrumb.data = [
+      AppPostHog.captureException(
+        error,
+        properties: [
           "agent": agent.rawValue,
-          "error": error.localizedDescription,
+          "category": "agent-hooks",
+          "message": message,
         ]
-        SentrySDK.addBreadcrumb(breadcrumb)
-      }
+      )
     }
   )
 

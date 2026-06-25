@@ -100,7 +100,7 @@ final class TerminalWindowController: NSWindowController {
     } withDependencies: {
       $0.analyticsClient.capture = { event in
         Task { @MainActor in
-          AppTelemetry.capture(event)
+          AppPostHog.capture(event)
         }
       }
       $0.terminalCommandPaletteClient = commandPaletteClient

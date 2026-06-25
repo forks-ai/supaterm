@@ -59,7 +59,7 @@ struct ActionLoggingTests {
   }
 
   @Test
-  func allowlistedActionLabelsCreateBreadcrumbs() {
+  func allowlistedActionLabelsCreateExceptionSteps() {
     let events = [
       terminalEvent(for: .newTabButtonTapped(inheritingFromSurfaceID: nil)),
       terminalEvent(for: .closeTabRequested(TerminalTabID())),
@@ -69,7 +69,7 @@ struct ActionLoggingTests {
     ]
 
     for event in events {
-      #expect(event.addsBreadcrumb)
+      #expect(event.addsExceptionStep)
     }
   }
 
@@ -83,7 +83,7 @@ struct ActionLoggingTests {
     ]
 
     for event in events {
-      #expect(!event.addsBreadcrumb)
+      #expect(!event.addsExceptionStep)
       #expect(!event.label.contains("secret"))
     }
   }
@@ -98,7 +98,7 @@ struct ActionLoggingTests {
 
     withDependencies {
       $0.appLogClient.action = { event in
-        events.withValue { $0.append("log:\(event.label):\(event.addsBreadcrumb)") }
+        events.withValue { $0.append("log:\(event.label):\(event.addsExceptionStep)") }
       }
     } operation: {
       var state = 0
