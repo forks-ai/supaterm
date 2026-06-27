@@ -3,7 +3,7 @@ import PostHog
 import Sharing
 import SupatermSupport
 
-enum AppPostHog {
+nonisolated enum AppPostHog {
   struct Configuration: Equatable {
     let projectToken: String
     let host: String
