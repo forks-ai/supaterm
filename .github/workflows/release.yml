@@ -199,13 +199,29 @@ jobs:
       POSTHOG_CLI_API_KEY: ${{ secrets.POSTHOG_CLI_API_KEY }}
     steps:
       - uses: actions/checkout@v6
+      - name: Resolve PostHog credentials
+        id: posthog-credentials
+        run: |
+          if [ -n "$POSTHOG_CLI_PROJECT_ID" ] && [ -n "$POSTHOG_CLI_API_KEY" ]; then
+            echo "enabled=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          if [ -z "$POSTHOG_CLI_PROJECT_ID" ] && [ -z "$POSTHOG_CLI_API_KEY" ]; then
+            echo "enabled=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          echo "::error::POSTHOG_CLI_PROJECT_ID and POSTHOG_CLI_API_KEY must be configured together"
+          exit 1
       - name: Install posthog-cli
+        if: steps.posthog-credentials.outputs.enabled == 'true'
         run: curl --proto '=https' --tlsv1.2 -LsSf https://download.posthog.com/cli | sh
       - uses: actions/download-artifact@v7
+        if: steps.posthog-credentials.outputs.enabled == 'true'
         with:
           name: dsyms
           path: dsyms
       - name: Upload dSYMs to PostHog
+        if: steps.posthog-credentials.outputs.enabled == 'true'
         run: |
           set -euo pipefail
           test -n "$POSTHOG_CLI_PROJECT_ID"
