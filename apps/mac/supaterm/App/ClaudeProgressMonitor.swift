@@ -388,7 +388,8 @@ private struct ClaudeTranscriptTaskState: Equatable {
     return PaneAgentProgressRow(
       id: "claude-goal:\(condition)",
       title: "Goal: \(condition)",
-      status: object["met"]?.boolValue == true ? .completed : .running
+      status: object["met"]?.boolValue == true ? .completed : .running,
+      kind: .goal
     )
   }
 

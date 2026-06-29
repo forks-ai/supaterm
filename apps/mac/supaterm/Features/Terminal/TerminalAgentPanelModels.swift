@@ -65,9 +65,15 @@ nonisolated struct PaneAgentProgressRow: Equatable, Identifiable, Sendable {
     case completed
   }
 
+  enum Kind: Equatable, Sendable {
+    case task
+    case goal
+  }
+
   let id: String
   let title: String
   let status: Status
+  var kind: Kind = .task
 }
 
 nonisolated struct PaneAgentBranchDetails: Equatable, Sendable {

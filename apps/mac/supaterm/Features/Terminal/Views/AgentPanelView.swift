@@ -104,6 +104,7 @@ struct AgentPanelView: View {
     HStack(spacing: AgentPanelMetrics.rowContentSpacing) {
       AgentPanelProgressIcon(
         status: row.status,
+        kind: row.kind,
         palette: palette
       )
       Text(row.title)
@@ -562,17 +563,23 @@ private struct AgentPanelActionRow: View {
 
 private struct AgentPanelProgressIcon: View {
   let status: PaneAgentProgressRow.Status
+  let kind: PaneAgentProgressRow.Kind
   let palette: TerminalPalette
 
   var body: some View {
     Group {
-      switch status {
-      case .pending:
-        image("circle", color: palette.secondaryText)
-      case .running:
-        TerminalAgentRunningSpinnerView(isSelected: false, palette: palette, diameter: 11)
-      case .completed:
-        image("checkmark.circle.fill", color: palette.mint)
+      switch kind {
+      case .goal:
+        image("target", color: status == .completed ? palette.mint : palette.secondaryText)
+      case .task:
+        switch status {
+        case .pending:
+          image("circle", color: palette.secondaryText)
+        case .running:
+          TerminalAgentRunningSpinnerView(isSelected: false, palette: palette, diameter: 11)
+        case .completed:
+          image("checkmark.circle.fill", color: palette.mint)
+        }
       }
     }
     .frame(width: 16)
