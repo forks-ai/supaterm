@@ -76,7 +76,7 @@ struct TerminalSidebarTabSummaryView: View {
   ) -> RowAccessories {
     RowAccessories(
       shortcutHint: showsShortcutHint ? shortcutHint : nil,
-      statusAccessory: isRowHovering ? nil : statusAccessory
+      statusAccessory: showsShortcutHint || isRowHovering ? nil : statusAccessory
     )
   }
 
@@ -86,9 +86,10 @@ struct TerminalSidebarTabSummaryView: View {
 
   static func trailingAgentBadgeActivities(
     _ activities: [TerminalHostState.AgentActivity],
-    showsAgentMarks: Bool
+    showsAgentMarks: Bool,
+    showsShortcutHint: Bool
   ) -> [TerminalHostState.AgentActivity] {
-    showsAgentMarks ? activities : []
+    showsAgentMarks && !showsShortcutHint ? activities : []
   }
 
   static func helpText(
@@ -121,7 +122,8 @@ struct TerminalSidebarTabSummaryView: View {
     )
     let trailingAgentBadgeActivities = Self.trailingAgentBadgeActivities(
       badgeActivities,
-      showsAgentMarks: showsAgentMarks
+      showsAgentMarks: showsAgentMarks,
+      showsShortcutHint: showsShortcutHint
     )
 
     HStack(alignment: .center, spacing: 6) {

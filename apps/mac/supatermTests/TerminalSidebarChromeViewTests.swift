@@ -263,7 +263,8 @@ struct TerminalSidebarChromeViewTests {
     #expect(
       TerminalSidebarTabSummaryView.trailingAgentBadgeActivities(
         activities,
-        showsAgentMarks: true
+        showsAgentMarks: true,
+        showsShortcutHint: false
       ) == activities
     )
   }
@@ -278,7 +279,24 @@ struct TerminalSidebarChromeViewTests {
     #expect(
       TerminalSidebarTabSummaryView.trailingAgentBadgeActivities(
         activities,
-        showsAgentMarks: false
+        showsAgentMarks: false,
+        showsShortcutHint: false
+      ).isEmpty
+    )
+  }
+
+  @Test
+  func trailingAgentBadgesHideDuringShortcutHints() {
+    let activities: [TerminalHostState.AgentActivity] = [
+      .claude(.running),
+      .codex(.running),
+    ]
+
+    #expect(
+      TerminalSidebarTabSummaryView.trailingAgentBadgeActivities(
+        activities,
+        showsAgentMarks: true,
+        showsShortcutHint: true
       ).isEmpty
     )
   }
@@ -322,19 +340,44 @@ struct TerminalSidebarChromeViewTests {
   }
 
   @Test
-  func rowAccessoriesShowShortcutHintAndPinnedStatusTogether() {
-    let accessories = TerminalSidebarTabSummaryView.rowAccessories(
-      shortcutHint: "⌘1",
-      showsShortcutHint: true,
-      isRowHovering: false,
-      statusAccessory: .pinned
-    )
+  func rowShortcutHintHidesStatusAccessories() {
+    let progress = TerminalSidebarTerminalProgress(fraction: 0.5, tone: .active)
+    let statuses: [TerminalSidebarTabSummaryView.StatusAccessory] = [
+      .pinned,
+      .terminalProgress(progress),
+      .agentActivity(.codex(.running)),
+      .unreadCount(2),
+      .terminalBell,
+    ]
 
-    #expect(
-      accessories
-        == TerminalSidebarTabSummaryView.RowAccessories(
+    for status in statuses {
+      #expect(
+        TerminalSidebarTabSummaryView.rowAccessories(
           shortcutHint: "⌘1",
-          statusAccessory: .pinned
+          showsShortcutHint: true,
+          isRowHovering: false,
+          statusAccessory: status
+        )
+          == TerminalSidebarTabSummaryView.RowAccessories(
+            shortcutHint: "⌘1",
+            statusAccessory: nil
+          )
+      )
+    }
+  }
+
+  @Test
+  func rowShortcutHintHidesStatusAccessoryWithoutVisibleHint() {
+    #expect(
+      TerminalSidebarTabSummaryView.rowAccessories(
+        shortcutHint: nil,
+        showsShortcutHint: true,
+        isRowHovering: false,
+        statusAccessory: .pinned
+      )
+        == TerminalSidebarTabSummaryView.RowAccessories(
+          shortcutHint: nil,
+          statusAccessory: nil
         )
     )
   }
@@ -356,17 +399,17 @@ struct TerminalSidebarChromeViewTests {
   }
 
   @Test
-  func rowAccessoriesShowShortcutHintAndProgressTogether() {
+  func rowAccessoriesShowProgressWithoutShortcutHint() {
     let progress = TerminalSidebarTerminalProgress(fraction: 0.5, tone: .active)
     #expect(
       TerminalSidebarTabSummaryView.rowAccessories(
         shortcutHint: "⌘1",
-        showsShortcutHint: true,
+        showsShortcutHint: false,
         isRowHovering: false,
         statusAccessory: .terminalProgress(progress)
       )
         == TerminalSidebarTabSummaryView.RowAccessories(
-          shortcutHint: "⌘1",
+          shortcutHint: nil,
           statusAccessory: .terminalProgress(progress)
         )
     )
