@@ -172,7 +172,8 @@ struct CodexTranscriptMonitorTests {
         PaneAgentProgressRow(
           id: "goal:Ship agent panel goal progress",
           title: "Goal: Ship agent panel goal progress",
-          status: .running
+          status: .running,
+          kind: .goal
         ),
         PaneAgentProgressRow(
           id: "0:Wire goal parser",
@@ -221,7 +222,8 @@ struct CodexTranscriptMonitorTests {
         PaneAgentProgressRow(
           id: "goal:figure out what in this folder",
           title: "Goal: figure out what in this folder",
-          status: .running
+          status: .running,
+          kind: .goal
         ),
         PaneAgentProgressRow(
           id: "0:Inspect top-level contents and metadata",
@@ -288,7 +290,8 @@ struct CodexTranscriptMonitorTests {
         PaneAgentProgressRow(
           id: "goal:continue to finish firmware mapping",
           title: "Goal: continue to finish firmware mapping",
-          status: .running
+          status: .running,
+          kind: .goal
         ),
         PaneAgentProgressRow(
           id: "0:Commit and push operand evidence work",

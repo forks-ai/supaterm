@@ -100,7 +100,8 @@ struct TerminalCommandExecutorAgentHookTests {
         PaneAgentProgressRow(
           id: "claude-goal:Ship session goal progress",
           title: "Goal: Ship session goal progress",
-          status: .running
+          status: .running,
+          kind: .goal
         )
       ]
     )

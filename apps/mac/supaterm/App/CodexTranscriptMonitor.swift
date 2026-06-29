@@ -637,7 +637,8 @@ struct CodexConversationState: Equatable {
     return PaneAgentProgressRow(
       id: "goal:\(objective)",
       title: "Goal: \(objective)",
-      status: .running
+      status: .running,
+      kind: .goal
     )
   }
 

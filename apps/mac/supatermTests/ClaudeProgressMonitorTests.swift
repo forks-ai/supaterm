@@ -200,7 +200,8 @@ struct ClaudeProgressMonitorTests {
         PaneAgentProgressRow(
           id: "claude-goal:Ship session goal progress",
           title: "Goal: Ship session goal progress",
-          status: .running
+          status: .running,
+          kind: .goal
         ),
         PaneAgentProgressRow(
           id: "claude-todo:0:Read transcript",
@@ -234,7 +235,8 @@ struct ClaudeProgressMonitorTests {
         PaneAgentProgressRow(
           id: "claude-goal:Ship session goal progress",
           title: "Goal: Ship session goal progress",
-          status: .completed
+          status: .completed,
+          kind: .goal
         )
       ]
     )
@@ -273,7 +275,8 @@ struct ClaudeProgressMonitorTests {
         PaneAgentProgressRow(
           id: "claude-goal:Ship session goal progress",
           title: "Goal: Ship session goal progress",
-          status: .running
+          status: .running,
+          kind: .goal
         ),
         PaneAgentProgressRow(
           id: "claude-task:1",
