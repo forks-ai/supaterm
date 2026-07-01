@@ -103,26 +103,28 @@ struct TerminalSidebarChromeView: View {
   var body: some View {
     VStack(spacing: 10) {
       tabList
-      if updateStore.phase.showsSidebarSection {
-        TerminalSidebarUpdateSection(
-          store: updateStore,
-          palette: palette
-        )
-      }
-      if let releaseAnnouncement {
-        ReleaseAnnouncementCardView(
-          announcement: releaseAnnouncement,
+      VStack(spacing: 10) {
+        if updateStore.phase.showsSidebarSection {
+          TerminalSidebarUpdateSection(
+            store: updateStore,
+            palette: palette
+          )
+        }
+        if let releaseAnnouncement {
+          ReleaseAnnouncementCardView(
+            announcement: releaseAnnouncement,
+            palette: palette,
+            dismiss: dismissReleaseAnnouncement
+          )
+        }
+        TerminalSidebarSpaceBar(
+          store: store,
           palette: palette,
-          dismiss: dismissReleaseAnnouncement
+          terminal: terminal
         )
       }
-      TerminalSidebarSpaceBar(
-        store: store,
-        palette: palette,
-        terminal: terminal
-      )
+      .padding(.horizontal, 8)
     }
-    .padding(.horizontal, 8)
     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
     .onAppear {
       dragSession.colorScheme = colorScheme
@@ -178,6 +180,7 @@ struct TerminalSidebarChromeView: View {
                 )
               }
             }
+            .padding(.horizontal, 8)
             .padding(.bottom, 8)
           }
           .coordinateSpace(name: terminalSidebarScrollSpace)
@@ -205,6 +208,7 @@ struct TerminalSidebarChromeView: View {
               }
             }
             .frame(maxHeight: .infinity, alignment: .top)
+            .padding(.horizontal, 8)
             .padding(.top, 4)
           }
 
@@ -221,6 +225,7 @@ struct TerminalSidebarChromeView: View {
               scrollToBottom(using: proxy)
             }
             .frame(maxHeight: .infinity, alignment: .bottom)
+            .padding(.horizontal, 8)
             .padding(.bottom, 4)
           }
         }
