@@ -20,7 +20,7 @@ struct SnapshotCatalogRootView: View {
   }
 
   var body: some View {
-    NavigationSplitView {
+    NavigationSplitView(columnVisibility: .constant(.all)) {
       SnapshotCatalogSidebar(
         query: $query,
         selectedGroupID: $selectedGroupID,
@@ -58,6 +58,8 @@ private struct SnapshotCatalogSidebar: View {
       .listStyle(.sidebar)
     }
     .frame(minWidth: 280, idealWidth: 320)
+    .navigationSplitViewColumnWidth(min: 280, ideal: 320, max: 360)
+    .toolbar(removing: .sidebarToggle)
   }
 }
 
