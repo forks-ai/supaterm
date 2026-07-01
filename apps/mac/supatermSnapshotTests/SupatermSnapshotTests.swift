@@ -23,6 +23,20 @@ struct SupatermSnapshotTests {
     }
   }
 
+  @Test func catalogGroups() {
+    let groups = SnapshotCatalog.groupedScenarios(SnapshotCatalog.scenarios)
+
+    #expect(groups.count < SnapshotCatalog.scenarios.count)
+    #expect(Set(groups.map(\.id)).count == groups.count)
+    #expect(
+      groups.allSatisfy { group in
+        group.scenarios.allSatisfy { scenario in
+          scenario.group == group.title
+        }
+      }
+    )
+  }
+
   private func image(
     scenario: SnapshotScenario,
     appearance: SnapshotAppearance

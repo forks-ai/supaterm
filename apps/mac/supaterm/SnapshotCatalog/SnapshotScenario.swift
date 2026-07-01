@@ -36,6 +36,15 @@ struct SnapshotScenario: Identifiable {
   let makeView: @MainActor (SnapshotAppearance) -> AnyView
 }
 
+struct SnapshotScenarioGroup: Identifiable {
+  let title: String
+  let scenarios: [SnapshotScenario]
+
+  var id: String {
+    title
+  }
+}
+
 struct SnapshotCatalogScenarioRender: View {
   let appearance: SnapshotAppearance
   let scenario: SnapshotScenario
@@ -69,12 +78,12 @@ enum SnapshotCatalog {
     }
   }
 
-  static func groupedScenarios(_ scenarios: [SnapshotScenario]) -> [(String, [SnapshotScenario])] {
+  static func groupedScenarios(_ scenarios: [SnapshotScenario]) -> [SnapshotScenarioGroup] {
     let groups = Dictionary(grouping: scenarios, by: \.group)
     let order = Self.scenarios.map(\.group).uniqued()
     return order.compactMap { group in
       guard let scenarios = groups[group], !scenarios.isEmpty else { return nil }
-      return (group, scenarios)
+      return SnapshotScenarioGroup(title: group, scenarios: scenarios)
     }
   }
 

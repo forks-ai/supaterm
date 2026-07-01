@@ -3,36 +3,33 @@ import SwiftUI
 struct SnapshotCatalogRootView: View {
   @State private var query = ""
   @State private var selectedAppearance = SnapshotAppearance.light
-  @State private var selectedScenarioID = SnapshotCatalog.scenarios.first?.id
+  @State private var selectedGroupID = SnapshotCatalog.scenarios.first?.group
 
   private var filteredScenarios: [SnapshotScenario] {
     SnapshotCatalog.filteredScenarios(query: query)
   }
 
-  private var selectedScenario: SnapshotScenario {
-    filteredScenarios.first { $0.id == selectedScenarioID }
-      ?? filteredScenarios.first
-      ?? SnapshotCatalog.scenarios[0]
+  private var filteredGroups: [SnapshotScenarioGroup] {
+    SnapshotCatalog.groupedScenarios(filteredScenarios)
   }
 
-  private var selectedScenarios: [SnapshotScenario] {
-    let selectedScenario = selectedScenario
-    let scenarios = filteredScenarios.filter { $0.group == selectedScenario.group }
-    return scenarios.isEmpty ? [selectedScenario] : scenarios
+  private var selectedGroup: SnapshotScenarioGroup {
+    filteredGroups.first { $0.id == selectedGroupID }
+      ?? filteredGroups.first
+      ?? SnapshotCatalog.groupedScenarios(SnapshotCatalog.scenarios)[0]
   }
 
   var body: some View {
     NavigationSplitView {
       SnapshotCatalogSidebar(
         query: $query,
-        selectedScenarioID: $selectedScenarioID,
-        scenarios: filteredScenarios
+        selectedGroupID: $selectedGroupID,
+        groups: filteredGroups
       )
     } detail: {
       SnapshotCatalogDetail(
         appearance: $selectedAppearance,
-        selectedScenario: selectedScenario,
-        scenarios: selectedScenarios
+        group: selectedGroup
       )
     }
     .navigationSplitViewStyle(.balanced)
@@ -42,12 +39,8 @@ struct SnapshotCatalogRootView: View {
 
 private struct SnapshotCatalogSidebar: View {
   @Binding var query: String
-  @Binding var selectedScenarioID: String?
-  let scenarios: [SnapshotScenario]
-
-  private var groups: [(String, [SnapshotScenario])] {
-    SnapshotCatalog.groupedScenarios(scenarios)
-  }
+  @Binding var selectedGroupID: String?
+  let groups: [SnapshotScenarioGroup]
 
   var body: some View {
     VStack(spacing: 0) {
@@ -55,15 +48,11 @@ private struct SnapshotCatalogSidebar: View {
         .textFieldStyle(.roundedBorder)
         .padding(12)
 
-      List(selection: $selectedScenarioID) {
-        ForEach(groups, id: \.0) { group, scenarios in
-          Section(group) {
-            ForEach(scenarios) { scenario in
-              Text(scenario.title)
-                .lineLimit(1)
-                .tag(Optional(scenario.id))
-            }
-          }
+      List(selection: $selectedGroupID) {
+        ForEach(groups) { group in
+          Text(group.title)
+            .lineLimit(1)
+            .tag(Optional(group.id))
         }
       }
       .listStyle(.sidebar)
@@ -74,11 +63,14 @@ private struct SnapshotCatalogSidebar: View {
 
 private struct SnapshotCatalogDetail: View {
   @Binding var appearance: SnapshotAppearance
-  let selectedScenario: SnapshotScenario
-  let scenarios: [SnapshotScenario]
+  let group: SnapshotScenarioGroup
+
+  private var scenarios: [SnapshotScenario] {
+    group.scenarios
+  }
 
   private var maxScenarioWidth: CGFloat {
-    scenarios.map(\.size.width).max() ?? selectedScenario.size.width
+    scenarios.map(\.size.width).max() ?? 0
   }
 
   private var countTitle: String {
@@ -93,9 +85,13 @@ private struct SnapshotCatalogDetail: View {
     }
   }
 
-  private var compactScenarioColumns: [[SnapshotScenario]] {
-    scenarios.enumerated().reduce(into: Array(repeating: [SnapshotScenario](), count: 2)) { columns, element in
+  private var compactScenarioColumns: [SnapshotScenarioColumn] {
+    let columnScenarios = scenarios.enumerated().reduce(into: Array(repeating: [SnapshotScenario](), count: 2)) {
+      columns, element in
       columns[element.offset % columns.count].append(element.element)
+    }
+    return columnScenarios.enumerated().map { index, scenarios in
+      SnapshotScenarioColumn(id: index, scenarios: scenarios)
     }
   }
 
@@ -106,7 +102,7 @@ private struct SnapshotCatalogDetail: View {
           Text(countTitle)
             .font(.system(size: 11, weight: .semibold))
             .foregroundStyle(.secondary)
-          Text(selectedScenario.group)
+          Text(group.title)
             .font(.system(size: 18, weight: .semibold))
         }
         Spacer()
@@ -137,9 +133,9 @@ private struct SnapshotCatalogDetail: View {
   private var previewGrid: some View {
     if maxScenarioWidth <= 420 {
       HStack(alignment: .top, spacing: 24) {
-        ForEach(compactScenarioColumns.indices, id: \.self) { columnIndex in
+        ForEach(compactScenarioColumns) { column in
           VStack(alignment: .leading, spacing: 24) {
-            ForEach(compactScenarioColumns[columnIndex]) { scenario in
+            ForEach(column.scenarios) { scenario in
               SnapshotCatalogPreviewCard(
                 appearance: appearance,
                 scenario: scenario
@@ -161,6 +157,11 @@ private struct SnapshotCatalogDetail: View {
       .frame(maxWidth: .infinity, alignment: .center)
     }
   }
+}
+
+private struct SnapshotScenarioColumn: Identifiable {
+  let id: Int
+  let scenarios: [SnapshotScenario]
 }
 
 private struct SnapshotCatalogPreviewCard: View {
