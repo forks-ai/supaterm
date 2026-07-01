@@ -336,8 +336,8 @@ struct TerminalPalette {
   let hoverFill: Color
   let pressedFill: Color
   let selectedFill: Color
-  let selectedStrokeTop: Color
-  let selectedStrokeBottom: Color
+  let selectedStrokeBright: Color
+  let selectedStrokeDim: Color
   let selectedShadow: Color
   let primaryText: Color
   let secondaryText: Color
@@ -357,9 +357,13 @@ struct TerminalPalette {
 
   var selectedStroke: LinearGradient {
     LinearGradient(
-      colors: [selectedStrokeTop, selectedStrokeBottom],
-      startPoint: .top,
-      endPoint: .bottom
+      stops: [
+        Gradient.Stop(color: selectedStrokeBright, location: 0),
+        Gradient.Stop(color: selectedStrokeDim, location: 0.5),
+        Gradient.Stop(color: selectedStrokeBright, location: 1),
+      ],
+      startPoint: .topLeading,
+      endPoint: .bottomTrailing
     )
   }
 
@@ -370,8 +374,8 @@ struct TerminalPalette {
     hoverFill = Color.white.opacity(isDark ? 0.16 : 0.55)
     pressedFill = Color.white.opacity(isDark ? 0.31 : 0.7)
     selectedFill = isDark ? Color(white: 0.04) : .white
-    selectedStrokeTop = Color.white.opacity(isDark ? 0.35 : 0.98)
-    selectedStrokeBottom = Color.white.opacity(isDark ? 0.08 : 0.98)
+    selectedStrokeBright = Color.white.opacity(isDark ? 0.35 : 0.98)
+    selectedStrokeDim = Color.white.opacity(isDark ? 0.08 : 0.98)
     selectedShadow = isDark ? Color.white.opacity(0.15) : Color.black.opacity(0.12)
     selectedText = isDark ? Color.white : .black
 
