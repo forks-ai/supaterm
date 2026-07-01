@@ -25,10 +25,6 @@ Everything else is computed from `primary`, the color scheme, and white/black ov
   - glow: centered `.shadow` (`selectedShadow` white 15%, radius 5, no offset) — uniform on all sides, distinct from `shadow`, which is the black drop shadow for panels and panes
 - Text: `primaryText`/`secondaryText` are white/black at fixed opacities; they serve the whole chrome (dialogs, agent panel), not just the sidebar.
 
-## Clipping caveat
-
-The selected pill's glow extends ~5pt beyond the row. The tab list keeps its 8pt horizontal inset *inside* the `ScrollView` content (not on the outer container) so the scroll clip bounds leave room for the halo. Keep any future inset changes inside the clip.
-
 ## Inspiration
 
 The recipe follows Dia's sidebar: one theme color per surface, every interactive state a white/black-at-alpha overlay on top, selection as a scheme-matched solid pill with a specular rim. Dia ships 8 curated themes, each a Primary/Secondary/Tertiary/Vibrant set per appearance. Their Primaries (light / dark, Display P3):
@@ -45,13 +41,3 @@ The recipe follows Dia's sidebar: one theme color per surface, every interactive
 | Ultra Violet | `#5F5B9E` | `#625DA5` |
 
 Our `primary` is Isabelline's light value. If spaces ever get per-space colors, this is the shape to copy: a small named set with light/dark variants, not a free color picker.
-
-## Verifying changes
-
-Palette changes churn snapshot baselines by design:
-
-```
-make mac-build-snapshot-catalog   # eyeball fixtures (Sidebar → Full sidebar chrome)
-make mac-record-snapshots         # re-record baselines, commit them with the change
-make mac-test-snapshots
-```
