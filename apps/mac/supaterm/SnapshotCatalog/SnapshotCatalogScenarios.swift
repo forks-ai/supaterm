@@ -634,8 +634,8 @@ private struct SidebarRowSnapshotFixture: View {
     )
     .shadow(
       color: item.isSelected ? palette.selectedShadow : .clear,
-      radius: item.isSelected ? 2 : 0,
-      y: 1.5
+      radius: item.isSelected ? 1 : 0,
+      y: 1
     )
     .padding(10)
     .background(palette.detailBackground)
