@@ -39,13 +39,6 @@ make mac-test-snapshots         # Run snapshot tests
 make mac-record-snapshots       # Regenerate snapshot PNG baselines
 ```
 
-Snapshot schemes:
-
-```bash
-supatermSnapshotCatalog # Visual catalog for quick UI iteration
-supatermSnapshots       # Snapshot test scheme
-```
-
 Run a single test class or method:
 ```bash
 xcodebuild test -workspace apps/mac/supaterm.xcworkspace -scheme supaterm -destination "platform=macOS" \
