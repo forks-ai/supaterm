@@ -73,6 +73,9 @@ struct SupatermSnapshotTests {
       bytesPerRow: 0,
       bitsPerPixel: 0
     )!
+    if let colorProfile = NSColorSpace.sRGB.iccProfileData {
+      representation.setProperty(.colorSyncProfileData, withValue: colorProfile as NSData)
+    }
     representation.size = scenario.size
     view.cacheDisplay(in: view.bounds, to: representation)
 
