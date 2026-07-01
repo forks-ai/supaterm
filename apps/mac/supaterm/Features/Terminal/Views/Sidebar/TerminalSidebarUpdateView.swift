@@ -109,7 +109,7 @@ struct TerminalSidebarUpdateSection: View {
         style: .continuous
       )
       .strokeBorder(
-        style.usesSelectedRowStyle ? palette.selectedStroke : .clear,
+        palette.selectedStroke.opacity(style.usesSelectedRowStyle ? 1 : 0),
         lineWidth: 1
       )
     )

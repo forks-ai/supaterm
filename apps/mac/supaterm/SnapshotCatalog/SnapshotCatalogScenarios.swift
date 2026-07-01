@@ -630,7 +630,7 @@ private struct SidebarRowSnapshotFixture: View {
         cornerRadius: TerminalSidebarLayout.tabRowCornerRadius,
         style: .continuous
       )
-      .strokeBorder(item.isSelected ? palette.selectedStroke : .clear, lineWidth: 1)
+      .strokeBorder(palette.selectedStroke.opacity(item.isSelected ? 1 : 0), lineWidth: 1)
     )
     .shadow(
       color: item.isSelected ? palette.selectedShadow : .clear,
