@@ -115,8 +115,7 @@ struct TerminalSidebarUpdateSection: View {
     )
     .shadow(
       color: style.usesSelectedRowStyle ? palette.selectedShadow : .clear,
-      radius: style.usesSelectedRowStyle ? 1 : 0,
-      y: 1
+      radius: style.usesSelectedRowStyle ? 1 : 0
     )
     .contentShape(
       RoundedRectangle(

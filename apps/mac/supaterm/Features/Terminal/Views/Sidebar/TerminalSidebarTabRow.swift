@@ -330,8 +330,7 @@ private struct TerminalSidebarTabRowButtonStyle: ButtonStyle {
       .overlay(shape.strokeBorder(isSelected ? palette.selectedStroke : .clear, lineWidth: 1))
       .shadow(
         color: isSelected ? palette.selectedShadow : .clear,
-        radius: isSelected ? 1 : 0,
-        y: 1
+        radius: isSelected ? 1 : 0
       )
       .contentShape(shape)
   }
