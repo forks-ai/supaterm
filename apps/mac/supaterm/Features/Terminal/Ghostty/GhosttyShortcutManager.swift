@@ -4,12 +4,12 @@ import SwiftUI
 @MainActor
 @Observable
 final class GhosttyShortcutManager {
-  private let runtime: GhosttyRuntime
+  private let runtime: GhosttyRuntime?
   private var generation = 0
 
-  init(runtime: GhosttyRuntime) {
+  init(runtime: GhosttyRuntime?) {
     self.runtime = runtime
-    runtime.onConfigChange = { [weak self] in
+    runtime?.onConfigChange = { [weak self] in
       self?.refresh()
     }
   }
@@ -24,6 +24,6 @@ final class GhosttyShortcutManager {
 
   func keyboardShortcut(forAction action: String) -> KeyboardShortcut? {
     _ = generation
-    return runtime.keyboardShortcut(forAction: action)
+    return runtime?.keyboardShortcut(forAction: action)
   }
 }

@@ -8,6 +8,14 @@ import SwiftUI
 extension SnapshotCatalog {
   static let sidebarScenarios: [SnapshotScenario] = [
     scenario(
+      "full",
+      group: "Sidebar",
+      title: "Full sidebar chrome",
+      size: CGSize(width: 280, height: 560)
+    ) { appearance in
+      AnyView(SidebarChromeSnapshotFixture(appearance: appearance))
+    },
+    scenario(
       "basic-selected",
       group: "Sidebar Rows",
       title: "Selected shell tab",
@@ -644,6 +652,85 @@ private struct SidebarRowSnapshotFixture: View {
       return palette.hoverFill
     }
     return .clear
+  }
+}
+
+@MainActor
+private enum SidebarChromeSnapshotContext {
+  static let commandHold = CommandHoldObserver()
+  static let ghosttyShortcuts = GhosttyShortcutManager(runtime: nil)
+
+  static let terminal: TerminalHostState = {
+    let terminal = TerminalHostState(managesTerminalSurfaces: false)
+    let spaces = ["supaterm", "research", "ops"].enumerated().map { index, name in
+      PersistedTerminalSpace(
+        id: TerminalSpaceID(
+          rawValue: SnapshotFixtureValues.uuid("30000000-0000-0000-0000-00000000000\(index + 1)")
+        ),
+        name: name
+      )
+    }
+    terminal.spaceManager.bootstrap(
+      from: TerminalSpaceCatalog(defaultSelectedSpaceID: spaces[0].id, spaces: spaces),
+      initialSelectedSpaceID: spaces[0].id
+    )
+    let tabs = [
+      tab("41", title: "dotfiles", isPinned: true),
+      tab("42", title: "notes", isPinned: true),
+      tab("43", title: "supaterm - fish"),
+      tab("44", title: "release-check"),
+      tab("45", title: "agent playground"),
+    ]
+    terminal.spaceManager.restoreTabs(
+      tabs,
+      selectedTabID: tabs[2].id,
+      in: spaces[0].id
+    )
+    return terminal
+  }()
+
+  private static func tab(
+    _ id: String,
+    title: String,
+    isPinned: Bool = false
+  ) -> TerminalTabItem {
+    TerminalTabItem(
+      id: TerminalTabID(rawValue: SnapshotFixtureValues.uuid("40000000-0000-0000-0000-0000000000\(id)")),
+      title: title,
+      isPinned: isPinned
+    )
+  }
+}
+
+private struct SidebarChromeSnapshotFixture: View {
+  let appearance: SnapshotAppearance
+
+  private var palette: TerminalPalette {
+    TerminalPalette(colorScheme: appearance.colorScheme)
+  }
+
+  var body: some View {
+    TerminalSidebarChromeView(
+      store: Store(initialState: TerminalWindowFeature.State()) {
+        TerminalWindowFeature()
+      },
+      updateStore: Store(
+        initialState: UpdateFeature.State(canCheckForUpdates: true, phase: .idle)
+      ) {
+        UpdateFeature()
+      } withDependencies: {
+        $0.updateClient = .testValue
+      },
+      releaseAnnouncement: nil,
+      palette: palette,
+      terminal: SidebarChromeSnapshotContext.terminal,
+      dismissReleaseAnnouncement: {}
+    )
+    .environment(SidebarChromeSnapshotContext.commandHold)
+    .environment(SidebarChromeSnapshotContext.ghosttyShortcuts)
+    .padding(.vertical, 8)
+    .background(palette.windowBackgroundTint)
+    .background(palette.detailBackground)
   }
 }
 
