@@ -9,27 +9,51 @@ on:
     branches:
       - main
 
+permissions:
+  contents: read
+  id-token: write
+
+env:
+  MISE_HTTP_TIMEOUT: 120
+  MISE_GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
 jobs:
-  test:
+  swiftlint:
+    name: swiftlint
     runs-on: macos-26
-    permissions:
-      contents: read
-      id-token: write
-    env:
-      MISE_HTTP_TIMEOUT: 120
-      MISE_GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     steps:
       - uses: actions/checkout@v6
         with:
           submodules: recursive
       - uses: ./.github/actions/setup-macos
-      - parallel:
-          - run: make swiftlint
-          - run: make mac-tuist-install
-      - run: make mac-tuist-generate
-      - parallel:
-          - run: make mac-build-ghostty
-          - run: make mac-build-zmx
+      - run: make swiftlint
+
+  mac-scan-dead-code:
+    name: mac-scan-dead-code
+    runs-on: macos-26
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          submodules: recursive
+      - uses: ./.github/actions/setup-macos
       - run: make mac-scan-dead-code
-      - run: make mac-test-xcodebuild
+
+  mac-test:
+    name: mac-test
+    runs-on: macos-26
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          submodules: recursive
+      - uses: ./.github/actions/setup-macos
+      - run: make mac-test
+
+  mac-test-snapshots:
+    name: mac-test-snapshots
+    runs-on: macos-26
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          submodules: recursive
+      - uses: ./.github/actions/setup-macos
       - run: make mac-test-snapshots
