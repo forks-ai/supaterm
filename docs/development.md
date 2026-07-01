@@ -42,28 +42,30 @@ Warm the external Tuist cache:
 make mac-warm-cache
 ```
 
-## macOS App
+### Commands
 
-Build and run the Debug app:
+Canonical macOS gates:
 
 ```bash
-make mac-build
-make mac-run
+make mac-check          # format + lint
+make mac-test           # full test suite
 ```
 
-Run checks and tests:
+Useful macOS development commands:
 
 ```bash
-make mac-check
-make mac-test
+make mac-generate       # Generate the Xcode workspace
+make mac-build          # Debug build
+make mac-run            # Debug run with isolated ephemeral state
+make mac-inspect-dependencies # Check Tuist dependency graph hygiene
 ```
 
-Run one test target or method:
+Snapshot commands:
 
 ```bash
-xcodebuild test -workspace apps/mac/supaterm.xcworkspace -scheme supaterm -destination "platform=macOS" \
-  -only-testing:supatermTests/AppFeatureTests \
-  CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" -skipMacroValidation
+make mac-build-snapshot-catalog # Build the visual snapshot catalog app
+make mac-test-snapshots         # Run snapshot tests
+make mac-record-snapshots       # Regenerate snapshot PNG baselines
 ```
 
 Use `$SUPATERM_CLI_PATH` inside Supaterm panes to call the Debug CLI injected by the running app instead of an installed `sp`:
