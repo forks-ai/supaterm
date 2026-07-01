@@ -94,6 +94,8 @@ sp pane split --in 1/2 right
 sp pane send --newline 'echo hello'
 sp pane capture --scope scrollback --lines 200
 sp pane layout main-vertical 1/2
+sp pane health 1/2/3
+sp pane wait-ready 1/2/3
 ```
 
 Compatibility and config:
@@ -139,6 +141,8 @@ Terminal methods:
 - `terminal.select_space`
 - `terminal.select_tab`
 - `terminal.focus_pane`
+- `terminal.last_pane`
+- `terminal.pane_health`
 - `terminal.close_space`
 - `terminal.close_tab`
 - `terminal.close_pane`
