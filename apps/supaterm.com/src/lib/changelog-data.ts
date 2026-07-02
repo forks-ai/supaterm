@@ -17,6 +17,38 @@ type ChangelogEntry = {
 
 const changelogData: ChangelogEntry[] = [
   {
+    version: "v26.1.0",
+    date: "2026-07-02",
+    title: "🎨 Color Tuning",
+    description: "Supaterm now has calmer sidebar colors across light and dark mode.",
+    sections: [
+      {
+        category: "new",
+        items: [
+          "Added a copyable Homebrew install command to the website",
+          "Added versioned download URLs with checksum verification for release assets",
+        ],
+      },
+      {
+        category: "improvements",
+        items: [
+          "Refined sidebar colors, selected tab pills, hover and pressed states, and tab drag previews",
+          "Agent badges now use cleaner monochrome icons with fixed spacing",
+          "Agent goal rows now use a dedicated target icon in the agent panel",
+          "Update and announcement cards now sit more cleanly in the sidebar",
+        ],
+      },
+      {
+        category: "fixes",
+        items: [
+          "Terminal panes now regain focus when their window activates",
+          "Fixed clipped selected-tab glows, overlapping tab badges, and quit confirmation button sizing",
+          "Filtered fork pull requests out of the agent panel",
+        ],
+      },
+    ],
+  },
+  {
     version: "v26.0.0",
     date: "2026-06-18",
     title: "🚀 Agent workflow polish",
