@@ -136,6 +136,22 @@ struct ReleaseAnnouncementTests {
   }
 
   @Test
+  func upgradeFromPreviousCalVerShowsColorTuningCard() {
+    let result = ReleaseAnnouncementCatalog.synchronize(
+      currentVersion: "26.1.0",
+      storageState: ReleaseAnnouncementStorageState(
+        lastInstalledVersion: "26.0.0",
+        acknowledgedVersion: "26.0.0"
+      ),
+      hasExistingSupatermState: true
+    )
+
+    #expect(result.announcement == .colorTuning)
+    #expect(result.storageState.lastInstalledVersion == "26.1.0")
+    #expect(result.storageState.acknowledgedVersion == "26.0.0")
+  }
+
+  @Test
   func agentForkingCopyMatchesReleaseCard() {
     let expectedMessage =
       "Forking session is now easier than ever using the agent panel. "
@@ -148,5 +164,16 @@ struct ReleaseAnnouncementTests {
     )
     #expect(ReleaseAnnouncement.agentForking.footer == "Settings → Coding Agents")
     #expect(ReleaseAnnouncement.agentForking.imageName == "git-fork")
+  }
+
+  @Test
+  func colorTuningCopyMatchesReleaseCard() {
+    #expect(ReleaseAnnouncement.colorTuning.title == "🎨 Color Tuning")
+    #expect(
+      ReleaseAnnouncement.colorTuning.message
+        == "The sidebar now reads cleaner in light and dark mode."
+    )
+    #expect(ReleaseAnnouncement.colorTuning.footer == "Supaterm v26.1.0")
+    #expect(ReleaseAnnouncement.colorTuning.imageName == "AppearanceAuto")
   }
 }

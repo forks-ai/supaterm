@@ -37,6 +37,7 @@ nonisolated struct ReleaseAnnouncement: Equatable, Identifiable, Sendable {
 
   enum AnnouncementID: String, Sendable {
     case agentForking
+    case colorTuning
   }
 
   static let agentForking = Self(
@@ -47,6 +48,15 @@ nonisolated struct ReleaseAnnouncement: Equatable, Identifiable, Sendable {
       + "Enable coding agents integration to try it.",
     footer: "Settings → Coding Agents",
     imageName: "git-fork"
+  )
+
+  static let colorTuning = Self(
+    id: .colorTuning,
+    version: ReleaseAnnouncementVersion("26.1.0")!,
+    title: "🎨 Color Tuning",
+    message: "The sidebar now reads cleaner in light and dark mode.",
+    footer: "Supaterm v26.1.0",
+    imageName: "AppearanceAuto"
   )
 }
 
@@ -63,7 +73,8 @@ nonisolated struct ReleaseAnnouncementSyncResult: Equatable, Sendable {
 nonisolated enum ReleaseAnnouncementCatalog {
   static let firstAnnouncementBaseline = ReleaseAnnouncementVersion("1.3.2")!
   static let announcements: [ReleaseAnnouncement] = [
-    .agentForking
+    .agentForking,
+    .colorTuning,
   ]
 
   static func synchronize(
