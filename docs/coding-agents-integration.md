@@ -115,6 +115,7 @@ The app binds Claude sessions to pane surfaces, tracks the foreground session fo
 - `PreToolUse` marks the tab as `running`.
 - `Notification` marks the tab as `needs input` and may trigger a notification.
 - `UserPromptSubmit` marks the tab as `running`.
+- `PreToolUse` and `UserPromptSubmit` recover the pane binding when `SessionStart` was missed or announced a different session ID, which is what `claude --fork-session --resume` does: its `SessionStart` reports the parent session ID and every later hook carries the forked one.
 - `Stop` marks the tab as `idle` and stores the final assistant message as the latest tab notification when one is provided.
 - `SessionEnd` clears the tab activity and drops the stored session state.
 - A command-finished signal from the shell clears pane-bound agent sessions and presence.

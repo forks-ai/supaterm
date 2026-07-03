@@ -61,14 +61,15 @@ func codexHook(
   )
 }
 
-func codexHookRequest(
+func agentHookRequest(
+  agent: SupatermAgentKind,
   sessionID: String,
   hookEventName: SupatermAgentHookEventName,
   context: SupatermCLIContext? = nil,
   lastAssistantMessage: String? = nil
 ) -> SupatermAgentHookRequest {
   SupatermAgentHookRequest(
-    agent: .codex,
+    agent: agent,
     context: context,
     event: SupatermAgentHookEvent(
       cwd: CodexHookFixtures.cwd,

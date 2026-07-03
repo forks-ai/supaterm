@@ -256,6 +256,46 @@ struct TerminalCommandExecutorAgentHookTests {
     #expect(harness.host.latestNotificationText(for: harness.tabID) == "Claude needs your attention")
   }
   @Test
+  func claudeForkedSessionRecoversRoutingFromUserPromptSubmit() throws {
+    let harness = try makeClaudeHookHarness(windowActivity: .inactive)
+
+    _ = try harness.commandExecutor.handleAgentHook(
+      ClaudeHookFixtures.request(ClaudeHookFixtures.sessionStart, context: harness.context)
+    )
+    _ = try harness.commandExecutor.handleAgentHook(
+      agentHookRequest(
+        agent: .claude,
+        sessionID: "forked-session",
+        hookEventName: .userPromptSubmit,
+        context: harness.context
+      )
+    )
+
+    #expect(harness.host.agentActivity(for: harness.tabID) == .claude(.running))
+
+    let result = try harness.commandExecutor.handleAgentHook(
+      agentHookRequest(
+        agent: .claude,
+        sessionID: "forked-session",
+        hookEventName: .stop,
+        context: harness.context,
+        lastAssistantMessage: "Forked turn done."
+      )
+    )
+
+    #expect(harness.host.agentActivity(for: harness.tabID) == .claude(.idle))
+    #expect(
+      result.desktopNotification
+        == DesktopNotificationRequest(
+          body: "Forked turn done.",
+          subtitle: "Turn complete",
+          title: "Claude Code",
+          sourceSurfaceID: harness.context.surfaceID
+        )
+    )
+    #expect(harness.host.latestNotificationText(for: harness.tabID) == "Forked turn done.")
+  }
+  @Test
   func claudeStopMarksTabIdle() throws {
     let harness = try makeClaudeHookHarness()
 
@@ -956,28 +996,32 @@ struct TerminalCommandExecutorAgentHookTests {
     let harness = try makeClaudeHookHarness()
 
     _ = try harness.commandExecutor.handleAgentHook(
-      codexHookRequest(
+      agentHookRequest(
+        agent: .codex,
         sessionID: "parent-session",
         hookEventName: .sessionStart,
         context: harness.context
       )
     )
     _ = try harness.commandExecutor.handleAgentHook(
-      codexHookRequest(
+      agentHookRequest(
+        agent: .codex,
         sessionID: "parent-session",
         hookEventName: .userPromptSubmit,
         context: harness.context
       )
     )
     _ = try harness.commandExecutor.handleAgentHook(
-      codexHookRequest(
+      agentHookRequest(
+        agent: .codex,
         sessionID: "child-session",
         hookEventName: .sessionStart,
         context: harness.context
       )
     )
     _ = try harness.commandExecutor.handleAgentHook(
-      codexHookRequest(
+      agentHookRequest(
+        agent: .codex,
         sessionID: "child-session",
         hookEventName: .userPromptSubmit,
         context: harness.context
@@ -993,21 +1037,24 @@ struct TerminalCommandExecutorAgentHookTests {
     let harness = try makeClaudeHookHarness(windowActivity: .inactive)
 
     _ = try harness.commandExecutor.handleAgentHook(
-      codexHookRequest(
+      agentHookRequest(
+        agent: .codex,
         sessionID: "parent-session",
         hookEventName: .sessionStart,
         context: harness.context
       )
     )
     _ = try harness.commandExecutor.handleAgentHook(
-      codexHookRequest(
+      agentHookRequest(
+        agent: .codex,
         sessionID: "child-session",
         hookEventName: .sessionStart,
         context: harness.context
       )
     )
     let result = try harness.commandExecutor.handleAgentHook(
-      codexHookRequest(
+      agentHookRequest(
+        agent: .codex,
         sessionID: "child-session",
         hookEventName: .stop,
         context: harness.context,
@@ -1034,7 +1081,8 @@ struct TerminalCommandExecutorAgentHookTests {
     let harness = try makeClaudeHookHarness(windowActivity: .inactive)
 
     _ = try harness.commandExecutor.handleAgentHook(
-      codexHookRequest(
+      agentHookRequest(
+        agent: .codex,
         sessionID: "foreground-session",
         hookEventName: .sessionStart,
         context: harness.context
@@ -1045,7 +1093,8 @@ struct TerminalCommandExecutorAgentHookTests {
     surface.bridge.onCommandFinished?()
 
     let result = try harness.commandExecutor.handleAgentHook(
-      codexHookRequest(
+      agentHookRequest(
+        agent: .codex,
         sessionID: "foreground-session",
         hookEventName: .stop,
         context: harness.context,
@@ -1063,14 +1112,16 @@ struct TerminalCommandExecutorAgentHookTests {
     let harness = try makeClaudeHookHarness(windowActivity: .inactive)
 
     _ = try harness.commandExecutor.handleAgentHook(
-      codexHookRequest(
+      agentHookRequest(
+        agent: .codex,
         sessionID: "parent-session",
         hookEventName: .sessionStart,
         context: harness.context
       )
     )
     _ = try harness.commandExecutor.handleAgentHook(
-      codexHookRequest(
+      agentHookRequest(
+        agent: .codex,
         sessionID: "child-session",
         hookEventName: .sessionStart,
         context: harness.context
@@ -1081,7 +1132,8 @@ struct TerminalCommandExecutorAgentHookTests {
     surface.bridge.onCommandFinished?()
 
     let result = try harness.commandExecutor.handleAgentHook(
-      codexHookRequest(
+      agentHookRequest(
+        agent: .codex,
         sessionID: "child-session",
         hookEventName: .stop,
         context: harness.context,
@@ -1099,14 +1151,16 @@ struct TerminalCommandExecutorAgentHookTests {
     let harness = try makeClaudeHookHarness(windowActivity: .inactive)
 
     _ = try harness.commandExecutor.handleAgentHook(
-      codexHookRequest(
+      agentHookRequest(
+        agent: .codex,
         sessionID: "parent-session",
         hookEventName: .sessionStart,
         context: harness.context
       )
     )
     _ = try harness.commandExecutor.handleAgentHook(
-      codexHookRequest(
+      agentHookRequest(
+        agent: .codex,
         sessionID: "child-session",
         hookEventName: .sessionStart,
         context: harness.context
@@ -1117,14 +1171,16 @@ struct TerminalCommandExecutorAgentHookTests {
     surface.bridge.onCommandFinished?()
 
     _ = try harness.commandExecutor.handleAgentHook(
-      codexHookRequest(
+      agentHookRequest(
+        agent: .codex,
         sessionID: "child-session",
         hookEventName: .sessionStart,
         context: harness.context
       )
     )
     let result = try harness.commandExecutor.handleAgentHook(
-      codexHookRequest(
+      agentHookRequest(
+        agent: .codex,
         sessionID: "child-session",
         hookEventName: .stop,
         context: harness.context,

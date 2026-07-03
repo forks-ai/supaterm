@@ -384,10 +384,7 @@ extension TerminalCommandExecutor {
     _ request: SupatermAgentHookRequest,
     sessionExists: Bool
   ) -> Bool {
-    guard request.agent.recoversSessionsFromToolHooks,
-      request.context != nil,
-      !sessionExists
-    else {
+    guard request.context != nil, !sessionExists else {
       return false
     }
     switch request.event.hookEventName {

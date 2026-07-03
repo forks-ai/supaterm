@@ -8,8 +8,4 @@ extension SupatermAgentKind {
   var keepsPanelTrackingWhenNotRunning: Bool {
     self == .claude
   }
-
-  var recoversSessionsFromToolHooks: Bool {
-    self == .codex
-  }
 }
