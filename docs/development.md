@@ -169,3 +169,7 @@ Tests that exercise polling or timeout behavior should inject a clock and advanc
 In tests, use `TestClock` from `Clocks` and call `advance(by:)` rather than sleeping for a real poll interval or timeout.
 
 When parsing Codex, Claude Code, or any coding-agent integration, inspect real JSONL files, transcript files, or hook payloads before designing parser behavior. Do not infer event shapes from UI text, source names, or assumptions.
+
+## Misc
+
+Icons can be pulled by using apps/mac/scripts/fetch-lucide-icon.sh if something is not available in SF Symbols
