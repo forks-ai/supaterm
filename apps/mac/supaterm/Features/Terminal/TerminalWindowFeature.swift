@@ -64,6 +64,13 @@ struct TerminalSpaceEditorState: Equatable, Identifiable {
 
 @Reducer
 struct TerminalWindowFeature {
+  static let closeWindowWarningMessage =
+    "Closing this window terminates its terminal sessions. Reopening the window starts new sessions. "
+    + "zmx persistence is for Supaterm restarts."
+  static let closeAllWindowsWarningMessage =
+    "Closing all windows terminates their terminal sessions. Reopening Supaterm starts new sessions. "
+    + "zmx persistence is for Supaterm restarts."
+
   @ObservableState
   struct State: Equatable {
     var commandPalette: TerminalCommandPaletteState?
@@ -244,15 +251,10 @@ struct TerminalWindowFeature {
             )
           }
 
-        case .windowCloseRequested(let needsConfirmation):
+        case .windowCloseRequested:
           guard let windowID = state.windowID else { return .none }
-          if needsConfirmation {
-            state.confirmationRequest = confirmationRequest(for: .closeWindow(windowID))
-            return .none
-          }
-          return .run { [windowCloseClient] _ in
-            await windowCloseClient.closeWindow(windowID)
-          }
+          state.confirmationRequest = confirmationRequest(for: .closeWindow(windowID))
+          return .none
         }
 
       case .bindingMenuItemSelected(let command):
@@ -708,14 +710,14 @@ struct TerminalWindowFeature {
       return ConfirmationRequest(
         target: .closeWindow(windowID),
         title: "Close Window?",
-        message: "A process is still running in this window. Close it anyway?",
-        confirmTitle: "Close"
+        message: Self.closeWindowWarningMessage,
+        confirmTitle: "Close Window"
       )
     case .closeAllWindows(let windowIDs):
       return ConfirmationRequest(
         target: .closeAllWindows(windowIDs),
         title: "Close All Windows?",
-        message: "All terminal sessions will be terminated.",
+        message: Self.closeAllWindowsWarningMessage,
         confirmTitle: "Close All Windows"
       )
     }

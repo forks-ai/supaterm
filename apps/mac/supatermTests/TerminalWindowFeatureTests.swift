@@ -265,16 +265,15 @@ struct TerminalWindowFeatureTests {
       $0.confirmationRequest = TerminalWindowFeature.ConfirmationRequest(
         target: .closeWindow(windowID),
         title: "Close Window?",
-        message: "A process is still running in this window. Close it anyway?",
-        confirmTitle: "Close"
+        message: TerminalWindowFeature.closeWindowWarningMessage,
+        confirmTitle: "Close Window"
       )
     }
   }
 
   @Test
-  func windowCloseRequestedClosesWindowImmediatelyWhenNoConfirmationIsNeeded() async {
+  func windowCloseRequestedWarnsWhenRuntimeDoesNotRequireConfirmation() async {
     let windowID = ObjectIdentifier(NSString())
-    var closedWindowIDs: [ObjectIdentifier] = []
 
     let store = TestStore(
       initialState: TerminalWindowFeature.State(
@@ -282,13 +281,16 @@ struct TerminalWindowFeatureTests {
       )
     ) {
       TerminalWindowFeature()
-    } withDependencies: {
-      $0.windowCloseClient.closeWindow = { closedWindowIDs.append($0) }
     }
 
-    await store.send(.clientEvent(.windowCloseRequested(needsConfirmation: false)))
-
-    #expect(closedWindowIDs == [windowID])
+    await store.send(.clientEvent(.windowCloseRequested(needsConfirmation: false))) {
+      $0.confirmationRequest = TerminalWindowFeature.ConfirmationRequest(
+        target: .closeWindow(windowID),
+        title: "Close Window?",
+        message: TerminalWindowFeature.closeWindowWarningMessage,
+        confirmTitle: "Close Window"
+      )
+    }
   }
 
   @Test
@@ -1206,8 +1208,8 @@ struct TerminalWindowFeatureTests {
       $0.confirmationRequest = TerminalWindowFeature.ConfirmationRequest(
         target: .closeWindow(windowID),
         title: "Close Window?",
-        message: "A process is still running in this window. Close it anyway?",
-        confirmTitle: "Close"
+        message: TerminalWindowFeature.closeWindowWarningMessage,
+        confirmTitle: "Close Window"
       )
     }
   }
@@ -1221,7 +1223,7 @@ struct TerminalWindowFeatureTests {
     initialState.confirmationRequest = TerminalWindowFeature.ConfirmationRequest(
       target: .closeAllWindows([firstWindowID, secondWindowID]),
       title: "Close All Windows?",
-      message: "All terminal sessions will be terminated.",
+      message: TerminalWindowFeature.closeAllWindowsWarningMessage,
       confirmTitle: "Close All Windows"
     )
 

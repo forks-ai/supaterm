@@ -237,18 +237,16 @@ extension TerminalWindowController: NSWindowDelegate {
       isPerformingConfirmedClose = false
       return true
     }
-    guard terminal.windowNeedsCloseConfirmation() else {
+    let surfaceIDs = terminal.liveSurfaceIDs()
+    guard terminatesTerminalSessionsOnClose, !surfaceIDs.isEmpty else {
       SupatermLog.notice(
         SupatermLog.terminal,
         "terminal.window.close",
         fields: [
           "terminatesSessions=\(terminatesTerminalSessionsOnClose)",
-          "surfaceIDs=\(TerminalHostState.logSurfaceIDs(terminal.liveSurfaceIDs()))",
+          "surfaceIDs=\(TerminalHostState.logSurfaceIDs(surfaceIDs))",
         ]
       )
-      if terminatesTerminalSessionsOnClose {
-        terminal.terminateLiveTerminalSessions()
-      }
       return true
     }
     _ = store.send(.terminal(.windowCloseRequested(windowID: ObjectIdentifier(sender))))

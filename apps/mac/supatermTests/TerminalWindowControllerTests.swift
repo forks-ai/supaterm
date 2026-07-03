@@ -38,4 +38,40 @@ struct TerminalWindowControllerTests {
       #expect(controller.window?.frame == frame.constrained(to: visibleFrame))
     }
   }
+
+  @Test
+  func redButtonCloseWarnsBeforeTerminatingLiveSessions() async throws {
+    try await withDependencies {
+      $0.defaultFileStorage = .inMemory
+    } operation: {
+      initializeGhosttyForTests()
+
+      let controller = TerminalWindowController(
+        registry: TerminalWindowRegistry(zmxClient: .noop),
+        zmxClient: .noop,
+        zmxSessionsEnabled: false
+      )
+      defer {
+        for tab in controller.terminal.visibleTabs {
+          controller.terminal.closeTab(tab.id)
+        }
+        controller.window?.delegate = nil
+        controller.window?.close()
+      }
+      controller.terminal.handleCommand(.ensureInitialTab(focusing: false, startupCommand: nil))
+      let window = try #require(controller.window)
+
+      #expect(!controller.terminal.liveSurfaceIDs().isEmpty)
+      #expect(!controller.windowShouldClose(window))
+      #expect(
+        controller.store.withState(\.terminal.confirmationRequest)
+          == TerminalWindowFeature.ConfirmationRequest(
+            target: .closeWindow(ObjectIdentifier(window)),
+            title: "Close Window?",
+            message: TerminalWindowFeature.closeWindowWarningMessage,
+            confirmTitle: "Close Window"
+          )
+      )
+    }
+  }
 }

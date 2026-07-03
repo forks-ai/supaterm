@@ -567,7 +567,8 @@ final class TerminalWindowRegistry {
       guard let window = entry.windowReference.value else { return nil }
       return CloseAllWindowsCandidate(
         windowID: ObjectIdentifier(window),
-        needsConfirmation: entry.terminal.windowNeedsCloseConfirmation()
+        needsConfirmation:
+          entry.terminal.windowNeedsCloseConfirmation() || !entry.terminal.liveSurfaceIDs().isEmpty
       )
     }
   }
