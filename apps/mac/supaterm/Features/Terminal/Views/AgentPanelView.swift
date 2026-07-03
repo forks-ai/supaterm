@@ -340,7 +340,7 @@ struct AgentPanelView: View {
       return .system("exclamationmark.circle")
     case .none:
       if status.url != nil {
-        return .asset("github-logo")
+        return .asset("github")
       }
       return .system("plus.circle")
     case .open, .draft, .merged:

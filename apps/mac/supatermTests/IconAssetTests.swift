@@ -13,9 +13,10 @@ struct IconAssetTests {
   }
 
   @Test
-  func githubLogoUsesTemplateVectorImageset() throws {
-    let svg = try templateVectorImagesetSVG("github-logo")
+  func githubUsesPaddedTemplateVectorImageset() throws {
+    let svg = try templateVectorImagesetSVG("github")
 
+    #expect(svg.contains(#"viewBox="-1 -1 26 26""#))
     #expect(svg.contains(#"fill="currentColor""#))
   }
 
