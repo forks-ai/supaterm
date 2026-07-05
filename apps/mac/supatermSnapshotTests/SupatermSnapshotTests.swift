@@ -61,26 +61,26 @@ struct SupatermSnapshotTests {
     view.displayIfNeeded()
 
     let scale = 2.0
-    let representation = NSBitmapImageRep(
-      bitmapDataPlanes: nil,
-      pixelsWide: Int(scenario.size.width * scale),
-      pixelsHigh: Int(scenario.size.height * scale),
-      bitsPerSample: 8,
-      samplesPerPixel: 4,
-      hasAlpha: true,
-      isPlanar: false,
-      colorSpaceName: .deviceRGB,
+    let context = CGContext(
+      data: nil,
+      width: Int(scenario.size.width * scale),
+      height: Int(scenario.size.height * scale),
+      bitsPerComponent: 8,
       bytesPerRow: 0,
-      bitsPerPixel: 0
+      space: CGColorSpace(name: CGColorSpace.sRGB)!,
+      bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue
     )!
-    if let colorProfile = NSColorSpace.sRGB.iccProfileData {
-      representation.setProperty(.colorSyncProfileData, withValue: colorProfile as NSData)
+    context.scaleBy(x: scale, y: scale)
+    if view.isFlipped {
+      context.translateBy(x: 0, y: scenario.size.height)
+      context.scaleBy(x: 1, y: -1)
     }
-    representation.size = scenario.size
-    view.cacheDisplay(in: view.bounds, to: representation)
+    view.displayIgnoringOpacity(
+      view.bounds,
+      in: NSGraphicsContext(cgContext: context, flipped: view.isFlipped)
+    )
 
-    let image = NSImage(size: scenario.size)
-    image.addRepresentation(representation)
+    let image = NSImage(cgImage: context.makeImage()!, size: scenario.size)
     window.contentView = nil
     return image
   }
