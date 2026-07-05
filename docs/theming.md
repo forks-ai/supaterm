@@ -14,6 +14,8 @@ All interactive chrome is computed from `primary`, the color scheme, and white/b
 
 The palette also carries fixed per-scheme content colors outside that rule: the accent tones (`amber`, `mint`, `sky`, `coral`, `violet`, `slate`), the dialog and detail surfaces, `dialogDestructiveFill`, and `attention`. They color content, not interaction states.
 
+The command palette's surface tokens nest under `TerminalPalette.CommandPalette` (`palette.commandPalette`), derived from the scheme and the `sky` accent.
+
 ## Derivation rules
 
 - **Window tint** — `primary.mix(with: .black, by: isDark ? 0.8 : 0).opacity(0.3)`, painted over a blur material. Light mode shows `primary` directly; dark mode shows it mixed toward black so the chrome reads as a tinted dark, not a washed-out pastel.

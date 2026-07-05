@@ -1,6 +1,43 @@
 import AppKit
 import SwiftUI
 
+private let dialogTransition: AnyTransition = .asymmetric(
+  insertion: .offset(y: -16).combined(with: .scale(scale: 0.96)).combined(with: .opacity),
+  removal: .offset(y: -16).combined(with: .scale(scale: 0.96)).combined(with: .opacity)
+)
+
+private struct DialogChrome<Content: View>: View {
+  let palette: TerminalPalette
+  let scrimLabel: String
+  let onScrimTap: () -> Void
+  @ViewBuilder let content: () -> Content
+
+  @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+  var body: some View {
+    ZStack {
+      Button(action: onScrimTap) {
+        palette.scrim
+          .ignoresSafeArea()
+      }
+      .buttonStyle(.plain)
+      .accessibilityLabel(scrimLabel)
+
+      content()
+        .padding(12)
+        .background(palette.dialogInnerBackground, in: .rect(cornerRadius: 11))
+        .overlay {
+          RoundedRectangle(cornerRadius: 11, style: .continuous)
+            .stroke(palette.dialogBorder, lineWidth: 0.5)
+        }
+        .padding(3)
+        .background(palette.dialogOuterBackground, in: .rect(cornerRadius: 14))
+        .shadow(color: palette.overlayShadow, radius: 20, y: 8)
+        .terminalTransition(dialogTransition, reduceMotion: reduceMotion)
+    }
+  }
+}
+
 struct ConfirmationOverlay: View {
   let palette: TerminalPalette
   let title: String
@@ -9,72 +46,50 @@ struct ConfirmationOverlay: View {
   let onConfirm: () -> Void
   let onCancel: () -> Void
 
-  @Environment(\.accessibilityReduceMotion) private var reduceMotion
-
-  private static let transition: AnyTransition = .asymmetric(
-    insertion: .offset(y: -16).combined(with: .scale(scale: 0.96)).combined(with: .opacity),
-    removal: .offset(y: -16).combined(with: .scale(scale: 0.96)).combined(with: .opacity)
-  )
-
   var body: some View {
-    ZStack {
-      Button(action: onCancel) {
-        Color.black.opacity(0.4)
-          .ignoresSafeArea()
-      }
-      .buttonStyle(.plain)
-      .accessibilityLabel("Cancel confirmation")
-
+    DialogChrome(
+      palette: palette,
+      scrimLabel: "Cancel confirmation",
+      onScrimTap: onCancel
+    ) {
       VStack(alignment: .leading, spacing: 0) {
-        VStack(alignment: .leading, spacing: 0) {
-          ConfirmationIcon()
-            .padding(.bottom, 16)
+        ConfirmationIcon()
+          .padding(.bottom, 16)
 
-          Text(title)
-            .font(.system(size: 22, weight: .semibold))
-            .foregroundStyle(palette.primaryText)
+        Text(title)
+          .font(.system(size: 22, weight: .semibold))
+          .foregroundStyle(palette.primaryText)
 
-          Text(message)
-            .font(.system(size: 13))
-            .foregroundStyle(palette.secondaryText)
-            .fixedSize(horizontal: false, vertical: true)
-            .padding(.top, 4)
+        Text(message)
+          .font(.system(size: 13))
+          .foregroundStyle(palette.secondaryText)
+          .fixedSize(horizontal: false, vertical: true)
+          .padding(.top, 4)
 
-          HStack(spacing: 12) {
-            Spacer()
+        HStack(spacing: 12) {
+          Spacer()
 
-            DialogActionButton(
-              palette: palette,
-              title: "Cancel",
-              style: .secondary,
-              shortcut: .text("esc"),
-              action: onCancel
-            )
-            .keyboardShortcut(.cancelAction)
+          DialogActionButton(
+            palette: palette,
+            title: "Cancel",
+            style: .secondary,
+            shortcut: .text("esc"),
+            action: onCancel
+          )
+          .keyboardShortcut(.cancelAction)
 
-            DialogActionButton(
-              palette: palette,
-              title: confirmTitle,
-              style: .destructive,
-              shortcut: .symbol("return"),
-              action: onConfirm
-            )
-            .keyboardShortcut(.defaultAction)
-          }
-          .padding(.top, 28)
+          DialogActionButton(
+            palette: palette,
+            title: confirmTitle,
+            style: .destructive,
+            shortcut: .symbol("return"),
+            action: onConfirm
+          )
+          .keyboardShortcut(.defaultAction)
         }
-        .frame(width: 360)
-        .padding(12)
-        .background(palette.dialogInnerBackground, in: .rect(cornerRadius: 11))
-        .overlay {
-          RoundedRectangle(cornerRadius: 11, style: .continuous)
-            .stroke(palette.dialogBorder, lineWidth: 0.5)
-        }
+        .padding(.top, 28)
       }
-      .padding(3)
-      .background(palette.dialogOuterBackground, in: .rect(cornerRadius: 14))
-      .shadow(color: .black.opacity(0.25), radius: 20, y: 8)
-      .terminalTransition(Self.transition, reduceMotion: reduceMotion)
+      .frame(width: 360)
     }
   }
 }
@@ -86,84 +101,62 @@ struct QuitConfirmationOverlay: View {
   let onTerminate: () -> Void
   let onCancel: () -> Void
 
-  @Environment(\.accessibilityReduceMotion) private var reduceMotion
-
   private static let dialogMinWidth: CGFloat = 460
   private static let dialogMaxWidth: CGFloat = 620
 
-  private static let transition: AnyTransition = .asymmetric(
-    insertion: .offset(y: -16).combined(with: .scale(scale: 0.96)).combined(with: .opacity),
-    removal: .offset(y: -16).combined(with: .scale(scale: 0.96)).combined(with: .opacity)
-  )
-
   var body: some View {
-    ZStack {
-      Button(action: onCancel) {
-        Color.black.opacity(0.4)
-          .ignoresSafeArea()
-      }
-      .buttonStyle(.plain)
-      .accessibilityLabel("Cancel quit confirmation")
-
+    DialogChrome(
+      palette: palette,
+      scrimLabel: "Cancel quit confirmation",
+      onScrimTap: onCancel
+    ) {
       VStack(alignment: .leading, spacing: 0) {
-        VStack(alignment: .leading, spacing: 0) {
-          ConfirmationIcon()
-            .padding(.bottom, 16)
+        ConfirmationIcon()
+          .padding(.bottom, 16)
 
-          Text("Quit Supaterm?")
-            .font(.system(size: 22, weight: .semibold))
-            .foregroundStyle(palette.primaryText)
+        Text("Quit Supaterm?")
+          .font(.system(size: 22, weight: .semibold))
+          .foregroundStyle(palette.primaryText)
 
-          Text(content.message)
-            .font(.system(size: 13))
-            .foregroundStyle(palette.secondaryText)
-            .fixedSize(horizontal: false, vertical: true)
-            .padding(.top, 4)
+        Text(content.message)
+          .font(.system(size: 13))
+          .foregroundStyle(palette.secondaryText)
+          .fixedSize(horizontal: false, vertical: true)
+          .padding(.top, 4)
 
-          HStack(spacing: 12) {
-            Spacer()
+        HStack(spacing: 12) {
+          Spacer()
 
+          DialogActionButton(
+            palette: palette,
+            title: "Cancel",
+            style: .secondary,
+            shortcut: .text("esc"),
+            action: onCancel
+          )
+          .keyboardShortcut(.cancelAction)
+
+          DialogActionButton(
+            palette: palette,
+            title: content.terminatingSessionsTitle,
+            style: .destructive,
+            shortcut: content.preservingSessionsTitle == nil ? .symbol("return") : .text("⇧↩"),
+            action: onTerminate
+          )
+
+          if let preservingSessionsTitle = content.preservingSessionsTitle {
             DialogActionButton(
               palette: palette,
-              title: "Cancel",
+              title: preservingSessionsTitle,
               style: .secondary,
-              shortcut: .text("esc"),
-              action: onCancel
+              shortcut: .symbol("return"),
+              action: onPreserve
             )
-            .keyboardShortcut(.cancelAction)
-
-            DialogActionButton(
-              palette: palette,
-              title: content.terminatingSessionsTitle,
-              style: .destructive,
-              shortcut: content.preservingSessionsTitle == nil ? .symbol("return") : .text("⇧↩"),
-              action: onTerminate
-            )
-
-            if let preservingSessionsTitle = content.preservingSessionsTitle {
-              DialogActionButton(
-                palette: palette,
-                title: preservingSessionsTitle,
-                style: .secondary,
-                shortcut: .symbol("return"),
-                action: onPreserve
-              )
-            }
           }
-          .padding(.top, 28)
         }
-        .frame(minWidth: Self.dialogMinWidth, maxWidth: Self.dialogMaxWidth)
-        .padding(12)
-        .background(palette.dialogInnerBackground, in: .rect(cornerRadius: 11))
-        .overlay {
-          RoundedRectangle(cornerRadius: 11, style: .continuous)
-            .stroke(palette.dialogBorder, lineWidth: 0.5)
-        }
+        .padding(.top, 28)
       }
-      .padding(3)
-      .background(palette.dialogOuterBackground, in: .rect(cornerRadius: 14))
-      .shadow(color: .black.opacity(0.25), radius: 20, y: 8)
-      .terminalTransition(Self.transition, reduceMotion: reduceMotion)
+      .frame(minWidth: Self.dialogMinWidth, maxWidth: Self.dialogMaxWidth)
     }
     .frame(maxWidth: .infinity, maxHeight: .infinity)
     .background(.clear)
@@ -301,67 +294,53 @@ struct SpaceNameOverlay: View {
   @FocusState private var isNameFieldFocused: Bool
 
   var body: some View {
-    ZStack {
-      Button(action: onCancel) {
-        Color.black.opacity(0.4)
-          .ignoresSafeArea()
-      }
-      .buttonStyle(.plain)
-      .accessibilityLabel("Cancel space naming")
+    DialogChrome(
+      palette: palette,
+      scrimLabel: "Cancel space naming",
+      onScrimTap: onCancel
+    ) {
+      VStack(alignment: .leading, spacing: 16) {
+        Text(title)
+          .font(.system(size: 22, weight: .semibold))
+          .foregroundStyle(palette.primaryText)
 
-      VStack(alignment: .leading, spacing: 0) {
-        VStack(alignment: .leading, spacing: 16) {
-          Text(title)
-            .font(.system(size: 22, weight: .semibold))
-            .foregroundStyle(palette.primaryText)
-
-          TextField("Space name", text: $name)
-            .textFieldStyle(.plain)
-            .font(.system(size: 13))
-            .padding(.horizontal, 12)
-            .padding(.vertical, 10)
-            .background(palette.dialogSecondaryFill, in: .rect(cornerRadius: 10))
-            .focused($isNameFieldFocused)
-            .onSubmit {
-              guard isSaveEnabled else { return }
-              onSave()
-            }
-
-          HStack {
-            DialogActionButton(
-              palette: palette,
-              title: "Cancel",
-              style: .secondary,
-              shortcut: .text("esc"),
-              action: onCancel
-            )
-            .keyboardShortcut(.cancelAction)
-
-            Spacer()
-
-            DialogActionButton(
-              palette: palette,
-              title: confirmTitle,
-              style: .secondary,
-              shortcut: .symbol("return"),
-              action: onSave
-            )
-            .keyboardShortcut(.defaultAction)
-            .opacity(isSaveEnabled ? 1 : 0.5)
-            .disabled(!isSaveEnabled)
+        TextField("Space name", text: $name)
+          .textFieldStyle(.plain)
+          .font(.system(size: 13))
+          .padding(.horizontal, 12)
+          .padding(.vertical, 10)
+          .background(palette.dialogSecondaryFill, in: .rect(cornerRadius: 10))
+          .focused($isNameFieldFocused)
+          .onSubmit {
+            guard isSaveEnabled else { return }
+            onSave()
           }
-        }
-        .frame(width: 360)
-        .padding(12)
-        .background(palette.dialogInnerBackground, in: .rect(cornerRadius: 11))
-        .overlay {
-          RoundedRectangle(cornerRadius: 11, style: .continuous)
-            .stroke(palette.dialogBorder, lineWidth: 0.5)
+
+        HStack {
+          DialogActionButton(
+            palette: palette,
+            title: "Cancel",
+            style: .secondary,
+            shortcut: .text("esc"),
+            action: onCancel
+          )
+          .keyboardShortcut(.cancelAction)
+
+          Spacer()
+
+          DialogActionButton(
+            palette: palette,
+            title: confirmTitle,
+            style: .secondary,
+            shortcut: .symbol("return"),
+            action: onSave
+          )
+          .keyboardShortcut(.defaultAction)
+          .opacity(isSaveEnabled ? 1 : 0.5)
+          .disabled(!isSaveEnabled)
         }
       }
-      .padding(3)
-      .background(palette.dialogOuterBackground, in: .rect(cornerRadius: 14))
-      .shadow(color: .black.opacity(0.25), radius: 20, y: 8)
+      .frame(width: 360)
     }
     .task {
       focusNameField()

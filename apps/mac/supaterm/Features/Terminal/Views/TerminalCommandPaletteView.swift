@@ -11,7 +11,6 @@ struct TerminalCommandPaletteOverlay: View {
   let onMoveSelection: (Int) -> Void
   let onSelectionChange: (Int) -> Void
 
-  @Environment(\.colorScheme) private var colorScheme
   @Environment(CommandHoldObserver.self) private var commandHoldObserver
   @FocusState private var isQueryFocused: Bool
   @State private var hoveredRowID: TerminalCommandPaletteRow.ID?
@@ -25,11 +24,8 @@ struct TerminalCommandPaletteOverlay: View {
     TerminalCommandPalettePresentation.normalizedSelection(state.selectedRowID, in: rows)
   }
 
-  private var theme: TerminalCommandPaletteTheme {
-    TerminalCommandPaletteTheme(
-      colorScheme: colorScheme,
-      accent: palette.sky
-    )
+  private var theme: TerminalPalette.CommandPalette {
+    palette.commandPalette
   }
 
   var body: some View {
@@ -220,7 +216,7 @@ struct TerminalCommandPaletteOverlay: View {
 private struct CommandPaletteRowButton: View {
   let row: TerminalCommandPaletteRow
   let shortcutHint: String?
-  let theme: TerminalCommandPaletteTheme
+  let theme: TerminalPalette.CommandPalette
   let isHovered: Bool
   let isSelected: Bool
   let action: () -> Void
@@ -350,7 +346,7 @@ private struct CommandPaletteRowButton: View {
 
   private var badgeBackground: Color {
     if isSelected {
-      return Color.white.opacity(0.18)
+      return theme.selectedBadgeFill
     }
     return row.emphasis ? theme.emphasisBadgeFill : theme.badgeFill
   }
@@ -360,74 +356,6 @@ private struct CommandPaletteRowButton: View {
       return theme.selectedText
     }
     return row.emphasis ? theme.emphasisText : theme.primaryText
-  }
-}
-
-private struct TerminalCommandPaletteTheme {
-  let surfaceTint: Color
-  let surfaceStroke: Color
-  let surfaceHighlight: Color
-  let separator: Color
-  let primaryText: Color
-  let placeholderText: Color
-  let secondaryText: Color
-  let selectedText: Color
-  let selectedSecondaryText: Color
-  let fieldIcon: Color
-  let tint: Color
-  let rowHoverFill: Color
-  let selectedFill: Color
-  let selectedStroke: Color
-  let badgeFill: Color
-  let emphasisFill: Color
-  let emphasisText: Color
-  let emphasisSecondaryText: Color
-  let emphasisBadgeFill: Color
-  let shadow: Color
-
-  init(colorScheme: ColorScheme, accent: Color) {
-    surfaceTint = Color(nsColor: .windowBackgroundColor).opacity(0.35)
-    tint = accent
-
-    if colorScheme == .dark {
-      surfaceStroke = Color.white.opacity(0.12)
-      surfaceHighlight = Color.white.opacity(0.06)
-      separator = Color.white.opacity(0.28)
-      primaryText = Color.white.opacity(0.9)
-      placeholderText = Color.white.opacity(0.25)
-      secondaryText = Color.white.opacity(0.5)
-      selectedText = .white
-      selectedSecondaryText = Color.white.opacity(0.7)
-      fieldIcon = .white
-      rowHoverFill = Color.white.opacity(0.06)
-      selectedFill = accent.opacity(0.96)
-      selectedStroke = Color.white.opacity(0.14)
-      badgeFill = Color.white.opacity(0.08)
-      emphasisFill = accent.opacity(0.18)
-      emphasisText = accent
-      emphasisSecondaryText = accent.opacity(0.82)
-      emphasisBadgeFill = accent.opacity(0.22)
-      shadow = Color.black.opacity(0.2)
-    } else {
-      surfaceStroke = Color.black.opacity(0.08)
-      surfaceHighlight = Color.white.opacity(0.5)
-      separator = Color.black.opacity(0.22)
-      primaryText = Color.black.opacity(0.88)
-      placeholderText = Color.black.opacity(0.25)
-      secondaryText = Color.black.opacity(0.44)
-      selectedText = .white
-      selectedSecondaryText = Color.white.opacity(0.74)
-      fieldIcon = Color.black.opacity(0.94)
-      rowHoverFill = Color.black.opacity(0.05)
-      selectedFill = accent.opacity(0.94)
-      selectedStroke = Color.white.opacity(0.16)
-      badgeFill = Color.black.opacity(0.08)
-      emphasisFill = accent.opacity(0.14)
-      emphasisText = accent.opacity(0.95)
-      emphasisSecondaryText = accent.opacity(0.8)
-      emphasisBadgeFill = accent.opacity(0.18)
-      shadow = Color.black.opacity(0.1)
-    }
   }
 }
 

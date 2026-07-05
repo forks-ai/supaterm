@@ -559,7 +559,7 @@ private struct TerminalSidebarMorphingPreview: View {
       RoundedRectangle(cornerRadius: TerminalSidebarLayout.tabRowCornerRadius, style: .continuous)
     )
     .shadow(
-      color: .black.opacity(0.25),
+      color: palette.overlayShadow,
       radius: 8,
       y: 2
     )

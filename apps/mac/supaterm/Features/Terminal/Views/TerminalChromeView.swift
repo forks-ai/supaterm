@@ -321,6 +321,7 @@ final class WindowChromeConfiguratorView: NSView {
 struct TerminalPalette {
   static let primary = Color(.displayP3, red: 0.89, green: 0.902, blue: 0.925)
 
+  let isDark: Bool
   let windowBackgroundTint: Color
   let detailBackground: Color
   let detailStroke: Color
@@ -344,6 +345,9 @@ struct TerminalPalette {
   let selectedText: Color
   let attention: Color
   let shadow: Color
+  let scrim: Color
+  let overlayShadow: Color
+  let divider: Color
   let amber: Color
   let mint: Color
   let sky: Color
@@ -368,7 +372,7 @@ struct TerminalPalette {
   }
 
   init(colorScheme: ColorScheme) {
-    let isDark = colorScheme == .dark
+    isDark = colorScheme == .dark
     windowBackgroundTint = Self.primary.mix(with: .black, by: isDark ? 0.8 : 0).opacity(0.3)
     unselectedFill = (isDark ? Color.white : .black).opacity(0.06)
     hoverFill = Color.white.opacity(isDark ? 0.16 : 0.55)
@@ -403,6 +407,9 @@ struct TerminalPalette {
       shadow = .black.opacity(0.08)
     }
 
+    scrim = Color.black.opacity(0.4)
+    overlayShadow = Color.black.opacity(0.25)
+    divider = Color.white.opacity(0.3)
     dialogBorder = Color(nsColor: .separatorColor)
     dialogDestructiveFill = Color(red: 1, green: 0.4118, blue: 0.4118)
     dialogDestructiveHoverFill = Color(red: 1, green: 0.4118, blue: 0.4118).opacity(0.85)
@@ -433,6 +440,81 @@ struct TerminalPalette {
       slate
     case .violet:
       violet
+    }
+  }
+}
+
+extension TerminalPalette {
+  var commandPalette: CommandPalette {
+    CommandPalette(isDark: isDark, accent: sky)
+  }
+
+  struct CommandPalette {
+    let surfaceTint: Color
+    let surfaceStroke: Color
+    let surfaceHighlight: Color
+    let separator: Color
+    let primaryText: Color
+    let placeholderText: Color
+    let secondaryText: Color
+    let selectedText: Color
+    let selectedSecondaryText: Color
+    let fieldIcon: Color
+    let tint: Color
+    let rowHoverFill: Color
+    let selectedFill: Color
+    let selectedStroke: Color
+    let selectedBadgeFill: Color
+    let badgeFill: Color
+    let emphasisFill: Color
+    let emphasisText: Color
+    let emphasisSecondaryText: Color
+    let emphasisBadgeFill: Color
+    let shadow: Color
+
+    init(isDark: Bool, accent: Color) {
+      surfaceTint = Color(nsColor: .windowBackgroundColor).opacity(0.35)
+      tint = accent
+      selectedText = .white
+      selectedBadgeFill = Color.white.opacity(0.18)
+
+      if isDark {
+        surfaceStroke = Color.white.opacity(0.12)
+        surfaceHighlight = Color.white.opacity(0.06)
+        separator = Color.white.opacity(0.28)
+        primaryText = Color.white.opacity(0.9)
+        placeholderText = Color.white.opacity(0.25)
+        secondaryText = Color.white.opacity(0.5)
+        selectedSecondaryText = Color.white.opacity(0.7)
+        fieldIcon = .white
+        rowHoverFill = Color.white.opacity(0.06)
+        selectedFill = accent.opacity(0.96)
+        selectedStroke = Color.white.opacity(0.14)
+        badgeFill = Color.white.opacity(0.08)
+        emphasisFill = accent.opacity(0.18)
+        emphasisText = accent
+        emphasisSecondaryText = accent.opacity(0.82)
+        emphasisBadgeFill = accent.opacity(0.22)
+        shadow = Color.black.opacity(0.2)
+      } else {
+        surfaceStroke = Color.black.opacity(0.08)
+        surfaceHighlight = Color.white.opacity(0.5)
+        separator = Color.black.opacity(0.22)
+        primaryText = Color.black.opacity(0.88)
+        placeholderText = Color.black.opacity(0.25)
+        secondaryText = Color.black.opacity(0.44)
+        selectedSecondaryText = Color.white.opacity(0.74)
+        fieldIcon = Color.black.opacity(0.94)
+        rowHoverFill = Color.black.opacity(0.05)
+        selectedFill = accent.opacity(0.94)
+        selectedStroke = Color.white.opacity(0.16)
+        badgeFill = Color.black.opacity(0.08)
+        emphasisFill = accent.opacity(0.14)
+        emphasisText = accent.opacity(0.95)
+        emphasisSecondaryText = accent.opacity(0.8)
+        emphasisBadgeFill = accent.opacity(0.18)
+        shadow = Color.black.opacity(0.1)
+      }
     }
   }
 }

@@ -158,7 +158,7 @@ struct TerminalSidebarChromeView: View {
               pinnedSection
 
               if !terminal.pinnedTabs.isEmpty {
-                TerminalSidebarSectionDivider()
+                TerminalSidebarSectionDivider(palette: palette)
               }
 
               regularSection
@@ -467,9 +467,11 @@ struct TerminalSidebarChromeView: View {
 }
 
 private struct TerminalSidebarSectionDivider: View {
+  let palette: TerminalPalette
+
   var body: some View {
     RoundedRectangle(cornerRadius: 100, style: .continuous)
-      .fill(Color.white.opacity(0.3))
+      .fill(palette.divider)
       .frame(height: 1)
   }
 }
