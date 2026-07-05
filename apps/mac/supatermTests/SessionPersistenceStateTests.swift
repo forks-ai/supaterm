@@ -40,17 +40,17 @@ struct SessionPersistenceStateTests {
   }
 
   @Test
-  func quitTerminatingSessionsPersistsDefaultCatalogAndShortCircuits() {
+  func quitTerminatingSessionsFreezesLiveCatalogAndShortCircuits() {
     let state = SessionPersistenceState.afterTerminationDecision(
       reply: .terminateNow,
       terminatesSessions: true,
       liveCatalog: liveCatalog
     )
 
-    #expect(state == .quittingAfterSessionTermination)
+    #expect(state == .quittingAfterSessionTermination(liveCatalog))
     #expect(!state.allowsLiveSave)
     #expect(state.shortCircuitsTerminateReply)
-    #expect(state.catalogToPersist(liveCatalog: liveCatalog) == .default)
+    #expect(state.catalogToPersist(liveCatalog: TerminalSessionCatalog(windows: [])) == liveCatalog)
   }
 
   @Test
