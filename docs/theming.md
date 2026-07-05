@@ -1,6 +1,6 @@
 # Theming
 
-All chrome colors live in `TerminalPalette` (`apps/mac/supaterm/Features/Terminal/Views/TerminalChromeView.swift`), constructed per color scheme. Views never hardcode chrome colors; they read palette tokens. There are no sub-palettes: every surface — sidebar, command palette, dialogs, detail cards — follows the same recipe.
+All chrome colors live in `TerminalPalette` (`apps/mac/supaterm/Features/Terminal/Views/TerminalChromeView.swift`), constructed per color scheme. Views never hardcode chrome colors; they read palette tokens. There are no sub-palettes: every surface follows the same recipe.
 
 ## One theme color
 
@@ -19,22 +19,21 @@ All chrome is computed from `primary`, the color scheme, and white/black overlay
   - unselected row: `.clear` (cards/badges use `unselectedFill` = white/black 6%)
   - hover: white 55% (light) / 16% (dark)
   - pressed: white 70% (light) / 31% (dark)
-  - `TerminalSelectableRowButtonStyle` (`Sidebar/TerminalSidebarButtonStyles.swift`) packages the whole cascade for any selectable row: sidebar tabs and command palette rows both use it. The specular rim + glow edge belongs to the narrow sidebar pill; wide surfaces pass `showsSelectionEdge: false`.
 - **Selection inverts within the scheme**: the selected pill is solid white in light mode, near-black (`Color(white: 0.04)`) in dark mode, with `selectedText` flipping to match. `selectedSecondaryText`, `selectedPillFill`, and `selectedPillStroke` derive from `selectedText`, so they follow automatically.
-- **Selected pill edge** (dark mode is where it matters):
+- **Selected pill edge** — narrow sidebar pills only; wide surfaces skip it:
   - rim: 1pt `strokeBorder` with a diagonal gradient bright at the top-left and bottom-right corners (`selectedStrokeBright` white 35% → `selectedStrokeDim` white 8%), reading as a specular ring
   - glow: centered `.shadow` (`selectedShadow` white 15%, radius 5, no offset) — uniform on all sides, distinct from `shadow`, which is the black drop shadow for panels and panes
-- Text: `primaryText`/`secondaryText` are white/black at fixed opacities; they serve the whole chrome (dialogs, agent panel), not just the sidebar.
+- Text: `primaryText`/`secondaryText` are white/black at fixed opacities.
 
 ## Surfaces
 
-- **Blurred cards** (command palette, notification popover): `windowBackgroundTint` over a `.popover` blur, `detailStroke` hairline, `overlayShadow`/`shadow` drop shadow.
-- **Solid detail cards** (agent panel, sidebar scroll indicator): `detailBackground` = `primary` mixed 85% toward the scheme pole (black in dark, white in light).
-- **Dialogs are selected surfaces**: `selectedFill` outer card, `selectedPillFill` inner bezel, fields, and secondary buttons, `selectedText`-derived text throughout, `overlayShadow` drop shadow — no rim or glow; the specular edge stays on the sidebar pill. The scrim behind is `scrim` (black 40%).
+- **Blurred cards** (popovers, command palette): `windowBackgroundTint` over a popover blur with a `detailStroke` hairline.
+- **Solid detail cards** (agent panel): `detailBackground` = `primary` mixed 85% toward the scheme pole.
+- **Dialogs are selected surfaces**: `selectedFill` card, `selectedPillFill` bezel, fields, and secondary buttons, `selectedText`-derived text, over the black `scrim`.
 
 ## Content colors
 
-Fixed per-scheme colors that mark meaning, never interaction states: the accent tones (`amber`, `mint`, `sky`, `coral`, `violet`, `slate`), `attention`, and `dialogDestructiveFill`. The caret/accent color is `sky`. Still hardcoded outside the palette and deliberately deferred: `Color.accentColor` (unread badge, active agent dot, zoom button, split drop overlay), the update card's system orange/green, and the Ghostty progress bar states.
+Fixed per-scheme colors that mark meaning, never interaction states: the accent tones (`amber`, `mint`, `sky`, `coral`, `violet`, `slate`), `attention`, and `dialogDestructiveFill`. The accent is `sky`. A few semantic colors remain hardcoded outside the palette (system accent, update statuses, progress bar); migrating them is deferred.
 
 ## Inspiration
 
