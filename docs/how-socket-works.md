@@ -118,53 +118,12 @@ sp config validate
 
 ## Method Families
 
-App methods:
+The full method list lives in `SupatermSocketMethod` (`apps/mac/SupatermCLIShared/SupatermSocketProtocol.swift`):
 
-- `app.onboarding`
-- `app.debug`
-- `app.tree`
-
-System methods:
-
-- `system.identity`
-- `system.ping`
-
-Agent methods:
-
-- `terminal.agent_hook`
-
-Terminal methods:
-
-- `terminal.create_space`
-- `terminal.new_tab`
-- `terminal.new_pane`
-- `terminal.select_space`
-- `terminal.select_tab`
-- `terminal.focus_pane`
-- `terminal.last_pane`
-- `terminal.pane_health`
-- `terminal.close_space`
-- `terminal.close_tab`
-- `terminal.close_pane`
-- `terminal.rename_space`
-- `terminal.rename_tab`
-- `terminal.pin_tab`
-- `terminal.unpin_tab`
-- `terminal.next_space`
-- `terminal.previous_space`
-- `terminal.last_space`
-- `terminal.next_tab`
-- `terminal.previous_tab`
-- `terminal.last_tab`
-- `terminal.capture_pane`
-- `terminal.send_text`
-- `terminal.send_key`
-- `terminal.resize_pane`
-- `terminal.set_pane_size`
-- `terminal.equalize_panes`
-- `terminal.tile_panes`
-- `terminal.main_vertical_panes`
-- `terminal.notify`
+- `app.*` — onboarding, debug, tree
+- `system.*` — identity, ping
+- `terminal.agent_hook` — coding agent hook events
+- `terminal.*` — space, tab, and pane control, one method per CLI verb
 
 ## Code Index
 
@@ -172,7 +131,8 @@ Terminal methods:
 - `apps/mac/supaterm/SocketFeature/SocketControlFeature.swift` owns request semantics.
 - `apps/mac/supaterm/SocketFeature/SocketControlRuntime.swift` owns socket lifecycle and transport.
 - `apps/mac/SupatermCLIShared/` holds the shared IPC contract.
-- `apps/mac/SupatermCLIShared/SupatermSocketProtocol.swift` defines request and response types.
+- `apps/mac/SupatermCLIShared/SupatermSocketProtocol.swift` defines methods and the request and response envelope.
+- `apps/mac/SupatermCLIShared/SupatermSocketTerminalPayloads.swift`, `SupatermSocketSnapshots.swift`, and `SupatermSocketNotifications.swift` define the payload types.
 - `apps/mac/SupatermCLIShared/SupatermSocketPath.swift` defines endpoint resolution and discovery.
 - `apps/mac/SupatermCLIShared/SupatermCLIContext.swift` defines pane context passed through environment.
 - `apps/mac/SPCLI/` is the shared CLI implementation surface.

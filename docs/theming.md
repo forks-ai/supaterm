@@ -2,7 +2,7 @@
 
 All chrome colors live in `TerminalPalette` (`apps/mac/supaterm/Features/Terminal/Views/TerminalChromeView.swift`), constructed per color scheme. Views never hardcode chrome colors; they read palette tokens.
 
-## One stored color
+## One theme color
 
 The palette stores a single theme color:
 
@@ -10,7 +10,9 @@ The palette stores a single theme color:
 static let primary = Color(.displayP3, red: 0.89, green: 0.902, blue: 0.925)
 ```
 
-Everything else is computed from `primary`, the color scheme, and white/black overlays. Do not add stored per-state colors.
+All interactive chrome is computed from `primary`, the color scheme, and white/black overlays. Do not add stored per-state colors.
+
+The palette also carries fixed per-scheme content colors outside that rule: the accent tones (`amber`, `mint`, `sky`, `coral`, `violet`, `slate`), the dialog and detail surfaces, `dialogDestructiveFill`, and `attention`. They color content, not interaction states.
 
 ## Derivation rules
 

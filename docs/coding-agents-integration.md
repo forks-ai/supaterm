@@ -18,6 +18,7 @@ Supaterm owns pane context, socket transport, tab state, and notifications. An a
 - The app process is the only place that decides tab activity, pending input state, and desktop notification delivery.
 - Agent notifications are routed to the pane context first and then to the stored session surface when available.
 - Foreground session routing prevents restored or background sessions from stealing the panel, fork, copy, and tab activity surface.
+- The same shared activity model powers every agent, and desktop notification titles derive from the explicit agent kind.
 
 ## Shared Responsibilities
 
@@ -74,38 +75,28 @@ The app also exposes setup commands through:
 sp onboard
 ```
 
-## Claude
+## Hook Bridge
 
-Claude uses Supaterm's user settings hook bridge.
+Claude and Codex share the settings-file hook bridge.
 
-### Entry Point
+- Settings > Coding Agents exposes a toggle per agent. Turning it on installs hooks with `sp agent install-hook <agent>`; turning it off removes them with `sp agent remove-hook <agent>`.
+- On open, Settings reads the agent's settings file to reflect whether Supaterm-managed hooks are currently present.
+- A hook is Supaterm-managed when its `command`, lowercased, contains `supaterm`.
+- Install preserves unrelated settings, removes any existing Supaterm-managed hooks anywhere in the file, and then installs the canonical Supaterm hooks.
+- The installed hook command uses `SUPATERM_CLI_PATH` so the hook bridge targets the bundled `sp` binary injected into Supaterm panes, and passes `--pid "$PPID"` so Supaterm can track live agent processes.
+- The canonical hook fragment is also available from `sp internal agent-settings <agent>`.
+- On app launch, Supaterm silently refreshes installed Supaterm-managed hooks to the current canonical hook definition.
 
-- Supaterm exposes a Claude integration toggle in Settings > Coding Agents.
-- Turning the toggle on installs hooks with `sp agent install-hook claude`.
-- Turning the toggle off removes hooks with `sp agent remove-hook claude`.
-- On open, Settings reads `~/.claude/settings.json` to reflect whether Supaterm-managed hooks are currently present.
-- The CLI command preserves unrelated settings, removes any existing Supaterm-managed hooks anywhere in the file, and then installs the canonical Supaterm Claude hooks into the user settings file.
-- The installed hook command uses `SUPATERM_CLI_PATH` so the hook bridge targets the bundled `sp` binary injected into Supaterm panes.
-- On app launch, Supaterm silently refreshes installed Supaterm-managed Claude hooks to the current canonical hook definition.
+Installed hooks invoke `sp agent receive-agent-hook --agent <agent>`:
 
-### Hook Injection
-
-- Supaterm's canonical Claude hook fragment is also available from `sp internal agent-settings claude`.
-- The installed user settings tell Claude to invoke `sp agent receive-agent-hook --agent claude` for:
-  - `SessionStart`
-  - `PreToolUse`
-  - `Notification`
-  - `UserPromptSubmit`
-  - `Stop`
-  - `SessionEnd`
-
-### Event Forwarding
-
-- `sp agent receive-agent-hook` reads one agent hook event JSON object from stdin.
-- The caller must declare the agent explicitly with `--agent`.
-- Installed hooks also pass `--pid "$PPID"` so Supaterm can track live agent processes.
+- It reads one agent hook event JSON object from stdin; the caller must declare the agent explicitly with `--agent`.
 - It forwards that payload to the app over the socket method `terminal.agent_hook`.
 - The forwarded request carries the decoded event, the explicit agent kind, and the ambient `SupatermCLIContext` from the current pane.
+
+## Claude
+
+- Settings file: `~/.claude/settings.json`.
+- Installed hook events: `SessionStart`, `PreToolUse`, `Notification`, `UserPromptSubmit`, `Stop`, `SessionEnd`.
 
 ### App Behavior
 
@@ -129,30 +120,13 @@ The monitor understands task reminders, `TaskCreate`, `TaskUpdate`, `TodoWrite`,
 
 ## Codex
 
-Codex uses the same app-side bridge and tab-state model, with transcript lifecycle as the source of truth for detail and final running state.
+Codex uses the same bridge and tab-state model, with transcript lifecycle as the source of truth for detail and final running state.
 
-### Entry Point
-
-- Supaterm exposes a Codex integration toggle in Settings > Coding Agents.
-- Turning the toggle on installs hooks with `sp agent install-hook codex`.
-- Turning the toggle off removes hooks with `sp agent remove-hook codex`.
-- On open, Settings reads `~/.codex/hooks.json` to reflect whether Supaterm-managed hooks are currently present.
-- The install command enables the Codex hooks feature by running `codex features enable hooks` through the user's login shell.
-- The same install command preserves unrelated hooks, removes any existing Supaterm-managed hooks anywhere in the file, and then installs the canonical Supaterm Codex hooks into the user-scoped global file.
-- The install command also trusts the installed Supaterm hook commands in `~/.codex/config.toml`.
-- The remove command rewrites `~/.codex/hooks.json` and removes the matching Supaterm hook trust entries from `~/.codex/config.toml`.
-- The remove command does not disable the Codex hooks feature flag.
-- On app launch, Supaterm silently refreshes installed Supaterm-managed Codex hooks to the current canonical hook definition and trust state.
-
-### Hook Injection
-
-- Supaterm's canonical Codex hook fragment is also available from `sp internal agent-settings codex`.
-- The installed global hooks tell Codex to invoke `sp agent receive-agent-hook --agent codex` for:
-  - `PostToolUse`
-  - `PreToolUse`
-  - `SessionStart`
-  - `UserPromptSubmit`
-  - `Stop`
+- Settings file: `~/.codex/hooks.json`.
+- Installed hook events: `PostToolUse`, `PreToolUse`, `SessionStart`, `UserPromptSubmit`, `Stop`.
+- Install enables the Codex hooks feature by running `codex features enable hooks` through the user's login shell and trusts the installed Supaterm hook commands in `~/.codex/config.toml`.
+- Remove rewrites `~/.codex/hooks.json` and removes the matching Supaterm hook trust entries from `~/.codex/config.toml`; it does not disable the hooks feature flag.
+- The launch refresh also re-applies the trust state.
 
 ### App Behavior
 
@@ -175,10 +149,6 @@ The app binds Codex sessions to pane surfaces and turns Codex hook events into t
 - `event_msg` lines drive lifecycle, and non-final `agent_message` events can update live activity detail.
 - `response_item` lines only update live activity detail for non-final assistant messages.
 - While Codex is `running`, the sidebar tab row shows the tab-level running badge without inline activity text. Notification bodies remain available from the row hover popover.
-
-The same shared activity model powers every agent, and desktop notification titles derive from the explicit agent kind.
-
-Supaterm currently treats a hook as Supaterm-managed when its `command`, lowercased, contains `supaterm`.
 
 ## Pi
 

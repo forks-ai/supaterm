@@ -55,6 +55,7 @@ Useful macOS development commands:
 
 ```bash
 make mac-generate       # Generate the Xcode workspace
+make mac-xcode-open     # Open the Xcode workspace
 make mac-build          # Debug build
 make mac-run            # Debug run with isolated ephemeral state
 make mac-inspect-dependencies # Check Tuist dependency graph hygiene
@@ -125,10 +126,13 @@ Panes inherit Supaterm context from the running app:
 - `SUPATERM_STATE_HOME` when an app state root is configured
 - `SUPATERM_SURFACE_ID`
 - `SUPATERM_TAB_ID`
+- `ZMX_DIR`, `ZMX_SESSION`, and `ZMX_SESSION_PREFIX` when zmx sessions are enabled (the default)
 
 The app also prepends the bundled CLI directory to pane `PATH`.
 
 ## Website
+
+Web targets run through `vp`; `mise install` installs it via the postinstall hook.
 
 Install dependencies:
 
