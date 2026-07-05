@@ -5,17 +5,19 @@ struct TerminalSelectableRowButtonStyle: ButtonStyle {
   let isSelected: Bool
   let isHovering: Bool
   let cornerRadius: CGFloat
+  var showsSelectionEdge = true
   var restFill: Color = .clear
 
   func makeBody(configuration: Configuration) -> some View {
     let shape = RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+    let hasEdge = isSelected && showsSelectionEdge
     configuration.label
       .background(fill(isPressed: configuration.isPressed))
       .clipShape(shape)
-      .overlay(shape.strokeBorder(palette.selectedStroke.opacity(isSelected ? 1 : 0), lineWidth: 1))
+      .overlay(shape.strokeBorder(palette.selectedStroke.opacity(hasEdge ? 1 : 0), lineWidth: 1))
       .shadow(
-        color: isSelected ? palette.selectedShadow : .clear,
-        radius: isSelected ? 5 : 0
+        color: hasEdge ? palette.selectedShadow : .clear,
+        radius: hasEdge ? 5 : 0
       )
       .contentShape(shape)
   }

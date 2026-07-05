@@ -32,11 +32,6 @@ private struct DialogChrome<Content: View>: View {
         }
         .padding(3)
         .background(palette.selectedFill, in: .rect(cornerRadius: 14))
-        .overlay {
-          RoundedRectangle(cornerRadius: 14, style: .continuous)
-            .strokeBorder(palette.selectedStroke, lineWidth: 1)
-        }
-        .shadow(color: palette.selectedShadow, radius: 5)
         .shadow(color: palette.overlayShadow, radius: 20, y: 8)
         .terminalTransition(dialogTransition, reduceMotion: reduceMotion)
     }

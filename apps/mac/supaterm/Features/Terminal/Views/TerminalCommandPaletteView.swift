@@ -268,6 +268,7 @@ private struct CommandPaletteRowButton: View {
         isSelected: isSelected,
         isHovering: isHovered,
         cornerRadius: 5,
+        showsSelectionEdge: false,
         restFill: row.emphasis ? palette.unselectedFill : .clear
       )
     )

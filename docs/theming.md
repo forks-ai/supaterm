@@ -19,7 +19,7 @@ All chrome is computed from `primary`, the color scheme, and white/black overlay
   - unselected row: `.clear` (cards/badges use `unselectedFill` = white/black 6%)
   - hover: white 55% (light) / 16% (dark)
   - pressed: white 70% (light) / 31% (dark)
-  - `TerminalSelectableRowButtonStyle` (`Sidebar/TerminalSidebarButtonStyles.swift`) packages the whole cascade — fill, specular rim, glow — for any selectable row: sidebar tabs and command palette rows both use it.
+  - `TerminalSelectableRowButtonStyle` (`Sidebar/TerminalSidebarButtonStyles.swift`) packages the whole cascade for any selectable row: sidebar tabs and command palette rows both use it. The specular rim + glow edge belongs to the narrow sidebar pill; wide surfaces pass `showsSelectionEdge: false`.
 - **Selection inverts within the scheme**: the selected pill is solid white in light mode, near-black (`Color(white: 0.04)`) in dark mode, with `selectedText` flipping to match. `selectedSecondaryText`, `selectedPillFill`, and `selectedPillStroke` derive from `selectedText`, so they follow automatically.
 - **Selected pill edge** (dark mode is where it matters):
   - rim: 1pt `strokeBorder` with a diagonal gradient bright at the top-left and bottom-right corners (`selectedStrokeBright` white 35% → `selectedStrokeDim` white 8%), reading as a specular ring
@@ -30,7 +30,7 @@ All chrome is computed from `primary`, the color scheme, and white/black overlay
 
 - **Blurred cards** (command palette, notification popover): `windowBackgroundTint` over a `.popover` blur, `detailStroke` hairline, `overlayShadow`/`shadow` drop shadow.
 - **Solid detail cards** (agent panel, sidebar scroll indicator): `detailBackground` = `primary` mixed 85% toward the scheme pole (black in dark, white in light).
-- **Dialogs are selected surfaces**: the card is the selected pill scaled up — `selectedFill` outer card with the `selectedStroke` rim and `selectedShadow` glow, `selectedPillFill` inner bezel, fields, and secondary buttons, `selectedText`-derived text throughout. The scrim behind is `scrim` (black 40%).
+- **Dialogs are selected surfaces**: `selectedFill` outer card, `selectedPillFill` inner bezel, fields, and secondary buttons, `selectedText`-derived text throughout, `overlayShadow` drop shadow — no rim or glow; the specular edge stays on the sidebar pill. The scrim behind is `scrim` (black 40%).
 
 ## Content colors
 
