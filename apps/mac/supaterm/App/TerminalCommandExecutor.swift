@@ -15,7 +15,6 @@ final class TerminalCommandExecutor {
     registry: TerminalWindowRegistry,
     agentRunningTimeout: Duration = .seconds(30),
     transcriptPollInterval: Duration = .seconds(1),
-    claudeTasksHomeDirectoryURL: URL = FileManager.default.homeDirectoryForCurrentUser,
     clock: C = ContinuousClock()
   ) {
     self.registry = registry
@@ -25,7 +24,6 @@ final class TerminalCommandExecutor {
     agentSessionStore = TerminalAgentSessionStore(
       agentRunningTimeout: agentRunningTimeout,
       transcriptPollInterval: transcriptPollInterval,
-      claudeTasksHomeDirectoryURL: claudeTasksHomeDirectoryURL,
       sleep: sleep
     )
     agentSessionStore.onMonitorSnapshot = { [weak self] snapshot, agent, sessionID, context in

@@ -111,12 +111,9 @@ The app binds Claude sessions to pane surfaces, tracks the foreground session fo
 - `SessionEnd` clears the tab activity and drops the stored session state.
 - A command-finished signal from the shell clears pane-bound agent sessions and presence.
 
-The panel monitor reads Claude task progress from:
+The panel monitor reads Claude task progress from the hook `transcript_path`.
 
-- `~/.claude/tasks/<sanitized-session-id>/*.json`
-- the hook `transcript_path` when one is present
-
-The monitor understands task reminders, `TaskCreate`, `TaskUpdate`, `TodoWrite`, and goal status records. It filters internal task rows and keeps recently completed rows visible briefly.
+The monitor understands task reminders, `TaskCreate`, `TaskUpdate`, `TodoWrite`, and goal status records. It filters internal task rows and orders tasks by task ID, matching how Claude Code renders its own task list.
 
 ## Codex
 

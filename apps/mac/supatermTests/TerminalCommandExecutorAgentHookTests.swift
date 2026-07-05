@@ -39,26 +39,39 @@ struct TerminalCommandExecutorAgentHookTests {
   }
   @Test
   func claudeSessionStartStoresTaskProgressRows() throws {
-    let homeDirectoryURL = try ClaudeProgressFixtures.makeHomeDirectory()
-    defer { try? FileManager.default.removeItem(at: homeDirectoryURL) }
-    try ClaudeProgressFixtures.writeTask(
-      id: "task-1",
-      subject: "Wire progress rows",
-      status: "in_progress",
-      sessionID: ClaudeHookFixtures.sessionID,
-      homeDirectoryURL: homeDirectoryURL
+    let transcriptURL = try ClaudeProgressFixtures.makeTranscript()
+    defer { try? FileManager.default.removeItem(at: transcriptURL.deletingLastPathComponent()) }
+    try ClaudeProgressFixtures.appendTaskReminder(
+      [
+        [
+          "id": "1",
+          "subject": "Wire progress rows",
+          "status": "in_progress",
+          "blockedBy": [],
+        ]
+      ],
+      to: transcriptURL
     )
-    let harness = try makeClaudeHookHarness(claudeTasksHomeDirectoryURL: homeDirectoryURL)
+    let harness = try makeClaudeHookHarness()
 
     _ = try harness.commandExecutor.handleAgentHook(
-      ClaudeHookFixtures.request(ClaudeHookFixtures.sessionStart, context: harness.context)
+      SupatermAgentHookRequest(
+        agent: .claude,
+        context: harness.context,
+        event: SupatermAgentHookEvent(
+          cwd: ClaudeHookFixtures.cwd,
+          hookEventName: .sessionStart,
+          sessionID: ClaudeHookFixtures.sessionID,
+          transcriptPath: transcriptURL.path
+        )
+      )
     )
 
     #expect(harness.host.agentActivity(for: harness.tabID) == nil)
     #expect(
       harness.host.agentPanelPresentation(for: harness.context.surfaceID)?.progressRows == [
         PaneAgentProgressRow(
-          id: "claude-task:task-1",
+          id: "claude-task:1",
           title: "Wire progress rows",
           status: .running
         )
@@ -368,19 +381,32 @@ struct TerminalCommandExecutorAgentHookTests {
   }
   @Test
   func claudeSessionEndClearsTaskProgressRows() throws {
-    let homeDirectoryURL = try ClaudeProgressFixtures.makeHomeDirectory()
-    defer { try? FileManager.default.removeItem(at: homeDirectoryURL) }
-    try ClaudeProgressFixtures.writeTask(
-      id: "task-1",
-      subject: "Wire progress rows",
-      status: "completed",
-      sessionID: ClaudeHookFixtures.sessionID,
-      homeDirectoryURL: homeDirectoryURL
+    let transcriptURL = try ClaudeProgressFixtures.makeTranscript()
+    defer { try? FileManager.default.removeItem(at: transcriptURL.deletingLastPathComponent()) }
+    try ClaudeProgressFixtures.appendTaskReminder(
+      [
+        [
+          "id": "1",
+          "subject": "Wire progress rows",
+          "status": "completed",
+          "blockedBy": [],
+        ]
+      ],
+      to: transcriptURL
     )
-    let harness = try makeClaudeHookHarness(claudeTasksHomeDirectoryURL: homeDirectoryURL)
+    let harness = try makeClaudeHookHarness()
 
     _ = try harness.commandExecutor.handleAgentHook(
-      ClaudeHookFixtures.request(ClaudeHookFixtures.sessionStart, context: harness.context)
+      SupatermAgentHookRequest(
+        agent: .claude,
+        context: harness.context,
+        event: SupatermAgentHookEvent(
+          cwd: ClaudeHookFixtures.cwd,
+          hookEventName: .sessionStart,
+          sessionID: ClaudeHookFixtures.sessionID,
+          transcriptPath: transcriptURL.path
+        )
+      )
     )
     #expect(harness.host.agentPanelPresentation(for: harness.context.surfaceID) != nil)
 

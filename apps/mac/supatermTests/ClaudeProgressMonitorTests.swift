@@ -5,140 +5,6 @@ import Testing
 
 struct ClaudeProgressMonitorTests {
   @Test
-  func taskFilesProduceProgressRows() throws {
-    let homeDirectoryURL = try ClaudeProgressFixtures.makeHomeDirectory()
-    defer { try? FileManager.default.removeItem(at: homeDirectoryURL) }
-
-    try ClaudeProgressFixtures.writeTask(
-      id: "task-2",
-      subject: "Wire panel rows",
-      status: "in_progress",
-      sessionID: "session:123",
-      homeDirectoryURL: homeDirectoryURL,
-      filename: "2.json"
-    )
-    try ClaudeProgressFixtures.writeTask(
-      id: "task-1",
-      subject: "Read tasks",
-      status: "completed",
-      sessionID: "session:123",
-      homeDirectoryURL: homeDirectoryURL,
-      filename: "1.json"
-    )
-    try ClaudeProgressFixtures.writeTask(
-      id: "task-internal",
-      subject: "Internal task",
-      status: "pending",
-      sessionID: "session:123",
-      homeDirectoryURL: homeDirectoryURL,
-      filename: "3.json",
-      metadata: ["_internal": true]
-    )
-
-    #expect(
-      ClaudeTaskProgressReader.progressRows(
-        sessionID: "session:123",
-        homeDirectoryURL: homeDirectoryURL
-      ) == [
-        PaneAgentProgressRow(
-          id: "claude-task:task-1",
-          title: "Read tasks",
-          status: .completed
-        ),
-        PaneAgentProgressRow(
-          id: "claude-task:task-2",
-          title: "Wire panel rows",
-          status: .running
-        ),
-      ]
-    )
-  }
-
-  @Test
-  func taskFilesUseClaudeCodeCompactOrder() throws {
-    let homeDirectoryURL = try ClaudeProgressFixtures.makeHomeDirectory()
-    defer { try? FileManager.default.removeItem(at: homeDirectoryURL) }
-    let now = Date(timeIntervalSince1970: 1_700_000_000)
-
-    try ClaudeProgressFixtures.writeTask(
-      id: "1",
-      subject: "Blocked pending",
-      status: "pending",
-      sessionID: "session:123",
-      homeDirectoryURL: homeDirectoryURL,
-      blockedBy: ["2"]
-    )
-    try ClaudeProgressFixtures.writeTask(
-      id: "2",
-      subject: "Current task",
-      status: "in_progress",
-      sessionID: "session:123",
-      homeDirectoryURL: homeDirectoryURL
-    )
-    try ClaudeProgressFixtures.writeTask(
-      id: "3",
-      subject: "Recent completion",
-      status: "completed",
-      sessionID: "session:123",
-      homeDirectoryURL: homeDirectoryURL
-    )
-    try ClaudeProgressFixtures.writeTask(
-      id: "4",
-      subject: "Older completion",
-      status: "completed",
-      sessionID: "session:123",
-      homeDirectoryURL: homeDirectoryURL
-    )
-    try ClaudeProgressFixtures.writeTask(
-      id: "5",
-      subject: "Available pending",
-      status: "pending",
-      sessionID: "session:123",
-      homeDirectoryURL: homeDirectoryURL
-    )
-    try setTaskModificationDate(
-      now.addingTimeInterval(-31),
-      id: "4",
-      sessionID: "session:123",
-      homeDirectoryURL: homeDirectoryURL
-    )
-
-    #expect(
-      ClaudeTaskProgressReader.progressRows(
-        sessionID: "session:123",
-        homeDirectoryURL: homeDirectoryURL,
-        now: now
-      ) == [
-        PaneAgentProgressRow(
-          id: "claude-task:3",
-          title: "Recent completion",
-          status: .completed
-        ),
-        PaneAgentProgressRow(
-          id: "claude-task:2",
-          title: "Current task",
-          status: .running
-        ),
-        PaneAgentProgressRow(
-          id: "claude-task:5",
-          title: "Available pending",
-          status: .pending
-        ),
-        PaneAgentProgressRow(
-          id: "claude-task:1",
-          title: "Blocked pending",
-          status: .pending
-        ),
-        PaneAgentProgressRow(
-          id: "claude-task:4",
-          title: "Older completion",
-          status: .completed
-        ),
-      ]
-    )
-  }
-
-  @Test
   func todoWriteTranscriptProducesProgressRows() throws {
     let transcriptURL = try ClaudeProgressFixtures.makeTranscript()
     defer { try? FileManager.default.removeItem(at: transcriptURL.deletingLastPathComponent()) }
@@ -244,9 +110,7 @@ struct ClaudeProgressMonitorTests {
 
   @MainActor
   @Test
-  func panelMonitorKeepsGoalRowWhenTaskFilesExist() throws {
-    let homeDirectoryURL = try ClaudeProgressFixtures.makeHomeDirectory()
-    defer { try? FileManager.default.removeItem(at: homeDirectoryURL) }
+  func panelMonitorPrependsGoalRowToTaskRows() throws {
     let transcriptURL = try ClaudeProgressFixtures.makeTranscript()
     defer { try? FileManager.default.removeItem(at: transcriptURL.deletingLastPathComponent()) }
 
@@ -255,19 +119,19 @@ struct ClaudeProgressMonitorTests {
       met: false,
       to: transcriptURL
     )
-    try ClaudeProgressFixtures.writeTask(
-      id: "1",
-      subject: "Task file row",
-      status: "in_progress",
-      sessionID: "session:123",
-      homeDirectoryURL: homeDirectoryURL
+    try ClaudeProgressFixtures.appendTaskReminder(
+      [
+        [
+          "id": "1",
+          "subject": "Task row",
+          "status": "in_progress",
+          "blockedBy": [],
+        ]
+      ],
+      to: transcriptURL
     )
 
-    let monitor = ClaudePanelMonitor(
-      sessionID: "session:123",
-      homeDirectoryURL: homeDirectoryURL,
-      transcriptPath: { transcriptURL.path }
-    )
+    let monitor = ClaudePanelMonitor(transcriptPath: { transcriptURL.path })
     let tick = try #require(monitor.start())
 
     #expect(
@@ -280,7 +144,7 @@ struct ClaudeProgressMonitorTests {
         ),
         PaneAgentProgressRow(
           id: "claude-task:1",
-          title: "Task file row",
+          title: "Task row",
           status: .running
         ),
       ]
@@ -318,6 +182,59 @@ struct ClaudeProgressMonitorTests {
           title: "Wire transcript tasks",
           status: .running
         )
+      ]
+    )
+  }
+
+  @Test
+  func transcriptTasksKeepTaskIDOrderAcrossStatusChanges() throws {
+    let transcriptURL = try ClaudeProgressFixtures.makeTranscript()
+    defer { try? FileManager.default.removeItem(at: transcriptURL.deletingLastPathComponent()) }
+
+    try ClaudeProgressFixtures.appendTaskReminder(
+      [
+        ["id": "1", "subject": "Phase A", "status": "completed", "blockedBy": []],
+        ["id": "2", "subject": "Phase B1", "status": "in_progress", "blockedBy": []],
+        ["id": "3", "subject": "Phase B2", "status": "pending", "blockedBy": []],
+        ["id": "10", "subject": "Phase C", "status": "pending", "blockedBy": []],
+      ],
+      to: transcriptURL
+    )
+    try ClaudeProgressFixtures.appendTaskUpdate(
+      taskID: "2",
+      status: "completed",
+      to: transcriptURL
+    )
+    try ClaudeProgressFixtures.appendTaskUpdate(
+      taskID: "3",
+      status: "in_progress",
+      to: transcriptURL
+    )
+
+    let result = ClaudeTranscriptProgressMonitor.start(at: transcriptURL.path)
+
+    #expect(
+      result.rows == [
+        PaneAgentProgressRow(
+          id: "claude-task:1",
+          title: "Phase A",
+          status: .completed
+        ),
+        PaneAgentProgressRow(
+          id: "claude-task:2",
+          title: "Phase B1",
+          status: .completed
+        ),
+        PaneAgentProgressRow(
+          id: "claude-task:3",
+          title: "Phase B2",
+          status: .running
+        ),
+        PaneAgentProgressRow(
+          id: "claude-task:10",
+          title: "Phase C",
+          status: .pending
+        ),
       ]
     )
   }
@@ -377,7 +294,6 @@ struct ClaudeProgressMonitorTests {
     )
     try ClaudeProgressFixtures.appendTaskReminder(
       [],
-      timestamp: "2026-05-26T15:50:28.000Z",
       to: transcriptURL
     )
 
@@ -425,23 +341,5 @@ struct ClaudeProgressMonitorTests {
 
     #expect(result.cursor.transcriptOffset == start.cursor.transcriptOffset)
     #expect(result.rows == nil)
-  }
-
-  private func setTaskModificationDate(
-    _ date: Date,
-    id: String,
-    sessionID: String,
-    homeDirectoryURL: URL
-  ) throws {
-    let taskURL =
-      homeDirectoryURL
-      .appendingPathComponent(".claude", isDirectory: true)
-      .appendingPathComponent("tasks", isDirectory: true)
-      .appendingPathComponent(
-        ClaudeTaskProgressReader.sanitizedTaskListID(sessionID),
-        isDirectory: true
-      )
-      .appendingPathComponent("\(id).json")
-    try FileManager.default.setAttributes([.modificationDate: date], ofItemAtPath: taskURL.path)
   }
 }

@@ -22,8 +22,6 @@ private struct ClaudeProgressTask: Equatable {
   var taskID: String
   var title: String
   var status: PaneAgentProgressRow.Status
-  var blockedBy: [String]
-  var modificationDate: Date?
   var metadata: JSONObject
 
   var isInternal: Bool {
@@ -46,112 +44,8 @@ private struct ClaudeProgressTask: Equatable {
   }
 }
 
-private enum ClaudeProgressTaskOrdering {
-  static let recentCompletedInterval: TimeInterval = 30
-
-  static func rows(
-    _ tasks: [ClaudeProgressTask],
-    now: Date = Date()
-  ) -> [PaneAgentProgressRow] {
-    let visibleTasks = tasks.filter { !$0.isInternal }
-    let unresolvedIDs = Set(visibleTasks.filter { $0.status != .completed }.map(\.taskID))
-    return visibleTasks.sorted { lhs, rhs in
-      let lhsBucket = displayBucket(lhs, now: now)
-      let rhsBucket = displayBucket(rhs, now: now)
-      if lhsBucket != rhsBucket {
-        return lhsBucket < rhsBucket
-      }
-      if lhsBucket == 2 {
-        let lhsBlocked = lhs.blockedBy.contains { unresolvedIDs.contains($0) }
-        let rhsBlocked = rhs.blockedBy.contains { unresolvedIDs.contains($0) }
-        if lhsBlocked != rhsBlocked {
-          return !lhsBlocked
-        }
-      }
-      return lhs.precedes(rhs)
-    }.map(\.row)
-  }
-
-  private static func displayBucket(
-    _ task: ClaudeProgressTask,
-    now: Date
-  ) -> Int {
-    switch task.status {
-    case .completed:
-      if let modificationDate = task.modificationDate,
-        now.timeIntervalSince(modificationDate) < recentCompletedInterval
-      {
-        return 0
-      }
-      return 3
-    case .running:
-      return 1
-    case .pending:
-      return 2
-    }
-  }
-}
-
-enum ClaudeTaskProgressReader {
-  static func progressRows(
-    sessionID: String,
-    homeDirectoryURL: URL,
-    now: Date = Date()
-  ) -> [PaneAgentProgressRow] {
-    let taskDirectoryURL =
-      homeDirectoryURL
-      .appendingPathComponent(".claude", isDirectory: true)
-      .appendingPathComponent("tasks", isDirectory: true)
-      .appendingPathComponent(sanitizedTaskListID(sessionID), isDirectory: true)
-    let taskURLs =
-      (try? FileManager.default.contentsOfDirectory(
-        at: taskDirectoryURL,
-        includingPropertiesForKeys: nil
-      )) ?? []
-    let rows =
-      taskURLs
-      .filter { $0.pathExtension == "json" }
-      .compactMap(progressTask)
-
-    return ClaudeProgressTaskOrdering.rows(rows, now: now)
-  }
-
-  static func sanitizedTaskListID(_ value: String) -> String {
-    let allowed = CharacterSet.alphanumerics.union(CharacterSet(charactersIn: "_-"))
-    return String(
-      value.unicodeScalars.map { scalar in
-        allowed.contains(scalar) ? Character(scalar) : "-"
-      }
-    )
-  }
-
-  private static func progressTask(
-    at url: URL
-  ) -> ClaudeProgressTask? {
-    guard
-      let data = try? Data(contentsOf: url),
-      let object = (try? JSONDecoder().decode(JSONValue.self, from: data))?.objectValue,
-      object["metadata"]?.objectValue?["_internal"] != .bool(true),
-      let id = object["id"]?.stringValue,
-      let title = AgentProgressParsing.normalizedTitle(object["subject"]?.stringValue)
-    else {
-      return nil
-    }
-    return ClaudeProgressTask(
-      taskID: id,
-      title: title,
-      status: AgentProgressParsing.status(object["status"]?.stringValue),
-      blockedBy: object["blockedBy"]?.arrayValue?.compactMap(\.stringValue) ?? [],
-      modificationDate: (try? url.resourceValues(forKeys: [.contentModificationDateKey]))
-        .flatMap(\.contentModificationDate),
-      metadata: object["metadata"]?.objectValue ?? [:]
-    )
-  }
-}
-
 private struct ClaudePendingTask: Equatable {
   var title: String
-  var blockedBy: [String]
   var metadata: JSONObject
 }
 
@@ -161,27 +55,23 @@ private struct ClaudeTranscriptTaskState: Equatable {
   var goalRow: PaneAgentProgressRow?
 
   mutating func apply(_ object: JSONObject) -> [PaneAgentProgressRow]? {
-    let timestamp = Self.timestamp(in: object) ?? Date()
     if let rows = applyGoalStatus(object) {
       return rows
     }
-    if let rows = applyTaskReminder(object, timestamp: timestamp) {
+    if let rows = applyTaskReminder(object) {
       return rows
     }
     switch object["type"]?.stringValue {
     case "assistant":
-      return applyAssistantLine(object, timestamp: timestamp)
+      return applyAssistantLine(object)
     case "user":
-      return applyUserLine(object, timestamp: timestamp)
+      return applyUserLine(object)
     default:
       return nil
     }
   }
 
-  private mutating func applyTaskReminder(
-    _ object: JSONObject,
-    timestamp: Date
-  ) -> [PaneAgentProgressRow]? {
+  private mutating func applyTaskReminder(_ object: JSONObject) -> [PaneAgentProgressRow]? {
     guard
       object["type"]?.stringValue == "attachment",
       let attachment = object["attachment"]?.objectValue,
@@ -192,20 +82,16 @@ private struct ClaudeTranscriptTaskState: Equatable {
     }
     tasks.removeAll()
     for value in content {
-      guard var task = Self.task(from: value.objectValue, timestamp: timestamp) else {
+      guard let task = Self.task(from: value.objectValue) else {
         continue
       }
-      task.modificationDate = timestamp
       tasks[task.taskID] = task
     }
     pendingCreates.removeAll()
     return displayRows(taskRows())
   }
 
-  private mutating func applyAssistantLine(
-    _ object: JSONObject,
-    timestamp: Date
-  ) -> [PaneAgentProgressRow]? {
+  private mutating func applyAssistantLine(_ object: JSONObject) -> [PaneAgentProgressRow]? {
     guard let content = object["message"]?.objectValue?["content"]?.arrayValue else { return nil }
     var didChangeTasks = false
     var latestTodoRows: [PaneAgentProgressRow]?
@@ -217,28 +103,23 @@ private struct ClaudeTranscriptTaskState: Equatable {
       }
       switch toolUse["name"]?.stringValue {
       case "TaskCreate":
-        didChangeTasks = applyTaskCreate(toolUse, timestamp: timestamp) || didChangeTasks
+        didChangeTasks = applyTaskCreate(toolUse) || didChangeTasks
       case "TaskUpdate":
-        didChangeTasks = applyTaskUpdate(toolUse, timestamp: timestamp) || didChangeTasks
+        didChangeTasks = applyTaskUpdate(toolUse) || didChangeTasks
       case "TodoWrite":
         latestTodoRows = Self.todoWriteRows(in: toolUse)
       default:
         continue
       }
     }
-    if let latestTodoRows {
-      if taskRows().isEmpty {
-        return displayRows(latestTodoRows)
-      }
+    if let latestTodoRows, taskRows().isEmpty {
+      return displayRows(latestTodoRows)
     }
     guard didChangeTasks else { return nil }
     return displayRows(taskRows())
   }
 
-  private mutating func applyUserLine(
-    _ object: JSONObject,
-    timestamp: Date
-  ) -> [PaneAgentProgressRow]? {
+  private mutating func applyUserLine(_ object: JSONObject) -> [PaneAgentProgressRow]? {
     guard
       let content = object["message"]?.objectValue?["content"]?.arrayValue,
       let resultObject = object["toolUseResult"]?.objectValue?["task"]?.objectValue,
@@ -264,8 +145,6 @@ private struct ClaudeTranscriptTaskState: Equatable {
         taskID: taskID,
         title: title,
         status: .pending,
-        blockedBy: pending?.blockedBy ?? [],
-        modificationDate: timestamp,
         metadata: pending?.metadata ?? [:]
       )
       didChangeTasks = true
@@ -274,25 +153,19 @@ private struct ClaudeTranscriptTaskState: Equatable {
     return displayRows(taskRows())
   }
 
-  private mutating func applyTaskCreate(
-    _ toolUse: JSONObject,
-    timestamp: Date
-  ) -> Bool {
+  private mutating func applyTaskCreate(_ toolUse: JSONObject) -> Bool {
     guard
       let input = toolUse["input"]?.objectValue,
       let title = AgentProgressParsing.normalizedTitle(input["subject"]?.stringValue)
     else {
       return false
     }
-    let blockedBy = input["blockedBy"]?.arrayValue?.compactMap(\.stringValue) ?? []
     let metadata = input["metadata"]?.objectValue ?? [:]
     if let taskID = input["id"]?.stringValue {
       tasks[taskID] = ClaudeProgressTask(
         taskID: taskID,
         title: title,
         status: .pending,
-        blockedBy: blockedBy,
-        modificationDate: timestamp,
         metadata: metadata
       )
       return true
@@ -300,16 +173,12 @@ private struct ClaudeTranscriptTaskState: Equatable {
     guard let toolUseID = toolUse["id"]?.stringValue else { return false }
     pendingCreates[toolUseID] = ClaudePendingTask(
       title: title,
-      blockedBy: blockedBy,
       metadata: metadata
     )
     return false
   }
 
-  private mutating func applyTaskUpdate(
-    _ toolUse: JSONObject,
-    timestamp: Date
-  ) -> Bool {
+  private mutating func applyTaskUpdate(_ toolUse: JSONObject) -> Bool {
     guard
       let input = toolUse["input"]?.objectValue,
       let taskID = input["taskId"]?.stringValue
@@ -327,8 +196,6 @@ private struct ClaudeTranscriptTaskState: Equatable {
         taskID: taskID,
         title: title,
         status: AgentProgressParsing.status(input["status"]?.stringValue),
-        blockedBy: input["addBlockedBy"]?.arrayValue?.compactMap(\.stringValue) ?? [],
-        modificationDate: timestamp,
         metadata: input["metadata"]?.objectValue ?? [:]
       )
       return true
@@ -339,11 +206,6 @@ private struct ClaudeTranscriptTaskState: Equatable {
     if input["status"]?.stringValue != nil {
       task.status = AgentProgressParsing.status(input["status"]?.stringValue)
     }
-    if let blockedBy = input["addBlockedBy"]?.arrayValue?.compactMap(\.stringValue),
-      !blockedBy.isEmpty
-    {
-      task.blockedBy.append(contentsOf: blockedBy.filter { !task.blockedBy.contains($0) })
-    }
     if let metadata = input["metadata"]?.objectValue {
       for (key, value) in metadata {
         if value == .null {
@@ -353,16 +215,18 @@ private struct ClaudeTranscriptTaskState: Equatable {
         }
       }
     }
-    task.modificationDate = timestamp
     tasks[taskID] = task
     return true
   }
 
   private func taskRows() -> [PaneAgentProgressRow] {
-    ClaudeProgressTaskOrdering.rows(Array(tasks.values))
+    tasks.values
+      .filter { !$0.isInternal }
+      .sorted { $0.precedes($1) }
+      .map(\.row)
   }
 
-  func displayRows(_ rows: [PaneAgentProgressRow]) -> [PaneAgentProgressRow] {
+  private func displayRows(_ rows: [PaneAgentProgressRow]) -> [PaneAgentProgressRow] {
     if let goalRow {
       return [goalRow] + rows
     }
@@ -393,10 +257,7 @@ private struct ClaudeTranscriptTaskState: Equatable {
     )
   }
 
-  private static func task(
-    from object: JSONObject?,
-    timestamp: Date
-  ) -> ClaudeProgressTask? {
+  private static func task(from object: JSONObject?) -> ClaudeProgressTask? {
     guard
       let object,
       let id = object["id"]?.stringValue,
@@ -408,8 +269,6 @@ private struct ClaudeTranscriptTaskState: Equatable {
       taskID: id,
       title: title,
       status: AgentProgressParsing.status(object["status"]?.stringValue),
-      blockedBy: object["blockedBy"]?.arrayValue?.compactMap(\.stringValue) ?? [],
-      modificationDate: timestamp,
       metadata: object["metadata"]?.objectValue ?? [:]
     )
   }
@@ -437,38 +296,16 @@ private struct ClaudeTranscriptTaskState: Equatable {
     }
     return rows
   }
-
-  private static func timestamp(in object: JSONObject) -> Date? {
-    guard let value = object["timestamp"]?.stringValue else { return nil }
-    return fractionalTimestampFormatter.date(from: value)
-      ?? timestampFormatter.date(from: value)
-  }
-
-  private static let fractionalTimestampFormatter: ISO8601DateFormatter = {
-    let formatter = ISO8601DateFormatter()
-    formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
-    return formatter
-  }()
-
-  private static let timestampFormatter = ISO8601DateFormatter()
 }
 
 @MainActor
 final class ClaudePanelMonitor: AgentPanelMonitor {
-  private let sessionID: String
-  private let homeDirectoryURL: URL
   private let transcriptPath: () -> String?
   private var cursor: ClaudeProgressCursor
   private var transcriptRows: [PaneAgentProgressRow]
   private var currentSnapshot: AgentMonitorSnapshot?
 
-  init(
-    sessionID: String,
-    homeDirectoryURL: URL,
-    transcriptPath: @escaping () -> String?
-  ) {
-    self.sessionID = sessionID
-    self.homeDirectoryURL = homeDirectoryURL
+  init(transcriptPath: @escaping () -> String?) {
     self.transcriptPath = transcriptPath
     let initialProgress =
       transcriptPath().map { ClaudeTranscriptProgressMonitor.start(at: $0) }
@@ -478,7 +315,7 @@ final class ClaudePanelMonitor: AgentPanelMonitor {
   }
 
   func start() -> AgentPanelMonitorTick? {
-    let snapshot = panelSnapshot()
+    let snapshot = AgentMonitorSnapshot(progressRows: transcriptRows)
     currentSnapshot = snapshot
     return AgentPanelMonitorTick(snapshot: snapshot, isFinal: false)
   }
@@ -492,22 +329,10 @@ final class ClaudePanelMonitor: AgentPanelMonitor {
         transcriptRows = rows
       }
     }
-    let nextSnapshot = panelSnapshot()
+    let nextSnapshot = AgentMonitorSnapshot(progressRows: transcriptRows)
     guard nextSnapshot != currentSnapshot else { return nil }
     currentSnapshot = nextSnapshot
     return AgentPanelMonitorTick(snapshot: nextSnapshot, isFinal: false)
-  }
-
-  private func panelSnapshot() -> AgentMonitorSnapshot {
-    let taskRows = ClaudeTaskProgressReader.progressRows(
-      sessionID: sessionID,
-      homeDirectoryURL: homeDirectoryURL
-    )
-    let rows =
-      taskRows.isEmpty
-      ? transcriptRows
-      : cursor.transcriptState.displayRows(taskRows)
-    return AgentMonitorSnapshot(progressRows: rows)
   }
 }
 
