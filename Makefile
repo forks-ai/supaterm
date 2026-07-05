@@ -12,7 +12,7 @@ WEB_NODE_MODULES_STAMP := $(WEB_APP_DIR)/node_modules/.modules.yaml
 WT_INSTALL_URL := https://raw.githubusercontent.com/khoi/git-wt/main/install.sh
 WORKTREE ?=
 .DEFAULT_GOAL := help
-.PHONY: help install-git-hooks bump-and-release worktree-create mac-tuist-install mac-generate mac-tuist-generate mac-generate-sources mac-tuist-generate-release mac-tuist-generate-release-cached mac-build-ghostty mac-build-zmx mac-build mac-build-snapshot-catalog mac-run mac-run-demo mac-run-snapshot-catalog mac-xcode-open mac-install-tip mac-archive mac-archive-xcodebuild mac-export-archive mac-format swiftlint mac-check mac-test mac-test-xcodebuild mac-test-snapshots mac-record-snapshots mac-scan-dead-code mac-inspect-dependencies mac-warm-cache web-help web-install web-dev web-worker-dev web-check web-lint web-fmt web-test web-build web-preview web-deploy
+.PHONY: help install-git-hooks bump-and-release worktree-create mac-tuist-install mac-generate mac-tuist-generate mac-generate-sources mac-tuist-generate-release mac-tuist-generate-release-cached mac-build-ghostty mac-build-zmx mac-build mac-build-snapshot-catalog mac-run mac-run-demo mac-run-snapshot-catalog mac-xcode-open mac-install-tip mac-archive mac-archive-xcodebuild mac-export-archive mac-format swiftlint mac-check mac-test mac-test-xcodebuild mac-test-e2e mac-test-snapshots mac-record-snapshots mac-scan-dead-code mac-inspect-dependencies mac-warm-cache web-help web-install web-dev web-worker-dev web-check web-lint web-fmt web-test web-build web-preview web-deploy
 
 help:  # Display this help.
 	@-+echo "Run make with one of the following targets:"
@@ -115,6 +115,9 @@ mac-test:  # Run the macOS test suite.
 
 mac-test-xcodebuild:
 	@$(MAKE) -C "$(MAC_APP_DIR)" test-xcodebuild
+
+mac-test-e2e:  # Run the macOS end-to-end tests.
+	@$(MAKE) -C "$(MAC_APP_DIR)" test-e2e
 
 mac-test-snapshots:  # Run the macOS snapshot tests.
 	@$(MAKE) -C "$(MAC_APP_DIR)" test-snapshots

@@ -499,6 +499,28 @@ let project = Project(
       )
     ),
     .target(
+      name: "supatermE2E",
+      destinations: .macOS,
+      product: .unitTests,
+      bundleId: "app.supabit.supatermE2E",
+      deploymentTargets: .macOS("26.0"),
+      infoPlist: .default,
+      buildableFolders: [
+        "supatermE2E",
+      ],
+      dependencies: [
+        .target(name: "SPCLI"),
+        .target(name: "SupatermCLIShared"),
+      ],
+      settings: .settings(
+        base: [
+          "SWIFT_DEFAULT_ACTOR_ISOLATION": "nonisolated",
+          "SWIFT_STRICT_CONCURRENCY": "complete",
+        ],
+        defaultSettings: .essential
+      )
+    ),
+    .target(
       name: "supatermSnapshotCatalog",
       destinations: .macOS,
       product: .app,
@@ -641,6 +663,23 @@ let project = Project(
         configuration: .debug,
         executable: .executable(.target("supatermSnapshotCatalog")),
         expandVariableFromTarget: .target("supatermSnapshotCatalog")
+      ),
+      analyzeAction: .analyzeAction(configuration: .debug)
+    ),
+    .scheme(
+      name: "supatermE2E",
+      buildAction: .buildAction(
+        targets: [
+          .target("supaterm"),
+          .target("supatermE2E"),
+        ]
+      ),
+      testAction: .targets(
+        [
+          .testableTarget(target: .target("supatermE2E")),
+        ],
+        configuration: .debug,
+        expandVariableFromTarget: .target("supaterm")
       ),
       analyzeAction: .analyzeAction(configuration: .debug)
     ),
