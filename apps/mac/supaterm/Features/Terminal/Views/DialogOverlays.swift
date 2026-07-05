@@ -25,13 +25,18 @@ private struct DialogChrome<Content: View>: View {
 
       content()
         .padding(12)
-        .background(palette.dialogInnerBackground, in: .rect(cornerRadius: 11))
+        .background(palette.selectedPillFill, in: .rect(cornerRadius: 11))
         .overlay {
           RoundedRectangle(cornerRadius: 11, style: .continuous)
-            .stroke(palette.dialogBorder, lineWidth: 0.5)
+            .stroke(palette.selectedPillStroke, lineWidth: 0.5)
         }
         .padding(3)
-        .background(palette.dialogOuterBackground, in: .rect(cornerRadius: 14))
+        .background(palette.selectedFill, in: .rect(cornerRadius: 14))
+        .overlay {
+          RoundedRectangle(cornerRadius: 14, style: .continuous)
+            .strokeBorder(palette.selectedStroke, lineWidth: 1)
+        }
+        .shadow(color: palette.selectedShadow, radius: 5)
         .shadow(color: palette.overlayShadow, radius: 20, y: 8)
         .terminalTransition(dialogTransition, reduceMotion: reduceMotion)
     }
@@ -58,11 +63,11 @@ struct ConfirmationOverlay: View {
 
         Text(title)
           .font(.system(size: 22, weight: .semibold))
-          .foregroundStyle(palette.primaryText)
+          .foregroundStyle(palette.selectedText)
 
         Text(message)
           .font(.system(size: 13))
-          .foregroundStyle(palette.secondaryText)
+          .foregroundStyle(palette.selectedSecondaryText)
           .fixedSize(horizontal: false, vertical: true)
           .padding(.top, 4)
 
@@ -116,11 +121,11 @@ struct QuitConfirmationOverlay: View {
 
         Text("Quit Supaterm?")
           .font(.system(size: 22, weight: .semibold))
-          .foregroundStyle(palette.primaryText)
+          .foregroundStyle(palette.selectedText)
 
         Text(content.message)
           .font(.system(size: 13))
-          .foregroundStyle(palette.secondaryText)
+          .foregroundStyle(palette.selectedSecondaryText)
           .fixedSize(horizontal: false, vertical: true)
           .padding(.top, 4)
 
@@ -248,7 +253,7 @@ private struct DialogActionButton: View {
   private var background: Color {
     switch style {
     case .secondary:
-      isHovering ? palette.dialogSecondaryHoverFill : palette.dialogSecondaryFill
+      isHovering ? palette.selectedText.opacity(0.2) : palette.selectedPillFill
     case .destructive:
       isHovering ? palette.dialogDestructiveHoverFill : palette.dialogDestructiveFill
     }
@@ -257,7 +262,7 @@ private struct DialogActionButton: View {
   private var foreground: Color {
     switch style {
     case .secondary:
-      palette.dialogPrimaryText
+      palette.selectedText
     case .destructive:
       .white
     }
@@ -302,14 +307,14 @@ struct SpaceNameOverlay: View {
       VStack(alignment: .leading, spacing: 16) {
         Text(title)
           .font(.system(size: 22, weight: .semibold))
-          .foregroundStyle(palette.primaryText)
+          .foregroundStyle(palette.selectedText)
 
         TextField("Space name", text: $name)
           .textFieldStyle(.plain)
           .font(.system(size: 13))
           .padding(.horizontal, 12)
           .padding(.vertical, 10)
-          .background(palette.dialogSecondaryFill, in: .rect(cornerRadius: 10))
+          .background(palette.selectedPillFill, in: .rect(cornerRadius: 10))
           .focused($isNameFieldFocused)
           .onSubmit {
             guard isSaveEnabled else { return }

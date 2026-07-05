@@ -323,16 +323,8 @@ struct TerminalPalette {
 
   let isDark: Bool
   let windowBackgroundTint: Color
-  let detailBackground: Color
   let detailStroke: Color
-  let dialogOuterBackground: Color
-  let dialogInnerBackground: Color
-  let dialogBorder: Color
-  let dialogSecondaryFill: Color
-  let dialogSecondaryHoverFill: Color
   let dialogDestructiveFill: Color
-  let dialogDestructiveHoverFill: Color
-  let dialogPrimaryText: Color
   let unselectedFill: Color
   let hoverFill: Color
   let pressedFill: Color
@@ -358,6 +350,8 @@ struct TerminalPalette {
   var selectedSecondaryText: Color { selectedText.opacity(0.72) }
   var selectedPillFill: Color { selectedText.opacity(0.12) }
   var selectedPillStroke: Color { selectedText.opacity(0.14) }
+  var detailBackground: Color { Self.primary.mix(with: isDark ? .black : .white, by: 0.85) }
+  var dialogDestructiveHoverFill: Color { dialogDestructiveFill.opacity(0.85) }
 
   var selectedStroke: LinearGradient {
     LinearGradient(
@@ -384,24 +378,12 @@ struct TerminalPalette {
     selectedText = isDark ? Color.white : .black
 
     if isDark {
-      detailBackground = Color(red: 0.15, green: 0.14, blue: 0.14)
       detailStroke = Color.white.opacity(0.08)
-      dialogOuterBackground = Color(red: 0.1412, green: 0.1412, blue: 0.1412)
-      dialogInnerBackground = Color(red: 0.1137, green: 0.1137, blue: 0.1137)
-      dialogSecondaryFill = Color.white.opacity(0.136)
-      dialogSecondaryHoverFill = Color.white.opacity(0.085)
-      dialogPrimaryText = .white
       primaryText = Color.white.opacity(0.94)
       secondaryText = Color.white.opacity(0.58)
       shadow = .black.opacity(0.28)
     } else {
-      detailBackground = Color(red: 0.985, green: 0.975, blue: 0.96)
       detailStroke = Color.black.opacity(0.06)
-      dialogOuterBackground = .white
-      dialogInnerBackground = Color.black.opacity(0.1)
-      dialogSecondaryFill = Color.black.opacity(0.08)
-      dialogSecondaryHoverFill = Color.black.opacity(0.05)
-      dialogPrimaryText = .black
       primaryText = Color.black.opacity(0.86)
       secondaryText = Color.black.opacity(0.48)
       shadow = .black.opacity(0.08)
@@ -410,9 +392,7 @@ struct TerminalPalette {
     scrim = Color.black.opacity(0.4)
     overlayShadow = Color.black.opacity(0.25)
     divider = Color.white.opacity(0.3)
-    dialogBorder = Color(nsColor: .separatorColor)
     dialogDestructiveFill = Color(red: 1, green: 0.4118, blue: 0.4118)
-    dialogDestructiveHoverFill = Color(red: 1, green: 0.4118, blue: 0.4118).opacity(0.85)
     attention = Color(nsColor: .systemOrange)
     amber = Color(red: 0.89, green: 0.64, blue: 0.28)
     mint = Color(red: 0.3, green: 0.72, blue: 0.58)
@@ -440,81 +420,6 @@ struct TerminalPalette {
       slate
     case .violet:
       violet
-    }
-  }
-}
-
-extension TerminalPalette {
-  var commandPalette: CommandPalette {
-    CommandPalette(isDark: isDark, accent: sky)
-  }
-
-  struct CommandPalette {
-    let surfaceTint: Color
-    let surfaceStroke: Color
-    let surfaceHighlight: Color
-    let separator: Color
-    let primaryText: Color
-    let placeholderText: Color
-    let secondaryText: Color
-    let selectedText: Color
-    let selectedSecondaryText: Color
-    let fieldIcon: Color
-    let tint: Color
-    let rowHoverFill: Color
-    let selectedFill: Color
-    let selectedStroke: Color
-    let selectedBadgeFill: Color
-    let badgeFill: Color
-    let emphasisFill: Color
-    let emphasisText: Color
-    let emphasisSecondaryText: Color
-    let emphasisBadgeFill: Color
-    let shadow: Color
-
-    init(isDark: Bool, accent: Color) {
-      surfaceTint = Color(nsColor: .windowBackgroundColor).opacity(0.35)
-      tint = accent
-      selectedText = .white
-      selectedBadgeFill = Color.white.opacity(0.18)
-
-      if isDark {
-        surfaceStroke = Color.white.opacity(0.12)
-        surfaceHighlight = Color.white.opacity(0.06)
-        separator = Color.white.opacity(0.28)
-        primaryText = Color.white.opacity(0.9)
-        placeholderText = Color.white.opacity(0.25)
-        secondaryText = Color.white.opacity(0.5)
-        selectedSecondaryText = Color.white.opacity(0.7)
-        fieldIcon = .white
-        rowHoverFill = Color.white.opacity(0.06)
-        selectedFill = accent.opacity(0.96)
-        selectedStroke = Color.white.opacity(0.14)
-        badgeFill = Color.white.opacity(0.08)
-        emphasisFill = accent.opacity(0.18)
-        emphasisText = accent
-        emphasisSecondaryText = accent.opacity(0.82)
-        emphasisBadgeFill = accent.opacity(0.22)
-        shadow = Color.black.opacity(0.2)
-      } else {
-        surfaceStroke = Color.black.opacity(0.08)
-        surfaceHighlight = Color.white.opacity(0.5)
-        separator = Color.black.opacity(0.22)
-        primaryText = Color.black.opacity(0.88)
-        placeholderText = Color.black.opacity(0.25)
-        secondaryText = Color.black.opacity(0.44)
-        selectedSecondaryText = Color.white.opacity(0.74)
-        fieldIcon = Color.black.opacity(0.94)
-        rowHoverFill = Color.black.opacity(0.05)
-        selectedFill = accent.opacity(0.94)
-        selectedStroke = Color.white.opacity(0.16)
-        badgeFill = Color.black.opacity(0.08)
-        emphasisFill = accent.opacity(0.14)
-        emphasisText = accent.opacity(0.95)
-        emphasisSecondaryText = accent.opacity(0.8)
-        emphasisBadgeFill = accent.opacity(0.18)
-        shadow = Color.black.opacity(0.1)
-      }
     }
   }
 }

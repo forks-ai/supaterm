@@ -1,6 +1,6 @@
 # Theming
 
-All chrome colors live in `TerminalPalette` (`apps/mac/supaterm/Features/Terminal/Views/TerminalChromeView.swift`), constructed per color scheme. Views never hardcode chrome colors; they read palette tokens.
+All chrome colors live in `TerminalPalette` (`apps/mac/supaterm/Features/Terminal/Views/TerminalChromeView.swift`), constructed per color scheme. Views never hardcode chrome colors; they read palette tokens. There are no sub-palettes: every surface — sidebar, command palette, dialogs, detail cards — follows the same recipe.
 
 ## One theme color
 
@@ -10,11 +10,7 @@ The palette stores a single theme color:
 static let primary = Color(.displayP3, red: 0.89, green: 0.902, blue: 0.925)
 ```
 
-All interactive chrome is computed from `primary`, the color scheme, and white/black overlays. Do not add stored per-state colors.
-
-The palette also carries fixed per-scheme content colors outside that rule: the accent tones (`amber`, `mint`, `sky`, `coral`, `violet`, `slate`), the dialog and detail surfaces, `dialogDestructiveFill`, and `attention`. They color content, not interaction states.
-
-The command palette's surface tokens nest under `TerminalPalette.CommandPalette` (`palette.commandPalette`), derived from the scheme and the `sky` accent.
+All chrome is computed from `primary`, the color scheme, and white/black overlays. Do not add stored per-state colors, and do not store what a computed var can derive.
 
 ## Derivation rules
 
@@ -23,11 +19,22 @@ The command palette's surface tokens nest under `TerminalPalette.CommandPalette`
   - unselected row: `.clear` (cards/badges use `unselectedFill` = white/black 6%)
   - hover: white 55% (light) / 16% (dark)
   - pressed: white 70% (light) / 31% (dark)
+  - `TerminalSelectableRowButtonStyle` (`Sidebar/TerminalSidebarButtonStyles.swift`) packages the whole cascade — fill, specular rim, glow — for any selectable row: sidebar tabs and command palette rows both use it.
 - **Selection inverts within the scheme**: the selected pill is solid white in light mode, near-black (`Color(white: 0.04)`) in dark mode, with `selectedText` flipping to match. `selectedSecondaryText`, `selectedPillFill`, and `selectedPillStroke` derive from `selectedText`, so they follow automatically.
 - **Selected pill edge** (dark mode is where it matters):
   - rim: 1pt `strokeBorder` with a diagonal gradient bright at the top-left and bottom-right corners (`selectedStrokeBright` white 35% → `selectedStrokeDim` white 8%), reading as a specular ring
   - glow: centered `.shadow` (`selectedShadow` white 15%, radius 5, no offset) — uniform on all sides, distinct from `shadow`, which is the black drop shadow for panels and panes
 - Text: `primaryText`/`secondaryText` are white/black at fixed opacities; they serve the whole chrome (dialogs, agent panel), not just the sidebar.
+
+## Surfaces
+
+- **Blurred cards** (command palette, notification popover): `windowBackgroundTint` over a `.popover` blur, `detailStroke` hairline, `overlayShadow`/`shadow` drop shadow.
+- **Solid detail cards** (agent panel, sidebar scroll indicator): `detailBackground` = `primary` mixed 85% toward the scheme pole (black in dark, white in light).
+- **Dialogs are selected surfaces**: the card is the selected pill scaled up — `selectedFill` outer card with the `selectedStroke` rim and `selectedShadow` glow, `selectedPillFill` inner bezel, fields, and secondary buttons, `selectedText`-derived text throughout. The scrim behind is `scrim` (black 40%).
+
+## Content colors
+
+Fixed per-scheme colors that mark meaning, never interaction states: the accent tones (`amber`, `mint`, `sky`, `coral`, `violet`, `slate`), `attention`, and `dialogDestructiveFill`. The caret/accent color is `sky`. Still hardcoded outside the palette and deliberately deferred: `Color.accentColor` (unread badge, active agent dot, zoom button, split drop overlay), the update card's system orange/green, and the Ghostty progress bar states.
 
 ## Inspiration
 

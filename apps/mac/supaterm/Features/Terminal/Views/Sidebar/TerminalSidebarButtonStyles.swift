@@ -1,5 +1,39 @@
 import SwiftUI
 
+struct TerminalSelectableRowButtonStyle: ButtonStyle {
+  let palette: TerminalPalette
+  let isSelected: Bool
+  let isHovering: Bool
+  let cornerRadius: CGFloat
+  var restFill: Color = .clear
+
+  func makeBody(configuration: Configuration) -> some View {
+    let shape = RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+    configuration.label
+      .background(fill(isPressed: configuration.isPressed))
+      .clipShape(shape)
+      .overlay(shape.strokeBorder(palette.selectedStroke.opacity(isSelected ? 1 : 0), lineWidth: 1))
+      .shadow(
+        color: isSelected ? palette.selectedShadow : .clear,
+        radius: isSelected ? 5 : 0
+      )
+      .contentShape(shape)
+  }
+
+  private func fill(isPressed: Bool) -> Color {
+    if isSelected {
+      return palette.selectedFill
+    }
+    if isPressed {
+      return palette.pressedFill
+    }
+    if isHovering {
+      return palette.hoverFill
+    }
+    return restFill
+  }
+}
+
 struct TerminalSidebarButtonStyle: ButtonStyle {
   enum Layout {
     case rect

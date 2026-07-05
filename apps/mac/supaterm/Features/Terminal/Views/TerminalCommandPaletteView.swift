@@ -24,10 +24,6 @@ struct TerminalCommandPaletteOverlay: View {
     TerminalCommandPalettePresentation.normalizedSelection(state.selectedRowID, in: rows)
   }
 
-  private var theme: TerminalPalette.CommandPalette {
-    palette.commandPalette
-  }
-
   var body: some View {
     GeometryReader { geometry in
       let cardWidth = min(maxWidth, max(minWidth, geometry.size.width - 32))
@@ -46,7 +42,7 @@ struct TerminalCommandPaletteOverlay: View {
 
           if !rows.isEmpty {
             RoundedRectangle(cornerRadius: 100, style: .continuous)
-              .fill(theme.separator)
+              .fill(palette.divider)
               .frame(height: 0.5)
           }
 
@@ -57,7 +53,7 @@ struct TerminalCommandPaletteOverlay: View {
                   Spacer(minLength: 0)
                   Text("No matches")
                     .font(.system(size: 13, weight: .semibold))
-                    .foregroundStyle(theme.secondaryText)
+                    .foregroundStyle(palette.secondaryText)
                     .frame(maxWidth: .infinity, alignment: .center)
                   Spacer(minLength: 0)
                 }
@@ -68,7 +64,7 @@ struct TerminalCommandPaletteOverlay: View {
                       CommandPaletteRowButton(
                         row: row,
                         shortcutHint: shortcutHint(for: row, index: index),
-                        theme: theme,
+                        palette: palette,
                         isHovered: hoveredRowID == row.id,
                         isSelected: selectedRowID == row.id,
                         action: {
@@ -98,7 +94,7 @@ struct TerminalCommandPaletteOverlay: View {
         }
         .padding(9)
         .frame(width: cardWidth, height: cardHeight, alignment: .top)
-        .background(theme.surfaceTint, in: .rect(cornerRadius: cardCornerRadius))
+        .background(palette.windowBackgroundTint, in: .rect(cornerRadius: cardCornerRadius))
         .background {
           BlurEffectView(material: .popover, blendingMode: .withinWindow)
             .clipShape(.rect(cornerRadius: cardCornerRadius))
@@ -107,14 +103,9 @@ struct TerminalCommandPaletteOverlay: View {
         .clipShape(.rect(cornerRadius: cardCornerRadius))
         .overlay {
           RoundedRectangle(cornerRadius: cardCornerRadius, style: .continuous)
-            .stroke(theme.surfaceStroke, lineWidth: 0.5)
+            .stroke(palette.detailStroke, lineWidth: 0.5)
         }
-        .overlay {
-          RoundedRectangle(cornerRadius: cardCornerRadius - 1, style: .continuous)
-            .stroke(theme.surfaceHighlight, lineWidth: 0.5)
-            .padding(1)
-        }
-        .shadow(color: theme.shadow, radius: 22, y: 12)
+        .shadow(color: palette.overlayShadow, radius: 22, y: 12)
         .frame(width: geometry.size.width, height: geometry.size.height, alignment: .center)
       }
     }
@@ -140,15 +131,15 @@ struct TerminalCommandPaletteOverlay: View {
       HStack(spacing: 12) {
         Image(systemName: "magnifyingglass")
           .font(.system(size: 13, weight: .regular))
-          .foregroundStyle(theme.fieldIcon)
+          .foregroundStyle(palette.primaryText)
           .frame(width: 13)
           .accessibilityHidden(true)
 
         TextField("Search commands...", text: queryBinding)
           .textFieldStyle(.plain)
           .font(.system(size: 17, weight: .medium))
-          .foregroundStyle(state.query.isEmpty ? theme.placeholderText : theme.primaryText)
-          .tint(theme.tint)
+          .foregroundStyle(state.query.isEmpty ? palette.secondaryText : palette.primaryText)
+          .tint(palette.sky)
           .focused($isQueryFocused)
           .onChange(of: isQueryFocused) { _, isFocused in
             if !isFocused {
@@ -216,7 +207,7 @@ struct TerminalCommandPaletteOverlay: View {
 private struct CommandPaletteRowButton: View {
   let row: TerminalCommandPaletteRow
   let shortcutHint: String?
-  let theme: TerminalPalette.CommandPalette
+  let palette: TerminalPalette
   let isHovered: Bool
   let isSelected: Bool
   let action: () -> Void
@@ -230,25 +221,28 @@ private struct CommandPaletteRowButton: View {
           HStack(spacing: 6) {
             Text(row.title)
               .font(.system(size: 13, weight: .semibold))
-              .foregroundStyle(titleColor)
+              .foregroundStyle(isSelected ? palette.selectedText : palette.primaryText)
               .lineLimit(1)
               .truncationMode(.tail)
 
             if let badge = row.badge {
               Text(badge)
                 .font(.system(size: 10, weight: .semibold))
-                .foregroundStyle(badgeTextColor)
+                .foregroundStyle(isSelected ? palette.selectedText : palette.primaryText)
                 .lineLimit(1)
                 .padding(.horizontal, 7)
                 .padding(.vertical, 3)
-                .background(badgeBackground, in: Capsule(style: .continuous))
+                .background(
+                  isSelected ? palette.selectedPillFill : palette.unselectedFill,
+                  in: Capsule(style: .continuous)
+                )
             }
           }
 
           if let subtitle = row.subtitle {
             Text(subtitle)
               .font(.system(size: 11, weight: .medium))
-              .foregroundStyle(subtitleColor)
+              .foregroundStyle(isSelected ? palette.selectedSecondaryText : palette.secondaryText)
               .lineLimit(1)
               .truncationMode(.tail)
           }
@@ -259,20 +253,24 @@ private struct CommandPaletteRowButton: View {
         if let shortcutHint {
           Text(shortcutHint)
             .font(.system(size: 11, weight: .semibold))
-            .foregroundStyle(shortcutHintColor)
+            .foregroundStyle(
+              isSelected ? palette.selectedSecondaryText.opacity(0.72) : palette.secondaryText
+            )
         }
       }
       .padding(.horizontal, 11)
       .padding(.vertical, 9)
       .frame(maxWidth: .infinity)
-      .background(rowBackground, in: .rect(cornerRadius: 5))
-      .overlay {
-        RoundedRectangle(cornerRadius: 5, style: .continuous)
-          .stroke(rowStroke, lineWidth: 0.5)
-      }
-      .contentShape(.rect(cornerRadius: 5))
     }
-    .buttonStyle(.plain)
+    .buttonStyle(
+      TerminalSelectableRowButtonStyle(
+        palette: palette,
+        isSelected: isSelected,
+        isHovering: isHovered,
+        cornerRadius: 5,
+        restFill: row.emphasis ? palette.unselectedFill : .clear
+      )
+    )
     .help(row.description ?? "")
   }
 
@@ -281,81 +279,10 @@ private struct CommandPaletteRowButton: View {
     if let leadingIcon = row.leadingIcon {
       Image(systemName: leadingIcon)
         .font(.system(size: 12, weight: .semibold))
-        .foregroundStyle(iconColor)
+        .foregroundStyle(isSelected ? palette.selectedSecondaryText : palette.secondaryText)
         .frame(width: 14, height: 14)
         .accessibilityHidden(true)
     }
-  }
-
-  private var titleColor: Color {
-    if isSelected {
-      return theme.selectedText
-    }
-    if row.emphasis {
-      return theme.emphasisText
-    }
-    return theme.primaryText
-  }
-
-  private var subtitleColor: Color {
-    if isSelected {
-      return theme.selectedSecondaryText
-    }
-    if row.emphasis {
-      return theme.emphasisSecondaryText
-    }
-    return theme.secondaryText
-  }
-
-  private var shortcutHintColor: Color {
-    if isSelected {
-      return theme.selectedSecondaryText.opacity(0.72)
-    }
-    return theme.secondaryText
-  }
-
-  private var iconColor: Color {
-    if isSelected {
-      return theme.selectedSecondaryText
-    }
-    if row.emphasis {
-      return theme.emphasisText
-    }
-    return theme.secondaryText
-  }
-
-  private var rowBackground: Color {
-    if isSelected {
-      return theme.selectedFill
-    }
-    if row.emphasis {
-      return isHovered ? theme.emphasisFill : theme.emphasisFill.opacity(0.88)
-    }
-    if isHovered {
-      return theme.rowHoverFill
-    }
-    return .clear
-  }
-
-  private var rowStroke: Color {
-    if isSelected {
-      return theme.selectedStroke
-    }
-    return .clear
-  }
-
-  private var badgeBackground: Color {
-    if isSelected {
-      return theme.selectedBadgeFill
-    }
-    return row.emphasis ? theme.emphasisBadgeFill : theme.badgeFill
-  }
-
-  private var badgeTextColor: Color {
-    if isSelected {
-      return theme.selectedText
-    }
-    return row.emphasis ? theme.emphasisText : theme.primaryText
   }
 }
 
