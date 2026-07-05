@@ -83,7 +83,6 @@ func agentHookRequest(
 func makeClaudeHookHarness<C: Clock<Duration>>(
   agentRunningTimeout: Duration = .seconds(15),
   transcriptPollInterval: Duration = .seconds(1),
-  claudeTasksHomeDirectoryURL: URL = FileManager.default.homeDirectoryForCurrentUser,
   clock: C = ContinuousClock(),
   windowActivity: WindowActivityState = WindowActivityState(isKeyWindow: true, isVisible: true)
 ) throws -> ClaudeHookHarness {
@@ -94,7 +93,6 @@ func makeClaudeHookHarness<C: Clock<Duration>>(
     registry: registry,
     agentRunningTimeout: agentRunningTimeout,
     transcriptPollInterval: transcriptPollInterval,
-    claudeTasksHomeDirectoryURL: claudeTasksHomeDirectoryURL,
     clock: clock
   )
   let host = TerminalHostState()
@@ -151,14 +149,12 @@ func makeCommandExecutor<C: Clock<Duration>>(
   registry: TerminalWindowRegistry,
   agentRunningTimeout: Duration,
   transcriptPollInterval: Duration,
-  claudeTasksHomeDirectoryURL: URL = FileManager.default.homeDirectoryForCurrentUser,
   clock: C
 ) -> TerminalCommandExecutor {
   let commandExecutor = TerminalCommandExecutor(
     registry: registry,
     agentRunningTimeout: agentRunningTimeout,
     transcriptPollInterval: transcriptPollInterval,
-    claudeTasksHomeDirectoryURL: claudeTasksHomeDirectoryURL,
     clock: clock
   )
   registry.commandExecutor = commandExecutor

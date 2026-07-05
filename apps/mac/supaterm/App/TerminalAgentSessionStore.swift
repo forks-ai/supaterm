@@ -47,7 +47,6 @@ final class TerminalAgentSessionStore {
   var onRunningTimeoutExpired: @MainActor (SupatermAgentKind, String, SupatermCLIContext?) -> Void = { _, _, _ in }
 
   private let agentRunningTimeout: Duration
-  private let claudeTasksHomeDirectoryURL: URL
   private let sleep: (Duration) async throws -> Void
   private let transcriptPollInterval: Duration
   private var foregroundSessionsBySurface: [SurfaceKey: String] = [:]
@@ -58,11 +57,9 @@ final class TerminalAgentSessionStore {
   init(
     agentRunningTimeout: Duration,
     transcriptPollInterval: Duration,
-    claudeTasksHomeDirectoryURL: URL = FileManager.default.homeDirectoryForCurrentUser,
     sleep: @escaping (Duration) async throws -> Void
   ) {
     self.agentRunningTimeout = agentRunningTimeout
-    self.claudeTasksHomeDirectoryURL = claudeTasksHomeDirectoryURL
     self.transcriptPollInterval = transcriptPollInterval
     self.sleep = sleep
   }
@@ -246,8 +243,6 @@ final class TerminalAgentSessionStore {
     case .claude:
       guard sessions[key] != nil else { return nil }
       return ClaudePanelMonitor(
-        sessionID: key.sessionID,
-        homeDirectoryURL: claudeTasksHomeDirectoryURL,
         transcriptPath: { [weak self] in self?.sessions[key]?.transcriptPath }
       )
     default:

@@ -165,162 +165,13 @@ struct TerminalAgentSessionStoreTests {
   }
 
   @Test
-  func beginClaudePanelTrackingPublishesTaskSnapshot() throws {
-    let homeDirectoryURL = try ClaudeProgressFixtures.makeHomeDirectory()
-    defer { try? FileManager.default.removeItem(at: homeDirectoryURL) }
-    let events = SessionStoreEventsSpy()
-    let store = TerminalAgentSessionStore(
-      agentRunningTimeout: .seconds(5),
-      transcriptPollInterval: .seconds(1),
-      claudeTasksHomeDirectoryURL: homeDirectoryURL,
-      sleep: { _ in }
-    )
-    events.bind(to: store)
-    let context = SupatermCLIContext(surfaceID: UUID(), tabID: UUID())
-    try ClaudeProgressFixtures.writeTask(
-      id: "task-1",
-      subject: "Read task files",
-      status: "in_progress",
-      sessionID: "session-1",
-      homeDirectoryURL: homeDirectoryURL
-    )
-    store.beginSession(
-      agent: .claude,
-      sessionID: "session-1",
-      context: context,
-      transcriptPath: nil
-    )
-
-    #expect(store.beginAgentPanelTracking(agent: .claude, sessionID: "session-1", context: context))
-    #expect(
-      events.panelSnapshots == [
-        AgentMonitorSnapshot(
-          progressRows: [
-            PaneAgentProgressRow(
-              id: "claude-task:task-1",
-              title: "Read task files",
-              status: .running
-            )
-          ]
-        )
-      ]
-    )
-  }
-
-  @Test
-  func beginClaudePanelTrackingPollsTaskChanges() async throws {
-    let clock = TestClock()
-    let homeDirectoryURL = try ClaudeProgressFixtures.makeHomeDirectory()
-    defer { try? FileManager.default.removeItem(at: homeDirectoryURL) }
-    let events = SessionStoreEventsSpy()
-    let store = TerminalAgentSessionStore(
-      agentRunningTimeout: .seconds(5),
-      transcriptPollInterval: .seconds(1),
-      claudeTasksHomeDirectoryURL: homeDirectoryURL,
-      sleep: { duration in
-        try await clock.sleep(for: duration)
-      }
-    )
-    events.bind(to: store)
-    let context = SupatermCLIContext(surfaceID: UUID(), tabID: UUID())
-    store.beginSession(
-      agent: .claude,
-      sessionID: "session-1",
-      context: context,
-      transcriptPath: nil
-    )
-
-    #expect(store.beginAgentPanelTracking(agent: .claude, sessionID: "session-1", context: context))
-    #expect(events.panelSnapshots == [AgentMonitorSnapshot()])
-
-    try ClaudeProgressFixtures.writeTask(
-      id: "task-1",
-      subject: "Refresh tasks",
-      status: "completed",
-      sessionID: "session-1",
-      homeDirectoryURL: homeDirectoryURL
-    )
-
-    await flushEffects()
-    await clock.advance(by: .seconds(1))
-    await flushEffects()
-
-    #expect(
-      events.panelSnapshots.last
-        == AgentMonitorSnapshot(
-          progressRows: [
-            PaneAgentProgressRow(
-              id: "claude-task:task-1",
-              title: "Refresh tasks",
-              status: .completed
-            )
-          ]
-        )
-    )
-  }
-
-  @Test
-  func beginClaudePanelTrackingUsesTasksBeforeTodoTranscript() throws {
-    let homeDirectoryURL = try ClaudeProgressFixtures.makeHomeDirectory()
-    defer { try? FileManager.default.removeItem(at: homeDirectoryURL) }
+  func beginClaudePanelTrackingPublishesTranscriptTaskSnapshot() throws {
     let transcriptURL = try ClaudeProgressFixtures.makeTranscript()
     defer { try? FileManager.default.removeItem(at: transcriptURL.deletingLastPathComponent()) }
     let events = SessionStoreEventsSpy()
     let store = TerminalAgentSessionStore(
       agentRunningTimeout: .seconds(5),
       transcriptPollInterval: .seconds(1),
-      claudeTasksHomeDirectoryURL: homeDirectoryURL,
-      sleep: { _ in }
-    )
-    events.bind(to: store)
-    let context = SupatermCLIContext(surfaceID: UUID(), tabID: UUID())
-    try ClaudeProgressFixtures.appendTodoWrite(
-      [
-        ["content": "Transcript row", "status": "in_progress"]
-      ],
-      to: transcriptURL
-    )
-    try ClaudeProgressFixtures.writeTask(
-      id: "task-1",
-      subject: "Task row",
-      status: "pending",
-      sessionID: "session-1",
-      homeDirectoryURL: homeDirectoryURL
-    )
-    store.beginSession(
-      agent: .claude,
-      sessionID: "session-1",
-      context: context,
-      transcriptPath: transcriptURL.path
-    )
-
-    #expect(store.beginAgentPanelTracking(agent: .claude, sessionID: "session-1", context: context))
-    #expect(
-      events.panelSnapshots == [
-        AgentMonitorSnapshot(
-          progressRows: [
-            PaneAgentProgressRow(
-              id: "claude-task:task-1",
-              title: "Task row",
-              status: .pending
-            )
-          ]
-        )
-      ]
-    )
-  }
-
-  @Test
-  func beginClaudePanelTrackingUsesTranscriptTasksWhenTaskFilesAreEmpty() throws {
-    let homeDirectoryURL = try ClaudeProgressFixtures.makeHomeDirectory()
-    defer { try? FileManager.default.removeItem(at: homeDirectoryURL) }
-    let transcriptURL = try ClaudeProgressFixtures.makeTranscript()
-    defer { try? FileManager.default.removeItem(at: transcriptURL.deletingLastPathComponent()) }
-    let events = SessionStoreEventsSpy()
-    let store = TerminalAgentSessionStore(
-      agentRunningTimeout: .seconds(5),
-      transcriptPollInterval: .seconds(1),
-      claudeTasksHomeDirectoryURL: homeDirectoryURL,
       sleep: { _ in }
     )
     events.bind(to: store)
@@ -362,15 +213,12 @@ struct TerminalAgentSessionStoreTests {
   @Test
   func beginClaudePanelTrackingPollsTranscriptTaskChanges() async throws {
     let clock = TestClock()
-    let homeDirectoryURL = try ClaudeProgressFixtures.makeHomeDirectory()
-    defer { try? FileManager.default.removeItem(at: homeDirectoryURL) }
     let transcriptURL = try ClaudeProgressFixtures.makeTranscript()
     defer { try? FileManager.default.removeItem(at: transcriptURL.deletingLastPathComponent()) }
     let events = SessionStoreEventsSpy()
     let store = TerminalAgentSessionStore(
       agentRunningTimeout: .seconds(5),
       transcriptPollInterval: .seconds(1),
-      claudeTasksHomeDirectoryURL: homeDirectoryURL,
       sleep: { duration in
         try await clock.sleep(for: duration)
       }
