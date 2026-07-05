@@ -70,6 +70,8 @@ struct SupatermSnapshotTests {
       space: CGColorSpace(name: CGColorSpace.sRGB)!,
       bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue
     )!
+    context.setAllowsFontSmoothing(false)
+    context.setShouldSmoothFonts(false)
     context.scaleBy(x: scale, y: scale)
     if view.isFlipped {
       context.translateBy(x: 0, y: scenario.size.height)
