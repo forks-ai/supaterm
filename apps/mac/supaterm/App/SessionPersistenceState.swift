@@ -4,24 +4,25 @@ enum SessionPersistenceState: Equatable {
   case active
   case restoring
   case quitting(TerminalSessionCatalog)
-  case quittingAfterSessionTermination
+  case quittingAfterSessionTermination(TerminalSessionCatalog)
 
   var allowsLiveSave: Bool {
     self == .active
   }
 
   var shortCircuitsTerminateReply: Bool {
-    self == .quittingAfterSessionTermination
+    if case .quittingAfterSessionTermination = self {
+      return true
+    }
+    return false
   }
 
   func catalogToPersist(liveCatalog: TerminalSessionCatalog) -> TerminalSessionCatalog {
     switch self {
     case .active, .restoring:
       return liveCatalog
-    case .quitting(let catalog):
+    case .quitting(let catalog), .quittingAfterSessionTermination(let catalog):
       return catalog
-    case .quittingAfterSessionTermination:
-      return .default
     }
   }
 
@@ -31,6 +32,8 @@ enum SessionPersistenceState: Equatable {
     liveCatalog: TerminalSessionCatalog
   ) -> Self {
     guard reply == .terminateNow else { return .active }
-    return terminatesSessions ? .quittingAfterSessionTermination : .quitting(liveCatalog)
+    return terminatesSessions
+      ? .quittingAfterSessionTermination(liveCatalog)
+      : .quitting(liveCatalog)
   }
 }
