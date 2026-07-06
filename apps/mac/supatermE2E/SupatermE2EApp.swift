@@ -95,15 +95,65 @@ final class SupatermE2EApp: @unchecked Sendable {
     return try response.decodeResult(type)
   }
 
+  func sendExpectingError(_ request: SupatermSocketRequest) throws -> String {
+    let response = try client.send(request)
+    guard !response.ok, let message = response.error?.message else {
+      throw SupatermE2EError("\(request.method) unexpectedly succeeded")
+    }
+    return message
+  }
+
   func debugSnapshot() throws -> SupatermAppDebugSnapshot {
     try send(.debug(SupatermDebugRequest()), as: SupatermAppDebugSnapshot.self)
   }
 
-  func capture(_ target: SupatermPaneTargetRequest) throws -> String {
+  func debugTab(_ tabID: UUID) throws -> SupatermAppDebugSnapshot.Tab? {
+    try debugSnapshot()
+      .windows
+      .flatMap(\.spaces)
+      .flatMap(\.tabs)
+      .first { $0.id == tabID }
+  }
+
+  func debugPane(_ paneID: UUID) throws -> SupatermAppDebugSnapshot.Pane? {
+    try debugSnapshot()
+      .windows
+      .flatMap(\.spaces)
+      .flatMap(\.tabs)
+      .flatMap(\.panes)
+      .first { $0.id == paneID }
+  }
+
+  func capture(
+    _ target: SupatermPaneTargetRequest,
+    scope: SupatermCapturePaneScope = .visible,
+    lines: Int? = nil
+  ) throws -> String {
     try send(
-      .capturePane(SupatermCapturePaneRequest(target: target)),
+      .capturePane(SupatermCapturePaneRequest(lines: lines, scope: scope, target: target)),
       as: SupatermCapturePaneResult.self
     ).text
+  }
+
+  func type(_ text: String, into target: SupatermPaneTargetRequest) throws {
+    _ = try send(
+      .sendText(SupatermSendTextRequest(target: target, text: text)),
+      as: SupatermSendTextResult.self
+    )
+  }
+
+  func press(_ key: SupatermInputKey, in target: SupatermPaneTargetRequest) throws {
+    _ = try send(
+      .sendKey(SupatermSendKeyRequest(key: key, target: target)),
+      as: SupatermSendKeyResult.self
+    )
+  }
+
+  func waitForShellPrompt(_ target: SupatermPaneTargetRequest) async throws {
+    try await waitForReadyPane(target)
+    try await waitUntil("the shell renders a prompt") {
+      try !capture(target).trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+    }
   }
 
   func waitUntil(

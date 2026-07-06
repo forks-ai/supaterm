@@ -656,8 +656,8 @@ final class GhosttySurfaceView: NSView, Identifiable {
         )
       case .visible:
         readText(
-          topLeftTag: GHOSTTY_POINT_SCREEN,
-          bottomRightTag: GHOSTTY_POINT_SCREEN
+          topLeftTag: GHOSTTY_POINT_VIEWPORT,
+          bottomRightTag: GHOSTTY_POINT_VIEWPORT
         )
       }
     guard let text else { return nil }

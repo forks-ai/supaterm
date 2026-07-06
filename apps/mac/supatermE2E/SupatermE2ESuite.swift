@@ -82,6 +82,36 @@ private func makeTestSpace(_ app: SupatermE2EApp) throws -> TestSpace {
   )
 }
 
+func makeTab(_ app: SupatermE2EApp, in space: TestSpace) throws -> SupatermNewTabResult {
+  try app.send(
+    .newTab(
+      SupatermNewTabRequest(
+        startupCommand: hermeticShellStartupCommand,
+        contextPaneID: space.tab.paneID,
+        cwd: space.directory.path,
+        focus: true
+      )
+    ),
+    as: SupatermNewTabResult.self
+  )
+}
+
+func makeSplit(_ app: SupatermE2EApp, in space: TestSpace) throws -> SupatermNewPaneResult {
+  try app.send(
+    .newPane(
+      SupatermNewPaneRequest(
+        startupCommand: hermeticShellStartupCommand,
+        contextPaneID: space.tab.paneID,
+        cwd: space.directory.path,
+        direction: .right,
+        focus: true,
+        equalize: true
+      )
+    ),
+    as: SupatermNewPaneResult.self
+  )
+}
+
 private func closeTestSpace(_ app: SupatermE2EApp, spaceID: UUID) throws {
   let snapshot = try app.debugSnapshot()
   for window in snapshot.windows {
