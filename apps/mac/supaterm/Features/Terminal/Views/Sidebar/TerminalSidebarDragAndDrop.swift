@@ -1,6 +1,5 @@
 @preconcurrency import AppKit
 import Combine
-import SupaTheme
 import SwiftUI
 
 extension NSPasteboard.PasteboardType {
@@ -46,7 +45,6 @@ final class TerminalSidebarDragSession: ObservableObject {
   @Published var pendingReorder: TerminalSidebarPendingReorder?
   @Published var cursorScreenLocation: NSPoint = .zero
   @Published var colorScheme: ColorScheme = .light
-  @Published var themeID: String = Theme.default.id
   @Published var sidebarScreenFrame: CGRect = .zero
 
   var zoneFrames: [TerminalSidebarDropZoneID: CGRect] = [:]
@@ -490,7 +488,7 @@ private struct TerminalSidebarDragPreviewContent: View {
   var body: some View {
     Group {
       if let preview = manager.draggedPreview {
-        let palette = Palette(spaceThemeID: manager.themeID, colorScheme: manager.colorScheme)
+        let palette = Palette(colorScheme: manager.colorScheme)
         TerminalSidebarMorphingPreview(
           tab: preview.tab,
           notificationPreviewMarkdown: preview.notificationPreviewMarkdown,

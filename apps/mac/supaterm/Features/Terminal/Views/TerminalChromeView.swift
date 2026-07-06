@@ -1,5 +1,4 @@
 import AppKit
-import SupaTheme
 import SwiftUI
 
 enum TerminalSplitMetrics {
@@ -258,10 +257,10 @@ enum WindowChromeConfiguration {
     window.standardWindowButton(.miniaturizeButton)?.isHidden = true
     window.standardWindowButton(.zoomButton)?.isHidden = true
 
-    if let themeFrame = window.contentView?.superview,
+    if let frameView = window.contentView?.superview,
       let titlebarContainer = firstDescendant(
         named: "NSTitlebarContainerView",
-        in: themeFrame
+        in: frameView
       )
     {
       titlebarContainer.isHidden = true

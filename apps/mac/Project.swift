@@ -439,7 +439,6 @@ let project = Project(
         .external(name: "ComposableArchitecture"),
         .external(name: "PostHog"),
         .external(name: "Sharing"),
-        .external(name: "SupaTheme"),
         .external(name: "Textual"),
       ],
       settings: .settings(
@@ -487,7 +486,6 @@ let project = Project(
         .external(name: "ComposableArchitecture"),
         .external(name: "PostHog"),
         .external(name: "Sharing"),
-        .external(name: "SupaTheme"),
         .external(name: "TOML"),
         .external(name: "Textual"),
       ],
@@ -533,7 +531,6 @@ let project = Project(
         .external(name: "ComposableArchitecture"),
         .external(name: "PostHog"),
         .external(name: "Sharing"),
-        .external(name: "SupaTheme"),
         .external(name: "Textual"),
       ],
       settings: .settings(

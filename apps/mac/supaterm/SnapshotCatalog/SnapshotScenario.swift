@@ -67,7 +67,7 @@ enum SnapshotCatalog {
     + commandPaletteScenarios
     + dialogScenarios
     + settingsScenarios
-    + themeScenarios
+    + chromeScenarios
 
   static func filteredScenarios(query: String) -> [SnapshotScenario] {
     let query = query.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()

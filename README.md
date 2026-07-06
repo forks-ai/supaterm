@@ -6,7 +6,7 @@ A terminal for ur coding agents.
 ## Development
 
 - [Development](./docs/development.md)
-- [Theming](./docs/theming.md)
+- [Chrome styling](./docs/theming.md)
 - [Coding agents integration](./docs/coding-agents-integration.md)
 - [Socket control](./docs/how-socket-works.md)
 

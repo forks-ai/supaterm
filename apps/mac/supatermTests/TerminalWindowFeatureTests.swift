@@ -1,7 +1,6 @@
 import ComposableArchitecture
 import Foundation
 import Sharing
-import SupaTheme
 import SupatermSupport
 import SupatermTerminalCore
 import SupatermUpdateFeature
@@ -226,8 +225,7 @@ struct TerminalWindowFeatureTests {
     await store.send(.spaceCreateButtonTapped) {
       $0.spaceEditor = TerminalSpaceEditorState(
         mode: .create,
-        draftName: "",
-        draftThemeID: Theme.default.id
+        draftName: ""
       )
     }
 
@@ -872,8 +870,7 @@ struct TerminalWindowFeatureTests {
     await store.send(.spaceCreateButtonTapped) {
       $0.spaceEditor = TerminalSpaceEditorState(
         mode: .create,
-        draftName: "",
-        draftThemeID: Theme.default.id
+        draftName: ""
       )
     }
     await store.send(.spaceEditorTextChanged("Build")) {
@@ -884,60 +881,7 @@ struct TerminalWindowFeatureTests {
     }
 
     #expect(analyticsRecorder.recorded() == ["space_created"])
-    #expect(recorder.commands == [.createSpace(name: "Build", themeID: Theme.default.id)])
-  }
-
-  @Test
-  func spaceCreatePicksUnusedThemeFromCatalog() async {
-    await withDependencies {
-      $0.defaultFileStorage = .inMemory
-    } operation: {
-      @Shared(.terminalSpaceCatalog) var spaceCatalog = TerminalSpaceCatalog.default
-      $spaceCatalog.withLock {
-        $0 = TerminalSpaceCatalog(
-          defaultSelectedSpaceID: TerminalSpaceID(),
-          spaces: [
-            PersistedTerminalSpace(name: "A", themeID: Theme.default.id)
-          ]
-        )
-      }
-
-      let store = TestStore(initialState: TerminalWindowFeature.State()) {
-        TerminalWindowFeature()
-      } withDependencies: {
-        $0.terminalSpaceThemeClient.randomCreateThemeID = { usedThemeIDs in
-          #expect(usedThemeIDs == [Theme.default.id])
-          return Theme.steelBlue.id
-        }
-      }
-
-      await store.send(.spaceCreateButtonTapped) {
-        $0.spaceEditor = TerminalSpaceEditorState(
-          mode: .create,
-          draftName: "",
-          draftThemeID: Theme.steelBlue.id
-        )
-      }
-    }
-  }
-
-  @Test
-  func spaceEditorThemeSelectionNormalizesUnknownTheme() async {
-    let store = TestStore(
-      initialState: TerminalWindowFeature.State(
-        spaceEditor: TerminalSpaceEditorState(
-          mode: .create,
-          draftName: "Build",
-          draftThemeID: Theme.steelBlue.id
-        )
-      )
-    ) {
-      TerminalWindowFeature()
-    }
-
-    await store.send(.spaceEditorThemeSelected("missing-theme")) {
-      $0.spaceEditor?.draftThemeID = Theme.default.id
-    }
+    #expect(recorder.commands == [.createSpace(name: "Build")])
   }
 
   @Test
@@ -948,8 +892,7 @@ struct TerminalWindowFeatureTests {
       initialState: TerminalWindowFeature.State(
         spaceEditor: TerminalSpaceEditorState(
           mode: .create,
-          draftName: "Build",
-          draftThemeID: Theme.steelBlue.id
+          draftName: "Build"
         )
       )
     ) {
@@ -1226,8 +1169,7 @@ struct TerminalWindowFeatureTests {
     await store.send(.spaceRenameRequested(space)) {
       $0.spaceEditor = TerminalSpaceEditorState(
         mode: .rename(space),
-        draftName: "A",
-        draftThemeID: Theme.default.id
+        draftName: "A"
       )
     }
     await store.send(.spaceEditorTextChanged("Shell")) {
@@ -1237,7 +1179,7 @@ struct TerminalWindowFeatureTests {
       $0.spaceEditor = nil
     }
 
-    #expect(recorder.commands == [.updateSpace(space.id, name: "Shell", themeID: Theme.default.id)])
+    #expect(recorder.commands == [.renameSpace(space.id, "Shell")])
   }
 
   @Test

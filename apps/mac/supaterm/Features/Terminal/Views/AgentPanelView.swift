@@ -1,4 +1,3 @@
-import SupaTheme
 import SupatermCLIShared
 import SwiftUI
 

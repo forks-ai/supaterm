@@ -1,7 +1,7 @@
 import SwiftUI
 
 extension View {
-  public func blurCard(_ palette: Palette, cornerRadius: CGFloat) -> some View {
+  func blurCard(_ palette: Palette, cornerRadius: CGFloat) -> some View {
     self
       .background(palette.windowBackgroundTint, in: .rect(cornerRadius: cornerRadius))
       .background {

@@ -1,14 +1,14 @@
 import SwiftUI
 
-public struct SelectableRowButtonStyle: ButtonStyle {
-  public let palette: Palette
-  public let isSelected: Bool
-  public let isHovering: Bool
-  public let cornerRadius: CGFloat
-  public let showsSelectionEdge: Bool
-  public let restFill: Color
+struct SelectableRowButtonStyle: ButtonStyle {
+  let palette: Palette
+  let isSelected: Bool
+  let isHovering: Bool
+  let cornerRadius: CGFloat
+  let showsSelectionEdge: Bool
+  let restFill: Color
 
-  public init(
+  init(
     palette: Palette,
     isSelected: Bool,
     isHovering: Bool,
@@ -24,7 +24,7 @@ public struct SelectableRowButtonStyle: ButtonStyle {
     self.restFill = restFill
   }
 
-  public func makeBody(configuration: Configuration) -> some View {
+  func makeBody(configuration: Configuration) -> some View {
     let shape = RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
     let hasEdge = isSelected && showsSelectionEdge
     configuration.label

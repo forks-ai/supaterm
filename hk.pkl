@@ -63,11 +63,6 @@ hooks {
         stdin = "{{ hook_stdin }}"
         depends = "web-install"
       }
-      ["supa-theme-package-test"] {
-        check = "\(prePushBranchCheck)\nmake supa-theme-package-test"
-        stdin = "{{ hook_stdin }}"
-        depends = "validate-release-tags"
-      }
       ["mac-scan-dead-code"] {
         check = "\(prePushBranchCheck)\nmake mac-scan-dead-code"
         stdin = "{{ hook_stdin }}"

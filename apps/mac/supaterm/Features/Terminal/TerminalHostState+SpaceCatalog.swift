@@ -3,18 +3,12 @@ import Foundation
 import GhosttyKit
 import Observation
 import Sharing
-import SupaTheme
 import SupatermTerminalCore
 import SwiftUI
 
 extension TerminalHostState {
   @discardableResult
   func createSpace(named name: String) throws -> TerminalSpaceID {
-    try createSpace(named: name, themeID: nextCreateSpaceThemeID())
-  }
-
-  @discardableResult
-  func createSpace(named name: String, themeID: String) throws -> TerminalSpaceID {
     guard let normalizedName = Self.trimmedNonEmpty(name) else {
       throw TerminalControlError.invalidSpaceName
     }
@@ -23,8 +17,7 @@ extension TerminalHostState {
     }
 
     let space = PersistedTerminalSpace(
-      name: normalizedName,
-      themeID: themeID
+      name: normalizedName
     )
     var updatedSpaceCatalog = spaceCatalog
     updatedSpaceCatalog.defaultSelectedSpaceID = space.id
@@ -41,13 +34,6 @@ extension TerminalHostState {
     return space.id
   }
 
-  func nextCreateSpaceThemeID() -> String {
-    TerminalSpaceThemeSelection.randomThemeID(
-      usedThemeIDs: TerminalSpaceCatalog.sanitized(spaceCatalog).spaces.map(\.themeID),
-      randomIndex: { Int.random(in: 0..<$0) }
-    )
-  }
-
   func renameSpace(_ spaceID: TerminalSpaceID, to name: String) {
     let normalizedName = name.trimmingCharacters(in: .whitespacesAndNewlines)
     guard !normalizedName.isEmpty else { return }
@@ -56,22 +42,6 @@ extension TerminalHostState {
 
     var updatedSpaceCatalog = spaceCatalog
     updatedSpaceCatalog.spaces[index].name = normalizedName
-    _ = writeSpaceCatalog(updatedSpaceCatalog)
-  }
-
-  func updateSpace(
-    _ spaceID: TerminalSpaceID,
-    name: String,
-    themeID: String
-  ) {
-    let normalizedName = name.trimmingCharacters(in: .whitespacesAndNewlines)
-    guard !normalizedName.isEmpty else { return }
-    guard spaceManager.isNameAvailable(normalizedName, excluding: spaceID) else { return }
-    guard let index = spaceCatalog.spaces.firstIndex(where: { $0.id == spaceID }) else { return }
-
-    var updatedSpaceCatalog = spaceCatalog
-    updatedSpaceCatalog.spaces[index].name = normalizedName
-    updatedSpaceCatalog.spaces[index].themeID = Theme.curated(id: themeID).id
     _ = writeSpaceCatalog(updatedSpaceCatalog)
   }
 
