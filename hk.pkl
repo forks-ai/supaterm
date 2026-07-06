@@ -1,6 +1,15 @@
 amends "package://github.com/jdx/hk/releases/download/v1.45.0/hk@1.45.0#/Config.pkl"
 import "package://github.com/jdx/hk/releases/download/v1.45.0/hk@1.45.0#/Builtins.pkl"
 
+local prePushBranchCheck = """
+repo_root=$(git rev-parse --show-toplevel)
+cd "$repo_root"
+[ -d apps/mac ] || exit 0
+if ! awk 'NF && $1 !~ /^refs\\/tags\\// && $3 !~ /^refs\\/tags\\// { found = 1 } END { exit found ? 0 : 1 }'; then
+  exit 0
+fi
+"""
+
 hooks {
   ["pre-commit"] {
     steps {
@@ -39,14 +48,35 @@ hooks {
         stdin = "{{ hook_stdin }}"
         depends = "git-lfs"
       }
-      ["branch-checks"] {
-        check = """
-          repo_root=$(git rev-parse --show-toplevel)
-          cd "$repo_root"
-          [ ! -d apps/mac ] || python3 .github/scripts/bump_and_release.py run-pre-push-branch-checks
-          """
+      ["web-install"] {
+        check = "\(prePushBranchCheck)\nmake web-install"
         stdin = "{{ hook_stdin }}"
         depends = "validate-release-tags"
+      }
+      ["web-check"] {
+        check = "\(prePushBranchCheck)\nmake web-check"
+        stdin = "{{ hook_stdin }}"
+        depends = "web-install"
+      }
+      ["web-test"] {
+        check = "\(prePushBranchCheck)\nmake web-test"
+        stdin = "{{ hook_stdin }}"
+        depends = "web-install"
+      }
+      ["supa-theme-package-test"] {
+        check = "\(prePushBranchCheck)\nmake supa-theme-package-test"
+        stdin = "{{ hook_stdin }}"
+        depends = "validate-release-tags"
+      }
+      ["mac-scan-dead-code"] {
+        check = "\(prePushBranchCheck)\nmake mac-scan-dead-code"
+        stdin = "{{ hook_stdin }}"
+        depends = "validate-release-tags"
+      }
+      ["mac-test"] {
+        check = "\(prePushBranchCheck)\nmake mac-test"
+        stdin = "{{ hook_stdin }}"
+        depends = "mac-scan-dead-code"
       }
     }
   }

@@ -3,7 +3,7 @@ from io import StringIO
 from pathlib import Path
 import subprocess
 import unittest
-from unittest.mock import call, patch
+from unittest.mock import patch
 
 from bump_and_release import (
   PendingRelease,
@@ -14,8 +14,6 @@ from bump_and_release import (
   parse_release_kind,
   parse_version_state,
   parse_push_update,
-  branch_pre_push_checks_required,
-  run_pre_push_branch_checks,
   release_state,
   recover_pending_release,
   stable_build_number,
@@ -297,37 +295,6 @@ class BumpAndReleaseTest(unittest.TestCase):
     validate_pre_push(StringIO("refs/heads/main abc refs/heads/main def\n"))
 
     validate_release_tag_mock.assert_not_called()
-
-  def test_branch_pre_push_checks_required_accepts_branch_pushes(self) -> None:
-    self.assertTrue(
-      branch_pre_push_checks_required(StringIO("refs/heads/main abc refs/heads/main def\n"))
-    )
-
-  def test_branch_pre_push_checks_required_ignores_tag_pushes(self) -> None:
-    self.assertFalse(
-      branch_pre_push_checks_required(StringIO("refs/tags/v26.0.0 abc refs/tags/v26.0.0 def\n"))
-    )
-
-  @patch("bump_and_release.run_interactive")
-  def test_run_pre_push_branch_checks_runs_full_checks_for_branch_push(self, run_interactive_mock) -> None:
-    run_pre_push_branch_checks(StringIO("refs/heads/main abc refs/heads/main def\n"))
-
-    self.assertEqual(
-      run_interactive_mock.call_args_list,
-      [
-        call(["make", "web-check"]),
-        call(["make", "web-test"]),
-        call(["make", "mac-scan-dead-code"]),
-        call(["make", "supa-theme-package-test"]),
-        call(["make", "mac-test"]),
-      ],
-    )
-
-  @patch("bump_and_release.run_interactive")
-  def test_run_pre_push_branch_checks_skips_tag_pushes(self, run_interactive_mock) -> None:
-    run_pre_push_branch_checks(StringIO("refs/tags/v26.0.0 abc refs/tags/v26.0.0 def\n"))
-
-    run_interactive_mock.assert_not_called()
 
   @patch("bump_and_release.validate_release_tag")
   def test_validate_pre_push_ignores_tag_deletions(self, validate_release_tag_mock) -> None:
