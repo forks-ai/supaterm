@@ -7,6 +7,7 @@ Supaterm chrome has one default look. The mac app owns the palette, window backg
 - Views take an explicit `let palette: Palette` and read semantic chrome tokens.
 - `TerminalView` builds `Palette(colorScheme:)` from the resolved chrome color scheme.
 - `ChromeBackgroundView` renders the fixed opaque window ramp with deterministic grain.
+- The agent panel uses an opaque floating surface token so terminal content underneath cannot change its color.
 - Spaces store identity and name only; the create and rename flows do not expose chrome choices.
 
 ## Boundaries

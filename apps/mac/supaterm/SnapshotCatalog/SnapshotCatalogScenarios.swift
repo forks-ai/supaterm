@@ -754,10 +754,13 @@ private struct AgentPanelSnapshotFixture: View {
       forkSession: { _, _ in },
       openURL: { _ in }
     )
-    .background(palette.detailBackground, in: .rect(cornerRadius: AgentPanelMetrics.expandedCornerRadius))
+    .background(palette.agentPanelBackground, in: .rect(cornerRadius: AgentPanelMetrics.expandedCornerRadius))
     .padding(16)
-    .background(palette.windowBackgroundTint)
-    .background(palette.detailBackground.opacity(0.75))
+    .background(terminalBackdrop)
+  }
+
+  private var terminalBackdrop: Color {
+    appearance.colorScheme == .dark ? Color(white: 0.07) : Color(white: 0.94)
   }
 }
 

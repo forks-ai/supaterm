@@ -68,6 +68,7 @@ private struct PaletteTokenSheetSnapshotFixture: View {
     [
       TokenSwatch(name: "windowBackgroundTint", color: palette.windowBackgroundTint),
       TokenSwatch(name: "detailBackground", color: palette.detailBackground),
+      TokenSwatch(name: "agentPanelBackground", color: palette.agentPanelBackground),
       TokenSwatch(name: "detailStroke", color: palette.detailStroke),
       TokenSwatch(name: "unselectedFill", color: palette.unselectedFill),
       TokenSwatch(name: "hoverFill", color: palette.hoverFill),

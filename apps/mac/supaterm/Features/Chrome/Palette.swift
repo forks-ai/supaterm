@@ -11,6 +11,7 @@ struct Palette {
   var backgroundBottom: Color { isDark ? Color(rgb: 0x191919) : Color(rgb: 0xEDEDED) }
   var windowBackgroundTint: Color { primary.mix(with: .black, by: isDark ? 0.8 : 0).opacity(0.3) }
   var detailBackground: Color { primary.mix(with: isDark ? .black : .white, by: 0.85) }
+  var agentPanelBackground: Color { primary.mix(with: isDark ? .black : .white, by: isDark ? 0.82 : 0.85) }
   var detailStroke: Color { isDark ? Color.white.opacity(0.08) : Color.black.opacity(0.06) }
   var destructive: Color { Color(red: 1, green: 0.4118, blue: 0.4118) }
   var unselectedFill: Color { (isDark ? Color.white : .black).opacity(0.06) }

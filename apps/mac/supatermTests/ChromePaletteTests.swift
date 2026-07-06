@@ -53,6 +53,11 @@ struct ChromePaletteTests {
       "detailBackground"
     )
     expectSameColor(
+      palette.agentPanelBackground,
+      primary.mix(with: isDark ? .black : .white, by: isDark ? 0.82 : 0.85),
+      "agentPanelBackground"
+    )
+    expectSameColor(
       palette.detailStroke,
       isDark ? Color.white.opacity(0.08) : Color.black.opacity(0.06),
       "detailStroke"

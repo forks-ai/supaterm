@@ -733,7 +733,7 @@ struct TerminalSplitTreeView: View {
         alignment: .topTrailing
       )
       .background(
-        palette.detailBackground.opacity(0.96),
+        palette.agentPanelBackground,
         in: .rect(cornerRadius: cornerRadius)
       )
       .clipShape(RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
