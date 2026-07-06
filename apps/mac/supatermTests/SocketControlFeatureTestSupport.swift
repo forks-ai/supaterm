@@ -50,6 +50,8 @@ extension SocketRequestExecutor {
       return .notify(try await terminalWindowsClient.notify(notifyRequest))
     case .agentHook(let hookRequest):
       return .agentHook(try await terminalWindowsClient.agentHook(hookRequest))
+    case .quit:
+      return .quit
     }
   }
 

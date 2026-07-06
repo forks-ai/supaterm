@@ -12,7 +12,7 @@ struct SupatermE2EError: Error, CustomStringConvertible {
   }
 }
 
-final class SupatermE2EApp {
+final class SupatermE2EApp: @unchecked Sendable {
   let stateHome: URL
   private let process: Process
   private let client: SPSocketClient
@@ -53,6 +53,7 @@ final class SupatermE2EApp {
       "LOGNAME": NSUserName(),
       "PATH": "/usr/bin:/bin:/usr/sbin:/sbin",
       "SHELL": "/bin/zsh",
+      "SUPATERM_TEST_MODE": "1",
       "USER": NSUserName(),
       "ZMX_DIR": zmxDirectory.path,
       SupatermCLIEnvironment.instanceNameKey: instanceName,
@@ -92,6 +93,10 @@ final class SupatermE2EApp {
       )
     }
     return try response.decodeResult(type)
+  }
+
+  func debugSnapshot() throws -> SupatermAppDebugSnapshot {
+    try send(.debug(SupatermDebugRequest()), as: SupatermAppDebugSnapshot.self)
   }
 
   func capture(_ target: SupatermPaneTargetRequest) throws -> String {

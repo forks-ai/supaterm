@@ -10,6 +10,7 @@ import SupatermTerminalCore
 final class TerminalCommandExecutor {
   let agentSessionStore: TerminalAgentSessionStore
   unowned let registry: TerminalWindowRegistry
+  var onQuitRequested: (() -> Void)?
 
   init<C: Clock<Duration>>(
     registry: TerminalWindowRegistry,
@@ -46,6 +47,9 @@ final class TerminalCommandExecutor {
       return .notify(try notify(notifyRequest))
     case .agentHook(let hookRequest):
       return .agentHook(try handleAgentHook(hookRequest))
+    case .quit:
+      onQuitRequested?()
+      return .quit
     }
   }
 

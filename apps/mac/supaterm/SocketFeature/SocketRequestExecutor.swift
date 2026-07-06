@@ -9,6 +9,7 @@ public struct SocketRequestExecutor: Sendable {
     case treeSnapshot
     case notify(TerminalNotifyRequest)
     case agentHook(SupatermAgentHookRequest)
+    case quit
   }
 
   public enum AppResult: Sendable {
@@ -17,6 +18,7 @@ public struct SocketRequestExecutor: Sendable {
     case treeSnapshot(SupatermTreeSnapshot)
     case notify(SupatermNotifyResult)
     case agentHook(TerminalAgentHookResult)
+    case quit
   }
 
   public enum TerminalCreationRequest: Sendable {
@@ -149,6 +151,8 @@ extension SocketRequestExecutor: DependencyKey {
         throw TerminalCreatePaneError.creationFailed
       case .agentHook:
         return .agentHook(TerminalAgentHookResult(desktopNotification: nil))
+      case .quit:
+        return .quit
       }
     },
     executeTerminalCreation: { request in

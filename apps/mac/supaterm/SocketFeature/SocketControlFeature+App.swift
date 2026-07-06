@@ -32,6 +32,13 @@ extension SocketControlFeature {
       }
       return try .ok(id: request.id, encodableResult: snapshot)
 
+    case SupatermSocketMethod.appQuit:
+      let result = try await socketRequestExecutor.executeApp(.quit)
+      guard case .quit = result else {
+        throw SocketExecutorError.unexpectedResult
+      }
+      return .ok(id: request.id)
+
     default:
       return nil
     }

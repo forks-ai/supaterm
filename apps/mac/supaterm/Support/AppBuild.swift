@@ -17,6 +17,10 @@ public enum AppBuild {
     #endif
   }
 
+  public nonisolated static var isTestMode: Bool {
+    ProcessInfo.processInfo.environment["SUPATERM_TEST_MODE"] == "1"
+  }
+
   public nonisolated static var version: String {
     infoString("CFBundleShortVersionString")
   }
