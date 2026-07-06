@@ -36,6 +36,7 @@ struct SPHelpTests {
       SP.helpMessage(for: SP.ValidateConfig.self, columns: 100),
       SP.helpMessage(for: SP.Space.self, columns: 100),
       SP.helpMessage(for: SP.SpaceNew.self, columns: 100),
+      SP.helpMessage(for: SP.SpaceDestroy.self, columns: 100),
       SP.helpMessage(for: SP.Tab.self, columns: 100),
       SP.helpMessage(for: SP.NewTab.self, columns: 100),
       SP.helpMessage(for: SP.Pane.self, columns: 100),
@@ -129,13 +130,18 @@ struct SPHelpTests {
   func spaceHelpExamplesRequireNamesForSpaceCreation() {
     let spaceHelp = SP.helpMessage(for: SP.Space.self, columns: 100)
     let spaceNewHelp = SP.helpMessage(for: SP.SpaceNew.self, columns: 100)
+    let spaceDestroyHelp = SP.helpMessage(for: SP.SpaceDestroy.self, columns: 100)
 
     #expect(spaceHelp.contains("sp space new --focus Work"))
+    #expect(spaceHelp.contains("sp space destroy -y 1"))
     #expect(!spaceHelp.contains("sp space new --focus\n"))
     #expect(spaceNewHelp.contains("sp space new Work"))
     #expect(spaceNewHelp.contains("sp space new --focus Build"))
     #expect(!spaceNewHelp.contains("sp space new\n"))
     #expect(!spaceNewHelp.contains("sp space new --focus\n"))
+    #expect(spaceDestroyHelp.contains("sp space destroy -y"))
+    #expect(spaceDestroyHelp.contains("sp space destroy -y 1"))
+    #expect(!spaceDestroyHelp.contains("sp space close"))
   }
 
   @Test

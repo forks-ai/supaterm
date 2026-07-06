@@ -11,7 +11,7 @@ extension SP {
       subcommands: [
         SpaceNew.self,
         SpaceFocus.self,
-        SpaceClose.self,
+        SpaceDestroy.self,
         SpaceRename.self,
         SpaceNext.self,
         SpacePrev.self,
@@ -176,12 +176,15 @@ extension SP {
     }
   }
 
-  struct SpaceClose: ParsableCommand {
+  struct SpaceDestroy: ParsableCommand {
     static let configuration = CommandConfiguration(
-      commandName: "close",
-      abstract: "Close a space.",
-      discussion: SPHelp.spaceCloseDiscussion
+      commandName: "destroy",
+      abstract: "Destroy a space.",
+      discussion: SPHelp.spaceDestroyDiscussion
     )
+
+    @Flag(name: [.customShort("y"), .long], help: "Destroy without interactive confirmation.")
+    var yes = false
 
     @Argument(help: "Optional space target.")
     var space: SPSpaceReference?
@@ -190,23 +193,43 @@ extension SP {
     var options: SPCommandOptions
 
     mutating func run() throws {
-      try runControlCommand(
-        options: options,
-        request: { try .closeSpace(try requestPayload(client: $0)) },
-        as: SupatermCloseSpaceResult.self,
-        plain: { plainSpaceSelector(spaceIndex: $0.spaceIndex) },
-        human: { render($0) }
+      applyOutputStyle(options.output)
+      let client = try socketClient(
+        path: options.connection.explicitSocketPath,
+        instance: options.connection.instance
+      )
+      let target = try resolveTarget(client: client)
+      if !yes {
+        try confirmDestructiveAction(prompt: "Destroy \(destroyPromptTarget(target))? [y/N] ")
+      }
+      let response = try client.send(.closeSpace(spaceTargetRequest(target)))
+      guard response.ok else {
+        throw ValidationError(response.error?.message ?? "Supaterm socket request failed.")
+      }
+      let result = try response.decodeResult(SupatermCloseSpaceResult.self)
+      try emitCommandResult(
+        result,
+        options: options.output,
+        plain: plainSpaceSelector(spaceIndex: result.spaceIndex),
+        human: render(result)
       )
     }
 
-    private func requestPayload(client: SPSocketClient) throws -> SupatermSpaceTargetRequest {
-      spaceTargetRequest(
-        try resolvePublicSpaceTarget(
-          space,
-          context: SupatermCLIContext.current,
-          snapshot: try treeSnapshot(client)
-        )
+    private func resolveTarget(client: SPSocketClient) throws -> SPResolvedSpaceTarget {
+      try resolvePublicSpaceTarget(
+        space,
+        context: SupatermCLIContext.current,
+        snapshot: try treeSnapshot(client)
       )
+    }
+
+    private func destroyPromptTarget(_ target: SPResolvedSpaceTarget) -> String {
+      switch target {
+      case .context:
+        return "the current space"
+      case .space(_, let spaceIndex):
+        return "space \(spaceIndex)"
+      }
     }
   }
 

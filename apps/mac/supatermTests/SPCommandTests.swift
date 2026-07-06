@@ -38,6 +38,26 @@ struct SPCommandTests {
   }
 
   @Test
+  func spaceDestroyParserAcceptsYesFlag() throws {
+    let command = try #require(
+      try SP.parseAsRoot(["space", "destroy", "-y", "1"]) as? SP.SpaceDestroy
+    )
+
+    #expect(command.yes)
+    #expect(command.space == .index(1))
+  }
+
+  @Test
+  func spaceCloseParserIsRemoved() throws {
+    do {
+      _ = try SP.parseAsRoot(["space", "close", "1"])
+      Issue.record("Expected space close to be removed.")
+    } catch {
+      #expect(String(describing: error).contains("close"))
+    }
+  }
+
+  @Test
   func newPaneParserAcceptsTabAndPaneTargets() throws {
     let paneID = UUID(uuidString: "2B8B3A57-D7F8-4EF7-930F-46B1F7281B2A")!
     let tabCommand = try #require(

@@ -93,4 +93,43 @@ struct SPCommandRuntimeTests {
       #expect(String(describing: error).contains("--json and --plain cannot be used together."))
     }
   }
+
+  @Test
+  func destructiveConfirmationRequiresInteractiveInput() throws {
+    do {
+      try confirmDestructiveAction(prompt: "Destroy space 1? [y/N] ", isInteractive: { false })
+      Issue.record("Expected non-interactive confirmation to throw.")
+    } catch {
+      #expect(String(describing: error).contains("Pass -y to confirm."))
+    }
+  }
+
+  @Test
+  func destructiveConfirmationAcceptsYes() throws {
+    var prompt = ""
+
+    try confirmDestructiveAction(
+      prompt: "Destroy space 1? [y/N] ",
+      isInteractive: { true },
+      readLine: { "yes" },
+      writePrompt: { prompt = $0 }
+    )
+
+    #expect(prompt == "Destroy space 1? [y/N] ")
+  }
+
+  @Test
+  func destructiveConfirmationCancelsByDefault() throws {
+    do {
+      try confirmDestructiveAction(
+        prompt: "Destroy space 1? [y/N] ",
+        isInteractive: { true },
+        readLine: { "" },
+        writePrompt: { _ in }
+      )
+      Issue.record("Expected blank confirmation to throw.")
+    } catch {
+      #expect(String(describing: error).contains("Canceled."))
+    }
+  }
 }

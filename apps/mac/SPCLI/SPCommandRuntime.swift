@@ -230,6 +230,22 @@ func stdoutIsTTY() -> Bool {
   isatty(FileHandle.standardOutput.fileDescriptor) != 0
 }
 
+func confirmDestructiveAction(
+  prompt: String,
+  isInteractive: () -> Bool = stdinIsTTY,
+  readLine: () -> String? = { Swift.readLine() },
+  writePrompt: (String) -> Void = { FileHandle.standardError.write(Data($0.utf8)) }
+) throws {
+  guard isInteractive() else {
+    throw ValidationError("Pass -y to confirm.")
+  }
+  writePrompt(prompt)
+  let answer = readLine()?.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+  guard answer == "y" || answer == "yes" else {
+    throw ValidationError("Canceled.")
+  }
+}
+
 private enum SPTerminalStyle {
   private static let isTTY = stdoutIsTTY()
   private nonisolated(unsafe) static var isEnabled = true
