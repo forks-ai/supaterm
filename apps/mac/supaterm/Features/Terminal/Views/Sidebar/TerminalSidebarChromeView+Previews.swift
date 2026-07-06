@@ -1,4 +1,5 @@
 import Foundation
+import SupaTheme
 import SupatermCLIShared
 import SwiftUI
 
@@ -270,7 +271,7 @@ private enum TerminalSidebarTabPreviewFixtures {
 
 private struct TerminalSidebarTabPreviewRow: View {
   let item: TerminalSidebarTabPreviewItem
-  let palette: TerminalPalette
+  let palette: Palette
 
   var body: some View {
     TerminalSidebarTabSummaryView(
@@ -311,8 +312,8 @@ private struct TerminalSidebarTabPreviewRow: View {
 private struct TerminalSidebarTabPreviewGallery: View {
   let colorScheme: ColorScheme
 
-  private var palette: TerminalPalette {
-    TerminalPalette(colorScheme: colorScheme)
+  private var palette: Palette {
+    Palette(colorScheme: colorScheme)
   }
 
   var body: some View {
@@ -401,8 +402,17 @@ private struct TerminalSidebarTabPreviewComparison: View {
 
 private struct TerminalSidebarTabGroupPreviewModel {
   let title: String
-  let tone: TerminalTone
+  let tone: TerminalSidebarTabGroupPreviewTone
   let items: [TerminalSidebarTabPreviewItem]
+}
+
+private enum TerminalSidebarTabGroupPreviewTone {
+  case amber
+  case coral
+  case mint
+  case sky
+  case slate
+  case violet
 }
 
 private enum TerminalSidebarGroupedTabPreviewFixtures {
@@ -485,7 +495,7 @@ private enum TerminalSidebarGroupedTabPreviewFixtures {
 
 private struct TerminalSidebarGroupedTabPreview: View {
   let group: TerminalSidebarTabGroupPreviewModel
-  let palette: TerminalPalette
+  let palette: Palette
 
   @Environment(\.colorScheme) private var colorScheme
 
@@ -538,7 +548,20 @@ private struct TerminalSidebarGroupedTabPreview: View {
   }
 
   private var accent: Color {
-    palette.fill(for: group.tone)
+    switch group.tone {
+    case .amber:
+      palette.amber.opacity(0.85)
+    case .coral:
+      palette.coral.opacity(0.85)
+    case .mint:
+      palette.mint.opacity(0.85)
+    case .sky:
+      palette.sky.opacity(0.85)
+    case .slate:
+      palette.slate.opacity(0.85)
+    case .violet:
+      palette.violet.opacity(0.85)
+    }
   }
 
   private var innerFill: Color {
@@ -586,7 +609,7 @@ private struct TerminalSidebarPreviewWindowHeader: View {
 }
 
 private struct TerminalSidebarGroupedTabNewRowPreview: View {
-  let palette: TerminalPalette
+  let palette: Palette
 
   var body: some View {
     HStack(spacing: 8) {
@@ -610,8 +633,8 @@ private struct TerminalSidebarGroupedTabNewRowPreview: View {
 private struct TerminalSidebarGroupedTabPreviewGallery: View {
   let colorScheme: ColorScheme
 
-  private var palette: TerminalPalette {
-    TerminalPalette(colorScheme: colorScheme)
+  private var palette: Palette {
+    Palette(colorScheme: colorScheme)
   }
 
   var body: some View {

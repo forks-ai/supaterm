@@ -1,6 +1,7 @@
 import AppKit
 import ComposableArchitecture
 import Sharing
+import SupaTheme
 import SupatermSettingsFeature
 import SupatermUpdateFeature
 import SwiftUI
@@ -28,8 +29,8 @@ struct TerminalView: View {
     supatermSettings.appearanceMode.appearance
   }
 
-  private var palette: TerminalPalette {
-    TerminalPalette(colorScheme: chromeColorScheme)
+  private var palette: Palette {
+    Palette(theme: terminal.selectedSpaceTheme, colorScheme: chromeColorScheme)
   }
 
   private var pendingCloseBinding: Binding<Bool> {
@@ -61,6 +62,13 @@ struct TerminalView: View {
     )
   }
 
+  private var spaceEditorThemeBinding: Binding<String> {
+    Binding(
+      get: { store.spaceEditor?.draftThemeID ?? terminal.selectedSpaceThemeID },
+      set: { _ = store.send(.spaceEditorThemeSelected($0)) }
+    )
+  }
+
   private var spaceEditorIsValid: Bool {
     guard let spaceEditor = store.spaceEditor else { return false }
     return terminal.isSpaceNameAvailable(
@@ -86,13 +94,9 @@ struct TerminalView: View {
   var body: some View {
     GeometryReader(content: terminalLayout)
       .frame(minWidth: 1_080, minHeight: 720)
-      .background(palette.windowBackgroundTint)
+      .background(ThemeBackgroundView(palette: palette))
       .background {
         WindowAppearanceApplier(appliedAppearance: windowAppearance)
-      }
-      .background {
-        BlurEffectView(material: .underWindowBackground, blendingMode: .behindWindow)
-          .ignoresSafeArea()
       }
       .overlay {
         WindowChromeConfigurator()
@@ -157,11 +161,12 @@ struct TerminalView: View {
       }
       .overlay {
         if let spaceEditor = store.spaceEditor {
-          SpaceNameOverlay(
+          SpaceEditorOverlay(
             palette: palette,
             title: spaceEditor.title,
             confirmTitle: spaceEditor.confirmTitle,
             name: spaceEditorTextBinding,
+            themeID: spaceEditorThemeBinding,
             isSaveEnabled: spaceEditorIsValid,
             onSave: {
               guard spaceEditorIsValid else { return }

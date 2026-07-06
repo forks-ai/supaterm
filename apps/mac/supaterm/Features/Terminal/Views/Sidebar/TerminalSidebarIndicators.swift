@@ -1,13 +1,15 @@
+import SupaTheme
 import SupatermSupport
 import SwiftUI
 
 struct TerminalAgentBadgeGroupView: View {
   static let maxVisibleCount = 3
-  static let badgeSpacing: CGFloat = 2
+  static let badgeSize: CGFloat = 16
+  static let badgeOverlap: CGFloat = badgeSize * 0.35
 
   let activities: [TerminalHostState.AgentActivity]
   let isSelected: Bool
-  let palette: TerminalPalette
+  let palette: Palette
 
   static func visibleActivities(
     _ activities: [TerminalHostState.AgentActivity],
@@ -29,13 +31,16 @@ struct TerminalAgentBadgeGroupView: View {
     let visibleActivities = Self.visibleActivities(activities)
     let overflowCount = Self.overflowCount(for: activities)
 
-    HStack(spacing: Self.badgeSpacing) {
-      ForEach(Array(visibleActivities.enumerated()), id: \.offset) { _, activity in
-        TerminalAgentBadgeView(
-          activity: activity,
-          isSelected: isSelected,
-          palette: palette
-        )
+    HStack(spacing: 4) {
+      HStack(spacing: -Self.badgeOverlap) {
+        ForEach(Array(visibleActivities.enumerated()), id: \.offset) { index, activity in
+          TerminalAgentBadgeView(
+            activity: activity,
+            isSelected: isSelected,
+            palette: palette
+          )
+          .zIndex(Double(visibleActivities.count - index))
+        }
       }
 
       if overflowCount > 0 {
@@ -43,7 +48,7 @@ struct TerminalAgentBadgeGroupView: View {
           .font(.system(size: 7, weight: .bold))
           .foregroundStyle(isSelected ? palette.selectedText : palette.primaryText)
           .padding(.horizontal, 3)
-          .frame(minWidth: 16, minHeight: 16)
+          .frame(minWidth: Self.badgeSize, minHeight: Self.badgeSize)
           .background(badgeFill, in: Capsule(style: .continuous))
           .overlay {
             Capsule(style: .continuous)
@@ -69,7 +74,7 @@ struct TerminalAgentBadgeGroupView: View {
 private struct TerminalAgentBadgeView: View {
   let activity: TerminalHostState.AgentActivity
   let isSelected: Bool
-  let palette: TerminalPalette
+  let palette: Palette
 
   var body: some View {
     Image(activity.kind.markImageName)
@@ -77,9 +82,17 @@ private struct TerminalAgentBadgeView: View {
       .resizable()
       .aspectRatio(contentMode: .fit)
       .padding(3)
-      .frame(width: 16, height: 16)
+      .frame(
+        width: TerminalAgentBadgeGroupView.badgeSize,
+        height: TerminalAgentBadgeGroupView.badgeSize
+      )
       .foregroundStyle(isSelected ? palette.selectedText : palette.primaryText)
-      .background(badgeFill, in: Circle())
+      .background {
+        ZStack {
+          Circle().fill(palette.detailBackground)
+          Circle().fill(badgeFill)
+        }
+      }
       .overlay {
         Circle()
           .strokeBorder(badgeStroke, lineWidth: pixelLength)
@@ -126,7 +139,7 @@ struct TerminalSidebarTerminalProgress: Equatable {
 struct TerminalSidebarProgressIndicatorView: View {
   let progress: TerminalSidebarTerminalProgress
   let isSelected: Bool
-  let palette: TerminalPalette
+  let palette: Palette
 
   var body: some View {
     Group {
@@ -161,9 +174,9 @@ struct TerminalSidebarProgressIndicatorView: View {
     case .active:
       return isSelected ? palette.selectedSecondaryText : palette.secondaryText
     case .paused:
-      return .orange
+      return palette.attention
     case .error:
-      return .red
+      return palette.destructive
     }
   }
 }
@@ -171,7 +184,7 @@ struct TerminalSidebarProgressIndicatorView: View {
 struct TerminalSidebarAgentActivityView: View {
   let activity: TerminalHostState.AgentActivity
   let isSelected: Bool
-  let palette: TerminalPalette
+  let palette: Palette
 
   @Environment(\.accessibilityReduceMotion) private var reduceMotion
   @State private var isAnimating = false
@@ -254,7 +267,7 @@ struct TerminalSidebarAgentActivityView: View {
     case .attention:
       return palette.attention
     case .active:
-      return Color.accentColor
+      return palette.accent
     case .muted:
       return palette.secondaryText
     }
@@ -263,7 +276,7 @@ struct TerminalSidebarAgentActivityView: View {
 
 struct TerminalSidebarBellIndicatorView: View {
   let isSelected: Bool
-  let palette: TerminalPalette
+  let palette: Palette
 
   var body: some View {
     RoundedRectangle(cornerRadius: 5, style: .continuous)

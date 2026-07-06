@@ -2,6 +2,7 @@ import AppKit
 import ComposableArchitecture
 import Foundation
 import Sharing
+import SupaTheme
 import SupatermSupport
 import SupatermUpdateFeature
 import SwiftUI
@@ -48,7 +49,7 @@ enum TerminalSidebarUpdatePresentation {
 
 struct TerminalSidebarUpdateSection: View {
   let store: StoreOf<UpdateFeature>
-  let palette: TerminalPalette
+  let palette: Palette
 
   @Shared(.supatermSettings) private var supatermSettings = .default
   @State private var isHovering = false
@@ -375,7 +376,7 @@ private enum TerminalSidebarUpdateButtonTone {
 
 private struct TerminalSidebarUpdateStyle {
   let phase: UpdatePhase
-  let palette: TerminalPalette
+  let palette: Palette
 
   var usesSelectedRowStyle: Bool {
     TerminalSidebarUpdatePresentation.usesSelectedRowStyle(for: phase)
@@ -413,7 +414,7 @@ private struct TerminalSidebarUpdateStyle {
   }
 
   var warning: Color {
-    Color(nsColor: .systemOrange)
+    palette.attention
   }
 
   var indicator: Color {
@@ -428,13 +429,13 @@ private struct TerminalSidebarUpdateStyle {
   }
 
   private var success: Color {
-    Color(nsColor: .systemGreen)
+    palette.success
   }
 }
 
 private struct TerminalSidebarUpdateIndicator: View {
   let phase: UpdatePhase
-  let palette: TerminalPalette
+  let palette: Palette
 
   private var style: TerminalSidebarUpdateStyle {
     TerminalSidebarUpdateStyle(
