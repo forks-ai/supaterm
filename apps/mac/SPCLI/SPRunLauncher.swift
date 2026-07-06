@@ -29,7 +29,8 @@ enum SPRunLauncher {
       arguments: arguments,
       socketPath: connection.target.path,
       focusedContext: focusedContext,
-      environment: environment
+      environment: environment,
+      homeDirectoryURL: cliHomeDirectoryURL(environment: environment)
     )
     try execProcess(launcher)
   }

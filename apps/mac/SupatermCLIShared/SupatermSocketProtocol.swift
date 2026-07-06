@@ -3,6 +3,7 @@ import Foundation
 public enum SupatermSocketMethod {
   public static let appOnboarding = "app.onboarding"
   public static let appDebug = "app.debug"
+  public static let appQuit = "app.quit"
   public static let appTree = "app.tree"
   public static let systemIdentity = "system.identity"
   public static let systemPing = "system.ping"
@@ -125,6 +126,10 @@ public struct SupatermSocketRequest: Equatable, Sendable, Codable {
 
   public static func onboarding(id: String = UUID().uuidString) -> Self {
     Self(id: id, method: SupatermSocketMethod.appOnboarding)
+  }
+
+  public static func quit(id: String = UUID().uuidString) -> Self {
+    Self(id: id, method: SupatermSocketMethod.appQuit)
   }
 
   public static func debug(

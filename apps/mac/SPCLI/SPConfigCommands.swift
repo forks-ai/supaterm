@@ -31,7 +31,7 @@ extension SP {
 
     mutating func run() throws {
       applyOutputStyle(output)
-      let validator = SupatermSettingsValidator()
+      let validator = SupatermSettingsValidator(homeDirectoryURL: cliHomeDirectoryURL())
       let explicitPath = try resolvedConfigPath(path)
       let result = validator.validate(path: explicitPath)
 
@@ -74,7 +74,7 @@ private func resolvedConfigPath(_ path: String?) throws -> URL? {
   guard !trimmed.isEmpty else {
     throw ValidationError("--path must not be empty.")
   }
-  let expandedPath = NSString(string: trimmed).expandingTildeInPath
+  let expandedPath = expandCLIHomePath(trimmed)
   let url: URL
   if expandedPath.hasPrefix("/") {
     url = URL(fileURLWithPath: expandedPath, isDirectory: false)

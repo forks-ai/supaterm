@@ -58,6 +58,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
     }
   )
   private var settingsWindowController: SettingsWindowController?
+  private var bypassesConfirmationForNextQuit = false
   private var sessionPersistenceState = SessionPersistenceState.active
   private var terminatesSessionsForNextQuit = false
   private var toggleVisibilityState: ToggleVisibilityState?
@@ -96,6 +97,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
       terminalWindowRegistry?.globalKeybindRuntimes() ?? []
     }
     terminalWindowRegistry.commandExecutor = terminalCommandExecutor
+    terminalCommandExecutor.onQuitRequested = { [weak self] in
+      self?.performSocketQuit()
+    }
     terminalWindowRegistry.onChange = { [weak menuController, weak globalKeybindManager] in
       menuController?.refresh()
       globalKeybindManager?.refresh()
@@ -205,13 +209,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
     }
     let terminatesSessionsForNextQuit = self.terminatesSessionsForNextQuit
     self.terminatesSessionsForNextQuit = false
+    let bypassesConfirmationForNextQuit = self.bypassesConfirmationForNextQuit
+    self.bypassesConfirmationForNextQuit = false
     let terminatesSessionsOnQuit = terminatesSessionsForNextQuit || supatermSettings.terminatesSessionsOnQuit
     let terminationPlan = Self.terminationPlan(
       hasVisibleAppWindows: NSApp.windows.contains(where: \.isVisible),
       confirmQuitMode: supatermSettings.confirmQuitMode,
       hasActiveAgentWorkForQuit: terminalWindowRegistry.hasActiveAgentWorkForQuit,
       needsQuitConfirmation: terminalWindowRegistry.needsQuitConfirmation,
-      bypassesQuitConfirmation: terminatesSessionsForNextQuit || terminalWindowRegistry.bypassesQuitConfirmation,
+      bypassesQuitConfirmation: terminatesSessionsForNextQuit
+        || bypassesConfirmationForNextQuit
+        || terminalWindowRegistry.bypassesQuitConfirmation,
       terminatesSessionsOnQuit: terminatesSessionsOnQuit
     ) {
       quitConfirmationPresenter.confirmQuit(terminatesSessions: terminatesSessionsOnQuit)
@@ -236,11 +244,23 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
     return reply
   }
 
+  private func activateForWindowPresentation() {
+    guard !AppBuild.isTestMode else { return }
+    NSApp.activate(ignoringOtherApps: true)
+  }
+
+  private func performSocketQuit() {
+    bypassesConfirmationForNextQuit = true
+    DispatchQueue.main.asyncAfter(deadline: .now() + .milliseconds(200)) {
+      NSApp.terminate(nil)
+    }
+  }
+
   @discardableResult
   func performNewWindow() -> Bool {
     let controller = createWindow()
     AppPostHog.capture("window_created")
-    NSApp.activate(ignoringOtherApps: true)
+    activateForWindowPresentation()
     controller.window?.makeKeyAndOrderFront(nil)
     return true
   }
@@ -282,7 +302,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
     }
 
     let state = toggleVisibilityState
-    NSApp.activate(ignoringOtherApps: true)
+    activateForWindowPresentation()
     if let state {
       state.restore()
       toggleVisibilityState = nil
@@ -328,7 +348,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
     sessionPersistenceState = .active
     saveSession()
     if let window = lastController?.window {
-      NSApp.activate(ignoringOtherApps: true)
+      activateForWindowPresentation()
       window.makeKeyAndOrderFront(nil)
     }
   }
@@ -409,7 +429,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
 
   private func openServiceTabs(workingDirectoryPaths: [String]) {
     guard let firstPath = workingDirectoryPaths.first else { return }
-    NSApp.activate(ignoringOtherApps: true)
+    activateForWindowPresentation()
 
     guard terminalWindowRegistry.createTabInPreferredWindow(workingDirectoryPath: firstPath) else {
       let controller = createWindow()
@@ -428,7 +448,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
 
   private func openServiceWindows(workingDirectoryPaths: [String]) {
     guard !workingDirectoryPaths.isEmpty else { return }
-    NSApp.activate(ignoringOtherApps: true)
+    activateForWindowPresentation()
 
     for path in workingDirectoryPaths {
       let controller = createWindow()
@@ -465,7 +485,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
       if window.isMiniaturized {
         window.deminiaturize(nil)
       }
-      NSApp.activate(ignoringOtherApps: true)
+      activateForWindowPresentation()
       window.makeKeyAndOrderFront(nil)
       return true
     }

@@ -69,6 +69,14 @@ make mac-test-snapshots         # Run snapshot tests
 make mac-record-snapshots       # Regenerate snapshot PNG baselines locally
 ```
 
+End-to-end commands:
+
+```bash
+make mac-test-e2e       # Launch the real app in an isolated instance and drive it over the socket
+```
+
+E2E tests in `apps/mac/supatermE2E` spawn their own `supaterm.app` with a fresh instance name, state home, and `ZMX_DIR`, then control it through the `sp` socket protocol. They never attach to a running development or user instance.
+
 Use `$SUPATERM_CLI_PATH` inside Supaterm panes to call the Debug CLI injected by the running app instead of an installed `sp`:
 
 ```bash

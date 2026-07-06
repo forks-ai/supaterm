@@ -144,6 +144,28 @@ struct SocketControlFeatureAppTests {
     #expect(try records.first?.response.decodeResult(SupatermAppDebugSnapshot.self) == snapshot)
   }
   @Test
+  func quitRequestRepliesOKBeforeTermination() async throws {
+    let recorder = SocketReplyRecorder()
+    let handle = UUID(uuidString: "4F0B37B5-4B4A-49F4-97D3-0F6E0C6A6D21")!
+    let request = SocketControlClient.Request(
+      handle: handle,
+      payload: .quit(id: "quit-1")
+    )
+
+    let store = makeStore {
+      $0.socketControlClient.reply = { handle, response in
+        await recorder.record(handle: handle, response: response)
+      }
+    }
+
+    await store.send(.requestReceived(request))
+
+    let records = await recorder.snapshot()
+    #expect(records.count == 1)
+    #expect(records.first == SocketReplyRecorder.Record(handle: handle, response: .ok(id: "quit-1")))
+  }
+
+  @Test
   func unknownMethodRepliesWithStructuredError() async {
     let recorder = SocketReplyRecorder()
     let handle = UUID(uuidString: "B12602E1-5D37-470E-9388-55CD09D400CA")!
