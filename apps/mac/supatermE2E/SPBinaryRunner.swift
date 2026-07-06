@@ -1,5 +1,6 @@
 import Darwin
 import Foundation
+import Testing
 
 struct SPBinaryResult: Equatable {
   let exitCode: Int32
@@ -14,15 +15,23 @@ struct SPBinaryRunner {
   func run(
     _ arguments: [String],
     cwd: URL? = nil,
+    stdin: Data? = nil,
     timeout: TimeInterval = 10
   ) throws -> SPBinaryResult {
     let process = Process()
     let stdout = Pipe()
     let stderr = Pipe()
+    let input = stdin.map { data in
+      let pipe = Pipe()
+      pipe.fileHandleForWriting.write(data)
+      try? pipe.fileHandleForWriting.close()
+      return pipe
+    }
     process.executableURL = executable
     process.arguments = arguments
     process.currentDirectoryURL = cwd
     process.environment = environment
+    process.standardInput = input ?? FileHandle.nullDevice
     process.standardOutput = stdout
     process.standardError = stderr
     try process.run()
@@ -65,4 +74,22 @@ func requireSuccessfulSPResult(_ result: SPBinaryResult) throws -> SPBinaryResul
     )
   }
   return result
+}
+
+@discardableResult
+func requireFailedSPResult(_ result: SPBinaryResult) throws -> SPBinaryResult {
+  guard result.exitCode != 0 else {
+    throw SupatermE2EError(
+      "sp unexpectedly succeeded\n--- stdout ---\n\(result.stdout)\n--- stderr ---\n\(result.stderr)"
+    )
+  }
+  return result
+}
+
+func decodeSPJSON<T: Decodable>(
+  _ type: T.Type,
+  from result: SPBinaryResult
+) throws -> T {
+  let data = try #require(result.stdout.data(using: .utf8))
+  return try JSONDecoder().decode(type, from: data)
 }

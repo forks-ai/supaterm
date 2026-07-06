@@ -90,6 +90,13 @@ public struct CodexSettingsInstaller {
   }
 
   static func runEnableHooksCommand() throws -> CommandResult {
+    let environment = ProcessInfo.processInfo.environment
+    if environment[SupatermCLIEnvironment.testHomeKey] != nil,
+      environment[SupatermCLIEnvironment.testCodexEnableHooksKey] == "1"
+    {
+      return .init(status: 0, standardError: "")
+    }
+
     let process = Process()
     process.executableURL = loginShellURL()
     process.arguments = enableHooksCommandArguments()

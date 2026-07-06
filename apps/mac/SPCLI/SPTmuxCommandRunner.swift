@@ -11,6 +11,10 @@ struct SPTmuxCommandRunner {
     SupatermCLIContext(environment: environment)
   }
 
+  var homeDirectoryURL: URL {
+    cliHomeDirectoryURL(environment: environment)
+  }
+
   func run(arguments: [String]) throws {
     let (command, rawArguments) = try splitTmuxCommand(arguments)
     trace(
@@ -493,9 +497,9 @@ struct SPTmuxCommandRunner {
     if parsed.hasFlag("-p") {
       print(result.text)
     } else {
-      var store = loadTmuxCompatStore()
+      var store = loadTmuxCompatStore(homeDirectoryURL: homeDirectoryURL)
       store.buffers["default"] = result.text
-      try saveTmuxCompatStore(store)
+      try saveTmuxCompatStore(store, homeDirectoryURL: homeDirectoryURL)
     }
   }
 
@@ -661,7 +665,7 @@ struct SPTmuxCommandRunner {
     guard let name = parsed.positional.first.flatMap(trimmedNonEmpty) else {
       throw ValidationError("wait-for requires a name.")
     }
-    let signalURL = tmuxWaitForSignalURL(name: name)
+    let signalURL = tmuxWaitForSignalURL(name: name, homeDirectoryURL: homeDirectoryURL)
     if parsed.hasFlag("-S") || parsed.hasFlag("--signal") {
       try FileManager.default.createDirectory(
         at: signalURL.deletingLastPathComponent(), withIntermediateDirectories: true)
@@ -704,7 +708,7 @@ struct SPTmuxCommandRunner {
   private func runShowBuffer(_ arguments: [String]) throws {
     let parsed = try SPTmuxArgumentParser.parse(arguments, valueFlags: ["-b"], boolFlags: [])
     let name = parsed.value("-b") ?? "default"
-    if let buffer = loadTmuxCompatStore().buffers[name] {
+    if let buffer = loadTmuxCompatStore(homeDirectoryURL: homeDirectoryURL).buffers[name] {
       print(buffer)
     }
   }
@@ -712,7 +716,7 @@ struct SPTmuxCommandRunner {
   private func runSaveBuffer(_ arguments: [String]) throws {
     let parsed = try SPTmuxArgumentParser.parse(arguments, valueFlags: ["-b"], boolFlags: [])
     let name = parsed.value("-b") ?? "default"
-    let store = loadTmuxCompatStore()
+    let store = loadTmuxCompatStore(homeDirectoryURL: homeDirectoryURL)
     guard let buffer = store.buffers[name] else {
       throw ValidationError("Buffer not found: \(name).")
     }
@@ -732,9 +736,9 @@ struct SPTmuxCommandRunner {
     guard !content.isEmpty else {
       throw ValidationError("set-buffer requires text.")
     }
-    var store = loadTmuxCompatStore()
+    var store = loadTmuxCompatStore(homeDirectoryURL: homeDirectoryURL)
     store.buffers[name] = content
-    try saveTmuxCompatStore(store)
+    try saveTmuxCompatStore(store, homeDirectoryURL: homeDirectoryURL)
     print("OK")
   }
 
@@ -743,7 +747,7 @@ struct SPTmuxCommandRunner {
     guard parsed.positional.isEmpty else {
       throw ValidationError("list-buffers does not accept positional arguments.")
     }
-    let store = loadTmuxCompatStore()
+    let store = loadTmuxCompatStore(homeDirectoryURL: homeDirectoryURL)
     if store.buffers.isEmpty {
       print("No buffers")
       return
@@ -757,7 +761,7 @@ struct SPTmuxCommandRunner {
   private func runPasteBuffer(_ arguments: [String]) throws {
     let parsed = try SPTmuxArgumentParser.parse(arguments, valueFlags: ["-b", "-t"], boolFlags: [])
     let name = parsed.value("-b") ?? "default"
-    let store = loadTmuxCompatStore()
+    let store = loadTmuxCompatStore(homeDirectoryURL: homeDirectoryURL)
     guard let buffer = store.buffers[name] else {
       throw ValidationError("Buffer not found: \(name).")
     }
@@ -821,7 +825,7 @@ struct SPTmuxCommandRunner {
       valueFlags: [],
       boolFlags: ["--list", "--unset"]
     )
-    var store = loadTmuxCompatStore()
+    var store = loadTmuxCompatStore(homeDirectoryURL: homeDirectoryURL)
 
     if parsed.hasFlag("--list") {
       if store.hooks.isEmpty {
@@ -839,7 +843,7 @@ struct SPTmuxCommandRunner {
         throw ValidationError("set-hook --unset requires an event name.")
       }
       store.hooks.removeValue(forKey: event)
-      try saveTmuxCompatStore(store)
+      try saveTmuxCompatStore(store, homeDirectoryURL: homeDirectoryURL)
       print("OK")
       return
     }
@@ -853,7 +857,7 @@ struct SPTmuxCommandRunner {
       throw ValidationError("set-hook requires <event> <command>.")
     }
     store.hooks[event] = commandText
-    try saveTmuxCompatStore(store)
+    try saveTmuxCompatStore(store, homeDirectoryURL: homeDirectoryURL)
     print("OK")
   }
 

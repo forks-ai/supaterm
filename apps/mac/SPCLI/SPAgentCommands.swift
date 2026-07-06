@@ -55,7 +55,7 @@ extension SP {
 
     mutating func run() throws {
       do {
-        try SupatermSkillInstaller().installSupatermSkill()
+        try SupatermSkillInstaller(homeDirectoryURL: cliHomeDirectoryURL()).installSupatermSkill()
       } catch {
         FileHandle.standardError.write(Data((error.localizedDescription + "\n").utf8))
         throw ExitCode.failure
@@ -177,7 +177,7 @@ extension SP.RemoveAgentHook {
 
     mutating func run() throws {
       do {
-        try ClaudeSettingsInstaller().removeSupatermHooks()
+        try ClaudeSettingsInstaller(homeDirectoryURL: cliHomeDirectoryURL()).removeSupatermHooks()
       } catch {
         FileHandle.standardError.write(Data((error.localizedDescription + "\n").utf8))
         throw ExitCode.failure
@@ -194,7 +194,7 @@ extension SP.RemoveAgentHook {
 
     mutating func run() throws {
       do {
-        try CodexSettingsInstaller().removeSupatermHooks()
+        try CodexSettingsInstaller(homeDirectoryURL: cliHomeDirectoryURL()).removeSupatermHooks()
       } catch {
         FileHandle.standardError.write(Data((error.localizedDescription + "\n").utf8))
         throw ExitCode.failure
@@ -257,9 +257,9 @@ private let supportedHookAgents: [SupatermAgentKind] = [.claude, .codex]
 private func installSupatermHooks(for agent: SupatermAgentKind) throws {
   switch agent {
   case .claude:
-    try ClaudeSettingsInstaller().installSupatermHooks()
+    try ClaudeSettingsInstaller(homeDirectoryURL: cliHomeDirectoryURL()).installSupatermHooks()
   case .codex:
-    try CodexSettingsInstaller().installSupatermHooks()
+    try CodexSettingsInstaller(homeDirectoryURL: cliHomeDirectoryURL()).installSupatermHooks()
   case .pi:
     throw ValidationError("Pi does not use Supaterm hook settings.")
   }

@@ -7,6 +7,8 @@ public enum SupatermCLIEnvironment {
   public static let surfaceIDKey = "SUPATERM_SURFACE_ID"
   public static let tabIDKey = "SUPATERM_TAB_ID"
   public static let socketPathKey = "SUPATERM_SOCKET_PATH"
+  public static let testCodexEnableHooksKey = "SUPATERM_TEST_CODEX_ENABLE_HOOKS"
+  public static let testHomeKey = "SUPATERM_TEST_HOME"
 }
 
 public struct SupatermCLIEnvironmentVariable: Equatable, Sendable {

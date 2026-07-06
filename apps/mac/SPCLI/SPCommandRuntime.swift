@@ -202,6 +202,35 @@ func resolvedWorkingDirectory(_ path: String?) throws -> String? {
   return url.standardizedFileURL.path
 }
 
+func cliHomeDirectoryURL(
+  environment: [String: String] = ProcessInfo.processInfo.environment
+) -> URL {
+  guard let rawPath = environment[SupatermCLIEnvironment.testHomeKey] else {
+    return FileManager.default.homeDirectoryForCurrentUser
+  }
+
+  let path = rawPath.trimmingCharacters(in: .whitespacesAndNewlines)
+  guard !path.isEmpty else {
+    return FileManager.default.homeDirectoryForCurrentUser
+  }
+  return URL(fileURLWithPath: path, isDirectory: true).standardizedFileURL
+}
+
+func expandCLIHomePath(
+  _ path: String,
+  homeDirectoryURL: URL = cliHomeDirectoryURL()
+) -> String {
+  if path == "~" {
+    return homeDirectoryURL.path
+  }
+
+  if path.hasPrefix("~/") {
+    return homeDirectoryURL.appendingPathComponent(String(path.dropFirst(2))).path
+  }
+
+  return NSString(string: path).expandingTildeInPath
+}
+
 func applyOutputStyle(_ options: SPOutputOptions) {
   SPTerminalStyle.setEnabled(options.mode == .human && !options.noColor)
 }

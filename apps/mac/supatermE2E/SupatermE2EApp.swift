@@ -15,6 +15,7 @@ struct SupatermE2EError: Error, CustomStringConvertible {
 final class SupatermE2EApp: @unchecked Sendable {
   let instanceName: String
   let stateHome: URL
+  let cliHome: URL
   private(set) var socketPath: String
   private let environment: [String: String]
   private let executable: URL
@@ -42,15 +43,15 @@ final class SupatermE2EApp: @unchecked Sendable {
     instanceName = "e2e-\(UUID().uuidString.prefix(8).lowercased())"
     stateHome = FileManager.default.temporaryDirectory
       .appendingPathComponent("supaterm-\(instanceName)", isDirectory: true)
-    let home = stateHome.appendingPathComponent("home", isDirectory: true)
+    cliHome = stateHome.appendingPathComponent("home", isDirectory: true)
     logURL = stateHome.appendingPathComponent("app.log", isDirectory: false)
 
-    try FileManager.default.createDirectory(at: home, withIntermediateDirectories: true)
-    FileManager.default.createFile(atPath: home.appendingPathComponent(".zshrc").path, contents: nil)
+    try FileManager.default.createDirectory(at: cliHome, withIntermediateDirectories: true)
+    FileManager.default.createFile(atPath: cliHome.appendingPathComponent(".zshrc").path, contents: nil)
     FileManager.default.createFile(atPath: logURL.path, contents: nil)
 
     environment = [
-      "HOME": home.path,
+      "HOME": cliHome.path,
       "LOGNAME": NSUserName(),
       "PATH": "/usr/bin:/bin:/usr/sbin:/sbin",
       "SHELL": "/bin/zsh",
@@ -63,7 +64,7 @@ final class SupatermE2EApp: @unchecked Sendable {
     process = Process()
     socketPath = ""
     client = try SPSocketClient(path: "/tmp/supaterm-e2e-unstarted", connectRetryTimeout: 0)
-    try startProcess(currentDirectoryURL: home)
+    try startProcess(currentDirectoryURL: cliHome)
   }
 
   private static var productsDirectory: URL {
@@ -80,6 +81,8 @@ final class SupatermE2EApp: @unchecked Sendable {
     var result = environment
     result[SupatermCLIEnvironment.socketPathKey] = socketPath
     result[SupatermCLIEnvironment.cliPathKey] = spExecutable.path
+    result[SupatermCLIEnvironment.testCodexEnableHooksKey] = "1"
+    result[SupatermCLIEnvironment.testHomeKey] = cliHome.path
     if let context {
       result[SupatermCLIEnvironment.surfaceIDKey] = context.surfaceID.uuidString
       result[SupatermCLIEnvironment.tabIDKey] = context.tabID.uuidString
@@ -230,12 +233,19 @@ final class SupatermE2EApp: @unchecked Sendable {
   }
 
   func waitForReadyPane(_ target: SupatermPaneTargetRequest) async throws {
-    try await waitUntil("the pane is ready to capture") {
-      let health = try send(
-        .paneHealth(SupatermPaneHealthRequest(target: target)),
-        as: SupatermPaneHealthResult.self
-      )
-      return health.isReady && health.canCaptureText
+    var lastHealth: SupatermPaneHealthResult?
+    do {
+      try await waitUntil("the pane is ready to capture") {
+        let health = try send(
+          .paneHealth(SupatermPaneHealthRequest(target: target)),
+          as: SupatermPaneHealthResult.self
+        )
+        lastHealth = health
+        return health.isReady && health.canCaptureText
+      }
+    } catch {
+      throw SupatermE2EError(
+        "\(error)\n--- last pane health ---\n\(lastHealth.map(String.init(describing:)) ?? "none")")
     }
   }
 
