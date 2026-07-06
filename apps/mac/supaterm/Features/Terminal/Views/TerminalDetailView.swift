@@ -1,12 +1,13 @@
 import ComposableArchitecture
 import Sharing
+import SupaTheme
 import SupatermSupport
 import SwiftUI
 
 struct TerminalDetailView: View {
   @Shared(.supatermSettings) private var supatermSettings = .default
   let store: StoreOf<TerminalWindowFeature>
-  let palette: TerminalPalette
+  let palette: Palette
   let terminal: TerminalHostState
   let selectedTabID: TerminalTabID
 
@@ -69,7 +70,7 @@ private struct TerminalDetailTopBar: View {
   let isPaneZoomed: Bool
   let isSidebarCollapsed: Bool
   let showsSidebarAttentionIndicator: Bool
-  let palette: TerminalPalette
+  let palette: Palette
   let backgroundColor: Color
   let equalizePanes: () -> Void
   let toggleSidebar: () -> Void
@@ -158,7 +159,7 @@ private struct TerminalDetailTopBar: View {
 
 private struct SplitZoomButton: View {
   let isPaneZoomed: Bool
-  let palette: TerminalPalette
+  let palette: Palette
   let action: () -> Void
 
   @State private var isHovering = false
@@ -181,20 +182,20 @@ private struct SplitZoomButton: View {
         .font(.system(size: 13, weight: .medium))
         .foregroundStyle(
           isPaneZoomed
-            ? Color.accentColor
+            ? palette.accent
             : isHovering ? palette.secondaryText.opacity(0.8) : palette.secondaryText
         )
         .frame(width: 30, height: 30)
         .background(
           isPaneZoomed
-            ? Color.accentColor.opacity(isHovering ? 0.18 : 0.12)
+            ? palette.accent.opacity(isHovering ? 0.18 : 0.12)
             : isHovering ? palette.secondaryText.opacity(0.2) : .clear,
           in: .rect(cornerRadius: 6)
         )
         .overlay {
           if isPaneZoomed {
             RoundedRectangle(cornerRadius: 6, style: .continuous)
-              .stroke(Color.accentColor.opacity(isHovering ? 0.32 : 0.22), lineWidth: 1)
+              .stroke(palette.accent.opacity(isHovering ? 0.32 : 0.22), lineWidth: 1)
           }
         }
         .accessibilityHidden(true)
@@ -212,7 +213,7 @@ private struct TerminalDetailSurface: View {
   let dimmingOpacity: Double
   let focusedSurfaceID: UUID?
   let notificationColor: Color
-  let palette: TerminalPalette
+  let palette: Palette
   let showsGlowingPaneRing: Bool
   let splitDividerColor: Color
   let terminal: TerminalHostState
@@ -242,7 +243,7 @@ private struct TerminalSurfacePaneView: View {
   let dimmingOpacity: Double
   let focusedSurfaceID: UUID?
   let notificationColor: Color
-  let palette: TerminalPalette
+  let palette: Palette
   let showsGlowingPaneRing: Bool
   let splitDividerColor: Color
   let store: StoreOf<TerminalWindowFeature>

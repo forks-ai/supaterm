@@ -1,43 +1,24 @@
 # Theming
 
-All chrome colors live in `TerminalPalette` (`apps/mac/supaterm/Features/Terminal/Views/TerminalChromeView.swift`), constructed per color scheme. Views never hardcode chrome colors; they read palette tokens. There are no sub-palettes: every surface follows the same recipe.
+Chrome theming lives in the `SupaTheme` package (`packages/SupaTheme`) — themes, the derived semantic palette, the window background, and the swatch picker. The recipe and token vocabulary are documented in `packages/SupaTheme/README.md`. This doc covers only how Supaterm consumes it.
 
-## One theme color
+## Consumption
 
-The palette stores a single theme color:
+- Views take an explicit `let palette: Palette` and read tokens; terminal chrome builds it from the selected space theme and chrome color scheme in `TerminalView`.
+- The theme belongs to each terminal space in `spaces.json`; create and edit space flows pick it with `ThemeSwatchPicker`.
+- The window background renders `ThemeBackgroundView` as opaque gradient chrome.
 
-```swift
-static let primary = Color(.displayP3, red: 0.89, green: 0.902, blue: 0.925)
-```
+## Exceptions
 
-All chrome is computed from `primary`, the color scheme, and white/black overlays. Do not add stored per-state colors, and do not store what a computed var can derive.
+Deliberately outside the palette: the Ghostty terminal progress bar (terminal content semantics), the window traffic lights (macOS-native colors), and the Settings feature's native macOS form styling.
 
-## Derivation rules
+## Snapshots
 
-- **Window tint** — `primary.mix(with: .black, by: isDark ? 0.8 : 0).opacity(0.3)`, painted over a blur material. Light mode shows `primary` directly; dark mode shows it mixed toward black so the chrome reads as a tinted dark, not a washed-out pastel.
-- **Interactive states are translucent overlays**, never opaque colors, so they work over any tint:
-  - unselected row: `.clear` (cards/badges use `unselectedFill` = white/black 6%)
-  - hover: white 55% (light) / 16% (dark)
-  - pressed: white 70% (light) / 31% (dark)
-- **Selection inverts within the scheme**: the selected pill is solid white in light mode, near-black (`Color(white: 0.04)`) in dark mode, with `selectedText` flipping to match. `selectedSecondaryText`, `selectedPillFill`, and `selectedPillStroke` derive from `selectedText`, so they follow automatically.
-- **Selected pill edge** — narrow sidebar pills only; wide surfaces skip it:
-  - rim: 1pt `strokeBorder` with a diagonal gradient bright at the top-left and bottom-right corners (`selectedStrokeBright` white 35% → `selectedStrokeDim` white 8%), reading as a specular ring
-  - glow: centered `.shadow` (`selectedShadow` white 15%, radius 5, no offset) — uniform on all sides, distinct from `shadow`, which is the black drop shadow for panels and panes
-- Text: `primaryText`/`secondaryText` are white/black at fixed opacities.
+Theme changes can refresh snapshot baselines with `make mac-record-snapshots`. The Theme Backgrounds and Theme Kit catalog groups render every theme's gradient and every palette token for review.
 
-## Surfaces
+## Reference Palette
 
-- **Blurred cards** (popovers, command palette): `windowBackgroundTint` over a popover blur with a `detailStroke` hairline.
-- **Solid detail cards** (agent panel): `detailBackground` = `primary` mixed 85% toward the scheme pole.
-- **Dialogs are selected surfaces**: `selectedFill` card, `selectedPillFill` bezel, fields, and secondary buttons, `selectedText`-derived text, over the black `scrim`.
-
-## Content colors
-
-Fixed per-scheme colors that mark meaning, never interaction states: the accent tones (`amber`, `mint`, `sky`, `coral`, `violet`, `slate`), `attention`, and `dialogDestructiveFill`. The accent is `sky`. A few semantic colors remain hardcoded outside the palette (system accent, update statuses, progress bar); migrating them is deferred.
-
-## Inspiration
-
-The recipe follows Dia's sidebar: one theme color per surface, every interactive state a white/black-at-alpha overlay on top, selection as a scheme-matched solid pill with a specular rim. Dia ships 8 curated themes, each a Primary/Secondary/Tertiary/Vibrant set per appearance. Their Primaries (light / dark, Display P3):
+The recipe uses one theme color per surface, every interactive state as a white/black-at-alpha overlay on top, and selection as a scheme-matched solid pill with a specular rim. The curated set has 8 themes, each with a primary per appearance. Primaries (light / dark, Display P3):
 
 | Theme | Light | Dark |
 |---|---|---|
@@ -50,4 +31,4 @@ The recipe follows Dia's sidebar: one theme color per surface, every interactive
 | Steel Blue | `#3A88C4` | `#007FBD` |
 | Ultra Violet | `#5F5B9E` | `#625DA5` |
 
-Our `primary` is Isabelline's light value. If spaces ever get per-space colors, this is the shape to copy: a small named set with light/dark variants, not a free color picker.
+Our curated set uses these primaries (Isabelline keeps its light value for both appearances). Space themes use this small named set with light/dark variants, not a free color picker.
