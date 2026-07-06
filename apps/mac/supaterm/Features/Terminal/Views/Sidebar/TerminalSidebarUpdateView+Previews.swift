@@ -1,6 +1,5 @@
 import ComposableArchitecture
 import Foundation
-import SupaTheme
 import SupatermUpdateFeature
 import SwiftUI
 

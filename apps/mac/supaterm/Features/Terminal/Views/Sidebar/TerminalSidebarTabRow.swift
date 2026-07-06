@@ -1,6 +1,5 @@
 import AppKit
 import ComposableArchitecture
-import SupaTheme
 import SwiftUI
 
 struct TerminalSidebarTabRow: View {

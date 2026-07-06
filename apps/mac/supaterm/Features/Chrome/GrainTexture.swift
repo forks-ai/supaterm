@@ -34,7 +34,7 @@ enum GrainTexture {
         intent: .defaultIntent
       )
     else {
-      preconditionFailure("grain tile construction is infallible for these parameters")
+      preconditionFailure("grain tile construction failed")
     }
     return image
   }

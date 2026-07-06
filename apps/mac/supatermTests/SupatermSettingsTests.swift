@@ -240,24 +240,6 @@ struct SupatermSettingsTests {
 
     #expect(string.isEmpty)
   }
-
-  @Test
-  func prefsDecodeIgnoresRemovedAppearanceTheme() throws {
-    let data = Data(
-      #"""
-      [appearance]
-      theme = "steel-blue"
-      """#.utf8
-    )
-
-    let prefs = try SupatermSettingsCodec.decode(data)
-    let encoded = try SupatermSettingsCodec.encode(prefs)
-    let string = try #require(String(data: encoded, encoding: .utf8)).trimmingCharacters(in: .newlines)
-
-    #expect(prefs == .default)
-    #expect(string.isEmpty)
-  }
-
   @Test
   func prefsRoundTripThroughToml() throws {
     let data = try SupatermSettingsCodec.encode(

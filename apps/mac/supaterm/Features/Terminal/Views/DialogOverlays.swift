@@ -1,5 +1,4 @@
 import AppKit
-import SupaTheme
 import SwiftUI
 
 private let dialogTransition: AnyTransition = .asymmetric(
@@ -288,7 +287,6 @@ struct SpaceEditorOverlay: View {
   let title: String
   let confirmTitle: String
   @Binding var name: String
-  @Binding var themeID: String
   let isSaveEnabled: Bool
   let onSave: () -> Void
   let onCancel: () -> Void
@@ -305,9 +303,6 @@ struct SpaceEditorOverlay: View {
         Text(title)
           .font(.system(size: 22, weight: .semibold))
           .foregroundStyle(palette.selectedText)
-
-        ThemeSwatchPicker(selection: $themeID, palette: palette)
-          .frame(maxWidth: .infinity, alignment: .leading)
 
         TextField("Space name", text: $name)
           .textFieldStyle(.plain)

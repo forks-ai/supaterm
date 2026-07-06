@@ -1,6 +1,5 @@
 import ComposableArchitecture
 import Foundation
-import SupaTheme
 import SupatermCLIShared
 import SupatermSettingsFeature
 import SupatermUpdateFeature
@@ -488,7 +487,6 @@ extension SnapshotCatalog {
             title: "Rename Space",
             confirmTitle: "Rename",
             name: .constant("Release work"),
-            themeID: .constant(Theme.steelBlue.id),
             isSaveEnabled: true,
             onSave: {},
             onCancel: {}
@@ -509,7 +507,6 @@ extension SnapshotCatalog {
             title: "Create Space",
             confirmTitle: "Create",
             name: .constant(""),
-            themeID: .constant(Theme.default.id),
             isSaveEnabled: false,
             onSave: {},
             onCancel: {}

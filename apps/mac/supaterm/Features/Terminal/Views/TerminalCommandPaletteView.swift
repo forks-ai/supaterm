@@ -1,5 +1,4 @@
 import AppKit
-import SupaTheme
 import SwiftUI
 
 struct TerminalCommandPaletteOverlay: View {

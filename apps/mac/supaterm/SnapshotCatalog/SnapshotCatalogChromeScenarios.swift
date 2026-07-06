@@ -1,44 +1,18 @@
-import SupaTheme
 import SwiftUI
 
 extension SnapshotCatalog {
-  static let themeScenarios: [SnapshotScenario] =
-    themeBackgroundScenarios + themeKitScenarios
-
-  private static let themeBackgroundScenarios: [SnapshotScenario] =
-    Theme.curated.map { theme in
-      scenario(
-        "background-\(theme.id)",
-        group: "Theme Backgrounds",
-        title: theme.name,
-        size: CGSize(width: 480, height: 300)
-      ) { appearance in
-        AnyView(ThemeBackgroundSnapshotFixture(theme: theme, appearance: appearance))
-      }
-    }
-
-  private static let themeKitScenarios: [SnapshotScenario] = [
+  static let chromeScenarios: [SnapshotScenario] = [
     scenario(
-      "swatch-picker-default",
-      group: "Theme Kit",
-      title: "Swatch picker, default selected",
-      size: CGSize(width: 420, height: 80)
+      "background",
+      group: "Chrome",
+      title: "Background",
+      size: CGSize(width: 480, height: 300)
     ) { appearance in
-      AnyView(ThemeSwatchPickerSnapshotFixture(selection: Theme.default.id, appearance: appearance))
-    },
-    scenario(
-      "swatch-picker-alternate",
-      group: "Theme Kit",
-      title: "Swatch picker, alternate selected",
-      size: CGSize(width: 420, height: 80)
-    ) { appearance in
-      AnyView(
-        ThemeSwatchPickerSnapshotFixture(selection: Theme.steelBlue.id, appearance: appearance)
-      )
+      AnyView(ChromeBackgroundSnapshotFixture(appearance: appearance))
     },
     scenario(
       "palette-tokens",
-      group: "Theme Kit",
+      group: "Chrome",
       title: "Palette token sheet",
       size: CGSize(width: 760, height: 520)
     ) { appearance in
@@ -47,30 +21,11 @@ extension SnapshotCatalog {
   ]
 }
 
-private struct ThemeBackgroundSnapshotFixture: View {
-  let theme: Theme
+private struct ChromeBackgroundSnapshotFixture: View {
   let appearance: SnapshotAppearance
 
   var body: some View {
-    ThemeBackgroundView(palette: Palette(theme: theme, colorScheme: appearance.colorScheme))
-  }
-}
-
-private struct ThemeSwatchPickerSnapshotFixture: View {
-  @State private var selection: Theme.ID
-  let appearance: SnapshotAppearance
-
-  init(selection: Theme.ID, appearance: SnapshotAppearance) {
-    self._selection = State(initialValue: selection)
-    self.appearance = appearance
-  }
-
-  var body: some View {
-    let palette = Palette(colorScheme: appearance.colorScheme)
-    ZStack {
-      palette.detailBackground
-      ThemeSwatchPicker(selection: $selection, palette: palette)
-    }
+    ChromeBackgroundView(palette: Palette(colorScheme: appearance.colorScheme))
   }
 }
 

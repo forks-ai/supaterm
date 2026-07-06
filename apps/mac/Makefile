@@ -18,7 +18,7 @@ TUIST_CACHED_GENERATION_STAMP := $(TUIST_GENERATION_STAMP_DIR)/$(TUIST_BINARY_CA
 TUIST_SOURCE_GENERATION_STAMP := $(TUIST_GENERATION_STAMP_DIR)/none
 TUIST_CACHED_RELEASE_GENERATION_STAMP := $(TUIST_GENERATION_STAMP_DIR)/$(TUIST_BINARY_CACHE_PROFILE)-release
 TUIST_SOURCE_RELEASE_GENERATION_STAMP := $(TUIST_GENERATION_STAMP_DIR)/none-release
-TUIST_GENERATION_INPUTS := Project.swift Workspace.swift Tuist.swift Tuist/Package.swift Tuist/Package.resolved Configurations/Project.xcconfig ../../mise.toml ../../packages/SupaTheme/Package.swift $(wildcard ../../packages/SupaTheme/Sources/SupaTheme/*.swift)
+TUIST_GENERATION_INPUTS := Project.swift Workspace.swift Tuist.swift Tuist/Package.swift Tuist/Package.resolved Configurations/Project.xcconfig ../../mise.toml
 TUIST_GENERATE_CACHE_PROFILE ?= $(TUIST_BINARY_CACHE_PROFILE)
 TUIST_CACHE_CONFIGURATION ?= Debug
 XCODEBUILD_FLAGS ?=
@@ -160,18 +160,10 @@ export-archive: # Export archive for distribution
 test: tuist-generate build-ghostty build-zmx test-xcodebuild # Run the full macOS test suite
 
 test-xcodebuild:
-	@if [ -t 1 ]; then \
-		bash -o pipefail -c 'xcodebuild test -workspace "$(PROJECT_WORKSPACE)" -scheme "$(APP_SCHEME)" -destination "platform=macOS" CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" 2>&1 | mise exec -- xcbeautify --disable-logging'; \
-	else \
-		xcodebuild test -workspace "$(PROJECT_WORKSPACE)" -scheme "$(APP_SCHEME)" -destination "platform=macOS" CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY=""; \
-	fi
+	@bash -o pipefail -c 'xcodebuild test -workspace "$(PROJECT_WORKSPACE)" -scheme "$(APP_SCHEME)" -destination "platform=macOS" CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" 2>&1 | mise exec -- xcbeautify --disable-logging'
 
 test-snapshots: tuist-generate build-ghostty # Run snapshot tests.
-	@if [ -t 1 ]; then \
-		bash -o pipefail -c 'xcodebuild test -workspace "$(PROJECT_WORKSPACE)" -scheme "supatermSnapshots" -destination "platform=macOS" CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" 2>&1 | mise exec -- xcbeautify --disable-logging'; \
-	else \
-		xcodebuild test -workspace "$(PROJECT_WORKSPACE)" -scheme "supatermSnapshots" -destination "platform=macOS" CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY=""; \
-	fi
+	@bash -o pipefail -c 'xcodebuild test -workspace "$(PROJECT_WORKSPACE)" -scheme "supatermSnapshots" -destination "platform=macOS" CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" 2>&1 | mise exec -- xcbeautify --disable-logging'
 
 test-e2e: tuist-generate build-ghostty build-zmx test-e2e-xcodebuild # Run end-to-end tests against the real app.
 
@@ -190,7 +182,7 @@ scan-dead-code: tuist-generate build-ghostty build-zmx
 	mise exec -- periphery scan
 
 format: # Format code with swift format (local only)
-	swift format -p --in-place --recursive --configuration ./.swift-format.json SupatermCLIShared SPCLI sp supaterm supatermTests supatermSnapshotTests supatermE2E ../../packages/SupaTheme/Sources ../../packages/SupaTheme/Tests
+	swift format -p --in-place --recursive --configuration ./.swift-format.json SupatermCLIShared SPCLI sp supaterm supatermTests supatermSnapshotTests supatermE2E
 
 lint: # Lint code with swiftlint
 	mise exec -- swiftlint lint --quiet --config .swiftlint.yml

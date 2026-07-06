@@ -47,7 +47,7 @@ final class TerminalSpaceManager {
 
     let resolvedCatalog = Self.sanitizedCatalog(catalog)
     for space in resolvedCatalog.spaces {
-      let item = TerminalSpaceItem(id: space.id, name: space.name, themeID: space.themeID)
+      let item = TerminalSpaceItem(id: space.id, name: space.name)
       spaces.append(item)
       tabManagers[item.id] = TerminalTabManager()
     }
@@ -71,7 +71,7 @@ final class TerminalSpaceManager {
     let previousSelectedSpaceID = selectedSpaceID
 
     let nextSpaces = resolvedCatalog.spaces.map {
-      TerminalSpaceItem(id: $0.id, name: $0.name, themeID: $0.themeID)
+      TerminalSpaceItem(id: $0.id, name: $0.name)
     }
     var nextTabManagers: [TerminalSpaceID: TerminalTabManager] = [:]
     for space in nextSpaces {

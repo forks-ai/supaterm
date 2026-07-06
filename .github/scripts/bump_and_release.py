@@ -389,25 +389,6 @@ def validate_pre_push(stdin: TextIO) -> None:
     raise ValueError("\n".join(errors))
 
 
-def branch_pre_push_checks_required(stdin: TextIO) -> bool:
-  for line in stdin:
-    if not line.strip():
-      continue
-    update = parse_push_update(line)
-    if not update.local_ref.startswith("refs/tags/") and not update.remote_ref.startswith("refs/tags/"):
-      return True
-  return False
-
-
-def run_pre_push_branch_checks(stdin: TextIO) -> None:
-  if not branch_pre_push_checks_required(stdin):
-    return
-  run_interactive(["make", "web-check"])
-  run_interactive(["make", "web-test"])
-  run_interactive(["make", "mac-scan-dead-code"])
-  run_interactive(["make", "mac-test"])
-
-
 def publish_release_tag(tag: str, notes_path: Path, force: bool = False) -> None:
   create_annotated_tag(tag, notes_path, force=force)
   push_release_tag(tag, force=force)
@@ -472,7 +453,6 @@ def main() -> int:
   tip_build_number_parser.add_argument("offset", type=int)
   subparsers.add_parser("stable-build-number")
   subparsers.add_parser("validate-pre-push")
-  subparsers.add_parser("run-pre-push-branch-checks")
   args = parser.parse_args()
   try:
     if args.command == "validate-release-tag":
@@ -483,8 +463,6 @@ def main() -> int:
       print(tip_build_number(read_version_state().build_number, args.offset))
     elif args.command == "validate-pre-push":
       validate_pre_push(sys.stdin)
-    elif args.command == "run-pre-push-branch-checks":
-      run_pre_push_branch_checks(sys.stdin)
     else:
       bump_and_release(args.kind)
   except ValueError as error:

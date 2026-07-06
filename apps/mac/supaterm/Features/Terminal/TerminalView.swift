@@ -1,7 +1,6 @@
 import AppKit
 import ComposableArchitecture
 import Sharing
-import SupaTheme
 import SupatermSettingsFeature
 import SupatermUpdateFeature
 import SwiftUI
@@ -30,7 +29,7 @@ struct TerminalView: View {
   }
 
   private var palette: Palette {
-    Palette(theme: terminal.selectedSpaceTheme, colorScheme: chromeColorScheme)
+    Palette(colorScheme: chromeColorScheme)
   }
 
   private var pendingCloseBinding: Binding<Bool> {
@@ -62,13 +61,6 @@ struct TerminalView: View {
     )
   }
 
-  private var spaceEditorThemeBinding: Binding<String> {
-    Binding(
-      get: { store.spaceEditor?.draftThemeID ?? terminal.selectedSpaceThemeID },
-      set: { _ = store.send(.spaceEditorThemeSelected($0)) }
-    )
-  }
-
   private var spaceEditorIsValid: Bool {
     guard let spaceEditor = store.spaceEditor else { return false }
     return terminal.isSpaceNameAvailable(
@@ -94,7 +86,7 @@ struct TerminalView: View {
   var body: some View {
     GeometryReader(content: terminalLayout)
       .frame(minWidth: 1_080, minHeight: 720)
-      .background(ThemeBackgroundView(palette: palette))
+      .background(ChromeBackgroundView(palette: palette))
       .background {
         WindowAppearanceApplier(appliedAppearance: windowAppearance)
       }
@@ -166,7 +158,6 @@ struct TerminalView: View {
             title: spaceEditor.title,
             confirmTitle: spaceEditor.confirmTitle,
             name: spaceEditorTextBinding,
-            themeID: spaceEditorThemeBinding,
             isSaveEnabled: spaceEditorIsValid,
             onSave: {
               guard spaceEditorIsValid else { return }

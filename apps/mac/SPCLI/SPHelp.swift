@@ -423,6 +423,7 @@ enum SPHelp {
       sp space new --focus Work
       sp space focus 1
       sp space rename Work 1
+      sp space destroy -y 1
       sp space next
     """
 
@@ -459,11 +460,11 @@ enum SPHelp {
       sp space focus <space-uuid>
     """
 
-  static let spaceCloseDiscussion = """
+  static let spaceDestroyDiscussion = """
     Example:
-      sp space close
-      sp space close 1
-      sp space close <space-uuid>
+      sp space destroy -y
+      sp space destroy -y 1
+      sp space destroy -y <space-uuid>
     """
 
   static let spaceRenameDiscussion = """

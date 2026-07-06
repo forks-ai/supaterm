@@ -75,9 +75,9 @@ fastlane/test_output
 *.profraw
 .env
 __pycache__/
+.claude/
 
 execplans/
 plans/
 hk.local.pkl
 .config/hk.local.pkl
-SupaTheme.xcodeproj/

@@ -1,6 +1,5 @@
 import AppKit
 import ComposableArchitecture
-import SupaTheme
 import SupatermUpdateFeature
 import SwiftUI
 

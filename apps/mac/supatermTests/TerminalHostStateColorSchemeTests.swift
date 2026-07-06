@@ -7,7 +7,7 @@ import Testing
 @testable import supaterm
 
 @MainActor
-struct TerminalHostStateThemeTests {
+struct TerminalHostStateColorSchemeTests {
   @Test
   func terminalChromeColorSchemeResolvesFromRuntimeBackground() throws {
     let darkRuntime = try makeGhosttyRuntime(

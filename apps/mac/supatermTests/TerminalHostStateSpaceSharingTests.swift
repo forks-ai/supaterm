@@ -1,6 +1,5 @@
 import ComposableArchitecture
 import Sharing
-import SupaTheme
 import SupatermTerminalCore
 import Testing
 
@@ -130,7 +129,7 @@ struct TerminalHostStateSpaceSharingTests {
       let firstHost = TerminalHostState(managesTerminalSurfaces: false)
       let secondHost = TerminalHostState(managesTerminalSurfaces: false)
 
-      firstHost.handleCommand(.createSpace(name: "Build", themeID: Theme.default.id))
+      firstHost.handleCommand(.createSpace(name: "Build"))
       await flushSpaceCatalogObservation()
 
       let newSpace = try #require(firstHost.spaces.last)
@@ -144,7 +143,7 @@ struct TerminalHostStateSpaceSharingTests {
   }
 
   @Test
-  func updateSpaceThemePropagatesCatalogToOtherHosts() async throws {
+  func renameSpacePropagatesCatalogToOtherHosts() async throws {
     try await withDependencies {
       $0.defaultFileStorage = .inMemory
     } operation: {
@@ -156,14 +155,12 @@ struct TerminalHostStateSpaceSharingTests {
       let secondHost = TerminalHostState(managesTerminalSurfaces: false)
       let spaceID = catalog.spaces[0].id
 
-      firstHost.handleCommand(.updateSpace(spaceID, name: "Shell", themeID: Theme.steelBlue.id))
+      firstHost.handleCommand(.renameSpace(spaceID, "Shell"))
       await flushSpaceCatalogObservation()
 
       #expect(firstHost.spaces.map(\.name) == ["Shell"])
       #expect(secondHost.spaces.map(\.name) == ["Shell"])
-      #expect(firstHost.spaces.map(\.themeID) == [Theme.steelBlue.id])
-      #expect(secondHost.spaces.map(\.themeID) == [Theme.steelBlue.id])
-      #expect(sharedCatalog.spaces.map(\.themeID) == [Theme.steelBlue.id])
+      #expect(sharedCatalog.spaces.map(\.name) == ["Shell"])
     }
   }
 
