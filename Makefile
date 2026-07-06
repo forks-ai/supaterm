@@ -132,7 +132,7 @@ mac-warm-cache:  # Warm the macOS external Tuist cache.
 	@$(MAKE) -C "$(MAC_APP_DIR)" warm-cache
 
 supa-theme-package-test:  # Run the SupaTheme package tests.
-	@swift test --package-path packages/SupaTheme
+	@swift test --quiet --package-path packages/SupaTheme
 
 web-help:  # Show available Vite+ commands for the web app.
 	@cd "$(WEB_APP_DIR)" && vp help
