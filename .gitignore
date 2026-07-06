@@ -75,6 +75,7 @@ fastlane/test_output
 *.profraw
 .env
 __pycache__/
+.claude/
 
 execplans/
 plans/
