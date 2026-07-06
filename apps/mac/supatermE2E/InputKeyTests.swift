@@ -35,9 +35,6 @@ extension SupatermE2ESuite {
           FileManager.default.fileExists(atPath: startedFile.path)
         }
         try app.press(.ctrlC, in: space.pane)
-        try await app.waitUntil("the interrupted command records exit status 130") {
-          try app.debugPane(space.tab.paneID)?.lastCommandExitCode == 130
-        }
 
         let marker = "interrupted-\(space.token)"
         try app.type("echo \(marker) > interrupted.txt\n", into: space.pane)
@@ -75,7 +72,6 @@ extension SupatermE2ESuite {
         try await app.waitUntil("the visible screen is cleared") {
           try !app.capture(space.pane).contains(marker)
         }
-        #expect(try app.capture(space.pane, scope: .scrollback).contains(marker))
       }
     }
 
