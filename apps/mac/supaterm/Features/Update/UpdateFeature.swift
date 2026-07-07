@@ -1,4 +1,5 @@
 import ComposableArchitecture
+import SupatermCLIShared
 import SupatermSupport
 
 private enum UpdateFeatureCancelID {
@@ -23,6 +24,7 @@ public struct UpdateFeature {
 
   public enum Action {
     case perform(UpdateUserAction)
+    case setUpdateChannel(UpdateChannel)
     case task
     case updateClientSnapshotReceived(UpdateClient.Snapshot)
   }
@@ -44,6 +46,11 @@ public struct UpdateFeature {
         }
         return .run { [updateClient] _ in
           await updateClient.perform(action)
+        }
+
+      case .setUpdateChannel(let updateChannel):
+        return .run { [updateClient] _ in
+          await updateClient.setUpdateChannel(updateChannel)
         }
 
       case .task:

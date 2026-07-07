@@ -533,6 +533,32 @@ struct SPCommandTests {
   }
 
   @Test
+  func configParserAcceptsSettingsSubcommands() throws {
+    let pathCommand = try #require(
+      try SP.parseAsRoot(["config", "path"]) as? SP.PathConfig
+    )
+    let listCommand = try #require(
+      try SP.parseAsRoot(["config", "list", "--changed"]) as? SP.ListConfig
+    )
+    let getCommand = try #require(
+      try SP.parseAsRoot(["config", "get", "updates.channel"]) as? SP.GetConfig
+    )
+    let setCommand = try #require(
+      try SP.parseAsRoot(["config", "set", "appearance.mode", "system"]) as? SP.SetConfig
+    )
+    let resetCommand = try #require(
+      try SP.parseAsRoot(["config", "reset", "privacy.analytics_enabled"]) as? SP.ResetConfig
+    )
+
+    #expect(type(of: pathCommand) == SP.PathConfig.self)
+    #expect(listCommand.changed)
+    #expect(getCommand.key == "updates.channel")
+    #expect(setCommand.key == "appearance.mode")
+    #expect(setCommand.value == "system")
+    #expect(resetCommand.key == "privacy.analytics_enabled")
+  }
+
+  @Test
   func tabFocusAndPaneSendParsersAcceptPublicShape() throws {
     let focusCommand = try #require(
       try SP.parseAsRoot(["tab", "focus", "1/2"]) as? SP.SelectTab

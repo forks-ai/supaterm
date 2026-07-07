@@ -4,6 +4,10 @@ public enum SupatermSocketMethod {
   public static let appOnboarding = "app.onboarding"
   public static let appDebug = "app.debug"
   public static let appQuit = "app.quit"
+  public static let appSettingsGet = "app.settings.get"
+  public static let appSettingsList = "app.settings.list"
+  public static let appSettingsReset = "app.settings.reset"
+  public static let appSettingsSet = "app.settings.set"
   public static let appTree = "app.tree"
   public static let systemIdentity = "system.identity"
   public static let systemPing = "system.ping"
@@ -137,6 +141,34 @@ public struct SupatermSocketRequest: Equatable, Sendable, Codable {
     id: String = UUID().uuidString
   ) throws -> Self {
     try make(SupatermSocketMethod.appDebug, payload, id: id)
+  }
+
+  public static func settingsList(
+    _ payload: SupatermSettingsListRequest = .init(),
+    id: String = UUID().uuidString
+  ) throws -> Self {
+    try make(SupatermSocketMethod.appSettingsList, payload, id: id)
+  }
+
+  public static func settingsGet(
+    _ payload: SupatermSettingsGetRequest,
+    id: String = UUID().uuidString
+  ) throws -> Self {
+    try make(SupatermSocketMethod.appSettingsGet, payload, id: id)
+  }
+
+  public static func settingsSet(
+    _ payload: SupatermSettingsSetRequest,
+    id: String = UUID().uuidString
+  ) throws -> Self {
+    try make(SupatermSocketMethod.appSettingsSet, payload, id: id)
+  }
+
+  public static func settingsReset(
+    _ payload: SupatermSettingsResetRequest,
+    id: String = UUID().uuidString
+  ) throws -> Self {
+    try make(SupatermSocketMethod.appSettingsReset, payload, id: id)
   }
 
   public static func newPane(

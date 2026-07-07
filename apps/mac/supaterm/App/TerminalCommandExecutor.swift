@@ -41,6 +41,14 @@ final class TerminalCommandExecutor {
       return .onboardingSnapshot(onboardingSnapshot())
     case .debugSnapshot(let debugRequest):
       return .debugSnapshot(debugSnapshot(debugRequest))
+    case .settingsGet(let request):
+      return .settingsGet(try settingsGet(request))
+    case .settingsList(let request):
+      return .settingsList(settingsList(request))
+    case .settingsReset(let request):
+      return .settingsReset(try settingsReset(request))
+    case .settingsSet(let request):
+      return .settingsSet(try settingsSet(request))
     case .treeSnapshot:
       return .treeSnapshot(treeSnapshot())
     case .notify(let notifyRequest):

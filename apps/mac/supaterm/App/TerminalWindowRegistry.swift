@@ -265,6 +265,12 @@ final class TerminalWindowRegistry {
     return true
   }
 
+  func setUpdateChannel(_ updateChannel: UpdateChannel) {
+    for entry in entries {
+      entry.store.send(.update(.setUpdateChannel(updateChannel)))
+    }
+  }
+
   func requestCloseSurfaceInKeyWindow() {
     guard
       let entry = preferredActiveEntry(),

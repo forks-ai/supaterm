@@ -143,6 +143,60 @@ struct SocketControlFeatureAppTests {
     #expect(records.first?.handle == handle)
     #expect(try records.first?.response.decodeResult(SupatermAppDebugSnapshot.self) == snapshot)
   }
+
+  @Test
+  func settingsGetRequestRepliesWithSetting() async throws {
+    let recorder = SocketReplyRecorder()
+    let handle = UUID(uuidString: "E96EF93A-6281-4120-8C85-56E53FD7F476")!
+    let request = SocketControlClient.Request(
+      handle: handle,
+      payload: try .settingsGet(SupatermSettingsGetRequest(key: "updates.channel"), id: "settings-get-1")
+    )
+
+    let store = makeStore {
+      $0.socketControlClient.reply = { handle, response in
+        await recorder.record(handle: handle, response: response)
+      }
+    }
+
+    await store.send(.requestReceived(request))
+
+    let records = await recorder.snapshot()
+    let result = try records.first?.response.decodeResult(SupatermSettingsGetResult.self)
+    #expect(records.count == 1)
+    #expect(records.first?.handle == handle)
+    #expect(result?.entry.key == "updates.channel")
+    #expect(result?.entry.value == "stable")
+  }
+
+  @Test
+  func settingsSetWithInvalidValueRepliesWithStructuredError() async throws {
+    let recorder = SocketReplyRecorder()
+    let handle = UUID(uuidString: "4AB18CEC-625C-4B1F-B74C-61680F07E7E3")!
+    let request = SocketControlClient.Request(
+      handle: handle,
+      payload: try .settingsSet(
+        SupatermSettingsSetRequest(key: "appearance.mode", value: "sepia"),
+        id: "settings-set-1"
+      )
+    )
+
+    let store = makeStore {
+      $0.socketControlClient.reply = { handle, response in
+        await recorder.record(handle: handle, response: response)
+      }
+    }
+
+    await store.send(.requestReceived(request))
+
+    let records = await recorder.snapshot()
+    #expect(records.count == 1)
+    #expect(records.first?.handle == handle)
+    #expect(records.first?.response.ok == false)
+    #expect(records.first?.response.error?.code == "invalid_request")
+    #expect(records.first?.response.error?.message.contains("Expected one of: system, light, dark") == true)
+  }
+
   @Test
   func quitRequestRepliesOKBeforeTermination() async throws {
     let recorder = SocketReplyRecorder()

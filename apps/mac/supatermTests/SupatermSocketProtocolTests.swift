@@ -748,6 +748,42 @@ struct SupatermSocketProtocolTests {
   }
 
   @Test
+  func settingsRequestsRoundTripThroughTypedHelpers() throws {
+    let listRequest = try SupatermSocketRequest.settingsList(
+      SupatermSettingsListRequest(changedOnly: true),
+      id: "settings-list-1"
+    )
+    let getRequest = try SupatermSocketRequest.settingsGet(
+      SupatermSettingsGetRequest(key: "updates.channel"),
+      id: "settings-get-1"
+    )
+    let setRequest = try SupatermSocketRequest.settingsSet(
+      SupatermSettingsSetRequest(key: "appearance.mode", value: "system"),
+      id: "settings-set-1"
+    )
+    let resetRequest = try SupatermSocketRequest.settingsReset(
+      SupatermSettingsResetRequest(key: "privacy.analytics_enabled"),
+      id: "settings-reset-1"
+    )
+    let listResult = SupatermSettingsRegistry.list(
+      settings: .default,
+      path: "/tmp/settings.toml",
+      changedOnly: true
+    )
+    let response = try SupatermSocketResponse.ok(id: "settings-list-1", encodableResult: listResult)
+
+    #expect(listRequest.method == SupatermSocketMethod.appSettingsList)
+    #expect(getRequest.method == SupatermSocketMethod.appSettingsGet)
+    #expect(setRequest.method == SupatermSocketMethod.appSettingsSet)
+    #expect(resetRequest.method == SupatermSocketMethod.appSettingsReset)
+    #expect(try listRequest.decodeParams(SupatermSettingsListRequest.self).changedOnly)
+    #expect(try getRequest.decodeParams(SupatermSettingsGetRequest.self).key == "updates.channel")
+    #expect(try setRequest.decodeParams(SupatermSettingsSetRequest.self).value == "system")
+    #expect(try resetRequest.decodeParams(SupatermSettingsResetRequest.self).key == "privacy.analytics_enabled")
+    #expect(try response.decodeResult(SupatermSettingsListResult.self) == listResult)
+  }
+
+  @Test
   func newTabRequestAndResponseRoundTripThroughTypedHelpers() throws {
     let requestPayload = SupatermNewTabRequest(
       startupCommand: "pwd",

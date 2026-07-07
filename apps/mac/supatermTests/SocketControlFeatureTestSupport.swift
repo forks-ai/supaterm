@@ -44,6 +44,40 @@ extension SocketRequestExecutor {
       return .onboardingSnapshot(await terminalWindowsClient.onboardingSnapshot())
     case .debugSnapshot(let debugRequest):
       return .debugSnapshot(await terminalWindowsClient.debugSnapshot(debugRequest))
+    case .settingsGet(let request):
+      return .settingsGet(
+        try SupatermSettingsRegistry.get(
+          key: request.key,
+          settings: .default,
+          path: SupatermSettings.defaultURL().path
+        )
+      )
+    case .settingsList(let request):
+      return .settingsList(
+        SupatermSettingsRegistry.list(
+          settings: .default,
+          path: SupatermSettings.defaultURL().path,
+          changedOnly: request.changedOnly
+        )
+      )
+    case .settingsReset(let request):
+      return .settingsReset(
+        try SupatermSettingsRegistry.reset(
+          request,
+          settings: .default,
+          path: SupatermSettings.defaultURL().path,
+          isLive: true
+        ).result
+      )
+    case .settingsSet(let request):
+      return .settingsSet(
+        try SupatermSettingsRegistry.set(
+          request,
+          settings: .default,
+          path: SupatermSettings.defaultURL().path,
+          isLive: true
+        ).result
+      )
     case .treeSnapshot:
       return .treeSnapshot(await terminalWindowsClient.treeSnapshot())
     case .notify(let notifyRequest):

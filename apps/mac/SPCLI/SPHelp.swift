@@ -259,6 +259,12 @@ enum SPHelp {
 
   static let configDiscussion = """
     Example:
+      sp config path
+      sp config list
+      sp config list --changed
+      sp config get updates.channel
+      sp config set appearance.mode system
+      sp config reset privacy.analytics_enabled
       sp config validate
       sp config validate --path ~/.config/supaterm/settings.toml
       sp config validate --json

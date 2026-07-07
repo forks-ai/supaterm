@@ -217,6 +217,9 @@ struct SPHelpTests {
     let validateHelp = SP.helpMessage(for: SP.ValidateConfig.self, columns: 100)
 
     #expect(help.contains("sp config validate"))
+    #expect(help.contains("sp config get updates.channel"))
+    #expect(help.contains("sp config set appearance.mode system"))
+    #expect(help.contains("sp config reset privacy.analytics_enabled"))
     #expect(validateHelp.contains("sp config validate --path ./settings.toml"))
   }
 

@@ -1,4 +1,5 @@
 import ComposableArchitecture
+import Foundation
 import SupatermCLIShared
 import SupatermTerminalCore
 
@@ -6,6 +7,10 @@ public struct SocketRequestExecutor: Sendable {
   public enum AppRequest: Sendable {
     case onboardingSnapshot
     case debugSnapshot(SupatermDebugRequest)
+    case settingsGet(SupatermSettingsGetRequest)
+    case settingsList(SupatermSettingsListRequest)
+    case settingsReset(SupatermSettingsResetRequest)
+    case settingsSet(SupatermSettingsSetRequest)
     case treeSnapshot
     case notify(TerminalNotifyRequest)
     case agentHook(SupatermAgentHookRequest)
@@ -15,6 +20,10 @@ public struct SocketRequestExecutor: Sendable {
   public enum AppResult: Sendable {
     case onboardingSnapshot(SupatermOnboardingSnapshot?)
     case debugSnapshot(SupatermAppDebugSnapshot)
+    case settingsGet(SupatermSettingsGetResult)
+    case settingsList(SupatermSettingsListResult)
+    case settingsReset(SupatermSettingsMutationResult)
+    case settingsSet(SupatermSettingsMutationResult)
     case treeSnapshot(SupatermTreeSnapshot)
     case notify(SupatermNotifyResult)
     case agentHook(TerminalAgentHookResult)
@@ -145,6 +154,40 @@ extension SocketRequestExecutor: DependencyKey {
         return .onboardingSnapshot(nil)
       case .debugSnapshot:
         return .debugSnapshot(Self.emptyDebugSnapshot)
+      case .settingsGet(let request):
+        return .settingsGet(
+          try SupatermSettingsRegistry.get(
+            key: request.key,
+            settings: .default,
+            path: SupatermSettings.defaultURL().path
+          )
+        )
+      case .settingsList(let request):
+        return .settingsList(
+          SupatermSettingsRegistry.list(
+            settings: .default,
+            path: SupatermSettings.defaultURL().path,
+            changedOnly: request.changedOnly
+          )
+        )
+      case .settingsReset(let request):
+        return .settingsReset(
+          try SupatermSettingsRegistry.reset(
+            request,
+            settings: .default,
+            path: SupatermSettings.defaultURL().path,
+            isLive: true
+          ).result
+        )
+      case .settingsSet(let request):
+        return .settingsSet(
+          try SupatermSettingsRegistry.set(
+            request,
+            settings: .default,
+            path: SupatermSettings.defaultURL().path,
+            isLive: true
+          ).result
+        )
       case .treeSnapshot:
         return .treeSnapshot(SupatermTreeSnapshot(windows: []))
       case .notify:

@@ -103,6 +103,8 @@ Compatibility and config:
 ```bash
 sp run -- zsh -lc 'echo hi'
 sp tmux list-panes
+sp config get updates.channel
+sp config set appearance.mode system
 sp config validate
 ```
 
@@ -120,7 +122,7 @@ sp config validate
 
 The full method list lives in `SupatermSocketMethod` (`apps/mac/SupatermCLIShared/SupatermSocketProtocol.swift`):
 
-- `app.*` — onboarding, debug, tree
+- `app.*` — onboarding, debug, tree, settings
 - `system.*` — identity, ping
 - `terminal.agent_hook` — coding agent hook events
 - `terminal.*` — space, tab, and pane control, one method per CLI verb

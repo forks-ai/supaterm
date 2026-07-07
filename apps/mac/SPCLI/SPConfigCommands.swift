@@ -6,13 +6,190 @@ extension SP {
   struct Config: ParsableCommand {
     static let configuration = CommandConfiguration(
       commandName: "config",
-      abstract: "Inspect and validate Supaterm configuration.",
+      abstract: "Inspect, edit, and validate Supaterm configuration.",
       discussion: SPHelp.configDiscussion,
-      subcommands: [ValidateConfig.self]
+      subcommands: [
+        PathConfig.self,
+        ListConfig.self,
+        GetConfig.self,
+        SetConfig.self,
+        ResetConfig.self,
+        ValidateConfig.self,
+      ]
     )
 
     mutating func run() throws {
       print(Self.helpMessage())
+    }
+  }
+
+  struct PathConfig: ParsableCommand {
+    static let configuration = CommandConfiguration(
+      commandName: "path",
+      abstract: "Print the Supaterm settings file path."
+    )
+
+    @OptionGroup
+    var output: SPOutputOptions
+
+    mutating func run() throws {
+      applyOutputStyle(output)
+      let result = SupatermSettingsFileStore().path()
+      try emitCommandResult(
+        result,
+        options: output,
+        plain: result.path,
+        human: result.path
+      )
+    }
+  }
+
+  struct ListConfig: ParsableCommand {
+    static let configuration = CommandConfiguration(
+      commandName: "list",
+      abstract: "List Supaterm settings."
+    )
+
+    @Flag(name: .long, help: "Only list settings that differ from defaults.")
+    var changed = false
+
+    @OptionGroup
+    var connection: SPConnectionOptions
+
+    @OptionGroup
+    var output: SPOutputOptions
+
+    mutating func run() throws {
+      applyOutputStyle(output)
+      let result: SupatermSettingsListResult
+      if let client = try configSocketClient(connection: connection) {
+        let response = try client.send(.settingsList(.init(changedOnly: changed)))
+        guard response.ok else {
+          throw ValidationError(response.error?.message ?? "Supaterm socket request failed.")
+        }
+        result = try response.decodeResult(SupatermSettingsListResult.self)
+      } else {
+        result = try SupatermSettingsFileStore().list(changedOnly: changed)
+      }
+      try emitCommandResult(
+        result,
+        options: output,
+        plain: renderPlain(result),
+        human: renderHuman(result)
+      )
+    }
+  }
+
+  struct GetConfig: ParsableCommand {
+    static let configuration = CommandConfiguration(
+      commandName: "get",
+      abstract: "Print one Supaterm setting."
+    )
+
+    @Argument(help: "Settings key.")
+    var key: String
+
+    @OptionGroup
+    var connection: SPConnectionOptions
+
+    @OptionGroup
+    var output: SPOutputOptions
+
+    mutating func run() throws {
+      applyOutputStyle(output)
+      let result: SupatermSettingsGetResult
+      if let client = try configSocketClient(connection: connection) {
+        let response = try client.send(.settingsGet(.init(key: key)))
+        guard response.ok else {
+          throw ValidationError(response.error?.message ?? "Supaterm socket request failed.")
+        }
+        result = try response.decodeResult(SupatermSettingsGetResult.self)
+      } else {
+        result = try SupatermSettingsFileStore().get(key: key)
+      }
+      try emitCommandResult(
+        result,
+        options: output,
+        plain: "\(result.entry.key)\t\(result.entry.value)",
+        human: "\(result.entry.key) = \(result.entry.value)\(warningSuffix(result.warnings))"
+      )
+    }
+  }
+
+  struct SetConfig: ParsableCommand {
+    static let configuration = CommandConfiguration(
+      commandName: "set",
+      abstract: "Set one Supaterm setting."
+    )
+
+    @Argument(help: "Settings key.")
+    var key: String
+
+    @Argument(help: "Settings value.")
+    var value: String
+
+    @OptionGroup
+    var connection: SPConnectionOptions
+
+    @OptionGroup
+    var output: SPOutputOptions
+
+    mutating func run() throws {
+      applyOutputStyle(output)
+      let request = SupatermSettingsSetRequest(key: key, value: value)
+      let result: SupatermSettingsMutationResult
+      if let client = try configSocketClient(connection: connection) {
+        let response = try client.send(.settingsSet(request))
+        guard response.ok else {
+          throw ValidationError(response.error?.message ?? "Supaterm socket request failed.")
+        }
+        result = try response.decodeResult(SupatermSettingsMutationResult.self)
+      } else {
+        result = try SupatermSettingsFileStore().set(request)
+      }
+      try emitCommandResult(
+        result,
+        options: output,
+        plain: "\(result.key)\t\(result.oldValue)\t\(result.value)",
+        human: "Updated \(result.key): \(result.oldValue) -> \(result.value)\(warningSuffix(result.warnings))"
+      )
+    }
+  }
+
+  struct ResetConfig: ParsableCommand {
+    static let configuration = CommandConfiguration(
+      commandName: "reset",
+      abstract: "Reset one Supaterm setting to its default."
+    )
+
+    @Argument(help: "Settings key.")
+    var key: String
+
+    @OptionGroup
+    var connection: SPConnectionOptions
+
+    @OptionGroup
+    var output: SPOutputOptions
+
+    mutating func run() throws {
+      applyOutputStyle(output)
+      let request = SupatermSettingsResetRequest(key: key)
+      let result: SupatermSettingsMutationResult
+      if let client = try configSocketClient(connection: connection) {
+        let response = try client.send(.settingsReset(request))
+        guard response.ok else {
+          throw ValidationError(response.error?.message ?? "Supaterm socket request failed.")
+        }
+        result = try response.decodeResult(SupatermSettingsMutationResult.self)
+      } else {
+        result = try SupatermSettingsFileStore().reset(request)
+      }
+      try emitCommandResult(
+        result,
+        options: output,
+        plain: "\(result.key)\t\(result.oldValue)\t\(result.value)",
+        human: "Reset \(result.key): \(result.oldValue) -> \(result.value)\(warningSuffix(result.warnings))"
+      )
     }
   }
 
@@ -58,6 +235,19 @@ extension SP {
   }
 }
 
+private func configSocketClient(connection: SPConnectionOptions) throws -> SPSocketClient? {
+  if connection.explicitSocketPath == nil,
+    connection.instance == nil,
+    SupatermSocketPath.normalized(ProcessInfo.processInfo.environment[SupatermCLIEnvironment.socketPathKey]) == nil
+  {
+    return nil
+  }
+  return try socketClient(
+    path: connection.explicitSocketPath,
+    instance: connection.instance
+  )
+}
+
 private func shouldFail(
   result: SupatermSettingsValidationResult,
   explicitPath: URL?
@@ -91,6 +281,24 @@ private func renderPlain(_ result: SupatermSettingsValidationResult) -> String {
       "\(result.status.rawValue)\t\(result.path)"
     ] + result.warnings.map { "warning\t\($0)" } + result.errors.map { "error\t\($0)" }
   return lines.joined(separator: "\n")
+}
+
+private func renderPlain(_ result: SupatermSettingsListResult) -> String {
+  let lines = result.entries.map { "\($0.key)\t\($0.value)" }
+  return (lines + result.warnings.map { "warning\t\($0)" }).joined(separator: "\n")
+}
+
+private func renderHuman(_ result: SupatermSettingsListResult) -> String {
+  let settingLines =
+    result.entries.isEmpty
+    ? ["No changed settings."]
+    : result.entries.map { "\($0.key) = \($0.value)" }
+  return (settingLines + result.warnings.map { "warning: \($0)" }).joined(separator: "\n")
+}
+
+private func warningSuffix(_ warnings: [String]) -> String {
+  guard !warnings.isEmpty else { return "" }
+  return "\n" + warnings.map { "warning: \($0)" }.joined(separator: "\n")
 }
 
 private func renderHuman(_ result: SupatermSettingsValidationResult) -> String {
