@@ -886,11 +886,11 @@ extension TerminalHostState {
   static func sidebarNotificationPresentation(
     _ notification: PaneNotification?
   ) -> SidebarNotificationPresentation? {
-    guard let markdown = notificationText(notification) else { return nil }
-    let previewMarkdown = sidebarNotificationPreviewMarkdown(markdown)
-    guard !previewMarkdown.isEmpty else { return nil }
+    guard let text = notificationText(notification) else { return nil }
+    let previewText = sidebarNotificationPreviewText(text)
+    guard !previewText.isEmpty else { return nil }
     return SidebarNotificationPresentation(
-      previewMarkdown: previewMarkdown
+      previewText: previewText
     )
   }
 
@@ -903,10 +903,10 @@ extension TerminalHostState {
     return title.isEmpty ? nil : title
   }
 
-  static func sidebarNotificationPreviewMarkdown(
-    _ markdown: String
+  static func sidebarNotificationPreviewText(
+    _ text: String
   ) -> String {
-    var preview = markdown.trimmingCharacters(in: .whitespacesAndNewlines)
+    var preview = text.trimmingCharacters(in: .whitespacesAndNewlines)
     let replacements = [
       (#"(?m)^\s*\[[^\]]+\]:\s+\S.*$"#, ""),
       (#"(?m)^\s*(```|~~~).*$"#, ""),
@@ -918,6 +918,12 @@ extension TerminalHostState {
       (#"!\[([^\]]*)\]\([^)]+\)"#, "$1"),
       (#"\[([^\]]+)\]\([^)]+\)"#, "$1"),
       (#"\[([^\]]+)\]\[[^\]]*\]"#, "$1"),
+      (#"`([^`]+)`"#, "$1"),
+      (#"\*\*([^*]+)\*\*"#, "$1"),
+      (#"__([^_]+)__"#, "$1"),
+      (#"\*([^*\n]+)\*"#, "$1"),
+      (#"_([^_\n]+)_"#, "$1"),
+      (#"~~([^~]+)~~"#, "$1"),
       (#"(?i)<(?:https?://|mailto:)[^>]+>"#, ""),
       (#"(?i)\b(?:https?://|mailto:)\S+\b"#, ""),
       (#"(?m)^\s*\|?(?:\s*:?-{3,}:?\s*\|)+\s*:?-{3,}:?\s*\|?\s*$"#, ""),

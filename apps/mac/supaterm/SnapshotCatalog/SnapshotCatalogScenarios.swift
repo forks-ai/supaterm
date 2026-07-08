@@ -74,9 +74,9 @@ extension SnapshotCatalog {
       )
     },
     scenario(
-      "unread-markdown",
+      "unread-text",
       group: "Sidebar Rows",
-      title: "Unread markdown preview",
+      title: "Unread text preview",
       size: CGSize(width: 320, height: 94)
     ) { appearance in
       AnyView(
@@ -85,7 +85,7 @@ extension SnapshotCatalog {
           item: SidebarRowSnapshotItem(
             id: "10000000-0000-0000-0000-000000000003",
             title: "Build failures",
-            notificationPreviewMarkdown: "2 failures in `TerminalSidebarChromeViewTests` after snapshot pass",
+            notificationPreviewText: "2 failures in TerminalSidebarChromeViewTests after snapshot pass",
             paneWorkingDirectories: [
               SnapshotFixtureValues.workspace("apps/mac"),
               SnapshotFixtureValues.workspace("apps/mac/supatermTests"),
@@ -107,7 +107,7 @@ extension SnapshotCatalog {
           item: SidebarRowSnapshotItem(
             id: "10000000-0000-0000-0000-000000000004",
             title: "Socket cleanup",
-            notificationPreviewMarkdown: "Applying patch while keeping the socket route stable",
+            notificationPreviewText: "Applying patch while keeping the socket route stable",
             paneWorkingDirectories: [SnapshotFixtureValues.workspace("apps/mac")],
             badgeActivities: [.codex(.running)],
             badgeActivity: .codex(.running)
@@ -127,7 +127,7 @@ extension SnapshotCatalog {
           item: SidebarRowSnapshotItem(
             id: "10000000-0000-0000-0000-000000000005",
             title: "Release note pass",
-            notificationPreviewMarkdown: "Approval needed before publishing the release note",
+            notificationPreviewText: "Approval needed before publishing the release note",
             paneWorkingDirectories: [SnapshotFixtureValues.workspace("apps/supaterm.com")],
             badgeActivities: [.codex(.needsInput)],
             badgeActivity: .codex(.needsInput)
@@ -147,7 +147,7 @@ extension SnapshotCatalog {
           item: SidebarRowSnapshotItem(
             id: "10000000-0000-0000-0000-000000000006",
             title: "Parallel fixes",
-            notificationPreviewMarkdown: "Three panes are reporting active work",
+            notificationPreviewText: "Three panes are reporting active work",
             paneWorkingDirectories: [SnapshotFixtureValues.workspace()],
             badgeActivities: [
               .codex(.running),
@@ -573,7 +573,7 @@ private struct SidebarRowSnapshotItem {
   var isPinned = false
   var isRowHovering = false
   var isPressed = false
-  var notificationPreviewMarkdown: String?
+  var notificationPreviewText: String?
   var paneWorkingDirectories: [String] = []
   var unreadCount = 0
   var badgeActivities: [TerminalHostState.AgentActivity] = []
@@ -605,7 +605,7 @@ private struct SidebarRowSnapshotFixture: View {
       tab: item.tab,
       palette: palette,
       isSelected: item.isSelected,
-      notificationPreviewMarkdown: item.notificationPreviewMarkdown,
+      notificationPreviewText: item.notificationPreviewText,
       paneWorkingDirectories: item.paneWorkingDirectories,
       unreadCount: item.unreadCount,
       badgeActivities: item.badgeActivities,

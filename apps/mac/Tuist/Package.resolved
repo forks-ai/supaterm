@@ -1,5 +1,5 @@
 {
-  "originHash" : "dc773c6c0d9096cd0d2bc2f343956ce2485f3c9a898062408b8bb21b867d0781",
+  "originHash" : "e815fee4338f96f6345314ad1dba0346bfc4119a015dcd0868aeb1bf8f03463f",
   "pins" : [
     {
       "identity" : "combine-schedulers",
@@ -161,24 +161,6 @@
       "state" : {
         "revision" : "827506c90475e82d5a7f191f950fb3025cbdc0d6",
         "version" : "2.0.0"
-      }
-    },
-    {
-      "identity" : "swiftui-math",
-      "kind" : "remoteSourceControl",
-      "location" : "https://github.com/gonzalezreal/swiftui-math",
-      "state" : {
-        "revision" : "0b5c2cfaaec8d6193db206f675048eeb5ce95f71",
-        "version" : "0.1.0"
-      }
-    },
-    {
-      "identity" : "textual",
-      "kind" : "remoteSourceControl",
-      "location" : "https://github.com/gonzalezreal/textual",
-      "state" : {
-        "revision" : "5b06b811c0f5313b6b84bbef98c635a630638c38",
-        "version" : "0.3.1"
       }
     },
     {

@@ -312,7 +312,7 @@ struct TerminalSidebarChromeView: View {
     let hasTerminalBell = terminal.tabHasBell(for: tab.id)
     let preview = TerminalSidebarDragPreviewItem(
       tab: tab,
-      notificationPreviewMarkdown: notificationPresentation?.previewMarkdown,
+      notificationPreviewText: notificationPresentation?.previewText,
       paneWorkingDirectories: paneWorkingDirectories,
       unreadCount: unreadCount,
       badgeActivities: agentPresentation.badgeActivities,

@@ -1,6 +1,5 @@
 import SupaTheme
 import SwiftUI
-import Textual
 
 struct TerminalSidebarTabSummaryView: View {
   enum StatusAccessory: Equatable {
@@ -14,7 +13,7 @@ struct TerminalSidebarTabSummaryView: View {
   let tab: TerminalTabItem
   let palette: Palette
   let isSelected: Bool
-  let notificationPreviewMarkdown: String?
+  let notificationPreviewText: String?
   let paneWorkingDirectories: [String]
   let unreadCount: Int
   let badgeActivities: [TerminalHostState.AgentActivity]
@@ -130,11 +129,10 @@ struct TerminalSidebarTabSummaryView: View {
           .truncationMode(Self.titleTruncationMode(tab.title))
           .frame(maxWidth: .infinity, alignment: .leading)
 
-        if let notificationPreviewMarkdown {
-          InlineText(markdown: notificationPreviewMarkdown)
+        if let notificationPreviewText {
+          Text(notificationPreviewText)
             .font(.system(size: 11, weight: .medium))
             .foregroundStyle(notificationTextColor)
-            .textual.inlineStyle(notificationInlineStyle)
             .allowsHitTesting(false)
             .lineLimit(2)
             .truncationMode(.tail)
@@ -187,15 +185,6 @@ struct TerminalSidebarTabSummaryView: View {
     isSelected
       ? palette.selectedText.opacity(0.82)
       : palette.secondaryText
-  }
-
-  private var notificationInlineStyle: InlineStyle {
-    InlineStyle()
-      .code(.monospaced, .fontScale(0.94), .foregroundColor(notificationTextColor))
-      .emphasis(.italic)
-      .strong(.fontWeight(.semibold))
-      .link(.foregroundColor(notificationTextColor))
-      .strikethrough(.strikethroughStyle(.single))
   }
 
   @ViewBuilder

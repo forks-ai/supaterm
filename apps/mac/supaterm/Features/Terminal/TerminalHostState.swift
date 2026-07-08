@@ -87,7 +87,7 @@ final class TerminalHostState {
   }
 
   struct SidebarNotificationPresentation: Equatable, Sendable {
-    let previewMarkdown: String
+    let previewText: String
   }
 
   struct PaneNotification: Equatable, Sendable {

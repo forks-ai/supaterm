@@ -15,7 +15,7 @@ struct TerminalSidebarDragItem: Equatable {
 
 struct TerminalSidebarDragPreviewItem {
   let tab: TerminalTabItem
-  let notificationPreviewMarkdown: String?
+  let notificationPreviewText: String?
   let paneWorkingDirectories: [String]
   let unreadCount: Int
   let badgeActivities: [TerminalHostState.AgentActivity]
@@ -492,7 +492,7 @@ private struct TerminalSidebarDragPreviewContent: View {
         let palette = Palette(colorScheme: manager.colorScheme)
         TerminalSidebarMorphingPreview(
           tab: preview.tab,
-          notificationPreviewMarkdown: preview.notificationPreviewMarkdown,
+          notificationPreviewText: preview.notificationPreviewText,
           paneWorkingDirectories: preview.paneWorkingDirectories,
           unreadCount: preview.unreadCount,
           badgeActivities: preview.badgeActivities,
@@ -518,7 +518,7 @@ private struct TerminalSidebarDragPreviewContent: View {
 
 private struct TerminalSidebarMorphingPreview: View {
   let tab: TerminalTabItem
-  let notificationPreviewMarkdown: String?
+  let notificationPreviewText: String?
   let paneWorkingDirectories: [String]
   let unreadCount: Int
   let badgeActivities: [TerminalHostState.AgentActivity]
@@ -536,7 +536,7 @@ private struct TerminalSidebarMorphingPreview: View {
       tab: tab,
       palette: palette,
       isSelected: true,
-      notificationPreviewMarkdown: notificationPreviewMarkdown,
+      notificationPreviewText: notificationPreviewText,
       paneWorkingDirectories: paneWorkingDirectories,
       unreadCount: unreadCount,
       badgeActivities: badgeActivities,

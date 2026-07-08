@@ -23,7 +23,7 @@ private struct TerminalSidebarTabPreviewItem: Identifiable {
   let scenario: String
   let title: String
   let isSelected: Bool
-  let notificationPreviewMarkdown: String?
+  let notificationPreviewText: String?
   let paneWorkingDirectories: [String]
   let unreadCount: Int
   let agentActivity: TerminalHostState.AgentActivity?
@@ -47,7 +47,7 @@ private struct TerminalSidebarTabPreviewItem: Identifiable {
       stateLabel,
       isSelected ? "Selected" : nil,
       paneCountLabel,
-      notificationPreviewMarkdown == nil ? nil : "Message",
+      notificationPreviewText == nil ? nil : "Message",
     ]
     .compactMap { $0 }
 
@@ -96,7 +96,7 @@ private struct TerminalSidebarTabPreviewItem: Identifiable {
     title: String,
     id: String,
     isSelected: Bool = false,
-    notificationPreviewMarkdown: String? = nil,
+    notificationPreviewText: String? = nil,
     paneWorkingDirectories: [String] = [],
     unreadCount: Int = 0,
     agentActivity: TerminalHostState.AgentActivity? = nil,
@@ -109,7 +109,7 @@ private struct TerminalSidebarTabPreviewItem: Identifiable {
     self.scenario = scenario
     self.title = title
     self.isSelected = isSelected
-    self.notificationPreviewMarkdown = notificationPreviewMarkdown
+    self.notificationPreviewText = notificationPreviewText
     self.paneWorkingDirectories = paneWorkingDirectories
     self.unreadCount = unreadCount
     self.agentActivity = agentActivity
@@ -181,7 +181,7 @@ private enum TerminalSidebarTabPreviewFixtures {
       scenario: "Running agent inside a split coding tab",
       title: "Socket cleanup",
       id: "A379CB4E-2B01-4A6F-9388-A06B4E9C1A05",
-      notificationPreviewMarkdown: "Applying patch to socket notification routing while watching stale pane sockets",
+      notificationPreviewText: "Applying patch to socket notification routing while watching stale pane sockets",
       paneWorkingDirectories: cwdList(
         cwd("apps", "mac"),
         cwd("docs")
@@ -193,7 +193,7 @@ private enum TerminalSidebarTabPreviewFixtures {
       scenario: "Agent is waiting for input",
       title: "Release note pass",
       id: "A379CB4E-2B01-4A6F-9388-A06B4E9C1A06",
-      notificationPreviewMarkdown: "Need approval before publishing the release notes",
+      notificationPreviewText: "Need approval before publishing the release notes",
       paneWorkingDirectories: cwdList(
         cwd("apps", "supaterm.com"),
         cwd("docs")
@@ -205,7 +205,7 @@ private enum TerminalSidebarTabPreviewFixtures {
       scenario: "Agent finished and the leading indicator is hidden",
       title: "Docs audit",
       id: "A379CB4E-2B01-4A6F-9388-A06B4E9C1A07",
-      notificationPreviewMarkdown: "Review complete: no further changes needed",
+      notificationPreviewText: "Review complete: no further changes needed",
       paneWorkingDirectories: cwdList(cwd("docs")),
       agentActivity: TerminalHostState.AgentActivity(kind: .pi, phase: .idle)
     ),
@@ -233,7 +233,7 @@ private enum TerminalSidebarTabPreviewFixtures {
       scenario: "Single unread pane",
       title: "Deploy smoke test",
       id: "A379CB4E-2B01-4A6F-9388-A06B4E9C1A08",
-      notificationPreviewMarkdown: [
+      notificationPreviewText: [
         "Local preview server is ready with a deliberately long line",
         "that truncates at the end",
       ].joined(separator: " "),
@@ -248,7 +248,7 @@ private enum TerminalSidebarTabPreviewFixtures {
       scenario: "Unread count overrides agent attention",
       title: "Build failures",
       id: "A379CB4E-2B01-4A6F-9388-A06B4E9C1A09",
-      notificationPreviewMarkdown: "2 failures in TerminalSidebarChromeViewTests",
+      notificationPreviewText: "2 failures in TerminalSidebarChromeViewTests",
       paneWorkingDirectories: cwdList(
         cwd("apps", "mac"),
         cwd("apps", "mac", "supatermTests")
@@ -278,7 +278,7 @@ private struct TerminalSidebarTabPreviewRow: View {
       tab: item.tab,
       palette: palette,
       isSelected: item.isSelected,
-      notificationPreviewMarkdown: item.notificationPreviewMarkdown,
+      notificationPreviewText: item.notificationPreviewText,
       paneWorkingDirectories: item.paneWorkingDirectories,
       unreadCount: item.unreadCount,
       badgeActivities: item.agentActivity.map { [$0] } ?? [],

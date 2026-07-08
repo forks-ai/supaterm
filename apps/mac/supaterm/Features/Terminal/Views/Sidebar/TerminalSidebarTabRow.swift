@@ -43,7 +43,7 @@ struct TerminalSidebarTabRow: View {
     let badgeActivities: [TerminalHostState.AgentActivity]
     let badgeActivity: TerminalHostState.AgentActivity?
     let hasTerminalBell: Bool
-    let notificationPreviewMarkdown: String?
+    let notificationPreviewText: String?
     let paneWorkingDirectories: [String]
     let showsAgentMarks: Bool
     let showsAgentSpinner: Bool
@@ -54,7 +54,7 @@ struct TerminalSidebarTabRow: View {
       lhs.badgeActivities == rhs.badgeActivities
         && lhs.badgeActivity == rhs.badgeActivity
         && lhs.hasTerminalBell == rhs.hasTerminalBell
-        && lhs.notificationPreviewMarkdown == rhs.notificationPreviewMarkdown
+        && lhs.notificationPreviewText == rhs.notificationPreviewText
         && lhs.paneWorkingDirectories == rhs.paneWorkingDirectories
         && lhs.showsAgentMarks == rhs.showsAgentMarks
         && lhs.showsAgentSpinner == rhs.showsAgentSpinner
@@ -139,7 +139,7 @@ struct TerminalSidebarTabRow: View {
           tab: tab,
           palette: palette,
           isSelected: isSelected,
-          notificationPreviewMarkdown: notificationPresentation?.previewMarkdown,
+          notificationPreviewText: notificationPresentation?.previewText,
           paneWorkingDirectories: paneWorkingDirectories,
           unreadCount: unreadCount,
           badgeActivities: agentPresentation.badgeActivities,
@@ -280,7 +280,7 @@ struct TerminalSidebarTabRow: View {
       badgeActivities: agentPresentation.badgeActivities,
       badgeActivity: agentPresentation.badgeActivity,
       hasTerminalBell: hasTerminalBell,
-      notificationPreviewMarkdown: notificationPresentation?.previewMarkdown,
+      notificationPreviewText: notificationPresentation?.previewText,
       paneWorkingDirectories: paneWorkingDirectories,
       showsAgentMarks: showsAgentMarks,
       showsAgentSpinner: showsAgentSpinner,

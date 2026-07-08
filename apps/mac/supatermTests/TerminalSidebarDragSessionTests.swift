@@ -10,7 +10,7 @@ struct TerminalSidebarDragSessionTests {
   private func makePreview(tab: TerminalTabItem) -> TerminalSidebarDragPreviewItem {
     TerminalSidebarDragPreviewItem(
       tab: tab,
-      notificationPreviewMarkdown: nil,
+      notificationPreviewText: nil,
       paneWorkingDirectories: [],
       unreadCount: 0,
       badgeActivities: [],

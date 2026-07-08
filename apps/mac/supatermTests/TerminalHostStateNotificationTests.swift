@@ -109,8 +109,8 @@ struct TerminalHostStateNotificationTests {
   }
 
   @Test
-  func sidebarNotificationPreviewMarkdownDropsBlockSyntaxAndLinks() {
-    let preview = TerminalHostState.sidebarNotificationPreviewMarkdown(
+  func sidebarNotificationPreviewTextDropsMarkdownSyntax() {
+    let preview = TerminalHostState.sidebarNotificationPreviewText(
       """
       # Supaterm Notes
 
@@ -131,7 +131,7 @@ struct TerminalHostStateNotificationTests {
       """
     )
     let expectedPreview =
-      "Supaterm Notes Features **Fast** tabbed terminal workflows Docs `socketctl` "
+      "Supaterm Notes Features Fast tabbed terminal workflows Docs socketctl "
       + "Area · Status · Owner Terminal · Done · khoi print(\"hi\")"
 
     #expect(
@@ -161,13 +161,13 @@ struct TerminalHostStateNotificationTests {
     #expect(
       presentation
         == TerminalHostState.SidebarNotificationPresentation(
-          previewMarkdown: "Release Docs `sp`"
+          previewText: "Release Docs sp"
         )
     )
   }
 
   @Test
-  func sidebarNotificationPresentationFallsBackToTitleMarkdown() throws {
+  func sidebarNotificationPresentationFallsBackToTitleText() throws {
     let notification = makeNotification(
       attentionState: .unread,
       body: "   ",
@@ -182,7 +182,7 @@ struct TerminalHostStateNotificationTests {
     #expect(
       presentation
         == TerminalHostState.SidebarNotificationPresentation(
-          previewMarkdown: "Ship notes"
+          previewText: "Ship notes"
         )
     )
   }
