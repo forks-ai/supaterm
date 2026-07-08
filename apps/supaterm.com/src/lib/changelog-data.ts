@@ -17,6 +17,39 @@ type ChangelogEntry = {
 
 const changelogData: ChangelogEntry[] = [
   {
+    version: "v26.2.0",
+    date: "2026-07-08",
+    title: "🌈 Space Themes",
+    description:
+      "Every terminal space can now carry its own theme, and you can read and write Supaterm settings straight from the sp CLI.",
+    sections: [
+      {
+        category: "new",
+        items: [
+          "Added 8 curated space themes, chosen per space when you create or edit a space",
+          "Added sp config commands to read and write settings from the terminal: sp config list, get, set, reset, and path",
+        ],
+      },
+      {
+        category: "improvements",
+        items: [
+          "Supaterm now warns before closing a terminal space with live sessions",
+          "Renamed the sp space close command to sp space destroy",
+        ],
+      },
+      {
+        category: "fixes",
+        items: [
+          "The Claude sidebar spinner now stays active through long tool calls instead of vanishing mid-turn",
+          "Restore Terminal Layout now works even when quitting terminates live sessions",
+          "Fork Session no longer freezes the agent panel for forked Claude sessions",
+          "Claude panel tasks now render in a stable task order",
+          "The agent panel surface is now fully opaque",
+        ],
+      },
+    ],
+  },
+  {
     version: "v26.1.0",
     date: "2026-07-02",
     title: "🎨 Color Tuning",
