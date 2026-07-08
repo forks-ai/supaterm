@@ -42,14 +42,24 @@ jobs:
         run: /usr/bin/python3 .github/scripts/bump_and_release.py validate-release-tag "$RELEASE_TAG"
       - name: Ensure draft release exists
         run: |
-          RELEASE_STATE=$(gh release view "$RELEASE_TAG" --json isDraft --jq '.isDraft' -R "${{ github.repository }}" 2>/dev/null || true)
-          if [ "$RELEASE_STATE" = "false" ]; then
+          RELEASE_JSON=$(gh release view "$RELEASE_TAG" --json isDraft,assets --jq '{isDraft: .isDraft, assets: [.assets[].name]}' -R "${{ github.repository }}" 2>/dev/null || true)
+          if [ -z "$RELEASE_JSON" ]; then
+            gh release create "$RELEASE_TAG" --draft --verify-tag --notes-from-tag
+            exit 0
+          fi
+
+          RELEASE_STATE=$(jq -r '.isDraft' <<< "$RELEASE_JSON")
+          if [ "$RELEASE_STATE" = "true" ]; then
+            exit 0
+          fi
+
+          MISSING_ASSETS=$(jq -r --argjson required '["appcast.xml", "checksums.json", "supaterm.app.zip", "supaterm.dmg"]' '($required - .assets) | join(", ")' <<< "$RELEASE_JSON")
+          if [ -z "$MISSING_ASSETS" ]; then
             echo "::error::Release $RELEASE_TAG is already published"
             exit 1
           fi
-          if [ "$RELEASE_STATE" != "true" ]; then
-            gh release create "$RELEASE_TAG" --draft --verify-tag --notes-from-tag
-          fi
+
+          echo "::warning::Repairing published release $RELEASE_TAG with missing assets: $MISSING_ASSETS"
       - name: Compute stable build number
         id: build-number
         run: |

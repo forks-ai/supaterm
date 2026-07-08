@@ -261,9 +261,13 @@ jobs:
         run: |
           LATEST_TAG=$(gh release list --exclude-drafts --exclude-pre-releases -R "${{ github.repository }}" --json tagName --jq '.[0].tagName' 2>/dev/null || echo "")
           if [ -z "$LATEST_TAG" ]; then
-            exit 0
+            echo "::error::No stable release found"
+            exit 1
           fi
-          gh release download "$LATEST_TAG" -p "appcast.xml" -O stable_appcast.xml -R "${{ github.repository }}" 2>/dev/null || exit 0
+          if ! gh release download "$LATEST_TAG" -p "appcast.xml" -O stable_appcast.xml -R "${{ github.repository }}"; then
+            echo "::error::Stable release $LATEST_TAG is missing appcast.xml"
+            exit 1
+          fi
           python3 .github/scripts/merge_appcasts.py stable_appcast.xml apps/mac/build/appcast.xml merged_appcast.xml
           mv merged_appcast.xml appcast.xml
           gh release upload "$LATEST_TAG" appcast.xml --clobber -R "${{ github.repository }}"
