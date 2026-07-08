@@ -515,7 +515,6 @@ final class GhosttySurfaceView: NSView, Identifiable {
   }
 
   func focusDidChange(_ focused: Bool) {
-    guard surface != nil else { return }
     guard self.focused != focused else { return }
     self.focused = focused
     if focused {
