@@ -140,10 +140,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
   }
 
   func applicationDidBecomeActive(_ notification: Notification) {
-    AppPostHog.capture("app_activated")
+    AppPostHog.captureDebouncedLifecycleEvent(.activatedDebounced)
     guard toggleVisibilityState == nil else { return }
     guard !NSApp.windows.contains(where: \.isVisible) else { return }
     _ = showExistingWindowOrCreate()
+  }
+
+  func applicationDidResignActive(_ notification: Notification) {
+    AppPostHog.captureDebouncedLifecycleEvent(.deactivatedDebounced)
   }
 
   func applicationDidHide(_ notification: Notification) {
@@ -159,7 +163,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
   }
 
   func applicationWillTerminate(_ notification: Notification) {
-    AppPostHog.capture("app_terminated")
+    AppPostHog.capture("app_quit")
     persistSession(
       sessionPersistenceState.catalogToPersist(
         liveCatalog: terminalWindowRegistry.restorationSnapshot()

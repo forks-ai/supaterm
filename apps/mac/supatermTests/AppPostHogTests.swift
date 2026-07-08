@@ -1,3 +1,4 @@
+import Foundation
 import PostHog
 import Testing
 
@@ -47,7 +48,7 @@ struct AppPostHogTests {
   }
 
   @Test
-  func configKeepsLifecycleAutocaptureEnabled() throws {
+  func configKeepsLifecycleAutocaptureAndFiltersOpenBackground() throws {
     let configuration = try #require(
       AppPostHog.Configuration(
         infoDictionary: [
@@ -67,6 +68,70 @@ struct AppPostHogTests {
     #expect(!config.enableSwizzling)
     #expect(config.errorTrackingConfig.autoCapture)
     #expect(config.personProfiles == .identifiedOnly)
+    #expect(!AppPostHog.shouldSend(eventName: "Application Opened"))
+    #expect(!AppPostHog.shouldSend(eventName: "Application Backgrounded"))
+    #expect(AppPostHog.shouldSend(eventName: "Application Installed"))
+    #expect(AppPostHog.shouldSend(eventName: "Application Updated"))
+    #expect(AppPostHog.shouldSend(eventName: "terminal_tab_created"))
+  }
+
+  @Test
+  func activationDebouncesForFifteenMinutes() {
+    let base = Date(timeIntervalSince1970: 1_000)
+    var debouncer = AppPostHog.AppLifecycleEventDebouncer()
+    var events: [String] = []
+
+    if debouncer.shouldCapture(event: .activatedDebounced, now: base) {
+      events.append(AppPostHog.AppLifecycleEvent.activatedDebounced.rawValue)
+    }
+
+    if debouncer.shouldCapture(event: .activatedDebounced, now: base.addingTimeInterval(899)) {
+      events.append(AppPostHog.AppLifecycleEvent.activatedDebounced.rawValue)
+    }
+
+    if debouncer.shouldCapture(event: .activatedDebounced, now: base.addingTimeInterval(900)) {
+      events.append(AppPostHog.AppLifecycleEvent.activatedDebounced.rawValue)
+    }
+
+    #expect(events == ["app_activated_debounced", "app_activated_debounced"])
+  }
+
+  @Test
+  func deactivationDebouncesForFifteenMinutes() {
+    let base = Date(timeIntervalSince1970: 2_000)
+    var debouncer = AppPostHog.AppLifecycleEventDebouncer()
+    var events: [String] = []
+
+    if debouncer.shouldCapture(event: .deactivatedDebounced, now: base) {
+      events.append(AppPostHog.AppLifecycleEvent.deactivatedDebounced.rawValue)
+    }
+
+    if debouncer.shouldCapture(event: .deactivatedDebounced, now: base.addingTimeInterval(899)) {
+      events.append(AppPostHog.AppLifecycleEvent.deactivatedDebounced.rawValue)
+    }
+
+    if debouncer.shouldCapture(event: .deactivatedDebounced, now: base.addingTimeInterval(900)) {
+      events.append(AppPostHog.AppLifecycleEvent.deactivatedDebounced.rawValue)
+    }
+
+    #expect(events == ["app_deactivated_debounced", "app_deactivated_debounced"])
+  }
+
+  @Test
+  func activationAndDeactivationDebounceIndependently() {
+    let base = Date(timeIntervalSince1970: 3_000)
+    var debouncer = AppPostHog.AppLifecycleEventDebouncer()
+    var events: [String] = []
+
+    if debouncer.shouldCapture(event: .activatedDebounced, now: base) {
+      events.append(AppPostHog.AppLifecycleEvent.activatedDebounced.rawValue)
+    }
+
+    if debouncer.shouldCapture(event: .deactivatedDebounced, now: base.addingTimeInterval(1)) {
+      events.append(AppPostHog.AppLifecycleEvent.deactivatedDebounced.rawValue)
+    }
+
+    #expect(events == ["app_activated_debounced", "app_deactivated_debounced"])
   }
 
   @Test

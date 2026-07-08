@@ -4,6 +4,38 @@ import Sharing
 import SupatermSupport
 
 nonisolated enum AppPostHog {
+  private static let appLifecycleDebounceInterval: TimeInterval = 15 * 60
+
+  enum AppLifecycleEvent: String, Sendable {
+    case activatedDebounced = "app_activated_debounced"
+    case deactivatedDebounced = "app_deactivated_debounced"
+  }
+
+  struct AppLifecycleEventDebouncer: Equatable, Sendable {
+    var lastActivatedAt: Date?
+    var lastDeactivatedAt: Date?
+
+    mutating func shouldCapture(event: AppLifecycleEvent, now: Date) -> Bool {
+      switch event {
+      case .activatedDebounced:
+        return Self.shouldCapture(lastCapturedAt: &lastActivatedAt, now: now)
+      case .deactivatedDebounced:
+        return Self.shouldCapture(lastCapturedAt: &lastDeactivatedAt, now: now)
+      }
+    }
+
+    private static func canCapture(lastCapturedAt: Date?, now: Date) -> Bool {
+      guard let lastCapturedAt else { return true }
+      return now.timeIntervalSince(lastCapturedAt) >= AppPostHog.appLifecycleDebounceInterval
+    }
+
+    private static func shouldCapture(lastCapturedAt: inout Date?, now: Date) -> Bool {
+      guard canCapture(lastCapturedAt: lastCapturedAt, now: now) else { return false }
+      lastCapturedAt = now
+      return true
+    }
+  }
+
   struct Configuration: Equatable {
     let projectToken: String
     let host: String
@@ -101,6 +133,18 @@ nonisolated enum AppPostHog {
     #endif
   }
 
+  @MainActor
+  static func captureDebouncedLifecycleEvent(_ event: AppLifecycleEvent, now: Date = Date()) {
+    #if DEBUG
+      return
+    #else
+      @Shared(.supatermSettings) var supatermSettings = .default
+      guard isAnalyticsEnabled(supatermSettings: supatermSettings, isDebugBuild: false) else { return }
+      guard state.shouldCaptureLifecycleEvent(event, now: now) else { return }
+      PostHogSDK.shared.capture(event.rawValue)
+    #endif
+  }
+
   nonisolated static func addExceptionStep(
     _ message: String,
     category: AppLogCategory
@@ -141,7 +185,19 @@ nonisolated enum AppPostHog {
     config.enableSwizzling = false
     config.errorTrackingConfig.autoCapture = supatermSettings.crashReportsEnabled
     config.personProfiles = configuration.personProfiles
+    config.setBeforeSend { event in
+      shouldSend(eventName: event.event) ? event : nil
+    }
     return config
+  }
+
+  static func shouldSend(eventName: String) -> Bool {
+    switch eventName {
+    case "Application Opened", "Application Backgrounded":
+      return false
+    default:
+      return true
+    }
   }
 
   static func isSetupEnabled(
@@ -169,6 +225,7 @@ nonisolated enum AppPostHog {
 #if !DEBUG
   nonisolated private final class AppPostHogState: @unchecked Sendable {
     private let lock = NSLock()
+    private var appLifecycleEventDebouncer = AppPostHog.AppLifecycleEventDebouncer()
     private var errorReportingEnabled = false
 
     var isErrorReportingEnabled: Bool {
@@ -182,6 +239,15 @@ nonisolated enum AppPostHog {
       lock.lock()
       errorReportingEnabled = isEnabled
       lock.unlock()
+    }
+
+    func shouldCaptureLifecycleEvent(
+      _ event: AppPostHog.AppLifecycleEvent,
+      now: Date
+    ) -> Bool {
+      lock.lock()
+      defer { lock.unlock() }
+      return appLifecycleEventDebouncer.shouldCapture(event: event, now: now)
     }
   }
 #endif
