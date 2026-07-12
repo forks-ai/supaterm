@@ -152,6 +152,22 @@ struct ReleaseAnnouncementTests {
   }
 
   @Test
+  func upgradeFromPreviousReleaseShowsFinalBetaCard() {
+    let result = ReleaseAnnouncementCatalog.synchronize(
+      currentVersion: "26.3.0",
+      storageState: ReleaseAnnouncementStorageState(
+        lastInstalledVersion: "26.2.0",
+        acknowledgedVersion: "26.2.0"
+      ),
+      hasExistingSupatermState: true
+    )
+
+    #expect(result.announcement == .finalBeta)
+    #expect(result.storageState.lastInstalledVersion == "26.3.0")
+    #expect(result.storageState.acknowledgedVersion == "26.2.0")
+  }
+
+  @Test
   func agentForkingCopyMatchesReleaseCard() {
     let expectedMessage =
       "Forking session is now easier than ever using the agent panel. "
@@ -163,7 +179,7 @@ struct ReleaseAnnouncementTests {
         == expectedMessage
     )
     #expect(ReleaseAnnouncement.agentForking.footer == "Settings → Coding Agents")
-    #expect(ReleaseAnnouncement.agentForking.imageName == "git-fork")
+    #expect(ReleaseAnnouncement.agentForking.icon == .asset("git-fork"))
   }
 
   @Test
@@ -174,6 +190,6 @@ struct ReleaseAnnouncementTests {
         == "The sidebar now reads cleaner in light and dark mode."
     )
     #expect(ReleaseAnnouncement.colorTuning.footer == "Supaterm v26.1.0")
-    #expect(ReleaseAnnouncement.colorTuning.imageName == "AppearanceAuto")
+    #expect(ReleaseAnnouncement.colorTuning.icon == .asset("AppearanceAuto"))
   }
 }

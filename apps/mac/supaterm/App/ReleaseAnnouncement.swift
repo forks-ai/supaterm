@@ -33,11 +33,17 @@ nonisolated struct ReleaseAnnouncement: Equatable, Identifiable, Sendable {
   let title: String
   let message: String
   let footer: String
-  let imageName: String
+  let icon: Icon
 
   enum AnnouncementID: String, Sendable {
     case agentForking
     case colorTuning
+    case finalBeta
+  }
+
+  enum Icon: Equatable, Sendable {
+    case asset(String)
+    case emoji(String)
   }
 
   static let agentForking = Self(
@@ -47,7 +53,7 @@ nonisolated struct ReleaseAnnouncement: Equatable, Identifiable, Sendable {
     message: "Forking session is now easier than ever using the agent panel. "
       + "Enable coding agents integration to try it.",
     footer: "Settings → Coding Agents",
-    imageName: "git-fork"
+    icon: .asset("git-fork")
   )
 
   static let colorTuning = Self(
@@ -56,7 +62,24 @@ nonisolated struct ReleaseAnnouncement: Equatable, Identifiable, Sendable {
     title: "🎨 Color Tuning",
     message: "The sidebar now reads cleaner in light and dark mode.",
     footer: "Supaterm v26.1.0",
-    imageName: "AppearanceAuto"
+    icon: .asset("AppearanceAuto")
+  )
+
+  static let finalBeta = Self(
+    id: .finalBeta,
+    version: ReleaseAnnouncementVersion("26.3.0")!,
+    title: "Final release of Supaterm Beta",
+    message: "From Khoi:\n\n"
+      + "This is the final release of the Supaterm Beta.\n\n"
+      + "Thank you for using it, sharing feedback, and supporting the project throughout this stage. "
+      + "I’m genuinely grateful to everyone who has been part of it.\n\n"
+      + "The next version will be a complete redesign of the app, with a new UI and a much more polished "
+      + "experience. It will be paid software, but beta supporters will receive a license at no cost.\n\n"
+      + "Please message @khoiracle on X to claim yours, or if you know me personally, "
+      + "reach out in person :D.\n\n"
+      + "Thank you again. See you in the next version.",
+    footer: "Supaterm v26.3.0",
+    icon: .emoji("💙")
   )
 }
 
@@ -75,6 +98,7 @@ nonisolated enum ReleaseAnnouncementCatalog {
   static let announcements: [ReleaseAnnouncement] = [
     .agentForking,
     .colorTuning,
+    .finalBeta,
   ]
 
   static func synchronize(

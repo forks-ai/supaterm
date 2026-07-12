@@ -9,13 +9,10 @@ struct ReleaseAnnouncementCardView: View {
   var body: some View {
     VStack(alignment: .leading, spacing: 8) {
       HStack(alignment: .top, spacing: 8) {
-        Image(announcement.imageName)
-          .renderingMode(.template)
-          .resizable()
-          .scaledToFit()
-          .foregroundStyle(palette.primaryText)
-          .frame(width: 24, height: 24, alignment: .leading)
-          .accessibilityHidden(true)
+        ReleaseAnnouncementIconView(
+          icon: announcement.icon,
+          palette: palette
+        )
 
         Spacer(minLength: 0)
 
@@ -66,5 +63,28 @@ struct ReleaseAnnouncementCardView: View {
         style: .continuous
       )
     )
+  }
+}
+
+private struct ReleaseAnnouncementIconView: View {
+  let icon: ReleaseAnnouncement.Icon
+  let palette: Palette
+
+  var body: some View {
+    switch icon {
+    case .asset(let name):
+      Image(name)
+        .renderingMode(.template)
+        .resizable()
+        .scaledToFit()
+        .foregroundStyle(palette.primaryText)
+        .frame(width: 24, height: 24, alignment: .leading)
+        .accessibilityHidden(true)
+    case .emoji(let value):
+      Text(value)
+        .font(.system(size: 20))
+        .frame(width: 24, height: 24, alignment: .leading)
+        .accessibilityHidden(true)
+    }
   }
 }

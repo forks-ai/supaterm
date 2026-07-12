@@ -415,12 +415,12 @@ extension SnapshotCatalog {
       "release-short",
       group: "Update Cards",
       title: "Release announcement",
-      size: CGSize(width: 320, height: 154)
+      size: CGSize(width: 320, height: 460)
     ) { appearance in
       AnyView(
         SidebarCardSnapshotFixture(appearance: appearance) { palette in
           ReleaseAnnouncementCardView(
-            announcement: .agentForking,
+            announcement: .finalBeta,
             palette: palette,
             dismiss: {}
           )
