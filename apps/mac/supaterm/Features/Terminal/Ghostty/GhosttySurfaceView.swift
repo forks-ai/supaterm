@@ -7,6 +7,11 @@ import SupatermCLIShared
 import SupatermSupport
 
 final class GhosttySurfaceView: NSView, Identifiable {
+  typealias SurfaceFactory = (
+    ghostty_app_t,
+    UnsafePointer<ghostty_surface_config_s>
+  ) -> ghostty_surface_t?
+
   private struct ScrollbarState {
     let total: UInt64
     let offset: UInt64
@@ -59,6 +64,7 @@ final class GhosttySurfaceView: NSView, Identifiable {
   private let fontSize: Float32
   private let context: ghostty_surface_context_e
   private let managesWindowAppearance: Bool
+  private let applicationAndWindowAreActive: (NSWindow) -> Bool
   private var trackingArea: NSTrackingArea?
   private var lastBackingSize: CGSize = .zero
   private var lastPerformKeyEvent: TimeInterval?
@@ -74,6 +80,7 @@ final class GhosttySurfaceView: NSView, Identifiable {
   private var eventMonitor: Any?
   private var notificationObservers: [NSObjectProtocol] = []
   private var prevPressureStage: Int = 0
+  private var suppressNextLeftMouseUp = false
   private lazy var cachedScreenContents = CachedValue<String>(duration: .milliseconds(500)) {
     [weak self] in
     self?.readScreenContents() ?? ""
@@ -269,7 +276,13 @@ final class GhosttySurfaceView: NSView, Identifiable {
     fontSize: Float32? = nil,
     context: ghostty_surface_context_e,
     managesWindowAppearance: Bool = false,
-    zmxSessionsEnabled: Bool = true
+    zmxSessionsEnabled: Bool = true,
+    applicationAndWindowAreActive: @escaping (NSWindow) -> Bool = {
+      NSApp.isActive && $0.isKeyWindow
+    },
+    surfaceFactory: SurfaceFactory = { app, config in
+      ghostty_surface_new(app, config)
+    }
   ) {
     self.runtime = runtime
     self.id = id
@@ -285,6 +298,7 @@ final class GhosttySurfaceView: NSView, Identifiable {
     self.fontSize = fontSize ?? 0
     self.context = context
     self.managesWindowAppearance = managesWindowAppearance
+    self.applicationAndWindowAreActive = applicationAndWindowAreActive
     let initialWorkingDirectoryPath: String?
     if let workingDirectory {
       let path = Self.normalizedWorkingDirectoryPath(
@@ -302,13 +316,12 @@ final class GhosttySurfaceView: NSView, Identifiable {
       commandCString = nil
     }
     super.init(frame: NSRect(x: 0, y: 0, width: 800, height: 600))
-    wantsLayer = true
     bridge.state.pwd = initialWorkingDirectoryPath
     bridge.surfaceView = self
     bridge.onPromptSurfaceTitle = { [weak self] in
       self?.promptSurfaceTitle()
     }
-    createSurface()
+    createSurface(using: surfaceFactory)
     if let surface {
       surfaceRef = runtime.registerSurface(surface)
     }
@@ -356,6 +369,41 @@ final class GhosttySurfaceView: NSView, Identifiable {
       lastOcclusion = nil
       lastSurfaceFocus = nil
     }
+  }
+
+  func confirmClipboardRead(
+    value: String?,
+    state: UnsafeMutableRawPointer?,
+    request: ghostty_clipboard_request_e
+  ) {
+    runtime.confirmClipboardRead(
+      from: self,
+      surfaceReference: surfaceRef,
+      value: value,
+      state: state,
+      request: request
+    )
+  }
+
+  func readClipboard(
+    location: ghostty_clipboard_e,
+    state: UnsafeMutableRawPointer?
+  ) -> Bool {
+    runtime.readClipboard(from: self, location: location, state: state)
+  }
+
+  func writeClipboard(
+    location: ghostty_clipboard_e,
+    items: [(mime: String, data: String)],
+    confirm: Bool
+  ) {
+    runtime.writeClipboard(
+      from: self,
+      surfaceReference: surfaceRef,
+      location: location,
+      items: items,
+      confirm: confirm
+    )
   }
 
   private func updateScreenObservers() {
@@ -444,6 +492,9 @@ final class GhosttySurfaceView: NSView, Identifiable {
 
   override func viewDidMoveToWindow() {
     super.viewDidMoveToWindow()
+    if window == nil {
+      runtime.cancelClipboardConfirmation(for: surfaceRef)
+    }
     updateScreenObservers()
     updateContentScale()
     notifySizeChanged()
@@ -803,6 +854,10 @@ final class GhosttySurfaceView: NSView, Identifiable {
   }
 
   override func mouseUp(with event: NSEvent) {
+    if suppressNextLeftMouseUp {
+      suppressNextLeftMouseUp = false
+      return
+    }
     prevPressureStage = 0
     sendMouseButton(event, state: GHOSTTY_MOUSE_RELEASE, button: GHOSTTY_MOUSE_LEFT)
     if let surface {
@@ -933,11 +988,17 @@ final class GhosttySurfaceView: NSView, Identifiable {
   }
 
   private func localEventLeftMouseDown(_ event: NSEvent) -> NSEvent? {
-    guard let window, event.window != nil, window == event.window else { return event }
-    let location = convert(event.locationInWindow, from: nil)
-    guard hitTest(location) == self else { return event }
-    guard !NSApp.isActive || !window.isKeyWindow else { return event }
-    guard !focused else { return event }
+    guard let window, window == event.window else { return event }
+    guard let contentView = window.contentView else { return event }
+    let location = contentView.convert(event.locationInWindow, from: nil)
+    guard contentView.hitTest(location) === self else { return event }
+    suppressNextLeftMouseUp = false
+    guard window.firstResponder !== self else { return event }
+    if applicationAndWindowAreActive(window) {
+      window.makeFirstResponder(self)
+      suppressNextLeftMouseUp = true
+      return nil
+    }
     window.makeFirstResponder(self)
     return event
   }
@@ -1017,7 +1078,7 @@ final class GhosttySurfaceView: NSView, Identifiable {
     NSCursor.setHiddenUntilMouseMoves(!visible)
   }
 
-  private func createSurface() {
+  private func createSurface(using surfaceFactory: SurfaceFactory) {
     guard let app = runtime.app else { return }
     var config = ghostty_surface_config_new()
     config.userdata = Unmanaged.passUnretained(bridge).toOpaque()
@@ -1037,10 +1098,14 @@ final class GhosttySurfaceView: NSView, Identifiable {
       Self.withCStringArray(commandWrapper) { wrapper, wrapperCount in
         config.command_wrapper = wrapper
         config.command_wrapper_count = wrapperCount
-        surface = ghostty_surface_new(app, &config)
+        surface = surfaceFactory(app, &config)
       }
     }
     bridge.surface = surface
+    guard surface != nil else {
+      bridge.state.failure = .surfaceCreationFailed
+      return
+    }
     lastOcclusion = nil
     lastSurfaceFocus = nil
     updateSurfaceSize()

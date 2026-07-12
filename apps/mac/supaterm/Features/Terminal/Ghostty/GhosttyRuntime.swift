@@ -1,8 +1,8 @@
 import AppKit
+import Foundation
 import GhosttyKit
 import SupatermCLIShared
 import SwiftUI
-import UniformTypeIdentifiers
 
 struct GhosttyShellIntegrationPlan: Equatable {
   var environmentVariables: [SupatermCLIEnvironmentVariable]
@@ -33,38 +33,64 @@ final class GhosttyRuntime {
   private let configPath: String?
   private let includeCLIArgs: Bool
   private let callbackState = CallbackState()
+  private let clipboard: GhosttyClipboard
   private(set) var app: ghostty_app_t?
   private var observers: [NSObjectProtocol] = []
   private var surfaceRefs: [SurfaceReference] = []
   private var lastColorScheme: ghostty_color_scheme_e?
-  var onConfigChange: (() -> Void)?
 
   private static let notificationAttentionPaletteIndexes = [4, 12]
   private static let minNotificationContrastRatio = 2.2
   private static let minNotificationSaturation = 0.12
 
-  convenience init() {
+  convenience init(
+    applicationIsActive: () -> Bool = { NSApp.isActive },
+    pasteboardProvider: @escaping (ghostty_clipboard_e) -> NSPasteboard? = {
+      NSPasteboard.ghostty($0)
+    }
+  ) {
     guard let config = Self.loadConfig(includeCLIArgs: true) else {
       preconditionFailure("ghostty_config_new failed")
     }
-    self.init(loadedConfig: config, configPath: nil, includeCLIArgs: true)
+    self.init(
+      loadedConfig: config,
+      configPath: nil,
+      includeCLIArgs: true,
+      applicationIsActive: applicationIsActive,
+      pasteboardProvider: pasteboardProvider
+    )
   }
 
-  convenience init(configPath: String) {
+  convenience init(
+    configPath: String,
+    applicationIsActive: () -> Bool = { NSApp.isActive },
+    pasteboardProvider: @escaping (ghostty_clipboard_e) -> NSPasteboard? = {
+      NSPasteboard.ghostty($0)
+    }
+  ) {
     guard let config = Self.loadConfig(at: configPath, includeCLIArgs: false) else {
       preconditionFailure("ghostty_config_new failed")
     }
-    self.init(loadedConfig: config, configPath: configPath, includeCLIArgs: false)
+    self.init(
+      loadedConfig: config,
+      configPath: configPath,
+      includeCLIArgs: false,
+      applicationIsActive: applicationIsActive,
+      pasteboardProvider: pasteboardProvider
+    )
   }
 
   private init(
     loadedConfig config: ghostty_config_t,
     configPath: String?,
-    includeCLIArgs: Bool
+    includeCLIArgs: Bool,
+    applicationIsActive: () -> Bool,
+    pasteboardProvider: @escaping (ghostty_clipboard_e) -> NSPasteboard?
   ) {
     self.config = config
     self.configPath = configPath
     self.includeCLIArgs = includeCLIArgs
+    self.clipboard = GhosttyClipboard(pasteboardProvider: pasteboardProvider)
     callbackState.runtime = self
 
     var runtimeConfig = ghostty_runtime_config_s(
@@ -94,6 +120,7 @@ final class GhosttyRuntime {
       preconditionFailure("ghostty_app_new failed")
     }
     self.app = app
+    ghostty_app_set_focus(app, applicationIsActive())
 
     let center = NotificationCenter.default
     observers.append(
@@ -140,6 +167,7 @@ final class GhosttyRuntime {
   }
 
   isolated deinit {
+    clipboard.cancelAll()
     let center = NotificationCenter.default
     for observer in observers {
       center.removeObserver(observer)
@@ -180,6 +208,7 @@ final class GhosttyRuntime {
       scheme == .dark
       ? GHOSTTY_COLOR_SCHEME_DARK
       : GHOSTTY_COLOR_SCHEME_LIGHT
+    guard lastColorScheme != ghosttyScheme else { return }
     lastColorScheme = ghosttyScheme
     ghostty_app_set_color_scheme(app, ghosttyScheme)
     applyColorSchemeToSurfaces(ghosttyScheme)
@@ -188,7 +217,6 @@ final class GhosttyRuntime {
   func registerSurface(_ surface: ghostty_surface_t) -> SurfaceReference {
     let ref = SurfaceReference(surface)
     surfaceRefs.append(ref)
-    surfaceRefs = surfaceRefs.filter { $0.isValid }
     if let lastColorScheme {
       ghostty_surface_set_color_scheme(surface, lastColorScheme)
     }
@@ -196,8 +224,54 @@ final class GhosttyRuntime {
   }
 
   func unregisterSurface(_ ref: SurfaceReference) {
+    clipboard.cancel(surface: ref)
     ref.invalidate()
-    surfaceRefs = surfaceRefs.filter { $0.isValid }
+    surfaceRefs.removeAll { $0 === ref }
+  }
+
+  func readClipboard(
+    from view: GhosttySurfaceView,
+    location: ghostty_clipboard_e,
+    state: UnsafeMutableRawPointer?
+  ) -> Bool {
+    clipboard.read(from: view, location: location, state: state)
+  }
+
+  func confirmClipboardRead(
+    from view: GhosttySurfaceView,
+    surfaceReference: SurfaceReference?,
+    value: String?,
+    state: UnsafeMutableRawPointer?,
+    request: ghostty_clipboard_request_e
+  ) {
+    clipboard.confirmRead(
+      from: view,
+      surfaceReference: surfaceReference,
+      value: value,
+      state: state,
+      request: request
+    )
+  }
+
+  func writeClipboard(
+    from view: GhosttySurfaceView,
+    surfaceReference: SurfaceReference?,
+    location: ghostty_clipboard_e,
+    items: [(mime: String, data: String)],
+    confirm: Bool
+  ) {
+    clipboard.write(
+      from: view,
+      surfaceReference: surfaceReference,
+      location: location,
+      items: items,
+      confirm: confirm
+    )
+  }
+
+  func cancelClipboardConfirmation(for surfaceReference: SurfaceReference?) {
+    guard let surfaceReference else { return }
+    clipboard.cancel(surface: surfaceReference)
   }
 
   func reloadConfig(soft: Bool, target: ghostty_target_s) {
@@ -220,6 +294,11 @@ final class GhosttyRuntime {
     )
   }
 
+  func configurationDiagnostics() -> [String] {
+    guard let config else { return [] }
+    return GhosttyConfigDiagnostics.messages(in: config)
+  }
+
   private func applyConfig(
     _ config: ghostty_config_t,
     target: ghostty_target_s,
@@ -237,7 +316,7 @@ final class GhosttyRuntime {
   }
 
   private func applyColorSchemeToSurfaces(_ scheme: ghostty_color_scheme_e) {
-    for ref in surfaceRefs where ref.isValid {
+    for ref in surfaceRefs {
       ghostty_surface_set_color_scheme(ref.surface, scheme)
       ghostty_surface_refresh(ref.surface)
     }
@@ -269,15 +348,17 @@ final class GhosttyRuntime {
 
   private nonisolated static func wakeupCallback(_ userdata: UnsafeMutableRawPointer?) {
     let userdataBits = userdata.map { UInt(bitPattern: $0) }
-    if Thread.isMainThread {
-      MainActor.assumeIsolated {
-        wakeup(userdataBits: userdataBits)
-      }
-      return
-    }
+    scheduleWakeup(userdataBits: userdataBits)
+  }
+
+  private nonisolated static func scheduleWakeup(
+    userdataBits: UInt?,
+    onTick: (@MainActor @Sendable () -> Void)? = nil
+  ) {
     DispatchQueue.main.async {
       MainActor.assumeIsolated {
         wakeup(userdataBits: userdataBits)
+        onTick?()
       }
     }
   }
@@ -335,8 +416,7 @@ final class GhosttyRuntime {
     _ state: UnsafeMutableRawPointer?,
     _ request: ghostty_clipboard_request_e
   ) {
-    guard let string else { return }
-    let value = String(cString: string)
+    let value = string.flatMap(String.init(validatingCString:))
     let userdataBits = userdata.map { UInt(bitPattern: $0) }
     let stateBits = state.map { UInt(bitPattern: $0) }
     if Thread.isMainThread {
@@ -350,7 +430,7 @@ final class GhosttyRuntime {
       }
       return
     }
-    DispatchQueue.main.async {
+    DispatchQueue.main.sync {
       MainActor.assumeIsolated {
         confirmReadClipboard(
           userdataBits: userdataBits,
@@ -369,8 +449,8 @@ final class GhosttyRuntime {
     _ len: Int,
     _ confirm: Bool
   ) {
-    _ = userdata
     guard let content, len > 0 else { return }
+    let userdataBits = userdata.map { UInt(bitPattern: $0) }
     let items: [(mime: String, data: String)] = (0..<len).compactMap { index in
       let item = content.advanced(by: index).pointee
       guard let mimePtr = item.mime, let dataPtr = item.data else { return nil }
@@ -380,6 +460,7 @@ final class GhosttyRuntime {
     if Thread.isMainThread {
       MainActor.assumeIsolated {
         writeClipboard(
+          userdataBits: userdataBits,
           location: location,
           items: items,
           confirm: confirm
@@ -387,9 +468,10 @@ final class GhosttyRuntime {
       }
       return
     }
-    DispatchQueue.main.async {
+    DispatchQueue.main.sync {
       MainActor.assumeIsolated {
         writeClipboard(
+          userdataBits: userdataBits,
           location: location,
           items: items,
           confirm: confirm
@@ -434,6 +516,13 @@ final class GhosttyRuntime {
     wakeup(userdataBits: userdataBits)
   }
 
+  static func wakeupForTesting(
+    userdataBits: UInt?,
+    onTick: @escaping @MainActor @Sendable () -> Void
+  ) {
+    scheduleWakeup(userdataBits: userdataBits, onTick: onTick)
+  }
+
   private static func handleAction(
     appBits: UInt,
     target: ghostty_target_s,
@@ -445,7 +534,6 @@ final class GhosttyRuntime {
         let config = action.action.config_change.config
         guard let clone = ghostty_config_clone(config) else { return false }
         runtime.setConfig(clone)
-        runtime.onConfigChange?()
         NotificationCenter.default.post(name: .ghosttyRuntimeConfigDidChange, object: runtime)
         return true
       }
@@ -476,52 +564,39 @@ final class GhosttyRuntime {
   ) -> Bool {
     let userdata = userdataBits.flatMap { UnsafeMutableRawPointer(bitPattern: $0) }
     let state = stateBits.flatMap { UnsafeMutableRawPointer(bitPattern: $0) }
-    guard let bridge = surfaceBridge(fromUserdata: userdata), let surface = bridge.surface else {
-      return false
-    }
-    guard
-      let pasteboard = NSPasteboard.ghostty(location),
-      let value = pasteboard.getOpinionatedStringContents()
-    else {
-      return false
-    }
-    value.withCString { ptr in
-      ghostty_surface_complete_clipboard_request(surface, ptr, state, false)
-    }
-    return true
+    guard let view = surfaceBridge(fromUserdata: userdata)?.surfaceView else { return false }
+    return view.readClipboard(location: location, state: state)
   }
 
   private static func confirmReadClipboard(
     userdataBits: UInt?,
-    value: String,
+    value: String?,
     stateBits: UInt?,
     request: ghostty_clipboard_request_e
   ) {
-    _ = request
     let userdata = userdataBits.flatMap { UnsafeMutableRawPointer(bitPattern: $0) }
     let state = stateBits.flatMap { UnsafeMutableRawPointer(bitPattern: $0) }
     guard let bridge = surfaceBridge(fromUserdata: userdata), let surface = bridge.surface else {
       return
     }
-    value.withCString { ptr in
-      ghostty_surface_complete_clipboard_request(surface, ptr, state, true)
+    guard let view = bridge.surfaceView else {
+      "".withCString { pointer in
+        ghostty_surface_complete_clipboard_request(surface, pointer, state, true)
+      }
+      return
     }
+    view.confirmClipboardRead(value: value, state: state, request: request)
   }
 
   private static func writeClipboard(
+    userdataBits: UInt?,
     location: ghostty_clipboard_e,
     items: [(mime: String, data: String)],
     confirm: Bool
   ) {
-    _ = confirm
-
-    guard let pasteboard = NSPasteboard.ghostty(location) else { return }
-    let types = items.compactMap { NSPasteboard.PasteboardType(mimeType: $0.mime) }
-    pasteboard.declareTypes(types, owner: nil)
-    for item in items {
-      guard let type = NSPasteboard.PasteboardType(mimeType: item.mime) else { continue }
-      pasteboard.setString(item.data, forType: type)
-    }
+    let userdata = userdataBits.flatMap { UnsafeMutableRawPointer(bitPattern: $0) }
+    guard let view = surfaceBridge(fromUserdata: userdata)?.surfaceView else { return }
+    view.writeClipboard(location: location, items: items, confirm: confirm)
   }
 
   private static func closeSurface(userdataBits: UInt?, processAlive: Bool) {
@@ -547,10 +622,12 @@ final class GhosttyRuntime {
     } else {
       ghostty_config_load_default_files(config)
     }
-    ghostty_config_load_recursive_files(config)
-    if includeCLIArgs {
+    if includeCLIArgs,
+      ProcessInfo.processInfo.environment["__XCODE_BUILT_PRODUCTS_DIR_PATHS"] == nil
+    {
       ghostty_config_load_cli_args(config)
     }
+    ghostty_config_load_recursive_files(config)
     ghostty_config_finalize(config)
     return config
   }
@@ -886,95 +963,5 @@ extension NSColor {
     let green = Double(ghostty.g) / 255
     let blue = Double(ghostty.b) / 255
     self.init(red: red, green: green, blue: blue, alpha: 1)
-  }
-}
-
-extension NSPasteboard.PasteboardType {
-  static let supatermPNGImage = NSPasteboard.PasteboardType("public.png")
-  static let supatermTIFFImage = NSPasteboard.PasteboardType("public.tiff")
-
-  init?(mimeType: String) {
-    switch mimeType {
-    case "text/plain":
-      self = .string
-      return
-    default:
-      break
-    }
-    guard let utType = UTType(mimeType: mimeType) else {
-      self.init(mimeType)
-      return
-    }
-    self.init(utType.identifier)
-  }
-}
-
-extension NSPasteboard {
-  private static let ghosttyEscapeCharacters = "\\ ()[]{}<>\"'`!#$&;|*?\t"
-
-  static func ghosttyEscape(_ str: String) -> String {
-    var result = str
-    for char in ghosttyEscapeCharacters {
-      result = result.replacing(String(char), with: "\\\(char)")
-    }
-    return result
-  }
-
-  static var ghosttySelection: NSPasteboard = {
-    NSPasteboard(name: NSPasteboard.Name("com.mitchellh.ghostty.selection"))
-  }()
-
-  func getOpinionatedStringContents() -> String? {
-    if let urls = readObjects(forClasses: [NSURL.self]) as? [URL],
-      !urls.isEmpty
-    {
-      return
-        urls
-        .map { $0.isFileURL ? Self.ghosttyEscape($0.path) : $0.absoluteString }
-        .joined(separator: " ")
-    }
-    if let string = string(forType: .string) {
-      return string
-    }
-    return writeImageToTempFile()
-  }
-
-  func writeImageToTempFile() -> String? {
-    let pngData: Data?
-    if let direct = data(forType: .supatermPNGImage) {
-      pngData = direct
-    } else if let tiff = data(forType: .supatermTIFFImage),
-      let rep = NSBitmapImageRep(data: tiff)
-    {
-      pngData = rep.representation(using: .png, properties: [:])
-    } else {
-      pngData = nil
-    }
-
-    guard let data = pngData else { return nil }
-
-    let dir = FileManager.default.temporaryDirectory.appendingPathComponent(
-      "supaterm-pasted-images",
-      isDirectory: true
-    )
-    do {
-      try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
-      let url = dir.appendingPathComponent("pasted-\(UUID().uuidString).png")
-      try data.write(to: url)
-      return Self.ghosttyEscape(url.path)
-    } catch {
-      return nil
-    }
-  }
-
-  static func ghostty(_ clipboard: ghostty_clipboard_e) -> NSPasteboard? {
-    switch clipboard {
-    case GHOSTTY_CLIPBOARD_STANDARD:
-      return Self.general
-    case GHOSTTY_CLIPBOARD_SELECTION:
-      return Self.ghosttySelection
-    default:
-      return nil
-    }
   }
 }

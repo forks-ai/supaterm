@@ -3,18 +3,16 @@ import ApplicationServices
 import CoreGraphics
 
 protocol GhosttyGlobalEventTapRegistration: AnyObject {
-  nonisolated func invalidate()
+  func invalidate()
 }
 
 @MainActor
 final class GhosttyGlobalKeybindManager {
-  static let shared = GhosttyGlobalKeybindManager()
-
+  private let runtime: GhosttyRuntime
   private let isAccessibilityTrusted: () -> Bool
   private let requestAccessibilityTrust: () -> Void
-  private let makeEventTapRegistration: () -> GhosttyGlobalEventTapRegistration?
+  private let makeEventTapRegistration: (GhosttyGlobalKeybindManager) -> GhosttyGlobalEventTapRegistration?
   private let isAppActive: () -> Bool
-  private var runtimes: () -> [GhosttyRuntime]
   private var eventTapRegistration: GhosttyGlobalEventTapRegistration?
   private var enableTimer: Timer?
   private var configObserver: NSObjectProtocol?
@@ -25,31 +23,44 @@ final class GhosttyGlobalKeybindManager {
   }
 
   init(
+    runtime: GhosttyRuntime,
     isAccessibilityTrusted: @escaping () -> Bool = { AXIsProcessTrusted() },
     requestAccessibilityTrust: @escaping () -> Void = {
       _ = AXIsProcessTrustedWithOptions(["AXTrustedCheckOptionPrompt": true] as CFDictionary)
     },
-    makeEventTapRegistration: @escaping () -> GhosttyGlobalEventTapRegistration? = {
-      LiveGhosttyGlobalEventTapRegistration.create()
-    },
-    isAppActive: @escaping () -> Bool = { NSApp.isActive },
-    runtimes: @escaping () -> [GhosttyRuntime] = { [] }
+    makeEventTapRegistration:
+      @escaping (GhosttyGlobalKeybindManager) ->
+      GhosttyGlobalEventTapRegistration? = { manager in
+        LiveGhosttyGlobalEventTapRegistration.create(manager: manager)
+      },
+    isAppActive: @escaping () -> Bool = { NSApp.isActive }
   ) {
+    self.runtime = runtime
     self.isAccessibilityTrusted = isAccessibilityTrusted
     self.requestAccessibilityTrust = requestAccessibilityTrust
     self.makeEventTapRegistration = makeEventTapRegistration
     self.isAppActive = isAppActive
-    self.runtimes = runtimes
+    configObserver = NotificationCenter.default.addObserver(
+      forName: .ghosttyRuntimeConfigDidChange,
+      object: runtime,
+      queue: .main
+    ) { [weak self] _ in
+      MainActor.assumeIsolated {
+        self?.refresh()
+      }
+    }
   }
 
-  func setRuntimeProvider(_ provider: @escaping () -> [GhosttyRuntime]) {
-    runtimes = provider
-    installConfigObserver()
-    refresh()
+  isolated deinit {
+    enableTimer?.invalidate()
+    eventTapRegistration?.invalidate()
+    if let configObserver {
+      NotificationCenter.default.removeObserver(configObserver)
+    }
   }
 
   func refresh() {
-    if runtimes().contains(where: { $0.hasGlobalKeybinds() }) {
+    if runtime.hasGlobalKeybinds() {
       enable()
     } else {
       disable()
@@ -65,7 +76,7 @@ final class GhosttyGlobalKeybindManager {
 
   func handle(_ event: GhosttyGlobalKeyEvent) -> Bool {
     guard !isAppActive() else { return false }
-    return runtimes().contains { $0.handleGlobalKeyEvent(event) }
+    return runtime.handleGlobalKeyEvent(event)
   }
 
   private func enable() {
@@ -85,7 +96,7 @@ final class GhosttyGlobalKeybindManager {
       requestAccessibilityTrustIfNeeded()
       return false
     }
-    guard let registration = makeEventTapRegistration() else { return false }
+    guard let registration = makeEventTapRegistration(self) else { return false }
     eventTapRegistration = registration
     enableTimer?.invalidate()
     enableTimer = nil
@@ -97,32 +108,36 @@ final class GhosttyGlobalKeybindManager {
     hasRequestedAccessibilityTrust = true
     requestAccessibilityTrust()
   }
+}
 
-  private func installConfigObserver() {
-    guard configObserver == nil else { return }
-    configObserver = NotificationCenter.default.addObserver(
-      forName: .ghosttyRuntimeConfigDidChange,
-      object: nil,
-      queue: .main
-    ) { [weak self] _ in
-      Task { @MainActor [weak self] in
-        self?.refresh()
-      }
-    }
+private final class GhosttyGlobalEventTapCallbackState {
+  weak var manager: GhosttyGlobalKeybindManager?
+
+  init(manager: GhosttyGlobalKeybindManager) {
+    self.manager = manager
   }
 }
 
 private final class LiveGhosttyGlobalEventTapRegistration: GhosttyGlobalEventTapRegistration {
-  nonisolated(unsafe) private let eventTap: CFMachPort
-  nonisolated(unsafe) private let source: CFRunLoopSource
+  private let eventTap: CFMachPort
+  private let source: CFRunLoopSource
+  private let callbackState: GhosttyGlobalEventTapCallbackState
 
-  private init(eventTap: CFMachPort, source: CFRunLoopSource) {
+  private init(
+    eventTap: CFMachPort,
+    source: CFRunLoopSource,
+    callbackState: GhosttyGlobalEventTapCallbackState
+  ) {
     self.eventTap = eventTap
     self.source = source
+    self.callbackState = callbackState
   }
 
-  static func create() -> GhosttyGlobalEventTapRegistration? {
+  static func create(manager: GhosttyGlobalKeybindManager)
+    -> GhosttyGlobalEventTapRegistration?
+  {
     let eventMask = CGEventMask(1 << CGEventType.keyDown.rawValue)
+    let callbackState = GhosttyGlobalEventTapCallbackState(manager: manager)
     guard
       let eventTap = CGEvent.tapCreate(
         tap: .cgSessionEventTap,
@@ -130,18 +145,25 @@ private final class LiveGhosttyGlobalEventTapRegistration: GhosttyGlobalEventTap
         options: .defaultTap,
         eventsOfInterest: eventMask,
         callback: supatermGlobalKeybindEventTapCallback,
-        userInfo: nil
+        userInfo: Unmanaged.passUnretained(callbackState).toOpaque()
       )
-    else { return nil }
+    else {
+      return nil
+    }
     guard let source = CFMachPortCreateRunLoopSource(nil, eventTap, 0) else {
       CFMachPortInvalidate(eventTap)
       return nil
     }
     CFRunLoopAddSource(CFRunLoopGetMain(), source, .commonModes)
-    return LiveGhosttyGlobalEventTapRegistration(eventTap: eventTap, source: source)
+    return LiveGhosttyGlobalEventTapRegistration(
+      eventTap: eventTap,
+      source: source,
+      callbackState: callbackState
+    )
   }
 
-  nonisolated func invalidate() {
+  func invalidate() {
+    callbackState.manager = nil
     CFRunLoopRemoveSource(CFRunLoopGetMain(), source, .commonModes)
     CFMachPortInvalidate(eventTap)
   }
@@ -151,22 +173,35 @@ private nonisolated func supatermGlobalKeybindEventTapCallback(
   _: CGEventTapProxy,
   type: CGEventType,
   cgEvent: CGEvent,
-  _: UnsafeMutableRawPointer?
+  userInfo: UnsafeMutableRawPointer?
 ) -> Unmanaged<CGEvent>? {
   let result = Unmanaged.passUnretained(cgEvent)
   guard type == .keyDown else { return result }
   guard let event = GhosttyGlobalKeyEvent(cgEvent: cgEvent) else { return result }
+  guard let userInfo else { return result }
+  let callbackStateBits = UInt(bitPattern: userInfo)
   let handled: Bool
   if Thread.isMainThread {
     handled = MainActor.assumeIsolated {
-      GhosttyGlobalKeybindManager.shared.handle(event)
+      handleGhosttyGlobalEvent(callbackStateBits: callbackStateBits, event: event)
     }
   } else {
     handled = DispatchQueue.main.sync {
       MainActor.assumeIsolated {
-        GhosttyGlobalKeybindManager.shared.handle(event)
+        handleGhosttyGlobalEvent(callbackStateBits: callbackStateBits, event: event)
       }
     }
   }
   return handled ? nil : result
+}
+
+private func handleGhosttyGlobalEvent(
+  callbackStateBits: UInt,
+  event: GhosttyGlobalKeyEvent
+) -> Bool {
+  guard let pointer = UnsafeMutableRawPointer(bitPattern: callbackStateBits) else { return false }
+  let callbackState = Unmanaged<GhosttyGlobalEventTapCallbackState>
+    .fromOpaque(pointer)
+    .takeUnretainedValue()
+  return callbackState.manager?.handle(event) ?? false
 }

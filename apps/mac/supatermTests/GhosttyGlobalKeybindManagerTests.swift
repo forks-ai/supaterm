@@ -17,13 +17,13 @@ struct GhosttyGlobalKeybindManagerTests {
     var registrationCount = 0
     var requestCount = 0
     let manager = GhosttyGlobalKeybindManager(
+      runtime: runtime,
       isAccessibilityTrusted: { true },
       requestAccessibilityTrust: { requestCount += 1 },
-      makeEventTapRegistration: {
+      makeEventTapRegistration: { _ in
         registrationCount += 1
         return registration
-      },
-      runtimes: { [runtime] }
+      }
     )
 
     manager.refresh()
@@ -39,28 +39,28 @@ struct GhosttyGlobalKeybindManagerTests {
   }
 
   @Test
-  func refreshDisablesEventTapWhenGlobalKeybindsDisappear() throws {
-    let globalRuntime = try makeGhosttyRuntime(
+  func configReloadDisablesEventTapForSameRuntime() async throws {
+    let fixture = try makePersistentGhosttyRuntime(
       """
       keybind = global:super+shift+0=toggle_visibility
       """
     )
-    let localRuntime = try makeGhosttyRuntime(
-      """
-      keybind = super+shift+0=toggle_visibility
-      """
-    )
-    var activeRuntimes = [globalRuntime]
+    defer { fixture.cleanup() }
     let registration = FakeGhosttyGlobalEventTapRegistration()
     let manager = GhosttyGlobalKeybindManager(
+      runtime: fixture.runtime,
       isAccessibilityTrusted: { true },
-      makeEventTapRegistration: { registration },
-      runtimes: { activeRuntimes }
+      makeEventTapRegistration: { _ in registration }
     )
+    manager.refresh()
+    try #require(manager.isEnabled)
 
-    manager.refresh()
-    activeRuntimes = [localRuntime]
-    manager.refresh()
+    try "keybind = super+shift+0=toggle_visibility\n"
+      .write(to: fixture.configURL, atomically: true, encoding: .utf8)
+    fixture.runtime.reloadAppConfig()
+    for _ in 0..<5 {
+      await Task.yield()
+    }
 
     #expect(!manager.isEnabled)
     #expect(registration.invalidated)
@@ -76,13 +76,13 @@ struct GhosttyGlobalKeybindManagerTests {
     var requestCount = 0
     var registrationCount = 0
     let manager = GhosttyGlobalKeybindManager(
+      runtime: runtime,
       isAccessibilityTrusted: { false },
       requestAccessibilityTrust: { requestCount += 1 },
-      makeEventTapRegistration: {
+      makeEventTapRegistration: { _ in
         registrationCount += 1
         return FakeGhosttyGlobalEventTapRegistration()
-      },
-      runtimes: { [runtime] }
+      }
     )
 
     manager.refresh()
@@ -102,10 +102,10 @@ struct GhosttyGlobalKeybindManagerTests {
     )
     var trusted = false
     let manager = GhosttyGlobalKeybindManager(
+      runtime: runtime,
       isAccessibilityTrusted: { trusted },
       requestAccessibilityTrust: { trusted = true },
-      makeEventTapRegistration: { FakeGhosttyGlobalEventTapRegistration() },
-      runtimes: { [runtime] }
+      makeEventTapRegistration: { _ in FakeGhosttyGlobalEventTapRegistration() }
     )
 
     manager.refresh()
@@ -122,8 +122,8 @@ struct GhosttyGlobalKeybindManagerTests {
       """
     )
     let manager = GhosttyGlobalKeybindManager(
-      isAppActive: { true },
-      runtimes: { [runtime] }
+      runtime: runtime,
+      isAppActive: { true }
     )
     let event = try toggleVisibilityKeyEvent()
 
@@ -145,12 +145,45 @@ struct GhosttyGlobalKeybindManagerTests {
       """
     )
     let manager = GhosttyGlobalKeybindManager(
-      isAppActive: { false },
-      runtimes: { [runtime] }
+      runtime: runtime,
+      isAppActive: { false }
     )
     let event = try toggleVisibilityKeyEvent()
 
     #expect(manager.handle(event))
+    #expect(delegate.toggleVisibilityCount == 1)
+  }
+
+  @Test
+  func eventTapRoutesThroughOwningManager() throws {
+    let app = NSApplication.shared
+    let previousDelegate = app.delegate
+    let delegate = GhosttyAppActionPerformerSpy()
+    app.delegate = delegate
+    defer {
+      app.delegate = previousDelegate
+    }
+    let runtime = try makeGhosttyRuntime(
+      """
+      keybind = global:super+shift+0=toggle_visibility
+      """
+    )
+    var eventTapManager: GhosttyGlobalKeybindManager?
+    let manager = GhosttyGlobalKeybindManager(
+      runtime: runtime,
+      isAccessibilityTrusted: { true },
+      makeEventTapRegistration: { manager in
+        eventTapManager = manager
+        return FakeGhosttyGlobalEventTapRegistration()
+      },
+      isAppActive: { false }
+    )
+
+    manager.refresh()
+    let routedManager = try #require(eventTapManager)
+
+    #expect(routedManager === manager)
+    #expect(routedManager.handle(try toggleVisibilityKeyEvent()))
     #expect(delegate.toggleVisibilityCount == 1)
   }
 }
@@ -174,9 +207,9 @@ private func toggleVisibilityKeyEvent() throws -> GhosttyGlobalKeyEvent {
 }
 
 private final class FakeGhosttyGlobalEventTapRegistration: GhosttyGlobalEventTapRegistration {
-  nonisolated(unsafe) var invalidated = false
+  var invalidated = false
 
-  nonisolated func invalidate() {
+  func invalidate() {
     invalidated = true
   }
 }

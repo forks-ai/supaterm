@@ -1,12 +1,51 @@
 import AppKit
+import Carbon.HIToolbox
 import Foundation
 import GhosttyKit
+import Synchronization
 import Testing
 
 @testable import supaterm
 
 @MainActor
 struct GhosttyRuntimeTests {
+  @Test
+  func runtimeCreatedWhileApplicationIsInactiveRejectsNonGlobalBinding() throws {
+    let app = NSApplication.shared
+    let previousDelegate = app.delegate
+    let delegate = GhosttyAppActionPerformerSpy()
+    app.delegate = delegate
+    defer {
+      app.delegate = previousDelegate
+    }
+
+    let runtime = try makeGhosttyRuntime(
+      """
+      keybind = super+shift+0=toggle_visibility
+      """,
+      applicationIsActive: { false }
+    )
+    let event = try GhosttyGlobalKeyEvent(
+      #require(
+        NSEvent.keyEvent(
+          with: .keyDown,
+          location: .zero,
+          modifierFlags: [.command, .shift],
+          timestamp: 0,
+          windowNumber: 0,
+          context: nil,
+          characters: ")",
+          charactersIgnoringModifiers: "0",
+          isARepeat: false,
+          keyCode: UInt16(kVK_ANSI_0)
+        )
+      )
+    )
+
+    #expect(!runtime.handleGlobalKeyEvent(event))
+    #expect(delegate.toggleVisibilityCount == 0)
+  }
+
   @Test
   func opinionatedStringContentsReturnsStringBeforeImageData() throws {
     let pasteboard = makePasteboard()
@@ -280,6 +319,75 @@ struct GhosttyRuntimeTests {
   }
 
   @Test
+  func configurationDiagnosticsExposeTrimmedCurrentErrors() throws {
+    let runtime = try makeGhosttyRuntime(
+      """
+      definitely-invalid-key = nope
+      """
+    )
+
+    let diagnostics = runtime.configurationDiagnostics()
+
+    #expect(!diagnostics.isEmpty)
+    #expect(
+      diagnostics.allSatisfy {
+        !$0.isEmpty && $0 == $0.trimmingCharacters(in: .whitespacesAndNewlines)
+      }
+    )
+  }
+
+  @Test
+  func validReloadClearsConfigurationDiagnostics() throws {
+    let fixture = try makePersistentGhosttyRuntime(
+      """
+      definitely-invalid-key = nope
+      """
+    )
+    defer {
+      fixture.cleanup()
+    }
+
+    #expect(!fixture.runtime.configurationDiagnostics().isEmpty)
+
+    try """
+    background = #101010
+    """
+    .write(to: fixture.configURL, atomically: true, encoding: .utf8)
+
+    fixture.runtime.reloadAppConfig()
+
+    #expect(fixture.runtime.configurationDiagnostics().isEmpty)
+  }
+
+  @Test
+  func invalidReloadReplacesConfigurationDiagnostics() throws {
+    let fixture = try makePersistentGhosttyRuntime(
+      """
+      first-invalid-key = nope
+      """
+    )
+    defer {
+      fixture.cleanup()
+    }
+
+    let initialDiagnostics = fixture.runtime.configurationDiagnostics()
+    #expect(initialDiagnostics.count == 1)
+    #expect(initialDiagnostics[0].contains("first-invalid-key"))
+
+    try """
+    second-invalid-key = nope
+    """
+    .write(to: fixture.configURL, atomically: true, encoding: .utf8)
+
+    fixture.runtime.reloadAppConfig()
+
+    let reloadedDiagnostics = fixture.runtime.configurationDiagnostics()
+    #expect(reloadedDiagnostics.count == 1)
+    #expect(reloadedDiagnostics[0].contains("second-invalid-key"))
+    #expect(!reloadedDiagnostics[0].contains("first-invalid-key"))
+  }
+
+  @Test
   func splitPreserveZoomOnNavigationReadsNavigationFlag() throws {
     let runtime = try makeGhosttyRuntime(
       """
@@ -311,6 +419,29 @@ struct GhosttyRuntimeTests {
     }
 
     GhosttyRuntime.wakeupForTesting(userdataBits: userdataBits)
+  }
+
+  @Test
+  func wakeupCallbacksNeverTickInlineOrCoalesce() async throws {
+    let runtime = try makeGhosttyRuntime("")
+    let tickCount = Mutex(0)
+
+    for _ in 0..<2 {
+      GhosttyRuntime.wakeupForTesting(
+        userdataBits: runtime.appUserdataBitsForTesting(),
+        onTick: {
+          tickCount.withLock { $0 += 1 }
+        }
+      )
+    }
+
+    #expect(tickCount.withLock { $0 } == 0)
+    await withCheckedContinuation { continuation in
+      DispatchQueue.main.async {
+        continuation.resume()
+      }
+    }
+    #expect(tickCount.withLock { $0 } == 2)
   }
 
   @Test

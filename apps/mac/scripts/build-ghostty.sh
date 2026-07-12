@@ -14,6 +14,7 @@ ghostty_fingerprint_path="${ghostty_build_root}/fingerprint"
 ghostty_legacy_prefix_path="${ghostty_dir}/zig-out"
 ghostty_legacy_share_path="${ghostty_legacy_prefix_path}/share"
 xcframework_path="${ghostty_build_root}/GhosttyKit.xcframework"
+generated_xcframework_path="${ghostty_dir}/macos/GhosttyKit.xcframework"
 ghostty_resources_path="${ghostty_build_root}/share/ghostty"
 ghostty_terminfo_path="${ghostty_build_root}/share/terminfo"
 ghostty_patches_dir="${srcroot}/patches"
@@ -90,20 +91,19 @@ revert_ghostty_patches() {
   done
 }
 
-revert_and_signal_exit() {
-  revert_ghostty_patches
+cleanup_ghostty_build() {
+  local status=$?
   trap - EXIT INT TERM
-  case "$1" in
-    TERM) exit 143 ;;
-    *) exit 130 ;;
-  esac
+  rm -rf "${generated_xcframework_path}" || true
+  revert_ghostty_patches || true
+  exit "${status}"
 }
 
 ensure_ghostty_checkout
 
-trap revert_ghostty_patches EXIT
-trap 'revert_and_signal_exit INT' INT
-trap 'revert_and_signal_exit TERM' TERM
+trap cleanup_ghostty_build EXIT
+trap 'exit 130' INT
+trap 'exit 143' TERM
 apply_ghostty_patches
 
 if [ "${1:-}" = "--print-fingerprint" ]; then
@@ -127,7 +127,8 @@ if [ -f "${ghostty_fingerprint_path}" ] &&
 fi
 
 cd "${ghostty_dir}"
-mise exec -- zig build -Doptimize=ReleaseFast -Demit-xcframework=true -Demit-macos-app=false -Dsentry=false --prefix "${ghostty_build_root}" --cache-dir "${ghostty_local_cache_dir}" --global-cache-dir "${ghostty_global_cache_dir}"
-rsync -a --delete "${ghostty_dir}/macos/GhosttyKit.xcframework/" "${xcframework_path}/"
+rm -rf "${generated_xcframework_path}"
+mise exec -- zig build -Doptimize=ReleaseFast -Demit-xcframework=true -Demit-macos-app=false -Dxcframework-target=native -Dsentry=false --prefix "${ghostty_build_root}" --cache-dir "${ghostty_local_cache_dir}" --global-cache-dir "${ghostty_global_cache_dir}"
+rsync -a --delete "${generated_xcframework_path}/" "${xcframework_path}/"
 prepare_xcframework
 printf '%s\n' "${fingerprint}" > "${ghostty_fingerprint_path}"

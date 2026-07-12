@@ -1,3 +1,4 @@
+import AppKit
 import Foundation
 import GhosttyKit
 
@@ -32,10 +33,17 @@ private let ghosttyInitializedForTests: Void = {
 }()
 
 func initializeGhosttyForTests() {
+  _ = NSApplication.shared
   _ = ghosttyInitializedForTests
 }
 
-func makeGhosttyRuntime(_ config: String) throws -> GhosttyRuntime {
+func makeGhosttyRuntime(
+  _ config: String,
+  applicationIsActive: () -> Bool = { NSApp.isActive },
+  pasteboardProvider: @escaping (ghostty_clipboard_e) -> NSPasteboard? = {
+    NSPasteboard.ghostty($0)
+  }
+) throws -> GhosttyRuntime {
   initializeGhosttyForTests()
   let url = FileManager.default.temporaryDirectory
     .appendingPathComponent(UUID().uuidString)
@@ -44,7 +52,11 @@ func makeGhosttyRuntime(_ config: String) throws -> GhosttyRuntime {
   defer {
     try? FileManager.default.removeItem(at: url)
   }
-  return GhosttyRuntime(configPath: url.path)
+  return GhosttyRuntime(
+    configPath: url.path,
+    applicationIsActive: applicationIsActive,
+    pasteboardProvider: pasteboardProvider
+  )
 }
 
 struct GhosttyRuntimeFixture {

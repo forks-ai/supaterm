@@ -63,9 +63,11 @@ enum SnapshotCatalog {
   static let scenarios: [SnapshotScenario] =
     sidebarScenarios
     + agentPanelScenarios
+    + rendererFailureScenarios
     + updateScenarios
     + commandPaletteScenarios
     + dialogScenarios
+    + configurationDiagnosticsScenarios
     + settingsScenarios
     + chromeScenarios
 
