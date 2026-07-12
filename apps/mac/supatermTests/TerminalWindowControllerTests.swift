@@ -129,7 +129,7 @@ struct TerminalWindowControllerTests {
       #expect(!controller.terminal.liveSurfaceIDs().isEmpty)
       #expect(!controller.windowShouldClose(window))
       #expect(
-        controller.store.withState(\.terminal.confirmationRequest)
+        controller.store.terminal.confirmationRequest
           == TerminalWindowFeature.ConfirmationRequest(
             target: .closeWindow(ObjectIdentifier(window)),
             title: "Close Window?",

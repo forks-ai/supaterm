@@ -89,32 +89,28 @@ struct ActionLoggingTests {
   }
 
   @Test
-  func actionReducerLogsAfterBaseReducer() {
+  func actionReducerLogsAfterBaseReducer() async {
     enum TestAction {
       case increment
     }
 
     let events = LockIsolated<[String]>([])
 
-    withDependencies {
+    let store = await TestStore(initialState: 0) {
+      Reduce<Int, TestAction> { state, _ in
+        let stateValue = state
+        events.withValue { $0.append("base:\(stateValue)") }
+        state += 1
+        return .none
+      }
+      .logActions()
+    } withDependencies: {
       $0.appLogClient.action = { event in
         events.withValue { $0.append("log:\(event.label):\(event.addsExceptionStep)") }
       }
-    } operation: {
-      var state = 0
-      let reducer = AppActionLogReducer(
-        base: Reduce<Int, TestAction> { state, _ in
-          let stateValue = state
-          events.withValue { $0.append("base:\(stateValue)") }
-          state += 1
-          return .none
-        }
-      )
-
-      _ = reducer.reduce(into: &state, action: .increment)
-
-      #expect(state == 1)
     }
+
+    await store.send(.increment) { $0 = 1 }
 
     #expect(events.value == ["base:0", "log:ActionLoggingTests.TestAction.increment:false"])
   }

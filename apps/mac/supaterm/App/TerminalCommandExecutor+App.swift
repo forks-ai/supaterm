@@ -49,7 +49,7 @@ extension TerminalCommandExecutor {
         isDevelopmentBuild: AppBuild.isDevelopmentBuild,
         usesStubUpdateChecks: AppBuild.usesStubUpdateChecks
       ),
-      update: updateSnapshot(updateEntry.map { $0.store.withState(\.update) }),
+      update: updateSnapshot(updateEntry.map { $0.store.update }),
       summary: SupatermAppDebugSnapshot.Summary(
         windowCount: windows.count,
         spaceCount: windows.reduce(0) { $0 + $1.spaces.count },

@@ -46,22 +46,16 @@ extension DependencyValues {
   }
 }
 
-extension Reducer where State: Equatable {
+extension Reducer {
   func logActions() -> some Reducer<State, Action> {
-    AppActionLogReducer(base: self)
-  }
-}
-
-struct AppActionLogReducer<Base: Reducer>: Reducer where Base.State: Equatable {
-  @Dependency(AppLogClient.self) var appLogClient
-
-  let base: Base
-
-  func reduce(into state: inout Base.State, action: Base.Action) -> Effect<Base.Action> {
-    let actionLabel = debugCaseOutput(action)
-    let effects = base.reduce(into: &state, action: action)
-    appLogClient.action(ActionLogPolicy.event(for: actionLabel))
-    return effects
+    CombineReducers {
+      self
+      Reduce { _, action in
+        @Dependency(AppLogClient.self) var appLogClient
+        appLogClient.action(ActionLogPolicy.event(for: debugCaseOutput(action)))
+        return .none
+      }
+    }
   }
 }
 

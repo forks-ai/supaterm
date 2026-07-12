@@ -743,7 +743,7 @@ struct TerminalWindowRegistryTests {
       registry.requestToggleCommandPaletteInKeyWindow()
       await flushEffects()
 
-      #expect(store.withState(\.terminal.commandPalette) != nil)
+      #expect(store.terminal.commandPalette != nil)
     }
   }
 
@@ -788,11 +788,11 @@ struct TerminalWindowRegistryTests {
 
       registry.requestToggleAgentPanelInKeyWindow()
 
-      #expect(store.withState(\.terminal.hiddenAgentPanelSurfaceIDs) == [surfaceID])
+      #expect(store.terminal.hiddenAgentPanelSurfaceIDs == [surfaceID])
 
       registry.requestToggleAgentPanelInKeyWindow()
 
-      #expect(store.withState(\.terminal.hiddenAgentPanelSurfaceIDs).isEmpty)
+      #expect(store.terminal.hiddenAgentPanelSurfaceIDs.isEmpty)
     }
   }
 
@@ -823,7 +823,7 @@ struct TerminalWindowRegistryTests {
 
       registry.requestToggleAgentPanelInKeyWindow()
 
-      #expect(!store.withState(\.terminal.hiddenAgentPanelSurfaceIDs).contains(surfaceID))
+      #expect(!store.terminal.hiddenAgentPanelSurfaceIDs.contains(surfaceID))
     }
   }
 

@@ -152,7 +152,7 @@ final class TerminalWindowController: NSWindowController {
       commandHoldObserver.update(modifierFlags: modifierFlags)
     }
     window.onPaletteShortcut = { [store] slot in
-      guard store.withState({ $0.terminal.commandPalette != nil }) else { return false }
+      guard store.terminal.commandPalette != nil else { return false }
       _ = store.send(.terminal(.commandPaletteSlotActivated(slot)))
       return true
     }

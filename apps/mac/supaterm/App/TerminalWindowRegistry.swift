@@ -79,7 +79,7 @@ final class TerminalWindowRegistry {
   }
 
   var bypassesQuitConfirmation: Bool {
-    activeEntries().contains { $0.store.withState(\.update.phase.bypassesQuitConfirmation) }
+    activeEntries().contains { $0.store.update.phase.bypassesQuitConfirmation }
   }
 
   func register(
@@ -157,7 +157,7 @@ final class TerminalWindowRegistry {
       )
     }
 
-    let updateState = entry.store.withState(\.update)
+    let updateState = entry.store.update
     let updateMenuItemAction = Self.updateMenuItemAction(for: updateState)
 
     return MenuContext(
@@ -272,7 +272,7 @@ final class TerminalWindowRegistry {
   @discardableResult
   func requestUpdateMenuActionInKeyWindow() -> Bool {
     guard let entry = preferredActiveEntry() else { return false }
-    guard let action = Self.updateMenuItemAction(for: entry.store.withState(\.update)) else {
+    guard let action = Self.updateMenuItemAction(for: entry.store.update) else {
       return false
     }
     entry.store.send(.update(.perform(action)))
@@ -423,7 +423,7 @@ final class TerminalWindowRegistry {
     }
 
     let terminal = entry.terminal
-    let updateState = entry.store.withState(\.update)
+    let updateState = entry.store.update
     let focusTargets = activeEntries().flatMap { activeEntry in
       activeEntry.terminal.commandPaletteFocusTargets(
         windowControllerID: activeEntry.windowControllerID

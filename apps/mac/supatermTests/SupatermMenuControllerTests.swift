@@ -397,7 +397,7 @@ struct SupatermMenuControllerTests {
       )
 
       #expect(controller.performGhosttyBindingMenuKeyEquivalent(with: event))
-      #expect(store.withState(\.terminal.commandPalette) != nil)
+      #expect(store.terminal.commandPalette != nil)
     }
   }
 
