@@ -88,6 +88,9 @@ struct SupatermSettingsValidationTests {
       [privacy]
       analytics_enabled = true
       crash_reports_enabled = true
+
+      [terminal]
+      confirm_quit = "never"
       """#.utf8
     )
     .write(to: settingsURL)
@@ -99,6 +102,7 @@ struct SupatermSettingsValidationTests {
       result.warnings == [
         "Unknown config key `appearance.extra`.",
         "Unknown config key `obsolete`.",
+        "Unknown config key `terminal.confirm_quit`.",
       ]
     )
     #expect(result.errors.isEmpty)

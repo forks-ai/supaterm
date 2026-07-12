@@ -23,15 +23,6 @@ struct SettingsGeneralView: View {
     )
   }
 
-  private var confirmQuitMode: Binding<ConfirmQuitMode> {
-    Binding(
-      get: { store.confirmQuitMode },
-      set: { newValue in
-        _ = store.send(.confirmQuitModeSelected(newValue))
-      }
-    )
-  }
-
   private var persistSessionsUsingZmx: Binding<Bool> {
     Binding(
       get: { store.zmxSessionsEnabled },
@@ -66,17 +57,6 @@ struct SettingsGeneralView: View {
           subtitle: "Reopen tabs, splits, and working directories from your last session.",
           isOn: restoreTerminalLayoutEnabled
         )
-
-        Picker(selection: confirmQuitMode) {
-          ForEach(ConfirmQuitMode.allCases) { mode in
-            Text(mode.title).tag(mode)
-          }
-        } label: {
-          SettingsRowLabel(
-            title: "Confirm Quit",
-            subtitle: "Choose when Supaterm asks before quitting."
-          )
-        }
 
         SettingsToggleRow(
           title: "Persist Sessions Using zmx",

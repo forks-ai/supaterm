@@ -271,7 +271,6 @@ private struct SupatermSettingsUnknownKeyAudit: Decodable {
         in: container,
         section: "terminal",
         allowedKeys: [
-          "confirm_quit",
           "restore_layout",
           "terminate_sessions_on_quit",
           "zmx_sessions_enabled",

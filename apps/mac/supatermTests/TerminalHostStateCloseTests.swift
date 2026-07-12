@@ -6,7 +6,7 @@ import Testing
 @MainActor
 struct TerminalHostStateCloseTests {
   @Test
-  func appQuitSeesSharedSurfaceWhileWindowCloseScopesToItsHost() throws {
+  func windowCloseScopesConfirmationToItsHost() throws {
     try withDependencies {
       $0.defaultFileStorage = .inMemory
     } operation: {
@@ -31,7 +31,6 @@ struct TerminalHostStateCloseTests {
       )
       runtime.tick()
 
-      #expect(runtime.needsConfirmQuit())
       #expect(hostWithLiveSurface.windowNeedsCloseConfirmation())
       #expect(!emptyHost.windowNeedsCloseConfirmation())
     }

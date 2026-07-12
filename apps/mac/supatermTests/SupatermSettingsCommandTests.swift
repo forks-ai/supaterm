@@ -15,7 +15,6 @@ struct SupatermSettingsCommandTests {
       result.entries.map(\.key) == [
         "appearance.mode",
         "terminal.restore_layout",
-        "terminal.confirm_quit",
         "terminal.zmx_sessions_enabled",
         "notifications.system_notifications",
         "notifications.glowing_pane_ring",
@@ -35,27 +34,27 @@ struct SupatermSettingsCommandTests {
   @Test
   func registrySetsAndResetsTypedValues() throws {
     let setEdit = try SupatermSettingsRegistry.set(
-      SupatermSettingsSetRequest(key: "terminal.confirm_quit", value: "always"),
+      SupatermSettingsSetRequest(key: "appearance.mode", value: "system"),
       settings: .default,
       path: "/tmp/settings.toml",
       isLive: true
     )
 
-    #expect(setEdit.settings.confirmQuitMode == .always)
-    #expect(setEdit.result.oldValue == "auto")
-    #expect(setEdit.result.value == "always")
+    #expect(setEdit.settings.appearanceMode == .system)
+    #expect(setEdit.result.oldValue == "dark")
+    #expect(setEdit.result.value == "system")
     #expect(!setEdit.result.isDefault)
 
     let resetEdit = try SupatermSettingsRegistry.reset(
-      SupatermSettingsResetRequest(key: "terminal.confirm_quit"),
+      SupatermSettingsResetRequest(key: "appearance.mode"),
       settings: setEdit.settings,
       path: "/tmp/settings.toml",
       isLive: true
     )
 
-    #expect(resetEdit.settings.confirmQuitMode == .auto)
-    #expect(resetEdit.result.oldValue == "always")
-    #expect(resetEdit.result.value == "auto")
+    #expect(resetEdit.settings.appearanceMode == .dark)
+    #expect(resetEdit.result.oldValue == "system")
+    #expect(resetEdit.result.value == "dark")
     #expect(resetEdit.result.isDefault)
   }
 
@@ -63,13 +62,13 @@ struct SupatermSettingsCommandTests {
   func registryRejectsUnknownKeysAndInvalidValues() throws {
     do {
       _ = try SupatermSettingsRegistry.get(
-        key: "terminal.unknown",
+        key: "terminal.confirm_quit",
         settings: .default,
         path: "/tmp/settings.toml"
       )
       Issue.record("Expected unknown key to throw.")
     } catch let error as SupatermSettingsCommandError {
-      #expect(error == .invalidKey("terminal.unknown"))
+      #expect(error == .invalidKey("terminal.confirm_quit"))
     } catch {
       Issue.record("Expected invalid key error, got \(error).")
     }

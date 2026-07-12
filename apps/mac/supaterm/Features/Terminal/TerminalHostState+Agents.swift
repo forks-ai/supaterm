@@ -219,22 +219,6 @@ extension TerminalHostState {
     agentStateStore.snapshots(for: surfaceID).map(TerminalPaneAgentRecord.init(snapshot:))
   }
 
-  var hasActiveAgentWorkForQuit: Bool {
-    liveSurfaceIDs().contains { surfaceID in
-      agentStateStore.snapshots(for: surfaceID).contains { snapshot in
-        guard snapshot.isForeground,
-          let phase = agentStateStore.presentation(
-            for: surfaceID,
-            agent: snapshot.agent
-          )?.phase
-        else {
-          return false
-        }
-        return phase == .needsInput || phase == .running
-      }
-    }
-  }
-
   @discardableResult
   func storeAgentPanelBranchDetails(
     _ branchDetails: PaneAgentBranchDetails?,

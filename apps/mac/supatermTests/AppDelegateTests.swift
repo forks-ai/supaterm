@@ -12,7 +12,6 @@ struct AppDelegateTests {
   func terminationPlanSkipsConfirmationWithoutVisibleAppWindows() {
     let plan = AppDelegate.terminationPlan(
       hasVisibleAppWindows: false,
-      needsQuitConfirmation: true,
       bypassesQuitConfirmation: false
     ) {
       Issue.record("confirmation should not be shown")
@@ -24,25 +23,9 @@ struct AppDelegateTests {
   }
 
   @Test
-  func terminationPlanSkipsConfirmationWhenNoTerminalNeedsIt() {
+  func terminationPlanAlwaysConfirmsVisibleQuit() {
     let plan = AppDelegate.terminationPlan(
       hasVisibleAppWindows: true,
-      needsQuitConfirmation: false,
-      bypassesQuitConfirmation: false
-    ) {
-      Issue.record("confirmation should not be shown")
-      return .cancel
-    }
-
-    #expect(plan.reply == .terminateNow)
-    #expect(!plan.terminatesSessions)
-  }
-
-  @Test
-  func terminationPlanCancelsWhenConfirmationIsDeclined() {
-    let plan = AppDelegate.terminationPlan(
-      hasVisibleAppWindows: true,
-      needsQuitConfirmation: true,
       bypassesQuitConfirmation: false
     ) {
       .cancel
@@ -56,7 +39,6 @@ struct AppDelegateTests {
   func terminationPlanPreservesSessionsWhenConfirmationRequestsIt() {
     let plan = AppDelegate.terminationPlan(
       hasVisibleAppWindows: true,
-      needsQuitConfirmation: true,
       bypassesQuitConfirmation: false
     ) {
       .quitPreservingSessions
@@ -70,7 +52,6 @@ struct AppDelegateTests {
   func terminationPlanTerminatesSessionsWhenConfirmationRequestsIt() {
     let plan = AppDelegate.terminationPlan(
       hasVisibleAppWindows: true,
-      needsQuitConfirmation: true,
       bypassesQuitConfirmation: false
     ) {
       .quitTerminatingSessions
@@ -84,7 +65,6 @@ struct AppDelegateTests {
   func terminationPlanSkipsConfirmationWhenUpdateBypassesQuitConfirmation() {
     let plan = AppDelegate.terminationPlan(
       hasVisibleAppWindows: true,
-      needsQuitConfirmation: true,
       bypassesQuitConfirmation: true
     ) {
       Issue.record("confirmation should not be shown")
@@ -99,7 +79,6 @@ struct AppDelegateTests {
   func terminationPlanSkipsConfirmationWhenBypassedQuitTerminatesSessions() {
     let plan = AppDelegate.terminationPlan(
       hasVisibleAppWindows: true,
-      needsQuitConfirmation: true,
       bypassesQuitConfirmation: true,
       terminatesSessionsOnQuit: true
     ) {
@@ -112,43 +91,9 @@ struct AppDelegateTests {
   }
 
   @Test
-  func terminationPlanPromptsWhenQuitModeAlways() {
+  func terminationPlanConfirmsWhenSessionsTerminateByDefault() {
     let plan = AppDelegate.terminationPlan(
       hasVisibleAppWindows: true,
-      confirmQuitMode: .always,
-      needsQuitConfirmation: false,
-      bypassesQuitConfirmation: false
-    ) {
-      .cancel
-    }
-
-    #expect(plan.reply == .terminateCancel)
-    #expect(!plan.terminatesSessions)
-  }
-
-  @Test
-  func terminationPlanSkipsPromptWhenQuitModeNever() {
-    let plan = AppDelegate.terminationPlan(
-      hasVisibleAppWindows: true,
-      confirmQuitMode: .never,
-      hasActiveAgentWorkForQuit: true,
-      needsQuitConfirmation: true,
-      bypassesQuitConfirmation: false,
-      terminatesSessionsOnQuit: true
-    ) {
-      Issue.record("confirmation should not be shown")
-      return .cancel
-    }
-
-    #expect(plan.reply == .terminateNow)
-    #expect(plan.terminatesSessions)
-  }
-
-  @Test
-  func terminationPlanPromptsInAutoWhenQuitTerminatesSessions() {
-    let plan = AppDelegate.terminationPlan(
-      hasVisibleAppWindows: true,
-      needsQuitConfirmation: false,
       bypassesQuitConfirmation: false,
       terminatesSessionsOnQuit: true
     ) {

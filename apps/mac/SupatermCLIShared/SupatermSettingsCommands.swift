@@ -22,7 +22,6 @@ public enum SupatermSettingsValueKind: String, Codable, Equatable, Sendable {
 public enum SupatermSettingsKey: String, CaseIterable, Codable, Equatable, Sendable {
   case appearanceMode = "appearance.mode"
   case terminalRestoreLayout = "terminal.restore_layout"
-  case terminalConfirmQuit = "terminal.confirm_quit"
   case terminalZmxSessionsEnabled = "terminal.zmx_sessions_enabled"
   case notificationsSystemNotifications = "notifications.system_notifications"
   case notificationsGlowingPaneRing = "notifications.glowing_pane_ring"
@@ -44,7 +43,6 @@ public enum SupatermSettingsKey: String, CaseIterable, Codable, Equatable, Senda
   public var valueKind: SupatermSettingsValueKind {
     switch self {
     case .appearanceMode,
-      .terminalConfirmQuit,
       .updatesChannel:
       return .string
     case .terminalRestoreLayout,
@@ -65,8 +63,6 @@ public enum SupatermSettingsKey: String, CaseIterable, Codable, Equatable, Senda
     switch self {
     case .appearanceMode:
       return AppearanceMode.allCases.map(\.rawValue)
-    case .terminalConfirmQuit:
-      return ConfirmQuitMode.allCases.map(\.rawValue)
     case .updatesChannel:
       return UpdateChannel.allCases.map(\.rawValue)
     case .terminalRestoreLayout,
@@ -89,8 +85,6 @@ public enum SupatermSettingsKey: String, CaseIterable, Codable, Equatable, Senda
       return settings.appearanceMode.rawValue
     case .terminalRestoreLayout:
       return string(settings.restoreTerminalLayoutEnabled)
-    case .terminalConfirmQuit:
-      return settings.confirmQuitMode.rawValue
     case .terminalZmxSessionsEnabled:
       return string(settings.zmxSessionsEnabled)
     case .notificationsSystemNotifications:
@@ -124,8 +118,6 @@ public enum SupatermSettingsKey: String, CaseIterable, Codable, Equatable, Senda
       settings.appearanceMode = try parsedEnum(AppearanceMode.self, rawValue: rawValue)
     case .terminalRestoreLayout:
       settings.restoreTerminalLayoutEnabled = try parsedBool(rawValue)
-    case .terminalConfirmQuit:
-      settings.confirmQuitMode = try parsedEnum(ConfirmQuitMode.self, rawValue: rawValue)
     case .terminalZmxSessionsEnabled:
       settings.zmxSessionsEnabled = try parsedBool(rawValue)
     case .notificationsSystemNotifications:
@@ -155,8 +147,6 @@ public enum SupatermSettingsKey: String, CaseIterable, Codable, Equatable, Senda
       settings.appearanceMode = SupatermSettings.default.appearanceMode
     case .terminalRestoreLayout:
       settings.restoreTerminalLayoutEnabled = SupatermSettings.default.restoreTerminalLayoutEnabled
-    case .terminalConfirmQuit:
-      settings.confirmQuitMode = SupatermSettings.default.confirmQuitMode
     case .terminalZmxSessionsEnabled:
       settings.zmxSessionsEnabled = SupatermSettings.default.zmxSessionsEnabled
     case .notificationsSystemNotifications:

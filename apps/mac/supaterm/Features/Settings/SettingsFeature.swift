@@ -118,7 +118,6 @@ public struct SettingsFeature {
     var codingAgentsShowPanel = SupatermSettings.default.codingAgentsShowPanel
     var codingAgentsShowIcons = SupatermSettings.default.codingAgentsShowIcons
     var codingAgentsShowSpinner = SupatermSettings.default.codingAgentsShowSpinner
-    var confirmQuitMode = SupatermSettings.default.confirmQuitMode
     var codexIntegration = SettingsAgentIntegrationState()
     var piIntegration = SettingsAgentIntegrationState()
     var crashReportsEnabled = SupatermSettings.default.crashReportsEnabled
@@ -148,7 +147,6 @@ public struct SettingsFeature {
     case codingAgentsShowPanelChanged(Bool)
     case codingAgentsShowIconsChanged(Bool)
     case codingAgentsShowSpinnerChanged(Bool)
-    case confirmQuitModeSelected(ConfirmQuitMode)
     case crashReportsEnabledChanged(Bool)
     case glowingPaneRingEnabledChanged(Bool)
     case restoreTerminalLayoutEnabledChanged(Bool)
@@ -288,7 +286,6 @@ public struct SettingsFeature {
 
       case .appearanceModeSelected,
         .analyticsEnabledChanged,
-        .confirmQuitModeSelected,
         .crashReportsEnabledChanged,
         .glowingPaneRingEnabledChanged,
         .restoreTerminalLayoutEnabledChanged,
@@ -358,7 +355,6 @@ public struct SettingsFeature {
     state.codingAgentsShowPanel = supatermSettings.codingAgentsShowPanel
     state.codingAgentsShowIcons = supatermSettings.codingAgentsShowIcons
     state.codingAgentsShowSpinner = supatermSettings.codingAgentsShowSpinner
-    state.confirmQuitMode = supatermSettings.confirmQuitMode
     state.crashReportsEnabled = supatermSettings.crashReportsEnabled
     state.glowingPaneRingEnabled = supatermSettings.glowingPaneRingEnabled
     state.restoreTerminalLayoutEnabled = supatermSettings.restoreTerminalLayoutEnabled
@@ -382,7 +378,6 @@ public struct SettingsFeature {
       codingAgentsShowPanel: state.codingAgentsShowPanel,
       codingAgentsShowIcons: state.codingAgentsShowIcons,
       codingAgentsShowSpinner: state.codingAgentsShowSpinner,
-      confirmQuitMode: state.confirmQuitMode,
       crashReportsEnabled: state.crashReportsEnabled,
       glowingPaneRingEnabled: state.glowingPaneRingEnabled,
       restoreTerminalLayoutEnabled: state.restoreTerminalLayoutEnabled,

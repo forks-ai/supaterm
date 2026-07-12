@@ -78,10 +78,6 @@ final class TerminalWindowRegistry {
     !entries.isEmpty
   }
 
-  var hasActiveAgentWorkForQuit: Bool {
-    activeEntries().contains { $0.terminal.hasActiveAgentWorkForQuit }
-  }
-
   var bypassesQuitConfirmation: Bool {
     activeEntries().contains { $0.store.withState(\.update.phase.bypassesQuitConfirmation) }
   }

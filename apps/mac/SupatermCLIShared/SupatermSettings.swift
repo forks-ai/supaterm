@@ -6,7 +6,6 @@ public struct SupatermSettings: Codable, Equatable, Sendable {
   public var codingAgentsShowPanel: Bool
   public var codingAgentsShowIcons: Bool
   public var codingAgentsShowSpinner: Bool
-  public var confirmQuitMode: ConfirmQuitMode
   public var crashReportsEnabled: Bool
   public var glowingPaneRingEnabled: Bool
   public var restoreTerminalLayoutEnabled: Bool
@@ -21,7 +20,6 @@ public struct SupatermSettings: Codable, Equatable, Sendable {
     codingAgentsShowPanel: Bool = true,
     codingAgentsShowIcons: Bool = true,
     codingAgentsShowSpinner: Bool = true,
-    confirmQuitMode: ConfirmQuitMode = .auto,
     crashReportsEnabled: Bool,
     glowingPaneRingEnabled: Bool = true,
     restoreTerminalLayoutEnabled: Bool = true,
@@ -35,7 +33,6 @@ public struct SupatermSettings: Codable, Equatable, Sendable {
     self.codingAgentsShowPanel = codingAgentsShowPanel
     self.codingAgentsShowIcons = codingAgentsShowIcons
     self.codingAgentsShowSpinner = codingAgentsShowSpinner
-    self.confirmQuitMode = confirmQuitMode
     self.crashReportsEnabled = crashReportsEnabled
     self.glowingPaneRingEnabled = glowingPaneRingEnabled
     self.restoreTerminalLayoutEnabled = restoreTerminalLayoutEnabled
@@ -51,7 +48,6 @@ public struct SupatermSettings: Codable, Equatable, Sendable {
     codingAgentsShowPanel: true,
     codingAgentsShowIcons: true,
     codingAgentsShowSpinner: true,
-    confirmQuitMode: .auto,
     crashReportsEnabled: true,
     glowingPaneRingEnabled: true,
     restoreTerminalLayoutEnabled: true,
@@ -100,7 +96,6 @@ public struct SupatermSettings: Codable, Equatable, Sendable {
       codingAgentsShowPanel: codingAgents?.showPanel ?? defaults.codingAgentsShowPanel,
       codingAgentsShowIcons: codingAgents?.showIcons ?? defaults.codingAgentsShowIcons,
       codingAgentsShowSpinner: codingAgents?.showSpinner ?? defaults.codingAgentsShowSpinner,
-      confirmQuitMode: terminal?.confirmQuitMode ?? defaults.confirmQuitMode,
       crashReportsEnabled: privacy?.crashReportsEnabled ?? defaults.crashReportsEnabled,
       glowingPaneRingEnabled: notifications?.glowingPaneRing ?? defaults.glowingPaneRingEnabled,
       restoreTerminalLayoutEnabled: terminal?.restoreLayout ?? defaults.restoreTerminalLayoutEnabled,
@@ -158,12 +153,10 @@ public struct SupatermSettings: Codable, Equatable, Sendable {
       )
     }
     if restoreTerminalLayoutEnabled != defaults.restoreTerminalLayoutEnabled
-      || confirmQuitMode != defaults.confirmQuitMode
       || zmxSessionsEnabled != defaults.zmxSessionsEnabled
     {
       try container.encode(
         PersistedTerminal(
-          confirmQuitMode: confirmQuitMode,
           restoreLayout: restoreTerminalLayoutEnabled,
           zmxSessionsEnabled: zmxSessionsEnabled
         ),
@@ -360,16 +353,13 @@ extension SupatermSettings {
   }
 
   struct PersistedTerminal: Codable, Equatable, Sendable {
-    let confirmQuitMode: ConfirmQuitMode
     let restoreLayout: Bool
     let zmxSessionsEnabled: Bool
 
     init(
-      confirmQuitMode: ConfirmQuitMode,
       restoreLayout: Bool,
       zmxSessionsEnabled: Bool
     ) {
-      self.confirmQuitMode = confirmQuitMode
       self.restoreLayout = restoreLayout
       self.zmxSessionsEnabled = zmxSessionsEnabled
     }
@@ -377,9 +367,6 @@ extension SupatermSettings {
     init(from decoder: any Decoder) throws {
       let defaults = SupatermSettings.default
       let container = try decoder.container(keyedBy: CodingKeys.self)
-      confirmQuitMode =
-        try container.decodeIfPresent(ConfirmQuitMode.self, forKey: .confirmQuitMode)
-        ?? defaults.confirmQuitMode
       restoreLayout =
         try container.decodeIfPresent(Bool.self, forKey: .restoreLayout)
         ?? defaults.restoreTerminalLayoutEnabled
@@ -391,7 +378,6 @@ extension SupatermSettings {
     }
 
     enum CodingKeys: String, CodingKey {
-      case confirmQuitMode = "confirm_quit"
       case restoreLayout = "restore_layout"
       case terminateSessionsOnQuit = "terminate_sessions_on_quit"
       case zmxSessionsEnabled = "zmx_sessions_enabled"
@@ -401,9 +387,6 @@ extension SupatermSettings {
       let defaults = SupatermSettings.default
       var container = encoder.container(keyedBy: CodingKeys.self)
 
-      if confirmQuitMode != defaults.confirmQuitMode {
-        try container.encode(confirmQuitMode, forKey: .confirmQuitMode)
-      }
       if restoreLayout != defaults.restoreTerminalLayoutEnabled {
         try container.encode(restoreLayout, forKey: .restoreLayout)
       }
@@ -483,7 +466,6 @@ struct LegacySupatermSettingsFile: Decodable, Equatable, Sendable {
       codingAgentsShowPanel: codingAgentsShowPanel,
       codingAgentsShowIcons: codingAgentsShowIcons,
       codingAgentsShowSpinner: codingAgentsShowSpinner,
-      confirmQuitMode: SupatermSettings.default.confirmQuitMode,
       crashReportsEnabled: crashReportsEnabled,
       glowingPaneRingEnabled: glowingPaneRingEnabled,
       restoreTerminalLayoutEnabled: restoreTerminalLayoutEnabled,

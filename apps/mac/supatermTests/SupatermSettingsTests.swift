@@ -48,7 +48,6 @@ struct SupatermSettingsTests {
     #expect(prefs.codingAgentsShowPanel)
     #expect(prefs.codingAgentsShowIcons)
     #expect(prefs.codingAgentsShowSpinner)
-    #expect(prefs.confirmQuitMode == .auto)
     #expect(prefs.crashReportsEnabled)
     #expect(prefs.glowingPaneRingEnabled)
     #expect(prefs.restoreTerminalLayoutEnabled)
@@ -249,7 +248,6 @@ struct SupatermSettingsTests {
         codingAgentsShowPanel: false,
         codingAgentsShowIcons: false,
         codingAgentsShowSpinner: false,
-        confirmQuitMode: .always,
         crashReportsEnabled: false,
         glowingPaneRingEnabled: false,
         restoreTerminalLayoutEnabled: false,
@@ -269,7 +267,6 @@ struct SupatermSettingsTests {
           codingAgentsShowPanel: false,
           codingAgentsShowIcons: false,
           codingAgentsShowSpinner: false,
-          confirmQuitMode: .always,
           crashReportsEnabled: false,
           glowingPaneRingEnabled: false,
           restoreTerminalLayoutEnabled: false,
@@ -297,7 +294,6 @@ struct SupatermSettingsTests {
     #expect(prefs.codingAgentsShowPanel)
     #expect(prefs.codingAgentsShowIcons)
     #expect(prefs.codingAgentsShowSpinner)
-    #expect(prefs.confirmQuitMode == .auto)
     #expect(prefs.crashReportsEnabled)
     #expect(prefs.glowingPaneRingEnabled)
     #expect(prefs.restoreTerminalLayoutEnabled)
