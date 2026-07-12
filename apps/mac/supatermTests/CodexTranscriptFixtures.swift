@@ -13,13 +13,15 @@ enum CodexTranscriptFixtures {
     case taskStarted(turnID: String)
     case turnStarted(turnID: String)
     case taskComplete(turnID: String, lastAgentMessage: String? = nil)
+    case tokenCount(usedPercent: Int, includesUsage: Bool)
     case turnComplete(turnID: String)
     case turnAborted(turnID: String)
     case turnContext(turnID: String)
     case threadGoalUpdated(turnID: String, objective: String, status: String)
     case goalContext(objective: String)
+    case userMessage(String)
     case localShellCall(command: [String])
-    case functionCall(name: String, arguments: [String: Any]? = nil)
+    case functionCall(name: String, arguments: [String: Any]? = nil, callID: String = "call-1")
     case reasoning(String)
     case assistantMessage(String, phase: String? = nil)
     case agentReasoning(String)
@@ -61,6 +63,18 @@ enum CodexTranscriptFixtures {
           payload["last_agent_message"] = lastAgentMessage
         }
         object = event(type: "task_complete", payload: payload)
+
+      case .tokenCount(let usedPercent, let includesUsage):
+        object = event(
+          type: "token_count",
+          payload: [
+            "info": includesUsage ? ["model_context_window": 353_400] : NSNull(),
+            "rate_limits": [
+              "primary": ["used_percent": usedPercent],
+              "rate_limit_reached_type": NSNull(),
+            ],
+          ]
+        )
 
       case .turnComplete(let turnID):
         object = event(
@@ -128,6 +142,20 @@ enum CodexTranscriptFixtures {
           ]
         )
 
+      case .userMessage(let text):
+        object = responseItem(
+          payload: [
+            "type": "message",
+            "role": "user",
+            "content": [
+              [
+                "type": "input_text",
+                "text": text,
+              ]
+            ],
+          ]
+        )
+
       case .localShellCall(let command):
         object = responseItem(
           payload: [
@@ -140,13 +168,13 @@ enum CodexTranscriptFixtures {
           ]
         )
 
-      case .functionCall(let name, let arguments):
+      case .functionCall(let name, let arguments, let callID):
         object = responseItem(
           payload: [
             "type": "function_call",
             "name": name,
             "arguments": jsonString(arguments ?? [:]),
-            "call_id": "call-1",
+            "call_id": callID,
           ]
         )
 

@@ -757,7 +757,15 @@ struct TerminalWindowRegistryTests {
       let registry = TerminalWindowRegistry()
       let host = try makeCommandPaletteHost(title: "codex", workingDirectory: nil)
       let surfaceID = try #require(host.selectedSurfaceView?.id)
-      host.recordAgentPanelSnapshot(
+      #expect(
+        host.applyTestAgentActivity(
+          .codex(.running),
+          for: surfaceID,
+          sessionID: "session-1",
+          processID: nil
+        )
+      )
+      host.setTestAgentProgressRows(
         progressRows: [
           PaneAgentProgressRow(id: "run-tests", title: "Run tests", status: .running)
         ],
@@ -830,7 +838,7 @@ struct TerminalWindowRegistryTests {
       let host = try makeCommandPaletteHost(title: "codex", workingDirectory: nil)
       let surfaceID = try #require(host.selectedSurfaceView?.id)
       #expect(
-        host.markAgentSessionActionable(
+        host.makeTestAgentSessionActionable(
           agent: .codex,
           for: surfaceID,
           sessionID: "session-1",
@@ -874,7 +882,7 @@ struct TerminalWindowRegistryTests {
       let host = try makeCommandPaletteHost(title: "codex", workingDirectory: nil)
       let surfaceID = try #require(host.selectedSurfaceView?.id)
       #expect(
-        host.markAgentSessionActionable(
+        host.makeTestAgentSessionActionable(
           agent: .codex,
           for: surfaceID,
           sessionID: "session-1",
@@ -946,15 +954,15 @@ struct TerminalWindowRegistryTests {
       let host = try makeCommandPaletteHost(title: "pi", workingDirectory: nil)
       let surfaceID = try #require(host.selectedSurfaceView?.id)
       #expect(
-        host.markAgentSessionActionable(
-          agent: .pi,
+        host.applyTestAgentActivity(
+          TerminalHostState.AgentActivity(kind: .pi, phase: .running, detail: nil),
           for: surfaceID,
           sessionID: "session-1",
           processID: nil
         )
       )
       #expect(
-        host.recordAgentPanelSnapshot(
+        host.setTestAgentProgressRows(
           progressRows: [
             PaneAgentProgressRow(id: "run-tests", title: "Run tests", status: .running)
           ],

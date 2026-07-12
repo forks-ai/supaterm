@@ -17,56 +17,26 @@ public enum SupatermAgentKind: String, CaseIterable, Codable, Equatable, Sendabl
   }
 }
 
-public enum SupatermAgentHookEventName: Equatable, Sendable {
-  case notification
-  case postToolUse
-  case preToolUse
-  case sessionEnd
-  case sessionStart
-  case stop
-  case unsupported(String)
-  case userPromptSubmit
+public struct SupatermAgentHookEventName: Equatable, Hashable, RawRepresentable, Sendable {
+  public static let agentEnd = Self(rawValue: "agent_end")
+  public static let agentStart = Self(rawValue: "agent_start")
+  public static let nativeSessionStart = Self(rawValue: "session_start")
+  public static let notification = Self(rawValue: "Notification")
+  public static let permissionRequest = Self(rawValue: "PermissionRequest")
+  public static let postToolUse = Self(rawValue: "PostToolUse")
+  public static let preToolUse = Self(rawValue: "PreToolUse")
+  public static let sessionEnd = Self(rawValue: "SessionEnd")
+  public static let sessionShutdown = Self(rawValue: "session_shutdown")
+  public static let sessionStart = Self(rawValue: "SessionStart")
+  public static let stop = Self(rawValue: "Stop")
+  public static let subagentStart = Self(rawValue: "SubagentStart")
+  public static let subagentStop = Self(rawValue: "SubagentStop")
+  public static let userPromptSubmit = Self(rawValue: "UserPromptSubmit")
+
+  public let rawValue: String
 
   public init(rawValue: String) {
-    switch rawValue {
-    case "Notification":
-      self = .notification
-    case "PostToolUse":
-      self = .postToolUse
-    case "PreToolUse":
-      self = .preToolUse
-    case "SessionEnd":
-      self = .sessionEnd
-    case "SessionStart":
-      self = .sessionStart
-    case "Stop":
-      self = .stop
-    case "UserPromptSubmit":
-      self = .userPromptSubmit
-    default:
-      self = .unsupported(rawValue)
-    }
-  }
-
-  public var rawValue: String {
-    switch self {
-    case .notification:
-      return "Notification"
-    case .postToolUse:
-      return "PostToolUse"
-    case .preToolUse:
-      return "PreToolUse"
-    case .sessionEnd:
-      return "SessionEnd"
-    case .sessionStart:
-      return "SessionStart"
-    case .stop:
-      return "Stop"
-    case .unsupported(let rawValue):
-      return rawValue
-    case .userPromptSubmit:
-      return "UserPromptSubmit"
-    }
+    self.rawValue = rawValue
   }
 }
 
@@ -82,94 +52,26 @@ extension SupatermAgentHookEventName: Codable {
   }
 }
 
-public struct SupatermAgentHookQuestionOption: Equatable, Sendable, Codable {
-  public let label: String?
-
-  public init(label: String? = nil) {
-    self.label = normalizeAgentHookString(label)
-  }
-
-  public init(from decoder: Decoder) throws {
-    let container = try decoder.container(keyedBy: CodingKeys.self)
-    self.init(
-      label: try container.decodeIfPresent(String.self, forKey: .label)
-    )
-  }
-
-  enum CodingKeys: String, CodingKey {
-    case label
-  }
-}
-
-public struct SupatermAgentHookQuestion: Equatable, Sendable, Codable {
-  public let header: String?
-  public let options: [SupatermAgentHookQuestionOption]
-  public let question: String?
-
-  public init(
-    header: String? = nil,
-    options: [SupatermAgentHookQuestionOption] = [],
-    question: String? = nil
-  ) {
-    self.header = normalizeAgentHookString(header)
-    self.options = options
-    self.question = normalizeAgentHookString(question)
-  }
-
-  public init(from decoder: Decoder) throws {
-    let container = try decoder.container(keyedBy: CodingKeys.self)
-    self.init(
-      header: try container.decodeIfPresent(String.self, forKey: .header),
-      options: try container.decodeIfPresent([SupatermAgentHookQuestionOption].self, forKey: .options) ?? [],
-      question: try container.decodeIfPresent(String.self, forKey: .question)
-    )
-  }
-
-  enum CodingKeys: String, CodingKey {
-    case header
-    case options
-    case question
-  }
-}
-
-public struct SupatermAgentHookToolInput: Equatable, Sendable, Codable {
-  public let questions: [SupatermAgentHookQuestion]
-
-  public init(questions: [SupatermAgentHookQuestion] = []) {
-    self.questions = questions
-  }
-
-  public init(from decoder: Decoder) throws {
-    let container = try decoder.container(keyedBy: CodingKeys.self)
-    self.init(
-      questions: try container.decodeIfPresent([SupatermAgentHookQuestion].self, forKey: .questions) ?? []
-    )
-  }
-
-  enum CodingKeys: String, CodingKey {
-    case questions
-  }
-}
-
 public struct SupatermAgentHookEvent: Equatable, Sendable, Codable {
-  public let agentType: String?
-  public let cwd: String?
-  public let hookEventName: SupatermAgentHookEventName
-  public let lastAssistantMessage: String?
-  public let message: String?
-  public let model: String?
-  public let notificationType: String?
-  public let permissionMode: String?
-  public let prompt: String?
-  public let reason: String?
-  public let sessionID: String?
-  public let source: String?
-  public let stopHookActive: Bool?
-  public let title: String?
-  public let toolInput: SupatermAgentHookToolInput?
-  public let toolName: String?
-  public let toolUseID: String?
-  public let transcriptPath: String?
+  public let payload: JSONObject
+
+  public var agentID: String? { string("agent_id") }
+  public var agentType: String? { string("agent_type") }
+  public var hookEventName: SupatermAgentHookEventName {
+    SupatermAgentHookEventName(rawValue: payload["hook_event_name"]?.stringValue ?? "")
+  }
+  public var lastAssistantMessage: String? { string("last_assistant_message") }
+  public var message: String? { string("message") }
+  public var notificationType: String? { string("notification_type") }
+  public var sessionID: String? { string("session_id") }
+  public var source: String? { string("source") }
+  public var stopReason: String? { string("stop_reason") }
+  public var title: String? { string("title") }
+  public var toolInput: JSONValue? { payload["tool_input"] }
+  public var toolName: String? { string("tool_name") }
+  public var toolUseID: String? { string("tool_use_id") }
+  public var transcriptPath: String? { string("transcript_path") }
+  public var turnID: String? { string("turn_id") }
 
   public init(
     agentType: String? = nil,
@@ -179,81 +81,69 @@ public struct SupatermAgentHookEvent: Equatable, Sendable, Codable {
     message: String? = nil,
     model: String? = nil,
     notificationType: String? = nil,
-    permissionMode: String? = nil,
-    prompt: String? = nil,
-    reason: String? = nil,
     sessionID: String? = nil,
     source: String? = nil,
-    stopHookActive: Bool? = nil,
+    stopReason: String? = nil,
     title: String? = nil,
-    toolInput: SupatermAgentHookToolInput? = nil,
+    toolInput: JSONValue? = nil,
     toolName: String? = nil,
     toolUseID: String? = nil,
-    transcriptPath: String? = nil
+    transcriptPath: String? = nil,
+    turnID: String? = nil,
+    agentID: String? = nil
   ) {
-    self.agentType = normalizeAgentHookString(agentType)
-    self.cwd = normalizeAgentHookString(cwd)
-    self.hookEventName = hookEventName
-    self.lastAssistantMessage = normalizeAgentHookString(lastAssistantMessage)
-    self.message = normalizeAgentHookString(message)
-    self.model = normalizeAgentHookString(model)
-    self.notificationType = normalizeAgentHookString(notificationType)
-    self.permissionMode = normalizeAgentHookString(permissionMode)
-    self.prompt = normalizeAgentHookString(prompt)
-    self.reason = normalizeAgentHookString(reason)
-    self.sessionID = normalizeAgentHookString(sessionID)
-    self.source = normalizeAgentHookString(source)
-    self.stopHookActive = stopHookActive
-    self.title = normalizeAgentHookString(title)
-    self.toolInput = toolInput
-    self.toolName = normalizeAgentHookString(toolName)
-    self.toolUseID = normalizeAgentHookString(toolUseID)
-    self.transcriptPath = normalizeAgentHookString(transcriptPath)
+    var payload: JSONObject = ["hook_event_name": .string(hookEventName.rawValue)]
+    Self.insert(agentID, key: "agent_id", into: &payload)
+    Self.insert(agentType, key: "agent_type", into: &payload)
+    Self.insert(cwd, key: "cwd", into: &payload)
+    Self.insert(lastAssistantMessage, key: "last_assistant_message", into: &payload)
+    Self.insert(message, key: "message", into: &payload)
+    Self.insert(model, key: "model", into: &payload)
+    Self.insert(notificationType, key: "notification_type", into: &payload)
+    Self.insert(sessionID, key: "session_id", into: &payload)
+    Self.insert(source, key: "source", into: &payload)
+    Self.insert(stopReason, key: "stop_reason", into: &payload)
+    Self.insert(title, key: "title", into: &payload)
+    Self.insert(toolName, key: "tool_name", into: &payload)
+    Self.insert(toolUseID, key: "tool_use_id", into: &payload)
+    Self.insert(transcriptPath, key: "transcript_path", into: &payload)
+    Self.insert(turnID, key: "turn_id", into: &payload)
+    if let toolInput {
+      payload["tool_input"] = toolInput
+    }
+    self.payload = payload
   }
 
   public init(from decoder: Decoder) throws {
-    let container = try decoder.container(keyedBy: CodingKeys.self)
-    self.init(
-      agentType: container.decodeLossyStringIfPresent(forKey: .agentType),
-      cwd: container.decodeLossyStringIfPresent(forKey: .cwd),
-      hookEventName: try container.decode(SupatermAgentHookEventName.self, forKey: .hookEventName),
-      lastAssistantMessage: container.decodeLossyStringIfPresent(forKey: .lastAssistantMessage),
-      message: container.decodeLossyStringIfPresent(forKey: .message),
-      model: container.decodeLossyStringIfPresent(forKey: .model),
-      notificationType: container.decodeLossyStringIfPresent(forKey: .notificationType),
-      permissionMode: container.decodeLossyStringIfPresent(forKey: .permissionMode),
-      prompt: container.decodeLossyStringIfPresent(forKey: .prompt),
-      reason: container.decodeLossyStringIfPresent(forKey: .reason),
-      sessionID: container.decodeLossyStringIfPresent(forKey: .sessionID),
-      source: container.decodeLossyStringIfPresent(forKey: .source),
-      stopHookActive: container.decodeLossyBoolIfPresent(forKey: .stopHookActive),
-      title: container.decodeLossyStringIfPresent(forKey: .title),
-      toolInput: container.decodeLossyIfPresent(SupatermAgentHookToolInput.self, forKey: .toolInput),
-      toolName: container.decodeLossyStringIfPresent(forKey: .toolName),
-      toolUseID: container.decodeLossyStringIfPresent(forKey: .toolUseID),
-      transcriptPath: container.decodeLossyStringIfPresent(forKey: .transcriptPath)
-    )
+    let value = try JSONValue(from: decoder)
+    guard let payload = value.objectValue,
+      payload["hook_event_name"]?.stringValue != nil
+    else {
+      throw DecodingError.dataCorrupted(
+        DecodingError.Context(
+          codingPath: decoder.codingPath,
+          debugDescription: "Agent hook event must contain a string hook_event_name."
+        )
+      )
+    }
+    self.payload = payload
   }
 
-  enum CodingKeys: String, CodingKey {
-    case agentType = "agent_type"
-    case cwd
-    case hookEventName = "hook_event_name"
-    case lastAssistantMessage = "last_assistant_message"
-    case message
-    case model
-    case notificationType = "notification_type"
-    case permissionMode = "permission_mode"
-    case prompt
-    case reason
-    case sessionID = "session_id"
-    case source
-    case stopHookActive = "stop_hook_active"
-    case title
-    case toolInput = "tool_input"
-    case toolName = "tool_name"
-    case toolUseID = "tool_use_id"
-    case transcriptPath = "transcript_path"
+  public func encode(to encoder: Encoder) throws {
+    try JSONValue.object(payload).encode(to: encoder)
+  }
+
+  private func string(_ key: String) -> String? {
+    normalizeAgentHookString(payload[key]?.stringValue)
+  }
+
+  private static func insert(
+    _ value: String?,
+    key: String,
+    into payload: inout JSONObject
+  ) {
+    guard let value = normalizeAgentHookString(value) else { return }
+    payload[key] = .string(value)
   }
 }
 
@@ -281,25 +171,4 @@ private func normalizeAgentHookString(_ value: String?) -> String? {
     return nil
   }
   return value
-}
-
-extension KeyedDecodingContainer {
-  fileprivate func decodeLossyIfPresent<T: Decodable>(
-    _ type: T.Type,
-    forKey key: Key
-  ) -> T? {
-    try? decodeIfPresent(type, forKey: key)
-  }
-
-  fileprivate func decodeLossyStringIfPresent(
-    forKey key: Key
-  ) -> String? {
-    decodeLossyIfPresent(String.self, forKey: key)
-  }
-
-  fileprivate func decodeLossyBoolIfPresent(
-    forKey key: Key
-  ) -> Bool? {
-    decodeLossyIfPresent(Bool.self, forKey: key)
-  }
 }
