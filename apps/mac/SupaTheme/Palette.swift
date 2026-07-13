@@ -45,12 +45,6 @@ public struct Palette {
       opacity: Self.lightChromeBackgroundRecipe.illuminationStopOpacity
     )
   }
-  public var backgroundTintStart: Color {
-    lightChromeLayer(Self.lightChromeBackgroundRecipe.tintStart, opacity: Self.lightChromeBackgroundRecipe.tintOpacity)
-  }
-  public var backgroundTintStop: Color {
-    lightChromeLayer(Self.lightChromeBackgroundRecipe.tintStop, opacity: Self.lightChromeBackgroundRecipe.tintOpacity)
-  }
   public var chromeBackgroundStartValue: ThemeColor {
     isDark ? backgroundTopValue : Self.lightChromeBackgroundRecipe.startSurface(over: backgroundTopValue)
   }
@@ -197,40 +191,13 @@ public struct Palette {
     let illuminationStop: ThemeColor
     let illuminationStartOpacity: Double
     let illuminationStopOpacity: Double
-    let tintStart: ThemeColor
-    let tintStop: ThemeColor
-    let tintOpacity: Double
 
     func startSurface(over underlay: ThemeColor) -> ThemeColor {
-      surface(
-        illumination: illuminationStart,
-        illuminationOpacity: illuminationStartOpacity,
-        tint: tintStart,
-        over: underlay
-      )
+      ColorMath.composited(illuminationStart, opacity: illuminationStartOpacity, over: underlay)
     }
 
     func stopSurface(over underlay: ThemeColor) -> ThemeColor {
-      surface(
-        illumination: illuminationStop,
-        illuminationOpacity: illuminationStopOpacity,
-        tint: tintStop,
-        over: underlay
-      )
-    }
-
-    private func surface(
-      illumination: ThemeColor,
-      illuminationOpacity: Double,
-      tint: ThemeColor,
-      over underlay: ThemeColor
-    ) -> ThemeColor {
-      let illuminated = ColorMath.composited(
-        illumination,
-        opacity: illuminationOpacity,
-        over: underlay
-      )
-      return ColorMath.composited(tint, opacity: tintOpacity, over: illuminated)
+      ColorMath.composited(illuminationStop, opacity: illuminationStopOpacity, over: underlay)
     }
   }
 
@@ -238,10 +205,7 @@ public struct Palette {
     illuminationStart: .white,
     illuminationStop: .white,
     illuminationStartOpacity: 0.35,
-    illuminationStopOpacity: 0.7,
-    tintStart: ThemeColor(hex: 0xFFFFD7),
-    tintStop: ThemeColor(hex: 0xFFD9FB),
-    tintOpacity: 0.3
+    illuminationStopOpacity: 0.7
   )
 
   private func lightChromeLayer(_ color: ThemeColor, opacity: Double) -> Color {

@@ -247,9 +247,6 @@ struct ChromePaletteTests {
     let illuminationValue = ThemeColor.white
     let illuminationStartOpacity = 0.35
     let illuminationStopOpacity = 0.7
-    let tintStartValue = ThemeColor(hex: 0xFFFFD7)
-    let tintStopValue = ThemeColor(hex: 0xFFD9FB)
-    let tintOpacity = 0.3
     expectSameColor(palette.chromeBackgroundBaseStart, palette.backgroundTop, "chromeBackgroundBaseStart")
     expectSameColor(
       palette.chromeBackgroundBaseStop,
@@ -266,26 +263,12 @@ struct ChromePaletteTests {
       isDark ? .clear : illuminationValue.color.opacity(illuminationStopOpacity),
       "backgroundIlluminationStop"
     )
-    expectSameColor(
-      palette.backgroundTintStart,
-      isDark ? .clear : tintStartValue.color.opacity(tintOpacity),
-      "backgroundTintStart"
-    )
-    expectSameColor(
-      palette.backgroundTintStop,
-      isDark ? .clear : tintStopValue.color.opacity(tintOpacity),
-      "backgroundTintStop"
-    )
     expectSameThemeColor(
       palette.chromeBackgroundStartValue,
       isDark
         ? palette.backgroundTopValue
         : ColorMath.composited(
-          tintStartValue,
-          opacity: tintOpacity,
-          over: ColorMath.composited(
-            illuminationValue, opacity: illuminationStartOpacity, over: palette.backgroundTopValue)
-        ),
+          illuminationValue, opacity: illuminationStartOpacity, over: palette.backgroundTopValue),
       "chromeBackgroundStartValue"
     )
     expectSameThemeColor(
@@ -293,11 +276,7 @@ struct ChromePaletteTests {
       isDark
         ? palette.backgroundBottomValue
         : ColorMath.composited(
-          tintStopValue,
-          opacity: tintOpacity,
-          over: ColorMath.composited(
-            illuminationValue, opacity: illuminationStopOpacity, over: palette.backgroundTopValue)
-        ),
+          illuminationValue, opacity: illuminationStopOpacity, over: palette.backgroundTopValue),
       "chromeBackgroundStopValue"
     )
   }

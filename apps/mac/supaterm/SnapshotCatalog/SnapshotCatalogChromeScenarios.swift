@@ -74,8 +74,6 @@ private struct PaletteTokenSheetSnapshotFixture: View {
     let semanticTokens = [
       TokenSwatch(name: "backgroundIlluminationStart", color: palette.backgroundIlluminationStart),
       TokenSwatch(name: "backgroundIlluminationStop", color: palette.backgroundIlluminationStop),
-      TokenSwatch(name: "backgroundTintStart", color: palette.backgroundTintStart),
-      TokenSwatch(name: "backgroundTintStop", color: palette.backgroundTintStop),
       TokenSwatch(name: "chromeBackgroundStart", color: palette.chromeBackgroundStartValue.color),
       TokenSwatch(name: "chromeBackgroundStop", color: palette.chromeBackgroundStopValue.color),
       TokenSwatch(name: "windowBackgroundTint", color: palette.windowBackgroundTint),
