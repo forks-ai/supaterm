@@ -20,7 +20,7 @@ final class SearchClipboardUITests: SupatermUITestCase {
     let terminal = terminalElement()
     let needle = "SUPATERMSEARCHNEEDLE"
     try await runCommand(
-      "printf '\(needle) \(needle) \(needle)\\n'",
+      printfCommand("\(needle) \(needle) \(needle)"),
       showing: needle,
       in: terminal
     )
@@ -189,13 +189,18 @@ final class SearchClipboardUITests: SupatermUITestCase {
     _ text: String,
     in terminal: XCUIElement
   ) async throws {
-    try await runCommand("clear; printf '\(text)\\n'", showing: text, in: terminal)
+    try await runCommand("clear; \(printfCommand(text))", showing: text, in: terminal)
     let origin = terminal.coordinate(withNormalizedOffset: CGVector(dx: 0, dy: 0))
     origin.withOffset(CGVector(dx: 48, dy: 12)).doubleClick()
     let selectionCopied = await wait(for: terminal) { _ in
       ghosttySelectionPasteboard.string(forType: .string) == text
     }
     XCTAssertTrue(selectionCopied)
+  }
+
+  private func printfCommand(_ text: String) -> String {
+    let escaped = text.utf8.map { String(format: "\\x%02X", $0) }.joined()
+    return "printf '\(escaped)\\n'"
   }
 
   @MainActor
