@@ -19,6 +19,10 @@ final class TabsSpacesUITests: SupatermUITestCase {
 
     try clickMenuItem(.closeTab)
 
+    let closeButton = app.buttons["Close"]
+    XCTAssertTrue(closeButton.waitForExistence(timeout: 10))
+    closeButton.click()
+
     let didCloseTab = await waitForCount(tabRows, equals: 1, timeout: .seconds(30))
     XCTAssertTrue(didCloseTab)
   }
@@ -66,6 +70,8 @@ final class TabsSpacesUITests: SupatermUITestCase {
     let didShowInitialTab = await waitForCount(tabRows, equals: 1, timeout: .seconds(30))
     XCTAssertTrue(didShowInitialTab)
     XCTAssertEqual(spaceButtons.count, 0)
+
+    try await enterFullScreen()
 
     try await createSpace(named: "UI Space")
 
@@ -228,23 +234,40 @@ final class TabsSpacesUITests: SupatermUITestCase {
     let createButton = app.buttons[
       SupatermUITestIdentifier.Accessibility.sidebarCreateSpaceButton
     ]
-    XCTAssertTrue(createButton.waitForExistence(timeout: 10))
-    createButton.click()
+    try XCTUnwrap(createButton.waitForExistence(timeout: 10) ? createButton : nil)
+    createButton.coordinate(
+      withNormalizedOffset: CGVector(dx: 0.5, dy: 0.1)
+    ).click()
 
     let nameField = app.textFields[
       SupatermUITestIdentifier.Accessibility.dialogSpaceName
     ]
-    XCTAssertTrue(nameField.waitForExistence(timeout: 10))
+    try XCTUnwrap(nameField.waitForExistence(timeout: 10) ? nameField : nil)
     nameField.typeText(name)
 
     let confirm = app.buttons[
       SupatermUITestIdentifier.Accessibility.dialogConfirm
     ]
-    XCTAssertTrue(confirm.waitForExistence(timeout: 10))
+    try XCTUnwrap(confirm.waitForExistence(timeout: 10) ? confirm : nil)
     confirm.click()
 
     let didDismissEditor = await wait(for: nameField) { !$0.exists }
     XCTAssertTrue(didDismissEditor)
+  }
+
+  @MainActor
+  private func enterFullScreen() async throws {
+    let button = mainWindow.buttons["Enter full screen"]
+    try XCTUnwrap(button.waitForExistence(timeout: 10) ? button : nil)
+    button.click()
+
+    let createButton = app.buttons[
+      SupatermUITestIdentifier.Accessibility.sidebarCreateSpaceButton
+    ]
+    let didMoveAboveDock = await wait(for: createButton) {
+      $0.frame.maxY <= self.app.frame.maxY - 20
+    }
+    try XCTUnwrap(didMoveAboveDock ? createButton : nil)
   }
 
   @MainActor
