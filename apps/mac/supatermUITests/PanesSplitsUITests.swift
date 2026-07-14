@@ -117,9 +117,9 @@ final class PanesSplitsUITests: SupatermUITestCase {
     try await requireFocus(on: rightPane)
 
     let processSentinel = "pane-busy"
-    rightPane.typeText("echo \(processSentinel); sleep 600\n")
+    rightPane.typeText("printf '\\033]0;\(processSentinel)\\007'; sleep 600\n")
     let didStartProcess = await wait(for: rightPane, timeout: .seconds(30)) {
-      ($0.value as? String)?.contains(processSentinel) == true
+      $0.label == processSentinel
     }
     guard didStartProcess else {
       XCTFail("Busy pane process did not start")
