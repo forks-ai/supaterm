@@ -10,9 +10,7 @@ final class SearchPasteUITests: SupatermUITestCase {
       _ = NSPasteboard.general.writeObjects(pasteboardItems)
     }
 
-    _ = mainWindow
-    let terminal = app.textViews.firstMatch
-    XCTAssertTrue(terminal.waitForExistence(timeout: 30))
+    let terminal = mainTerminal
     terminal.click()
 
     let readinessText = "search focus ready"

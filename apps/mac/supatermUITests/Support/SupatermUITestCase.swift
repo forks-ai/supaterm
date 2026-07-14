@@ -1,7 +1,19 @@
+import Foundation
 import XCTest
 
 class SupatermUITestCase: XCTestCase {
   private(set) var app: XCUIApplication!
+
+  var stateHome: URL {
+    guard let path = app.launchEnvironment["SUPATERM_STATE_HOME"] else {
+      preconditionFailure("Missing SUPATERM_STATE_HOME")
+    }
+    return URL(fileURLWithPath: path, isDirectory: true)
+  }
+
+  var sessionFileURL: URL {
+    stateHome.appendingPathComponent("session.json")
+  }
 
   override func setUp() async throws {
     try await super.setUp()
@@ -14,6 +26,7 @@ class SupatermUITestCase: XCTestCase {
     let zmx = stateHome.appendingPathComponent("zmx", isDirectory: true)
     try FileManager.default.createDirectory(at: home, withIntermediateDirectories: true)
     try FileManager.default.createDirectory(at: zmx, withIntermediateDirectories: true)
+    try Data("0".utf8).write(to: stateHome.appendingPathComponent("launch-state.json"))
 
     let app = await MainActor.run {
       let app = XCUIApplication()
@@ -43,6 +56,14 @@ class SupatermUITestCase: XCTestCase {
     let window = app.windows.firstMatch
     XCTAssertTrue(window.waitForExistence(timeout: 30))
     return window
+  }
+
+  @MainActor
+  var mainTerminal: XCUIElement {
+    _ = mainWindow
+    let terminal = app.textViews.firstMatch
+    XCTAssertTrue(terminal.waitForExistence(timeout: 30))
+    return terminal
   }
 
   @MainActor
