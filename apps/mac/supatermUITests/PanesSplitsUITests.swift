@@ -128,7 +128,7 @@ final class PanesSplitsUITests: SupatermUITestCase {
 
     try clickMenuItem(.closeSurface)
 
-    let cancelButton = app.buttons["Cancel"]
+    let cancelButton = mainWindow.sheets.firstMatch.buttons["Cancel"]
     guard cancelButton.waitForExistence(timeout: 10) else {
       XCTFail("Close confirmation did not appear")
       return
@@ -140,7 +140,7 @@ final class PanesSplitsUITests: SupatermUITestCase {
     try await requireFocus(on: rightPane)
     try clickMenuItem(.closeSurface)
 
-    let confirmButton = app.buttons["Close"]
+    let confirmButton = mainWindow.sheets.firstMatch.buttons["Close"]
     guard confirmButton.waitForExistence(timeout: 10) else {
       XCTFail("Close confirmation did not reappear")
       return
