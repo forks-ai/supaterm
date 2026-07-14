@@ -1049,6 +1049,34 @@ struct TerminalCommandExecutorAgentHookTests {
     )
   }
   @Test
+  func codexTranscriptlessPostToolUseRecoversMissingSession() throws {
+    let harness = try makeClaudeHookHarness()
+
+    _ = try harness.commandExecutor.handleAgentHook(
+      SupatermAgentHookRequest(
+        agent: .codex,
+        context: harness.context,
+        event: CodexHookFixtures.planUpdate([
+          ("Recovered session", "in_progress")
+        ]),
+        processID: getpid()
+      )
+    )
+
+    #expect(
+      harness.host.agentPanelPresentation(for: harness.context.surfaceID)?.progressRows == [
+        PaneAgentProgressRow(
+          id: "0:Recovered session",
+          title: "Recovered session",
+          status: .running
+        )
+      ]
+    )
+    #expect(
+      harness.host.hasAgentSession(agent: .codex, sessionID: CodexHookFixtures.sessionID)
+    )
+  }
+  @Test
   func codexPreToolUseRecoversMissingSessionAndStartsPanelTracking() throws {
     let harness = try makeClaudeHookHarness()
     let transcriptPath = try CodexTranscriptFixtures.makeTranscript()
@@ -1624,6 +1652,77 @@ struct TerminalCommandExecutorAgentHookTests {
         )
     )
     #expect(session.forkStartupCommand.contains("codex fork child-session"))
+  }
+  @Test
+  func codexTranscriptlessSessionCannotReplaceForegroundSession() throws {
+    let harness = try makeClaudeHookHarness()
+    let processID = getpid()
+
+    for hookEventName in [
+      SupatermAgentHookEventName.sessionStart,
+      .userPromptSubmit,
+    ] {
+      _ = try harness.commandExecutor.handleAgentHook(
+        agentHookRequest(
+          agent: .codex,
+          sessionID: "foreground-session",
+          hookEventName: hookEventName,
+          context: harness.context,
+          processID: processID
+        )
+      )
+    }
+
+    let memorySessionID = "memory-session"
+    let memoryWorkingDirectory = "/tmp/codex/memories"
+    let memoryEvents = [
+      SupatermAgentHookEvent(
+        cwd: memoryWorkingDirectory,
+        hookEventName: .sessionStart,
+        sessionID: memorySessionID
+      ),
+      SupatermAgentHookEvent(
+        cwd: memoryWorkingDirectory,
+        hookEventName: .postToolUse,
+        sessionID: memorySessionID,
+        toolInput: .object([
+          "plan": .array([
+            .object([
+              "status": .string("in_progress"),
+              "step": .string("Refresh memory_summary.md"),
+            ])
+          ])
+        ]),
+        toolName: "update_plan",
+        turnID: "memory-turn"
+      ),
+    ]
+    for event in memoryEvents {
+      let result = try harness.commandExecutor.handleAgentHook(
+        SupatermAgentHookRequest(
+          agent: .codex,
+          context: harness.context,
+          event: event,
+          processID: processID
+        )
+      )
+      #expect(result.desktopNotification == nil)
+    }
+
+    let presentation = try #require(
+      harness.host.agentPanelPresentation(for: harness.context.surfaceID)
+    )
+    #expect(
+      presentation.session
+        == PaneAgentPanelSession.supported(
+          agent: .codex,
+          sessionID: "foreground-session",
+          workingDirectoryPath: "\(CodexHookFixtures.cwd)/"
+        )
+    )
+    #expect(presentation.workingDirectoryPath == "\(CodexHookFixtures.cwd)/")
+    #expect(presentation.progressRows.isEmpty)
+    #expect(!harness.host.hasAgentSession(agent: .codex, sessionID: memorySessionID))
   }
   @Test
   func codexSamePaneSessionStartRoutesStopToNewestSession() throws {

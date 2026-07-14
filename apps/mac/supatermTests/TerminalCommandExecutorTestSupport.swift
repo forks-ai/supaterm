@@ -88,7 +88,8 @@ func agentHookRequest(
   sessionID: String,
   hookEventName: SupatermAgentHookEventName,
   context: SupatermCLIContext? = nil,
-  lastAssistantMessage: String? = nil
+  lastAssistantMessage: String? = nil,
+  processID: Int32? = nil
 ) -> SupatermAgentHookRequest {
   SupatermAgentHookRequest(
     agent: agent,
@@ -97,8 +98,10 @@ func agentHookRequest(
       cwd: CodexHookFixtures.cwd,
       hookEventName: hookEventName,
       lastAssistantMessage: lastAssistantMessage,
-      sessionID: sessionID
-    )
+      sessionID: sessionID,
+      transcriptPath: agent == .codex ? CodexHookFixtures.transcriptPath : nil
+    ),
+    processID: processID
   )
 }
 
