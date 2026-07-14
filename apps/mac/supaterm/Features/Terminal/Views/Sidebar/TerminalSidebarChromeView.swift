@@ -258,6 +258,7 @@ struct TerminalSidebarChromeView: View {
         pinnedTabCount: terminal.pinnedTabs.count
       )
     )
+    .accessibilityElement(children: .contain)
     .accessibilityIdentifier("sidebar.pinned-section")
     .onAppear {
       dragSession.updateTabIDs(terminal.pinnedTabs.map(\.id), for: .pinned)
@@ -291,6 +292,7 @@ struct TerminalSidebarChromeView: View {
         pinnedTabCount: terminal.pinnedTabs.count
       )
     )
+    .accessibilityElement(children: .contain)
     .accessibilityIdentifier("sidebar.regular-section")
     .onAppear {
       dragSession.updateTabIDs(terminal.regularTabs.map(\.id), for: .regular)

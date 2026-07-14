@@ -2,29 +2,41 @@ import XCTest
 
 final class FoundationSmokeUITests: SupatermUITestCase {
   @MainActor
-  func testFoundationStack() async {
+  func testFoundationStack() async throws {
     _ = mainWindow
 
     let tabRows = app.buttons.matching(
       identifier: SupatermUITestIdentifier.Accessibility.sidebarTabRow
     )
-    XCTAssertTrue(tabRows.firstMatch.waitForExistence(timeout: 30))
+    guard tabRows.firstMatch.waitForExistence(timeout: 30) else {
+      XCTFail("Initial sidebar tab row did not appear")
+      return
+    }
 
-    clickMenuItem(.newTab)
+    try clickMenuItem(.newTab)
 
     let didCreateSecondTab = await wait(
       for: tabRows.element(boundBy: 1),
       timeout: .seconds(30)
     ) { $0.exists }
-    XCTAssertTrue(didCreateSecondTab)
-    XCTAssertEqual(tabRows.count, 2)
+    guard didCreateSecondTab else {
+      XCTFail("Second sidebar tab row did not appear")
+      return
+    }
+    guard tabRows.count == 2 else {
+      XCTFail("Expected two sidebar tab rows")
+      return
+    }
 
-    clickMenuItem(.openCommandPalette)
+    try clickMenuItem(.openCommandPalette)
 
     let paletteInput = app.textFields[
       SupatermUITestIdentifier.Accessibility.paletteInput
     ]
-    XCTAssertTrue(paletteInput.waitForExistence(timeout: 10))
+    guard paletteInput.waitForExistence(timeout: 10) else {
+      XCTFail("Command palette input did not appear")
+      return
+    }
 
     app.typeKey(.escape, modifierFlags: [])
 

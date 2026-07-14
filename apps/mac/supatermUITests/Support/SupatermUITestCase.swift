@@ -54,13 +54,15 @@ class SupatermUITestCase: XCTestCase {
   func clickMenuItem(
     _ identifier: SupatermUITestIdentifier.MenuItemIdentifier,
     timeout: TimeInterval = 10
-  ) {
-    let topLevelMenu = app.menuBars.menuItems[identifier.menuTitle]
-    XCTAssertTrue(topLevelMenu.waitForExistence(timeout: timeout))
+  ) throws {
+    let topLevelMenu = app.menuBars.menuBarItems[identifier.menuTitle]
+    try XCTUnwrap(
+      topLevelMenu.waitForExistence(timeout: timeout) ? topLevelMenu : nil
+    )
     topLevelMenu.click()
 
     let item = menuItem(identifier)
-    XCTAssertTrue(item.waitForExistence(timeout: timeout))
+    try XCTUnwrap(item.waitForExistence(timeout: timeout) ? item : nil)
     item.click()
   }
 
