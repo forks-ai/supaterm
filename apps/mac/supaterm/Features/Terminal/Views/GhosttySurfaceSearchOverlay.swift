@@ -294,7 +294,7 @@ private struct GhosttySearchField: NSViewRepresentable {
 
   func makeNSView(context: Context) -> SearchField {
     let field = SearchField()
-    field.identifier = NSUserInterfaceItemIdentifier("terminal.search.field")
+    field.setAccessibilityIdentifier("terminal.search.field")
     field.delegate = context.coordinator
     field.onSubmit = onSubmit
     field.onEscape = onEscape
