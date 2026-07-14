@@ -258,7 +258,7 @@ struct SPDevelopmentClaudeEventBuilder {
         cwd: currentDirectoryPath,
         hookEventName: .notification,
         message: "Claude needs your attention",
-        notificationType: "request_input",
+        notificationType: "permission_prompt",
         sessionID: sessionID,
         title: "Needs input"
       )

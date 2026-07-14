@@ -219,6 +219,21 @@ struct TerminalSidebarAgentActivityView: View {
       .onChange(of: reduceMotion) { _, reduceMotion in
         restartActivityAnimation(reduceMotion: reduceMotion)
       }
+      .accessibilityElement(children: .ignore)
+      .accessibilityLabel("Agent activity")
+      .accessibilityValue(accessibilityValue)
+      .accessibilityIdentifier("sidebar.agent-activity")
+  }
+
+  private var accessibilityValue: String {
+    switch activity.phase {
+    case .needsInput:
+      "Needs input"
+    case .running:
+      "Running"
+    case .idle:
+      "Idle"
+    }
   }
 
   private var animation: Animation? {
