@@ -115,12 +115,12 @@ final class CommandPaletteUITests: SupatermUITestCase {
 
     try await executePaletteCommand("Toggle Sidebar")
 
-    let didHideSidebar = await wait(for: sidebarRow) { !$0.exists }
+    let didHideSidebar = await wait(for: sidebarRow) { !$0.isHittable }
     XCTAssertTrue(didHideSidebar)
 
     try await executePaletteCommand("Toggle Sidebar")
 
-    let didRestoreSidebar = await wait(for: sidebarRow) { $0.exists }
+    let didRestoreSidebar = await wait(for: sidebarRow) { $0.isHittable }
     XCTAssertTrue(didRestoreSidebar)
   }
 
@@ -218,7 +218,7 @@ final class CommandPaletteUITests: SupatermUITestCase {
     let sidebarRow = app.buttons.matching(
       identifier: SupatermUITestIdentifier.Accessibility.sidebarTabRow
     ).firstMatch
-    try XCTUnwrap(
+    _ = try XCTUnwrap(
       sidebarRow.waitForExistence(timeout: 30) ? sidebarRow : nil,
       "Initial sidebar tab row did not appear"
     )
