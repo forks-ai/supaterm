@@ -1,8 +1,6 @@
 import XCTest
 
 final class AgentPanelUITests: SupatermUITestCase {
-  private static let agentPanelIdentifier = "agent-panel"
-  private static let agentActivityIdentifier = "sidebar.agent-activity"
   private static let sessionID = "agent-panel-ui-tests"
 
   @MainActor
@@ -10,17 +8,20 @@ final class AgentPanelUITests: SupatermUITestCase {
     _ = mainWindow
     try await sendClaudeEvent("session-start")
 
-    let panel = agentPanel
-    await assertEventually(panel, timeout: .seconds(30)) { $0.exists }
+    await assertEventually(copySessionButton, timeout: .seconds(30)) { $0.exists }
+    await assertEventually(hideAgentPanelButton) { $0.exists }
 
     app.typeKey("i", modifierFlags: .command)
-    await assertEventually(panel) { !$0.exists }
+    await assertEventually(copySessionButton) { !$0.exists }
+    await assertEventually(showAgentPanelButton) { $0.exists }
 
     app.typeKey("i", modifierFlags: .command)
-    await assertEventually(panel) { $0.exists }
+    await assertEventually(copySessionButton) { $0.exists }
+    await assertEventually(hideAgentPanelButton) { $0.exists }
 
     try clickMenuItem(.toggleAgentPanel)
-    await assertEventually(panel) { !$0.exists }
+    await assertEventually(copySessionButton) { !$0.exists }
+    await assertEventually(showAgentPanelButton) { $0.exists }
   }
 
   @MainActor
@@ -39,9 +40,8 @@ final class AgentPanelUITests: SupatermUITestCase {
     try await sendClaudeEvent("session-start")
     try await sendClaudeEvent("user-prompt-submit")
 
-    let firstTabActivity = activityIndicator(in: firstTab)
-    await assertEventually(firstTabActivity, timeout: .seconds(30)) {
-      $0.exists && $0.value as? String == "Running"
+    await assertEventually(firstTab, timeout: .seconds(30)) {
+      $0.label.contains("Agent activity: Running")
     }
 
     try await sendClaudeEvent("notification")
@@ -49,39 +49,34 @@ final class AgentPanelUITests: SupatermUITestCase {
 
     let secondTab = tabRows.element(boundBy: 1)
     await assertEventually(secondTab, timeout: .seconds(30)) { $0.exists }
-    await assertEventually(firstTabActivity, timeout: .seconds(30)) {
-      $0.exists && $0.value as? String == "Needs input"
+    await assertEventually(firstTab, timeout: .seconds(30)) {
+      $0.label.contains("Agent activity: Needs input")
     }
 
     firstTab.click()
-    await assertEventually(agentPanel, timeout: .seconds(30)) { $0.exists }
+    await assertEventually(copySessionButton, timeout: .seconds(30)) { $0.exists }
     try await sendClaudeEvent("stop")
 
-    let finalMessage = firstTab.staticTexts["Done."]
-    await assertEventually(finalMessage, timeout: .seconds(30)) { $0.exists }
-
-    secondTab.click()
-    await assertEventually(agentPanel) { !$0.exists }
-    await assertEventually(firstTabActivity) { !$0.exists }
-
-    firstTab.click()
-    await assertEventually(agentPanel, timeout: .seconds(30)) { $0.exists }
+    await assertEventually(firstTab, timeout: .seconds(30)) {
+      $0.label.contains("Done.") && !$0.label.contains("Agent activity:")
+    }
     try await sendClaudeEvent("session-end")
-    await assertEventually(agentPanel, timeout: .seconds(30)) { !$0.exists }
+    await assertEventually(copySessionButton, timeout: .seconds(30)) { !$0.exists }
   }
 
   @MainActor
-  private var agentPanel: XCUIElement {
-    app.descendants(matching: .any)
-      .matching(identifier: Self.agentPanelIdentifier)
-      .firstMatch
+  private var copySessionButton: XCUIElement {
+    app.buttons["Copy session ID"]
   }
 
   @MainActor
-  private func activityIndicator(in tab: XCUIElement) -> XCUIElement {
-    tab.descendants(matching: .any)
-      .matching(identifier: Self.agentActivityIdentifier)
-      .firstMatch
+  private var hideAgentPanelButton: XCUIElement {
+    app.buttons["Hide agent panel"]
+  }
+
+  @MainActor
+  private var showAgentPanelButton: XCUIElement {
+    app.buttons["Show agent panel"]
   }
 
   @MainActor

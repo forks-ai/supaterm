@@ -220,12 +220,10 @@ struct TerminalSidebarAgentActivityView: View {
         restartActivityAnimation(reduceMotion: reduceMotion)
       }
       .accessibilityElement(children: .ignore)
-      .accessibilityLabel("Agent activity")
-      .accessibilityValue(accessibilityValue)
-      .accessibilityIdentifier("sidebar.agent-activity")
+      .accessibilityLabel("Agent activity: \(accessibilityPhase)")
   }
 
-  private var accessibilityValue: String {
+  private var accessibilityPhase: String {
     switch activity.phase {
     case .needsInput:
       "Needs input"
