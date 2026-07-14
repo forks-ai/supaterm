@@ -263,9 +263,13 @@ extension TerminalCommandExecutor {
       return
     }
     switch request.event.hookEventName {
-    case .postToolUse,
-      .userPromptSubmit,
-      .preToolUse where !request.agent.drivesActivityFromTranscript:
+    case .postToolUse, .userPromptSubmit, .preToolUse:
+      if request.agent.drivesActivityFromTranscript,
+        agentMonitorStore.isTracking(scope: scope)
+      {
+        agentMonitorStore.cancelRunningTimeout(agent: request.agent, sessionID: sessionID)
+        return
+      }
       agentMonitorStore.armRunningTimeout(
         agent: request.agent,
         sessionID: sessionID,
