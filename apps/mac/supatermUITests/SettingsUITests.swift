@@ -88,8 +88,9 @@ final class SettingsUITests: SupatermUITestCase {
 
     let version = element(SettingsIdentifier.aboutVersion, in: settingsWindow)
     XCTAssertTrue(version.waitForExistence(timeout: 10))
-    XCTAssertFalse(version.label.isEmpty)
-    XCTAssertNotEqual(version.label, "Unknown Version")
+    let versionValue = version.value as? String
+    XCTAssertFalse(versionValue?.isEmpty ?? true)
+    XCTAssertNotEqual(versionValue, "Unknown Version")
     XCTAssertTrue(
       element(SettingsIdentifier.checkForUpdates, in: settingsWindow)
         .waitForExistence(timeout: 10)
