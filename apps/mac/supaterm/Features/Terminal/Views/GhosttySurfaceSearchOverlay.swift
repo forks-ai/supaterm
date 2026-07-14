@@ -115,6 +115,7 @@ struct GhosttySurfaceSearchOverlay: View {
               }
             }
         )
+        .accessibilityElement(children: .contain)
       }
       .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: corner.alignment)
       .onAppear {
