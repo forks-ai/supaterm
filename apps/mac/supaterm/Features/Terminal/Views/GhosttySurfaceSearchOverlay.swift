@@ -34,7 +34,7 @@ struct GhosttySurfaceSearchOverlay: View {
               navigateSearch(isShifted ? .previous : .next)
             },
             onEscape: {
-              surfaceView.requestFocus()
+              closeSearch()
             }
           )
           .frame(width: 180)
@@ -56,6 +56,7 @@ struct GhosttySurfaceSearchOverlay: View {
               systemImage: "chevron.up"
             )
           }
+          .accessibilityIdentifier("terminal.search.next")
           .buttonStyle(GhosttySearchButtonStyle())
 
           Button {
@@ -67,6 +68,7 @@ struct GhosttySurfaceSearchOverlay: View {
               systemImage: "chevron.down"
             )
           }
+          .accessibilityIdentifier("terminal.search.previous")
           .buttonStyle(GhosttySearchButtonStyle())
 
           Button {
@@ -78,6 +80,7 @@ struct GhosttySurfaceSearchOverlay: View {
               systemImage: "xmark"
             )
           }
+          .accessibilityIdentifier("terminal.search.close")
           .buttonStyle(GhosttySearchButtonStyle())
         }
         .padding(8)
@@ -139,18 +142,21 @@ struct GhosttySurfaceSearchOverlay: View {
 
   @ViewBuilder
   private var matchLabel: some View {
-    if let selected = state.searchSelected {
-      let totalLabel = state.searchTotal.map { String($0) } ?? "?"
-      Text("\(selected + 1)/\(totalLabel)")
+    if let matchLabelText {
+      Text(matchLabelText)
         .font(.caption)
         .foregroundStyle(.secondary)
         .padding(.trailing, 8)
-    } else if let total = state.searchTotal {
-      Text("-/\(total)")
-        .font(.caption)
-        .foregroundStyle(.secondary)
-        .padding(.trailing, 8)
+        .accessibilityIdentifier("terminal.search.match-count")
     }
+  }
+
+  private var matchLabelText: String? {
+    if let selected = state.searchSelected {
+      let total = state.searchTotal.map(String.init) ?? "?"
+      return "\(selected + 1)/\(total)"
+    }
+    return state.searchTotal.map { "-/\($0)" }
   }
 
   private func scheduleSearch(_ needle: String) {
@@ -183,6 +189,7 @@ struct GhosttySurfaceSearchOverlay: View {
 
   private func closeSearch() {
     surfaceView.performBindingAction("end_search")
+    surfaceView.requestFocus()
   }
 
   private func flushPendingSearch() {
@@ -287,6 +294,7 @@ private struct GhosttySearchField: NSViewRepresentable {
 
   func makeNSView(context: Context) -> SearchField {
     let field = SearchField()
+    field.identifier = NSUserInterfaceItemIdentifier("terminal.search.field")
     field.delegate = context.coordinator
     field.onSubmit = onSubmit
     field.onEscape = onEscape
