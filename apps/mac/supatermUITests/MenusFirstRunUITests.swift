@@ -11,7 +11,7 @@ final class MenusFirstRunUITests: SupatermUITestCase {
     _ = mainWindow
 
     try assertMenu(
-      "Supaterm",
+      "supaterm",
       exposes: [
         SupatermUITestIdentifier.MenuItemIdentifier.about.rawValue,
         SupatermUITestIdentifier.MenuItemIdentifier.settings.rawValue,
@@ -114,25 +114,10 @@ final class MenusFirstRunUITests: SupatermUITestCase {
     XCTAssertFalse(secondSpace.isEnabled)
     app.typeKey(.escape, modifierFlags: [])
 
-    let createSpace = app.buttons.matching(
-      identifier: SupatermUITestIdentifier.Accessibility.sidebarCreateSpaceButton
-    ).firstMatch
-    XCTAssertTrue(createSpace.waitForExistence(timeout: 10))
-    createSpace.click()
-
-    let nameField = app.textFields[
-      SupatermUITestIdentifier.Accessibility.dialogSpaceName
-    ]
-    XCTAssertTrue(nameField.waitForExistence(timeout: 10))
-    nameField.click()
-    nameField.typeText("Second")
-
-    let confirm = app.buttons.matching(
-      identifier: SupatermUITestIdentifier.Accessibility.dialogConfirm
-    ).firstMatch
-    let didEnableConfirm = await wait(for: confirm) { $0.exists && $0.isEnabled }
-    XCTAssertTrue(didEnableConfirm)
-    confirm.click()
+    let terminal = app.textViews.firstMatch
+    XCTAssertTrue(terminal.waitForExistence(timeout: 30))
+    terminal.click()
+    app.typeText("sp space new Second\n")
 
     let spaceButtons = app.buttons.matching(
       identifier: SupatermUITestIdentifier.Accessibility.sidebarSpaceButton
