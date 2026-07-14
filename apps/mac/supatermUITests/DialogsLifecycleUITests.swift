@@ -20,7 +20,7 @@ final class DialogsLifecycleUITests: SupatermUITestCase {
     field.typeKey("a", modifierFlags: .command)
     field.typeText(title)
 
-    let confirmButton = app.buttons["OK"]
+    let confirmButton = app.sheets.firstMatch.buttons["OK"]
     XCTAssertTrue(confirmButton.waitForExistence(timeout: 10))
     confirmButton.click()
 
