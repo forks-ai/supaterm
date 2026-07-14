@@ -19,7 +19,9 @@ final class TabsSpacesUITests: SupatermUITestCase {
 
     try clickMenuItem(.closeTab)
 
-    let closeButton = app.buttons["Close"]
+    let closeSheet = mainWindow.sheets.firstMatch
+    XCTAssertTrue(closeSheet.waitForExistence(timeout: 10))
+    let closeButton = closeSheet.buttons["Close"]
     XCTAssertTrue(closeButton.waitForExistence(timeout: 10))
     closeButton.click()
 
@@ -83,6 +85,8 @@ final class TabsSpacesUITests: SupatermUITestCase {
     XCTAssertTrue(initialSpace.exists)
     XCTAssertTrue(createdSpace.isSelected)
 
+    await exitFullScreen()
+
     try clickSpaceMenuItem(.first)
 
     let didSelectInitialSpace = await waitForSelection(initialSpace)
@@ -92,6 +96,8 @@ final class TabsSpacesUITests: SupatermUITestCase {
 
     let didSelectCreatedSpace = await waitForSelection(createdSpace)
     XCTAssertTrue(didSelectCreatedSpace)
+
+    try await enterFullScreen()
 
     try clickContextMenuItem("Rename Space", on: createdSpace)
 
@@ -231,24 +237,30 @@ final class TabsSpacesUITests: SupatermUITestCase {
 
   @MainActor
   private func createSpace(named name: String) async throws {
-    let createButton = app.buttons[
+    let createButtonCandidate = app.buttons[
       SupatermUITestIdentifier.Accessibility.sidebarCreateSpaceButton
     ]
-    try XCTUnwrap(createButton.waitForExistence(timeout: 10) ? createButton : nil)
+    let createButton = try XCTUnwrap(
+      createButtonCandidate.waitForExistence(timeout: 10) ? createButtonCandidate : nil
+    )
     createButton.coordinate(
       withNormalizedOffset: CGVector(dx: 0.5, dy: 0.1)
     ).click()
 
-    let nameField = app.textFields[
+    let nameFieldCandidate = app.textFields[
       SupatermUITestIdentifier.Accessibility.dialogSpaceName
     ]
-    try XCTUnwrap(nameField.waitForExistence(timeout: 10) ? nameField : nil)
+    let nameField = try XCTUnwrap(
+      nameFieldCandidate.waitForExistence(timeout: 10) ? nameFieldCandidate : nil
+    )
     nameField.typeText(name)
 
-    let confirm = app.buttons[
+    let confirmCandidate = app.buttons[
       SupatermUITestIdentifier.Accessibility.dialogConfirm
     ]
-    try XCTUnwrap(confirm.waitForExistence(timeout: 10) ? confirm : nil)
+    let confirm = try XCTUnwrap(
+      confirmCandidate.waitForExistence(timeout: 10) ? confirmCandidate : nil
+    )
     confirm.click()
 
     let didDismissEditor = await wait(for: nameField) { !$0.exists }
@@ -257,8 +269,10 @@ final class TabsSpacesUITests: SupatermUITestCase {
 
   @MainActor
   private func enterFullScreen() async throws {
-    let button = mainWindow.buttons["Enter full screen"]
-    try XCTUnwrap(button.waitForExistence(timeout: 10) ? button : nil)
+    let buttonCandidate = mainWindow.buttons["Enter full screen"]
+    let button = try XCTUnwrap(
+      buttonCandidate.waitForExistence(timeout: 10) ? buttonCandidate : nil
+    )
     button.click()
 
     let createButton = app.buttons[
@@ -267,7 +281,16 @@ final class TabsSpacesUITests: SupatermUITestCase {
     let didMoveAboveDock = await wait(for: createButton) {
       $0.frame.maxY <= self.app.frame.maxY - 20
     }
-    try XCTUnwrap(didMoveAboveDock ? createButton : nil)
+    XCTAssertTrue(didMoveAboveDock)
+  }
+
+  @MainActor
+  private func exitFullScreen() async {
+    app.typeKey("f", modifierFlags: [.command, .control])
+
+    let spacesMenu = app.menuBars.menuBarItems["Spaces"]
+    let didShowMenu = await wait(for: spacesMenu) { $0.isHittable }
+    XCTAssertTrue(didShowMenu)
   }
 
   @MainActor
@@ -275,12 +298,16 @@ final class TabsSpacesUITests: SupatermUITestCase {
     _ identifier: SpaceMenuItem,
     timeout: TimeInterval = 10
   ) throws {
-    let spacesMenu = app.menuBars.menuBarItems["Spaces"]
-    try XCTUnwrap(spacesMenu.waitForExistence(timeout: timeout) ? spacesMenu : nil)
+    let spacesMenuCandidate = app.menuBars.menuBarItems["Spaces"]
+    let spacesMenu = try XCTUnwrap(
+      spacesMenuCandidate.waitForExistence(timeout: timeout) ? spacesMenuCandidate : nil
+    )
     spacesMenu.click()
 
-    let item = app.menuItems.matching(identifier: identifier.rawValue).firstMatch
-    try XCTUnwrap(item.waitForExistence(timeout: timeout) ? item : nil)
+    let itemCandidate = app.menuItems.matching(identifier: identifier.rawValue).firstMatch
+    let item = try XCTUnwrap(
+      itemCandidate.waitForExistence(timeout: timeout) ? itemCandidate : nil
+    )
     item.click()
   }
 
@@ -290,11 +317,15 @@ final class TabsSpacesUITests: SupatermUITestCase {
     on element: XCUIElement,
     timeout: TimeInterval = 10
   ) throws {
-    try XCTUnwrap(element.waitForExistence(timeout: timeout) ? element : nil)
-    element.rightClick()
+    let foundElement = try XCTUnwrap(
+      element.waitForExistence(timeout: timeout) ? element : nil
+    )
+    foundElement.rightClick()
 
-    let item = app.menuItems[title]
-    try XCTUnwrap(item.waitForExistence(timeout: timeout) ? item : nil)
+    let itemCandidate = app.menuItems[title]
+    let item = try XCTUnwrap(
+      itemCandidate.waitForExistence(timeout: timeout) ? itemCandidate : nil
+    )
     item.click()
   }
 
