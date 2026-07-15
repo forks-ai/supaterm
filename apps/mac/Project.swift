@@ -11,7 +11,7 @@ let zmxBuildScriptPath: Path = "scripts/build-zmx.sh"
 let zmxFingerprintPath: Path = ".build/zmx/fingerprint"
 
 let ghosttyFingerprintInputScript = """
-"${SRCROOT}/\(ghosttyBuildScriptPath.pathString)" --print-fingerprint
+"${SRCROOT:-$PWD}/\(ghosttyBuildScriptPath.pathString)" --print-fingerprint
 """
 
 let project = Project(
