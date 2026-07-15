@@ -67,6 +67,11 @@ final class PanesSplitsUITests: SupatermUITestCase {
     XCTAssertTrue(searchField.waitForExistence(timeout: 10))
     searchField.typeText("SPLITFOCUSNEEDLE")
     XCTAssertEqual(searchField.value as? String, "SPLITFOCUSNEEDLE")
+    let matchCount = app.staticTexts["terminal.search.match-count"]
+    let searchApplied = await wait(for: matchCount, timeout: .seconds(30)) {
+      $0.label == "-/0"
+    }
+    XCTAssertTrue(searchApplied)
 
     try clickMenuItem(.splitRight)
     let panes = try await requireVisiblePanes(count: 2)
