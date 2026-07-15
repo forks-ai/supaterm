@@ -27,6 +27,8 @@ E2E_RESULT_BUNDLE_PATH ?=
 E2E_RESULT_BUNDLE_FLAGS := $(if $(strip $(E2E_RESULT_BUNDLE_PATH)),-resultBundlePath "$(E2E_RESULT_BUNDLE_PATH)",)
 UI_RESULT_BUNDLE_PATH ?=
 UI_RESULT_BUNDLE_FLAGS := $(if $(strip $(UI_RESULT_BUNDLE_PATH)),-resultBundlePath "$(UI_RESULT_BUNDLE_PATH)",)
+UI_TEST_FILTERS ?=
+UI_TEST_FILTER_FLAGS := $(foreach filter,$(UI_TEST_FILTERS),-only-testing:supatermUITests/$(filter))
 LOGO_OUTPUT ?= /tmp/supaterm-lightning-logo.svg
 .DEFAULT_GOAL := help
 .PHONY: tuist-install tuist-generate tuist-generate-sources tuist-generate-release tuist-generate-release-cached build-ghostty build-zmx build-app build-app-demo build-snapshot-catalog run-app run-app-demo run-snapshot-catalog generate-lightning-logo-svg install-tip archive archive-xcodebuild export-archive format lint check test test-xcodebuild test-e2e test-e2e-xcodebuild test-ui test-ui-xcodebuild test-snapshots record-snapshots scan-dead-code inspect-dependencies warm-cache
@@ -191,9 +193,9 @@ test-ui: tuist-generate build-ghostty build-zmx test-ui-xcodebuild
 test-ui-xcodebuild:
 	@if [ -n "$(strip $(UI_RESULT_BUNDLE_PATH))" ]; then rm -rf "$(UI_RESULT_BUNDLE_PATH)"; fi
 	@if [ -t 1 ]; then \
-		bash -o pipefail -c 'xcodebuild test -workspace "$(PROJECT_WORKSPACE)" -scheme "supatermUITests" -destination "platform=macOS" $(UI_RESULT_BUNDLE_FLAGS) 2>&1 | mise exec -- xcbeautify --disable-logging'; \
+		bash -o pipefail -c 'xcodebuild test -workspace "$(PROJECT_WORKSPACE)" -scheme "supatermUITests" -destination "platform=macOS" $(UI_RESULT_BUNDLE_FLAGS) $(UI_TEST_FILTER_FLAGS) 2>&1 | mise exec -- xcbeautify --disable-logging'; \
 	else \
-		xcodebuild test -workspace "$(PROJECT_WORKSPACE)" -scheme "supatermUITests" -destination "platform=macOS" $(UI_RESULT_BUNDLE_FLAGS); \
+		xcodebuild test -workspace "$(PROJECT_WORKSPACE)" -scheme "supatermUITests" -destination "platform=macOS" $(UI_RESULT_BUNDLE_FLAGS) $(UI_TEST_FILTER_FLAGS); \
 	fi
 
 record-snapshots: tuist-generate build-ghostty # Record snapshot references.

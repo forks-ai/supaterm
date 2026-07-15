@@ -19,17 +19,32 @@ env:
 
 jobs:
   mac-test-ui:
-    name: mac-test-ui
+    name: mac-test-ui (${{ matrix.shard.name }})
     runs-on: macos-26
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        shard:
+          - name: core
+            filters: FoundationSmokeUITests SearchPasteUITests SessionRestoreUITests
+          - name: navigation
+            filters: TabsSpacesUITests PanesSplitsUITests CommandPaletteUITests
+          - name: surfaces
+            filters: SettingsUITests DialogsLifecycleUITests MenusFirstRunUITests
+          - name: agents
+            filters: AgentPanelUITests SearchClipboardUITests
     steps:
       - uses: actions/checkout@v6
         with:
           submodules: recursive
       - uses: ./.github/actions/setup-macos
       - run: make mac-test-ui UI_RESULT_BUNDLE_PATH="$RUNNER_TEMP/supatermUITests.xcresult"
+        env:
+          UI_TEST_FILTERS: ${{ matrix.shard.filters }}
       - if: failure()
         uses: actions/upload-artifact@v4
         with:
-          name: mac-test-ui-xcresult
+          name: mac-test-ui-xcresult-${{ matrix.shard.name }}
           path: ${{ runner.temp }}/supatermUITests.xcresult
           if-no-files-found: ignore
