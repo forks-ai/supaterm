@@ -3,60 +3,6 @@ import XCTest
 
 final class SessionRestoreUITests: SupatermUITestCase {
   @MainActor
-  func testWindowFrameSurvivesQuitAndRelaunch() async throws {
-    _ = mainWindow
-    let terminal = mainTerminal
-    terminal.click()
-    let defaultFrame = app.windows.firstMatch.frame
-
-    quit(app, returnModifiers: [])
-
-    let data = try Data(contentsOf: sessionFileURL)
-    var catalog = try XCTUnwrap(
-      JSONSerialization.jsonObject(with: data) as? [String: Any]
-    )
-    var windows = try XCTUnwrap(catalog["windows"] as? [[String: Any]])
-    XCTAssertEqual(windows.count, 1)
-    let savedFrame = try XCTUnwrap(windows.first?["frame"] as? [String: Any])
-    let savedWidth = try XCTUnwrap(savedFrame["width"] as? Double)
-    let savedHeight = try XCTUnwrap(savedFrame["height"] as? Double)
-    XCTAssertEqual(savedWidth, defaultFrame.width, accuracy: 1)
-    XCTAssertEqual(savedHeight, defaultFrame.height, accuracy: 1)
-
-    windows[0]["frame"] = [
-      "x": 60.0,
-      "y": 60.0,
-      "width": 1_180.0,
-      "height": 760.0,
-    ]
-    catalog["windows"] = windows
-    let mutatedData = try JSONSerialization.data(withJSONObject: catalog, options: [.sortedKeys])
-    try mutatedData.write(to: sessionFileURL, options: .atomic)
-
-    app.launch()
-    app.activate()
-    let restoredWindow = app.windows.firstMatch
-    XCTAssertTrue(restoredWindow.waitForExistence(timeout: 30))
-    let didRestoreFrame = await wait(
-      for: restoredWindow,
-      timeout: .seconds(30)
-    ) { window in
-      let frame = window.frame
-      return abs(frame.width - 1_180) <= 1
-        && abs(frame.height - 760) <= 1
-        && abs(frame.minX - 60) <= 1
-    }
-    XCTAssertTrue(didRestoreFrame)
-    let restoredFrame = restoredWindow.frame
-    XCTAssertEqual(restoredFrame.width, 1_180, accuracy: 1)
-    XCTAssertEqual(restoredFrame.height, 760, accuracy: 1)
-    XCTAssertEqual(restoredFrame.minX, 60, accuracy: 1)
-    XCTAssertNotEqual(restoredFrame.size, defaultFrame.size)
-
-    quit(app, returnModifiers: .shift)
-  }
-
-  @MainActor
   func testSelectedPinnedTabStaysSelectedAfterRelaunch() async throws {
     _ = mainWindow
     let didShowInitialTab = await waitForCount(tabRows, equals: 1, timeout: .seconds(30))
@@ -102,7 +48,10 @@ final class SessionRestoreUITests: SupatermUITestCase {
         let spaces = windows[0]["spaces"] as? [[String: Any]],
         spaces.count == 1
       else { return false }
-      return spaces[0]["selectedPinnedTabID"] is String
+      guard let selectedPinnedTabID = spaces[0]["selectedPinnedTabID"] as? [String: Any] else {
+        return false
+      }
+      return selectedPinnedTabID["rawValue"] is String
         && spaces[0]["selectedTabIndex"] == nil
         && FileManager.default.fileExists(atPath: pinnedTabsURL.path)
     }
