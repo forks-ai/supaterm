@@ -60,12 +60,13 @@ final class AgentPanelUITests: SupatermUITestCase {
     await assertEventually(secondTab, timeout: Self.coldStartTimeout) {
       $0.exists && $0.isHittable && $0.isSelected
     }
+    await selectTab(firstTab)
+    await selectTab(secondTab)
     await assertEventually(firstTab, timeout: Self.coldStartTimeout) {
       $0.label.contains("Agent activity: Needs input")
     }
 
-    firstTab.click()
-    await assertEventually(firstTab, timeout: Self.coldStartTimeout) { $0.isSelected }
+    await selectTab(firstTab)
     try await sendClaudeEvent("stop")
 
     await assertEventually(firstTab, timeout: Self.coldStartTimeout) {
@@ -73,6 +74,12 @@ final class AgentPanelUITests: SupatermUITestCase {
     }
     try await sendClaudeEvent("session-end")
     try await assertAgentPanelMenuItem(isEnabled: false)
+  }
+
+  @MainActor
+  private func selectTab(_ tab: XCUIElement) async {
+    tab.click()
+    await assertEventually(tab, timeout: Self.coldStartTimeout) { $0.isSelected }
   }
 
   @MainActor
