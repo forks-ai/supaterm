@@ -181,6 +181,7 @@ struct GhosttySurfaceSearchOverlay: View {
   }
 
   private func emitSearch(_ needle: String) {
+    state.searchNeedle = needle
     surfaceView.performBindingAction("search:\(needle)")
   }
 
@@ -349,11 +350,9 @@ private struct GhosttySearchField: NSViewRepresentable {
     var onSubmit: ((Bool) -> Void)?
     var onEscape: (() -> Void)?
     private weak var accessibilitySurfaceView: GhosttySurfaceView?
-    private var originalAccessibilityChildren: [Any]?
     private var matchCountAccessibilityElement: NSAccessibilityElement?
 
     func installAccessibility(on surfaceView: GhosttySurfaceView) {
-      originalAccessibilityChildren = surfaceView.accessibilityChildren()
       accessibilitySurfaceView = surfaceView
       setAccessibilityParent(surfaceView)
 
@@ -369,7 +368,11 @@ private struct GhosttySearchField: NSViewRepresentable {
       matchCountAccessibilityElement = matchCountElement
 
       surfaceView.setAccessibilityChildren(
-        (originalAccessibilityChildren ?? []) + [self, matchCountElement]
+        (surfaceView.accessibilityChildren() ?? []).filter {
+          !($0 is SearchField)
+            && ($0 as? NSAccessibilityElement)?.accessibilityIdentifier()
+              != "terminal.search.match-count"
+        } + [self, matchCountElement]
       )
     }
 
@@ -385,10 +388,21 @@ private struct GhosttySearchField: NSViewRepresentable {
     }
 
     func uninstallAccessibility() {
-      accessibilitySurfaceView?.setAccessibilityChildren(originalAccessibilityChildren)
+      if let accessibilitySurfaceView {
+        accessibilitySurfaceView.setAccessibilityChildren(
+          (accessibilitySurfaceView.accessibilityChildren() ?? []).filter { child in
+            if (child as AnyObject) === self { return false }
+            if let matchCountAccessibilityElement,
+              (child as AnyObject) === matchCountAccessibilityElement
+            {
+              return false
+            }
+            return true
+          }
+        )
+      }
       setAccessibilityParent(nil)
       accessibilitySurfaceView = nil
-      originalAccessibilityChildren = nil
       matchCountAccessibilityElement = nil
     }
 
