@@ -1,0 +1,135 @@
+name: ci
+
+on:
+  workflow_call: {}
+  workflow_dispatch: {}
+  push:
+    branches:
+      - main
+    paths-ignore:
+      - "**/*.md"
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: read
+  id-token: write
+
+env:
+  MISE_HTTP_TIMEOUT: 120
+  MISE_GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+jobs:
+  swiftlint:
+    name: swiftlint
+    runs-on: macos-26
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          submodules: recursive
+      - uses: ./.github/actions/setup-macos
+      - run: make swiftlint
+
+  mac_scan_dead_code:
+    name: mac-scan-dead-code
+    runs-on: macos-26
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          submodules: recursive
+      - uses: ./.github/actions/setup-macos
+      - run: make mac-scan-dead-code
+
+  mac_test:
+    name: mac-test
+    runs-on: macos-26
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          submodules: recursive
+      - uses: ./.github/actions/setup-macos
+      - run: make mac-test
+
+  mac_test_e2e:
+    name: mac-test-e2e
+    runs-on: macos-26
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          submodules: recursive
+      - uses: ./.github/actions/setup-macos
+      - run: make mac-test-e2e E2E_RESULT_BUNDLE_PATH="$RUNNER_TEMP/supatermE2E.xcresult"
+      - if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: mac-test-e2e-xcresult
+          path: ${{ runner.temp }}/supatermE2E.xcresult
+          if-no-files-found: ignore
+
+  mac_test_ui_build:
+    name: mac-test-ui-build
+    runs-on: macos-26
+    timeout-minutes: 60
+    outputs:
+      matrix: ${{ steps.build.outputs.matrix }}
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          submodules: recursive
+      - uses: ./.github/actions/setup-macos
+      - run: make -C apps/mac build-ghostty build-zmx
+      - id: build
+        run: mise exec -- tuist test supatermUITests --build-only --shard-total 4 --shard-granularity suite
+        working-directory: apps/mac
+
+  mac_test_ui:
+    name: mac-test-ui (${{ matrix.shard }})
+    needs: mac_test_ui_build
+    if: toJSON(fromJSON(needs.mac_test_ui_build.outputs.matrix).shard) != '[]'
+    runs-on: macos-26
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: ${{ fromJson(needs.mac_test_ui_build.outputs.matrix).shard }}
+    env:
+      TUIST_SHARD_INDEX: ${{ matrix.shard }}
+    steps:
+      - uses: actions/checkout@v6
+      - uses: ./.github/actions/setup-macos
+      - run: mise exec -- tuist test --without-building --result-bundle-path "$RUNNER_TEMP/supatermUITests.xcresult" -- -destination "platform=macOS"
+        working-directory: apps/mac
+      - if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: mac-test-ui-xcresult-${{ matrix.shard }}
+          path: ${{ runner.temp }}/supatermUITests.xcresult
+          if-no-files-found: ignore
+
+  required_checks:
+    name: required-checks
+    if: always()
+    needs:
+      - swiftlint
+      - mac_scan_dead_code
+      - mac_test
+      - mac_test_e2e
+      - mac_test_ui_build
+      - mac_test_ui
+    runs-on: ubuntu-latest
+    env:
+      SWIFTLINT: ${{ needs.swiftlint.result }}
+      DEAD_CODE: ${{ needs.mac_scan_dead_code.result }}
+      UNIT: ${{ needs.mac_test.result }}
+      E2E: ${{ needs.mac_test_e2e.result }}
+      UI_BUILD: ${{ needs.mac_test_ui_build.result }}
+      UI: ${{ needs.mac_test_ui.result }}
+    steps:
+      - run: |
+          test "$SWIFTLINT" = success
+          test "$DEAD_CODE" = success
+          test "$UNIT" = success
+          test "$E2E" = success
+          test "$UI_BUILD" = success
+          test "$UI" = success

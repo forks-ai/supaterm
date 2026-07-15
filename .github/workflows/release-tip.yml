@@ -1,29 +1,25 @@
 name: release-tip
 
 on:
-  push:
+  workflow_run:
+    workflows:
+      - ci
+    types:
+      - completed
     branches:
       - main
-    paths-ignore:
-      - "**/*.md"
-  workflow_dispatch: {}
 
 concurrency:
-  group: ${{ github.workflow }}
+  group: ${{ github.event.workflow_run.conclusion == 'success' && 'release-tip' || github.run_id }}
   cancel-in-progress: true
 
-jobs:
-  gate:
-    runs-on: ubuntu-latest
-    env:
-      GH_TOKEN: ${{ github.token }}
-    steps:
-      - uses: actions/checkout@v6
-      - run: bash .github/scripts/require_green_checks.sh "${{ github.sha }}"
+env:
+  RELEASE_SHA: ${{ github.event.workflow_run.head_sha }}
 
+jobs:
   build:
+    if: github.event.workflow_run.conclusion == 'success' && (github.event.workflow_run.event == 'push' || github.event.workflow_run.event == 'workflow_dispatch')
     runs-on: macos-26
-    needs: [gate]
     permissions:
       contents: read
       id-token: write
@@ -44,6 +40,7 @@ jobs:
     steps:
       - uses: actions/checkout@v6
         with:
+          ref: ${{ env.RELEASE_SHA }}
           submodules: recursive
       - uses: ./.github/actions/setup-macos
       - name: Compute tip build number
@@ -202,6 +199,8 @@ jobs:
       POSTHOG_CLI_API_KEY: ${{ secrets.POSTHOG_CLI_API_KEY }}
     steps:
       - uses: actions/checkout@v6
+        with:
+          ref: ${{ env.RELEASE_SHA }}
       - name: Resolve PostHog credentials
         id: posthog-credentials
         run: |
@@ -250,6 +249,7 @@ jobs:
     steps:
       - uses: actions/checkout@v6
         with:
+          ref: ${{ env.RELEASE_SHA }}
           fetch-depth: 0
       - uses: actions/download-artifact@v7
         with:
@@ -259,12 +259,12 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git tag -fa tip -m "Latest Continuous Release" ${{ github.sha }}
+          git tag -fa tip -m "Latest Continuous Release" "$RELEASE_SHA"
           git push --force origin tip
       - name: Update tip release
         run: |
-          gh release create tip --prerelease --title "Supaterm Tip" --target "${{ github.sha }}" --notes "" -R "${{ github.repository }}" 2>/dev/null || \
-          gh release edit tip --prerelease --title "Supaterm Tip" --target "${{ github.sha }}" -R "${{ github.repository }}"
+          gh release create tip --prerelease --title "Supaterm Tip" --target "$RELEASE_SHA" --notes "" -R "${{ github.repository }}" 2>/dev/null || \
+          gh release edit tip --prerelease --title "Supaterm Tip" --target "$RELEASE_SHA" -R "${{ github.repository }}"
           gh release upload tip apps/mac/build/supaterm.dmg apps/mac/build/supaterm.app.zip apps/mac/build/appcast.xml apps/mac/build/checksums.json --clobber -R "${{ github.repository }}"
       - name: Merge tip item into stable appcast
         run: |
