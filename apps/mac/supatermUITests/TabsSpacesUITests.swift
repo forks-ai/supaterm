@@ -115,9 +115,7 @@ final class TabsSpacesUITests: SupatermUITestCase {
 
     let deleteTitle = app.staticTexts["Delete Space \"Renamed UI Space\"?"]
     XCTAssertTrue(deleteTitle.waitForExistence(timeout: 10))
-    let deleteButton = app.buttons[
-      SupatermUITestIdentifier.Accessibility.dialogConfirm
-    ]
+    let deleteButton = mainWindow.buttons["Delete"]
     XCTAssertTrue(deleteButton.waitForExistence(timeout: 10))
     deleteButton.click()
 
