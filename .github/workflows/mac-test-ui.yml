@@ -18,33 +18,42 @@ env:
   MISE_GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
 jobs:
-  mac-test-ui:
-    name: mac-test-ui (${{ matrix.shard.name }})
+  build:
+    name: mac-test-ui-build
     runs-on: macos-26
     timeout-minutes: 60
-    strategy:
-      fail-fast: false
-      matrix:
-        shard:
-          - name: core
-            filters: FoundationSmokeUITests SearchPasteUITests SessionRestoreUITests
-          - name: navigation
-            filters: TabsSpacesUITests PanesSplitsUITests CommandPaletteUITests
-          - name: surfaces
-            filters: SettingsUITests DialogsLifecycleUITests MenusFirstRunUITests
-          - name: agents
-            filters: AgentPanelUITests SearchClipboardUITests
+    outputs:
+      matrix: ${{ steps.build.outputs.matrix }}
     steps:
       - uses: actions/checkout@v6
         with:
           submodules: recursive
       - uses: ./.github/actions/setup-macos
-      - run: make mac-test-ui UI_RESULT_BUNDLE_PATH="$RUNNER_TEMP/supatermUITests.xcresult"
-        env:
-          UI_TEST_FILTERS: ${{ matrix.shard.filters }}
+      - run: make -C apps/mac build-ghostty build-zmx
+      - id: build
+        run: mise exec -- tuist test supatermUITests --build-only --shard-total 4 --shard-granularity suite
+        working-directory: apps/mac
+
+  test:
+    name: mac-test-ui (${{ matrix.shard }})
+    needs: build
+    if: toJSON(fromJSON(needs.build.outputs.matrix).shard) != '[]'
+    runs-on: macos-26
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: ${{ fromJson(needs.build.outputs.matrix).shard }}
+    env:
+      TUIST_SHARD_INDEX: ${{ matrix.shard }}
+    steps:
+      - uses: actions/checkout@v6
+      - uses: ./.github/actions/setup-macos
+      - run: mise exec -- tuist test --without-building --result-bundle-path "$RUNNER_TEMP/supatermUITests.xcresult"
+        working-directory: apps/mac
       - if: failure()
         uses: actions/upload-artifact@v4
         with:
-          name: mac-test-ui-xcresult-${{ matrix.shard.name }}
+          name: mac-test-ui-xcresult-${{ matrix.shard }}
           path: ${{ runner.temp }}/supatermUITests.xcresult
           if-no-files-found: ignore
