@@ -82,6 +82,8 @@ UI tests in `apps/mac/supatermUITests` launch an isolated app through XCTest and
 
 Use `$SUPATERM_CLI_PATH` inside Supaterm panes to call the Debug CLI injected by the running app instead of an installed `sp`:
 
+Note: Avoid running UI test locally, run it on CI instead.
+
 ```bash
 "$SUPATERM_CLI_PATH" diagnostic
 ```
