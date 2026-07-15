@@ -32,18 +32,10 @@ final class AgentPanelUITests: SupatermUITestCase {
 
   @MainActor
   func testClaudeLifecycleUpdatesSidebarAndPanel() async throws {
-    let terminal = mainTerminal
-    await assertEventually(terminal, timeout: Self.coldStartTimeout) {
-      $0.exists && $0.isHittable
-    }
-
     let tabRows = app.buttons.matching(
       identifier: SupatermUITestIdentifier.Accessibility.sidebarTabRow
     )
-    let firstTab = tabRows.element(boundBy: 0)
-    await assertEventually(firstTab, timeout: Self.coldStartTimeout) {
-      $0.exists && $0.isHittable
-    }
+    let firstTab = await requireFirstTab()
 
     try await sendClaudeEvent("session-start")
     try await sendClaudeEvent("user-prompt-submit")
@@ -77,6 +69,86 @@ final class AgentPanelUITests: SupatermUITestCase {
   }
 
   @MainActor
+  func testNewSessionInSamePaneReplacesForegroundAgentSession() async throws {
+    let firstTab = await requireFirstTab()
+
+    try await sendClaudeEvent("session-start", sessionID: "fork-parent-session")
+    try await sendClaudeEvent("user-prompt-submit", sessionID: "fork-parent-session")
+    await assertEventually(firstTab, timeout: Self.coldStartTimeout) {
+      $0.label.contains("Agent activity: Running")
+    }
+
+    try await sendClaudeEvent("session-start", sessionID: "fork-child-session")
+    await assertEventually(firstTab, timeout: Self.coldStartTimeout) {
+      !$0.label.contains("Agent activity:")
+    }
+
+    try await sendClaudeEvent("user-prompt-submit", sessionID: "fork-child-session")
+    await assertEventually(firstTab, timeout: Self.coldStartTimeout) {
+      $0.label.contains("Agent activity: Running")
+    }
+
+    try await sendClaudeEvent("stop", sessionID: "fork-child-session")
+    await assertEventually(firstTab, timeout: Self.coldStartTimeout) {
+      $0.label.contains("Done.") && !$0.label.contains("Agent activity:")
+    }
+
+    try await sendClaudeEvent("session-end", sessionID: "fork-child-session")
+    try await sendClaudeEvent("session-end", sessionID: "fork-parent-session")
+    try await assertAgentPanelMenuItem(isEnabled: false)
+  }
+
+  @MainActor
+  func testSessionStartKeepsAgentIdleUntilPromptSubmit() async throws {
+    let firstTab = await requireFirstTab()
+
+    try await sendClaudeEvent("session-start")
+    try await assertAgentPanelMenuItem(isEnabled: true)
+    XCTAssertFalse(firstTab.label.contains("Agent activity:"))
+
+    try await sendClaudeEvent("user-prompt-submit")
+    await assertEventually(firstTab, timeout: Self.coldStartTimeout) {
+      $0.label.contains("Agent activity: Running")
+    }
+
+    try await sendClaudeEvent("stop")
+    try await sendClaudeEvent("session-end")
+    try await assertAgentPanelMenuItem(isEnabled: false)
+  }
+
+  @MainActor
+  func testForkedClaudeSessionRecoversSidebarActivityWithoutSessionStart() async throws {
+    let firstTab = await requireFirstTab()
+
+    try await sendClaudeEvent("session-start", sessionID: "parent-session")
+    try await sendClaudeEvent("user-prompt-submit", sessionID: "forked-session")
+    await assertEventually(firstTab, timeout: Self.coldStartTimeout) {
+      $0.label.contains("Agent activity: Running")
+    }
+
+    try await sendClaudeEvent("stop", sessionID: "forked-session")
+    await assertEventually(firstTab, timeout: Self.coldStartTimeout) {
+      $0.label.contains("Done.") && !$0.label.contains("Agent activity:")
+    }
+  }
+
+  @MainActor
+  private func requireFirstTab() async -> XCUIElement {
+    let terminal = mainTerminal
+    await assertEventually(terminal, timeout: Self.coldStartTimeout) {
+      $0.exists && $0.isHittable
+    }
+
+    let firstTab = app.buttons.matching(
+      identifier: SupatermUITestIdentifier.Accessibility.sidebarTabRow
+    ).element(boundBy: 0)
+    await assertEventually(firstTab, timeout: Self.coldStartTimeout) {
+      $0.exists && $0.isHittable
+    }
+    return firstTab
+  }
+
+  @MainActor
   private func selectTab(_ tab: XCUIElement) async {
     tab.click()
     await assertEventually(tab, timeout: Self.coldStartTimeout) { $0.isSelected }
@@ -97,7 +169,10 @@ final class AgentPanelUITests: SupatermUITestCase {
   }
 
   @MainActor
-  private func sendClaudeEvent(_ event: String) async throws {
+  private func sendClaudeEvent(
+    _ event: String,
+    sessionID: String = AgentPanelUITests.sessionID
+  ) async throws {
     let terminal = mainTerminal
     await assertEventually(terminal, timeout: Self.coldStartTimeout) {
       $0.exists && $0.isHittable
@@ -106,11 +181,11 @@ final class AgentPanelUITests: SupatermUITestCase {
     terminal.click()
     terminal.typeText(
       "\"$SUPATERM_CLI_PATH\" internal dev claude \(event)"
-        + " --socket \"$SUPATERM_SOCKET_PATH\" --session-id \(Self.sessionID)"
+        + " --socket \"$SUPATERM_SOCKET_PATH\" --session-id \(sessionID)"
     )
     terminal.typeKey(.return, modifierFlags: [])
 
-    let expectedOutput = "sent \(event) for session \(Self.sessionID)"
+    let expectedOutput = "sent \(event) for session \(sessionID)"
     await assertEventually(terminal, timeout: Self.coldStartTimeout) {
       ($0.value as? String)?.contains(expectedOutput) == true
     }
