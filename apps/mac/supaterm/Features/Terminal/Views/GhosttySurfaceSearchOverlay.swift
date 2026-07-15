@@ -28,13 +28,15 @@ struct GhosttySurfaceSearchOverlay: View {
       ZStack(alignment: corner.alignment) {
         HStack(spacing: 4) {
           GhosttySearchField(
+            surfaceView: surfaceView,
             text: $searchText,
             focusRequest: searchFocusRequest,
+            matchLabel: matchLabelText,
             onSubmit: { isShifted in
               navigateSearch(isShifted ? .previous : .next)
             },
             onEscape: {
-              surfaceView.requestFocus()
+              closeSearch()
             }
           )
           .frame(width: 180)
@@ -56,6 +58,7 @@ struct GhosttySurfaceSearchOverlay: View {
               systemImage: "chevron.up"
             )
           }
+          .accessibilityIdentifier("terminal.search.next")
           .buttonStyle(GhosttySearchButtonStyle())
 
           Button {
@@ -67,6 +70,7 @@ struct GhosttySurfaceSearchOverlay: View {
               systemImage: "chevron.down"
             )
           }
+          .accessibilityIdentifier("terminal.search.previous")
           .buttonStyle(GhosttySearchButtonStyle())
 
           Button {
@@ -78,6 +82,7 @@ struct GhosttySurfaceSearchOverlay: View {
               systemImage: "xmark"
             )
           }
+          .accessibilityIdentifier("terminal.search.close")
           .buttonStyle(GhosttySearchButtonStyle())
         }
         .padding(8)
@@ -139,18 +144,21 @@ struct GhosttySurfaceSearchOverlay: View {
 
   @ViewBuilder
   private var matchLabel: some View {
-    if let selected = state.searchSelected {
-      let totalLabel = state.searchTotal.map { String($0) } ?? "?"
-      Text("\(selected + 1)/\(totalLabel)")
+    if let matchLabelText {
+      Text(matchLabelText)
         .font(.caption)
         .foregroundStyle(.secondary)
         .padding(.trailing, 8)
-    } else if let total = state.searchTotal {
-      Text("-/\(total)")
-        .font(.caption)
-        .foregroundStyle(.secondary)
-        .padding(.trailing, 8)
+        .accessibilityIdentifier("terminal.search.match-count")
     }
+  }
+
+  private var matchLabelText: String? {
+    if let selected = state.searchSelected {
+      let total = state.searchTotal.map(String.init) ?? "?"
+      return "\(selected + 1)/\(total)"
+    }
+    return state.searchTotal.map { "-/\($0)" }
   }
 
   private func scheduleSearch(_ needle: String) {
@@ -183,6 +191,7 @@ struct GhosttySurfaceSearchOverlay: View {
 
   private func closeSearch() {
     surfaceView.performBindingAction("end_search")
+    surfaceView.requestFocus()
   }
 
   private func flushPendingSearch() {
@@ -276,8 +285,10 @@ private struct SearchButtonLabel: View {
 }
 
 private struct GhosttySearchField: NSViewRepresentable {
+  let surfaceView: GhosttySurfaceView
   @Binding var text: String
   var focusRequest: Int
+  var matchLabel: String?
   var onSubmit: (Bool) -> Void
   var onEscape: () -> Void
 
@@ -287,6 +298,7 @@ private struct GhosttySearchField: NSViewRepresentable {
 
   func makeNSView(context: Context) -> SearchField {
     let field = SearchField()
+    field.setAccessibilityIdentifier("terminal.search.field")
     field.delegate = context.coordinator
     field.onSubmit = onSubmit
     field.onEscape = onEscape
@@ -297,6 +309,7 @@ private struct GhosttySearchField: NSViewRepresentable {
     field.usesSingleLineMode = true
     field.lineBreakMode = .byTruncatingTail
     field.font = .systemFont(ofSize: NSFont.systemFontSize, weight: .regular)
+    field.installAccessibility(on: surfaceView)
     return field
   }
 
@@ -306,11 +319,16 @@ private struct GhosttySearchField: NSViewRepresentable {
     }
     nsView.onSubmit = onSubmit
     nsView.onEscape = onEscape
+    nsView.updateAccessibility(matchLabel: matchLabel)
 
     if context.coordinator.focusRequest != focusRequest, let window = nsView.window {
       context.coordinator.focusRequest = focusRequest
       window.makeFirstResponder(nsView)
     }
+  }
+
+  static func dismantleNSView(_ nsView: SearchField, coordinator _: Coordinator) {
+    nsView.uninstallAccessibility()
   }
 
   final class Coordinator: NSObject, NSTextFieldDelegate {
@@ -330,6 +348,49 @@ private struct GhosttySearchField: NSViewRepresentable {
   final class SearchField: NSTextField {
     var onSubmit: ((Bool) -> Void)?
     var onEscape: (() -> Void)?
+    private weak var accessibilitySurfaceView: GhosttySurfaceView?
+    private var originalAccessibilityChildren: [Any]?
+    private var matchCountAccessibilityElement: NSAccessibilityElement?
+
+    func installAccessibility(on surfaceView: GhosttySurfaceView) {
+      originalAccessibilityChildren = surfaceView.accessibilityChildren()
+      accessibilitySurfaceView = surfaceView
+      setAccessibilityParent(surfaceView)
+
+      guard
+        let matchCountElement = NSAccessibilityElement.element(
+          withRole: .staticText,
+          frame: .zero,
+          label: nil,
+          parent: surfaceView
+        ) as? NSAccessibilityElement
+      else { return }
+      matchCountElement.setAccessibilityIdentifier("terminal.search.match-count")
+      matchCountAccessibilityElement = matchCountElement
+
+      surfaceView.setAccessibilityChildren(
+        (originalAccessibilityChildren ?? []) + [self, matchCountElement]
+      )
+    }
+
+    func updateAccessibility(matchLabel: String?) {
+      guard let matchCountAccessibilityElement else { return }
+      matchCountAccessibilityElement.setAccessibilityLabel(matchLabel)
+      matchCountAccessibilityElement.setAccessibilityValue(matchLabel)
+      guard let window else { return }
+      var frame = window.convertToScreen(convert(bounds, to: nil))
+      frame.origin.x += frame.width - 50
+      frame.size.width = 50
+      matchCountAccessibilityElement.setAccessibilityFrame(frame)
+    }
+
+    func uninstallAccessibility() {
+      accessibilitySurfaceView?.setAccessibilityChildren(originalAccessibilityChildren)
+      setAccessibilityParent(nil)
+      accessibilitySurfaceView = nil
+      originalAccessibilityChildren = nil
+      matchCountAccessibilityElement = nil
+    }
 
     override func cancelOperation(_ sender: Any?) {
       onEscape?()

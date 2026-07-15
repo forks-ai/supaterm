@@ -160,8 +160,10 @@ final class GhosttyClipboardConfirmationCoordinator {
     alert.accessoryView = scrollView
 
     let confirmButton = alert.addButton(withTitle: presentation.confirmTitle)
+    confirmButton.setAccessibilityIdentifier("terminal.clipboard-confirmation.confirm")
     confirmButton.keyEquivalent = "\r"
     let cancelButton = alert.addButton(withTitle: presentation.cancelTitle)
+    cancelButton.setAccessibilityIdentifier("terminal.clipboard-confirmation.cancel")
     cancelButton.keyEquivalent = "\u{1b}"
     return alert
   }
