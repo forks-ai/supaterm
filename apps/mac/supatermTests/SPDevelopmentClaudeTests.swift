@@ -41,7 +41,7 @@ struct SPDevelopmentClaudeTests {
 
     #expect(event.hookEventName == .notification)
     #expect(event.message == "Claude needs your attention")
-    #expect(event.notificationType == "request_input")
+    #expect(event.notificationType == "permission_prompt")
     #expect(event.sessionID == "debug-session")
     #expect(event.title == "Needs input")
   }
