@@ -72,7 +72,8 @@ final class PanesSplitsUITests: SupatermUITestCase {
     let panes = try await requireVisiblePanes(count: 2)
     let newPane = try XCTUnwrap(panes.first { $0.identifier != originalIdentifier })
 
-    XCTAssertTrue(searchField.waitForExistence(timeout: 10))
+    let remountedSearchField = app.textFields["terminal.search.field"]
+    XCTAssertTrue(remountedSearchField.waitForExistence(timeout: 10))
     try await requireFocus(on: newPane)
 
     app.typeText(
@@ -83,7 +84,7 @@ final class PanesSplitsUITests: SupatermUITestCase {
       ($0.value as? String)?.contains("SPLITFOCUSMARKER") == true
     }
     XCTAssertTrue(markerPrinted)
-    XCTAssertEqual(searchField.value as? String, "SPLITFOCUSNEEDLE")
+    XCTAssertEqual(remountedSearchField.value as? String, "SPLITFOCUSNEEDLE")
   }
 
   @MainActor
