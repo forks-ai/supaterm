@@ -3,29 +3,30 @@ import XCTest
 
 final class AgentPanelUITests: SupatermUITestCase {
   private static let sessionID = "agent-panel-ui-tests"
+  private static let panelToggleDifference = 0.01
 
   @MainActor
   func testCommandIAndMenuItemToggleAgentPanel() async throws {
     _ = mainWindow
     try await sendClaudeEvent("session-start")
+    try await assertAgentPanelMenuItem(isEnabled: true)
 
-    let expandedPanel = try await requireSettledPanelPixels()
-
-    app.typeKey("i", modifierFlags: .command)
-    let collapsedPanel = try await requireSettledPanelPixels()
-    let collapsedDifference = expandedPanel.difference(from: collapsedPanel)
-    XCTAssertGreaterThan(collapsedDifference, 0.002)
+    let expandedPanel = try XCTUnwrap(panelPixels())
 
     app.typeKey("i", modifierFlags: .command)
-    let restoredPanel = try await requireSettledPanelPixels()
-    XCTAssertLessThan(
-      expandedPanel.difference(from: restoredPanel),
-      collapsedDifference / 4
-    )
+    _ = try await requirePanelPixels {
+      expandedPanel.difference(from: $0) > Self.panelToggleDifference
+    }
+
+    app.typeKey("i", modifierFlags: .command)
+    _ = try await requirePanelPixels {
+      expandedPanel.difference(from: $0) < Self.panelToggleDifference / 2
+    }
 
     try clickMenuItem(.toggleAgentPanel)
-    let menuCollapsedPanel = try await requireSettledPanelPixels()
-    XCTAssertGreaterThan(expandedPanel.difference(from: menuCollapsedPanel), 0.002)
+    _ = try await requirePanelPixels {
+      expandedPanel.difference(from: $0) > Self.panelToggleDifference
+    }
   }
 
   @MainActor
@@ -110,34 +111,18 @@ final class AgentPanelUITests: SupatermUITestCase {
   }
 
   @MainActor
-  private func settledPanelPixels(
-    timeout: Duration = .seconds(5)
-  ) async -> PanelPixels? {
-    guard var previous = panelPixels() else { return nil }
-    let clock = ContinuousClock()
-    let deadline = clock.now.advanced(by: timeout)
-    var stableSampleCount = 0
-
-    while clock.now < deadline {
-      try? await Task.sleep(for: .milliseconds(100))
-      guard let current = panelPixels() else { return nil }
-      if previous.difference(from: current) < 0.0001 {
-        stableSampleCount += 1
-        if stableSampleCount == 3 {
-          return current
-        }
-      } else {
-        stableSampleCount = 0
-      }
-      previous = current
+  private func requirePanelPixels(
+    timeout: Duration = .seconds(5),
+    until condition: (PanelPixels) -> Bool
+  ) async throws -> PanelPixels {
+    var matchingPixels: PanelPixels?
+    let terminal = app.textViews.firstMatch
+    _ = await wait(for: terminal, timeout: timeout) { _ in
+      guard let pixels = panelPixels(), condition(pixels) else { return false }
+      matchingPixels = pixels
+      return true
     }
-    return nil
-  }
-
-  @MainActor
-  private func requireSettledPanelPixels() async throws -> PanelPixels {
-    let pixels = await settledPanelPixels()
-    return try XCTUnwrap(pixels)
+    return try XCTUnwrap(matchingPixels)
   }
 
   @MainActor
