@@ -249,6 +249,11 @@ final class TabsSpacesUITests: SupatermUITestCase {
     XCTAssertTrue(didShowRunning)
 
     try await sendClaudeEvent("stop")
+    let didBecomeIdle = await wait(for: row, timeout: Self.coldStartTimeout) {
+      !$0.label.contains("Agent activity:")
+    }
+    XCTAssertTrue(didBecomeIdle)
+    mainTerminal.click()
     let didRestorePinned = await wait(for: row, timeout: Self.coldStartTimeout) {
       $0.label.contains("Pinned") && !$0.label.contains("Agent activity:")
     }
@@ -278,7 +283,7 @@ final class TabsSpacesUITests: SupatermUITestCase {
   }
 
   @MainActor
-  func testDraggingRegularTabReordersSidebarRows() async throws {
+  func testDraggingTabReordersRegularSectionAndPinsAcrossSections() async throws {
     try await createNamedTabs(["First UI Tab", "Second UI Tab", "Third UI Tab"])
 
     let firstTab = tabRow(named: "First UI Tab", in: regularSection)
@@ -287,6 +292,19 @@ final class TabsSpacesUITests: SupatermUITestCase {
 
     let didReorder = await waitForTabOrder(["Second UI Tab", "Third UI Tab", "First UI Tab"])
     XCTAssertTrue(didReorder)
+
+    let secondTab = tabRow(named: "Second UI Tab", in: regularSection)
+    try clickContextMenuItem("Pin Tab", on: secondTab)
+    let didPinSecondTab = await waitForTab(named: "Second UI Tab", in: pinnedSection)
+    XCTAssertTrue(didPinSecondTab)
+
+    let thirdTabInRegularSection = tabRow(named: "Third UI Tab", in: regularSection)
+    let secondTabInPinnedSection = tabRow(named: "Second UI Tab", in: pinnedSection)
+    thirdTabInRegularSection.press(forDuration: 0.5, thenDragTo: secondTabInPinnedSection)
+
+    let didPinThirdTab = await waitForTab(named: "Third UI Tab", in: pinnedSection)
+    XCTAssertTrue(didPinThirdTab)
+    XCTAssertFalse(tabRow(named: "Third UI Tab", in: regularSection).exists)
   }
 
   @MainActor
