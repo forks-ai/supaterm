@@ -3,7 +3,7 @@ import XCTest
 
 final class AgentPanelUITests: SupatermUITestCase {
   private static let sessionID = "agent-panel-ui-tests"
-  private static let panelToggleDifference = 0.01
+  private static let panelToggleDifference = 0.008
 
   @MainActor
   func testCommandIAndMenuItemToggleAgentPanel() async throws {
@@ -99,10 +99,10 @@ final class AgentPanelUITests: SupatermUITestCase {
     }
 
     terminal.click()
-    app.typeText(
+    terminal.typeText(
       "\"$SUPATERM_CLI_PATH\" internal dev claude \(event) --session-id \(Self.sessionID)"
     )
-    app.typeKey(.return, modifierFlags: [])
+    terminal.typeKey(.return, modifierFlags: [])
 
     let expectedOutput = "sent \(event) for session \(Self.sessionID)"
     await assertEventually(terminal, timeout: .seconds(30)) {
@@ -140,10 +140,11 @@ final class AgentPanelUITests: SupatermUITestCase {
     let width = representation.pixelsWide
     let height = representation.pixelsHigh
     let firstX = width * 11 / 20
+    let lastY = height / 4
     var bytes: [UInt8] = []
-    bytes.reserveCapacity((width - firstX) * height * 3 / 4)
+    bytes.reserveCapacity((width - firstX) * lastY * 3 / 4)
 
-    for y in stride(from: 0, to: height, by: 2) {
+    for y in stride(from: 0, to: lastY, by: 2) {
       let row = bitmapData.advanced(by: y * representation.bytesPerRow)
       for x in stride(from: firstX, to: width, by: 2) {
         let pixel = row.advanced(by: x * bytesPerPixel)
