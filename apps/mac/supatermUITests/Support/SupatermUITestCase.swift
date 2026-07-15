@@ -88,6 +88,21 @@ class SupatermUITestCase: XCTestCase {
   }
 
   @MainActor
+  func relaunch(removing filenames: [String] = []) throws {
+    app.terminate()
+    XCTAssertTrue(app.wait(for: .notRunning, timeout: 10))
+    for filename in filenames {
+      let file = stateHome.appendingPathComponent(filename)
+      if FileManager.default.fileExists(atPath: file.path) {
+        try FileManager.default.removeItem(at: file)
+      }
+    }
+    app.launch()
+    app.activate()
+    XCTAssertTrue(app.wait(for: .runningForeground, timeout: 30))
+  }
+
+  @MainActor
   func wait(
     for element: XCUIElement,
     timeout: Duration = .seconds(10),

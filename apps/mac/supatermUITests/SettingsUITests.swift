@@ -34,7 +34,7 @@ final class SettingsUITests: SupatermUITestCase {
     let didPersistSetting = await waitForSettingsFile(containing: "restore_layout = false")
     XCTAssertTrue(didPersistSetting)
 
-    try relaunchPreservingState()
+    try relaunch()
 
     let relaunchedSettingsWindow = try openSettings()
     try await select(.general, in: relaunchedSettingsWindow)
@@ -72,7 +72,7 @@ final class SettingsUITests: SupatermUITestCase {
     let didPersistSetting = await waitForSettingsFile(containing: "mode = \"system\"")
     XCTAssertTrue(didPersistSetting)
 
-    try relaunchPreservingState()
+    try relaunch()
 
     let relaunchedSettingsWindow = try openSettings()
     try await select(.general, in: relaunchedSettingsWindow)
@@ -170,8 +170,6 @@ final class SettingsUITests: SupatermUITestCase {
     containing expectedText: String,
     timeout: Duration = .seconds(10)
   ) async -> Bool {
-    guard let settingsURL else { return false }
-
     let clock = ContinuousClock()
     let deadline = clock.now.advanced(by: timeout)
     while clock.now < deadline {
@@ -184,14 +182,8 @@ final class SettingsUITests: SupatermUITestCase {
   }
 
   @MainActor
-  private var settingsURL: URL? {
-    if let stateHome = app.launchEnvironment["SUPATERM_STATE_HOME"] {
-      return URL(fileURLWithPath: stateHome, isDirectory: true)
-        .appendingPathComponent("settings.toml", isDirectory: false)
-    }
-    guard let home = app.launchEnvironment["HOME"] else { return nil }
-    return URL(fileURLWithPath: home, isDirectory: true)
-      .appendingPathComponent(".config/supaterm/settings.toml", isDirectory: false)
+  private var settingsURL: URL {
+    stateHome.appendingPathComponent("settings.toml", isDirectory: false)
   }
 
   private func settingsFile(at url: URL, contains expectedText: String) -> Bool {
@@ -203,14 +195,6 @@ final class SettingsUITests: SupatermUITestCase {
     return contents.contains(expectedText)
   }
 
-  @MainActor
-  private func relaunchPreservingState() throws {
-    app.terminate()
-    try XCTUnwrap(app.wait(for: .notRunning, timeout: 10) ? app : nil)
-    app.launch()
-    app.activate()
-    try XCTUnwrap(app.wait(for: .runningForeground, timeout: 30) ? app : nil)
-  }
 }
 
 private enum SettingsIdentifier {
