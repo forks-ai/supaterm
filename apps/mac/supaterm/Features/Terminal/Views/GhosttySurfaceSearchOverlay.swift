@@ -181,6 +181,7 @@ struct GhosttySurfaceSearchOverlay: View {
   }
 
   private func emitSearch(_ needle: String) {
+    state.searchNeedle = needle
     surfaceView.performBindingAction("search:\(needle)")
   }
 
