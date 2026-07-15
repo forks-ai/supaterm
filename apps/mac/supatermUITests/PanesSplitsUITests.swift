@@ -72,7 +72,7 @@ final class PanesSplitsUITests: SupatermUITestCase {
     let panes = try await requireVisiblePanes(count: 2)
     let newPane = try XCTUnwrap(panes.first { $0.identifier != originalIdentifier })
 
-    XCTAssertTrue(searchField.exists)
+    XCTAssertTrue(searchField.waitForExistence(timeout: 10))
     try await requireFocus(on: newPane)
 
     app.typeText(
@@ -217,6 +217,17 @@ final class PanesSplitsUITests: SupatermUITestCase {
 
   @MainActor
   func testCommandWClosesFocusedPaneNotWindow() async throws {
+    let ghosttyConfigDirectory = stateHome.appendingPathComponent("ghostty", isDirectory: true)
+    try FileManager.default.createDirectory(
+      at: ghosttyConfigDirectory,
+      withIntermediateDirectories: true
+    )
+    try Data("confirm-close-surface = false\n".utf8).write(
+      to: ghosttyConfigDirectory.appendingPathComponent("config")
+    )
+    app.launchEnvironment["XDG_CONFIG_HOME"] = stateHome.path
+    try relaunch()
+
     _ = try await requireVisiblePanes(count: 1)
     try clickMenuItem(.splitRight)
     let panes = try await requireVisiblePanes(count: 2)
