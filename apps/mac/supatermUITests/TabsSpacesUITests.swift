@@ -1,11 +1,6 @@
 import XCTest
 
 final class TabsSpacesUITests: SupatermUITestCase {
-  private enum SpaceMenuItem: String {
-    case first = "app.supabit.supaterm.spaces.select.1"
-    case second = "app.supabit.supaterm.spaces.select.2"
-  }
-
   @MainActor
   func testNewAndCloseTabUpdateSidebarRows() async throws {
     _ = mainWindow
@@ -85,19 +80,15 @@ final class TabsSpacesUITests: SupatermUITestCase {
     XCTAssertTrue(initialSpace.exists)
     XCTAssertTrue(createdSpace.isSelected)
 
-    await exitFullScreen()
-
-    try clickSpaceMenuItem(.first)
+    app.typeKey("1", modifierFlags: .control)
 
     let didSelectInitialSpace = await waitForSelection(initialSpace)
     XCTAssertTrue(didSelectInitialSpace)
 
-    try clickSpaceMenuItem(.second)
+    app.typeKey("2", modifierFlags: .control)
 
     let didSelectCreatedSpace = await waitForSelection(createdSpace)
     XCTAssertTrue(didSelectCreatedSpace)
-
-    try await enterFullScreen()
 
     try clickContextMenuItem("Rename Space", on: createdSpace)
 
@@ -282,41 +273,6 @@ final class TabsSpacesUITests: SupatermUITestCase {
       $0.frame.maxY <= self.app.frame.maxY - 20
     }
     XCTAssertTrue(didMoveAboveDock)
-  }
-
-  @MainActor
-  private func exitFullScreen() async {
-    let createButton = app.buttons[
-      SupatermUITestIdentifier.Accessibility.sidebarCreateSpaceButton
-    ]
-    for _ in 0..<2 {
-      app.typeKey("f", modifierFlags: [.command, .control])
-      let didExit = await wait(for: createButton, timeout: .seconds(5)) {
-        $0.frame.maxY > self.app.frame.maxY - 20
-      }
-      if didExit {
-        return
-      }
-    }
-    XCTFail("Failed to exit full screen")
-  }
-
-  @MainActor
-  private func clickSpaceMenuItem(
-    _ identifier: SpaceMenuItem,
-    timeout: TimeInterval = 10
-  ) throws {
-    let spacesMenuCandidate = app.menuBars.menuBarItems["Spaces"]
-    let spacesMenu = try XCTUnwrap(
-      spacesMenuCandidate.waitForExistence(timeout: timeout) ? spacesMenuCandidate : nil
-    )
-    spacesMenu.click()
-
-    let itemCandidate = app.menuItems.matching(identifier: identifier.rawValue).firstMatch
-    let item = try XCTUnwrap(
-      itemCandidate.waitForExistence(timeout: timeout) ? itemCandidate : nil
-    )
-    item.click()
   }
 
   @MainActor
