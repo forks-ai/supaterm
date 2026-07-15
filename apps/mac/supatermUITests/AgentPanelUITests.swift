@@ -2,6 +2,7 @@ import AppKit
 import XCTest
 
 final class AgentPanelUITests: SupatermUITestCase {
+  private static let coldStartTimeout: Duration = .seconds(60)
   private static let sessionID = "agent-panel-ui-tests"
   private static let panelToggleDifference = 0.008
 
@@ -31,40 +32,43 @@ final class AgentPanelUITests: SupatermUITestCase {
 
   @MainActor
   func testClaudeLifecycleUpdatesSidebarAndPanel() async throws {
-    _ = mainWindow
+    let terminal = mainTerminal
+    await assertEventually(terminal, timeout: Self.coldStartTimeout) {
+      $0.exists && $0.isHittable
+    }
 
     let tabRows = app.buttons.matching(
       identifier: SupatermUITestIdentifier.Accessibility.sidebarTabRow
     )
     let firstTab = tabRows.element(boundBy: 0)
-    guard firstTab.waitForExistence(timeout: 30) else {
-      XCTFail("Initial sidebar tab row did not appear")
-      return
+    await assertEventually(firstTab, timeout: Self.coldStartTimeout) {
+      $0.exists && $0.isHittable
     }
 
     try await sendClaudeEvent("session-start")
     try await sendClaudeEvent("user-prompt-submit")
 
-    await assertEventually(firstTab, timeout: .seconds(30)) {
+    await assertEventually(firstTab, timeout: Self.coldStartTimeout) {
       $0.label.contains("Agent activity: Running")
     }
+    try await assertAgentPanelMenuItem(isEnabled: true)
 
     try await sendClaudeEvent("notification")
-    try clickMenuItem(.newTab)
+    try clickMenuItem(.newTab, timeout: 60)
 
     let secondTab = tabRows.element(boundBy: 1)
-    await assertEventually(secondTab, timeout: .seconds(30)) { $0.exists }
-    firstTab.click()
-    secondTab.click()
-    await assertEventually(firstTab, timeout: .seconds(30)) {
+    await assertEventually(secondTab, timeout: Self.coldStartTimeout) {
+      $0.exists && $0.isHittable && $0.isSelected
+    }
+    await assertEventually(firstTab, timeout: Self.coldStartTimeout) {
       $0.label.contains("Agent activity: Needs input")
     }
 
     firstTab.click()
-    try await assertAgentPanelMenuItem(isEnabled: true)
+    await assertEventually(firstTab, timeout: Self.coldStartTimeout) { $0.isSelected }
     try await sendClaudeEvent("stop")
 
-    await assertEventually(firstTab, timeout: .seconds(30)) {
+    await assertEventually(firstTab, timeout: Self.coldStartTimeout) {
       $0.label.contains("Done.") && !$0.label.contains("Agent activity:")
     }
     try await sendClaudeEvent("session-end")
@@ -74,38 +78,33 @@ final class AgentPanelUITests: SupatermUITestCase {
   @MainActor
   private func assertAgentPanelMenuItem(isEnabled: Bool) async throws {
     let topLevelMenu = app.menuBars.menuBarItems["View"]
-    guard topLevelMenu.waitForExistence(timeout: 10) else {
-      XCTFail("View menu did not appear")
-      return
+    await assertEventually(topLevelMenu, timeout: Self.coldStartTimeout) {
+      $0.exists && $0.isHittable
     }
     topLevelMenu.click()
 
     let item = menuItem(.toggleAgentPanel)
-    guard item.waitForExistence(timeout: 10) else {
-      XCTFail("Agent panel menu item did not appear")
-      return
-    }
-    await assertEventually(item) { $0.isEnabled == isEnabled }
+    await assertEventually(item, timeout: Self.coldStartTimeout) { $0.exists }
+    await assertEventually(item, timeout: Self.coldStartTimeout) { $0.isEnabled == isEnabled }
     app.typeKey(.escape, modifierFlags: [])
   }
 
   @MainActor
   private func sendClaudeEvent(_ event: String) async throws {
-    let terminal = app.textViews.firstMatch
-    guard await wait(for: terminal, timeout: .seconds(30), until: { $0.exists && $0.isHittable })
-    else {
-      XCTFail("Terminal did not become ready")
-      return
+    let terminal = mainTerminal
+    await assertEventually(terminal, timeout: Self.coldStartTimeout) {
+      $0.exists && $0.isHittable
     }
 
     terminal.click()
     terminal.typeText(
-      "\"$SUPATERM_CLI_PATH\" internal dev claude \(event) --session-id \(Self.sessionID)"
+      "\"$SUPATERM_CLI_PATH\" internal dev claude \(event)"
+        + " --socket \"$SUPATERM_SOCKET_PATH\" --session-id \(Self.sessionID)"
     )
     terminal.typeKey(.return, modifierFlags: [])
 
     let expectedOutput = "sent \(event) for session \(Self.sessionID)"
-    await assertEventually(terminal, timeout: .seconds(30)) {
+    await assertEventually(terminal, timeout: Self.coldStartTimeout) {
       ($0.value as? String)?.contains(expectedOutput) == true
     }
   }
