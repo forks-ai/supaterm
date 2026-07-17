@@ -23,6 +23,7 @@ enum AgentPanelShortcut {
 
 struct AgentPanelView: View {
   static let accessibilityIdentifier = "agent-panel"
+  static let copySessionIDAccessibilityIdentifier = "agent-panel.copy-session-id"
 
   let presentation: PaneAgentPanelPresentation
   let palette: Palette
@@ -33,6 +34,7 @@ struct AgentPanelView: View {
   let openURL: (URL) -> Void
 
   @State private var checksAreExpanded = false
+  @State private var copyFeedback: AgentPanelCopyFeedback?
 
   var body: some View {
     content
@@ -41,6 +43,16 @@ struct AgentPanelView: View {
       .accessibilityElement(children: .contain)
       .accessibilityLabel("Agent panel")
       .accessibilityIdentifier(Self.accessibilityIdentifier)
+      .task(id: copyFeedback?.id) {
+        guard let feedback = copyFeedback else { return }
+        do {
+          try await Task.sleep(for: .seconds(1))
+        } catch {
+          return
+        }
+        guard copyFeedback?.id == feedback.id else { return }
+        copyFeedback = nil
+      }
   }
 
   private var content: some View {
@@ -207,14 +219,15 @@ struct AgentPanelView: View {
         )
         AgentPanelActionRow(
           icon: .asset("copy"),
-          title: "Copy session ID",
+          title: copyTitle("Copy session ID", for: .sessionID),
           palette: palette,
           shortcutHint: shortcutHint(AgentPanelShortcut.copySessionID),
           helpText: "Copy session ID",
           action: {
-            copyText(session.sessionID)
+            copy(session.sessionID, target: .sessionID)
           }
         )
+        .accessibilityIdentifier(Self.copySessionIDAccessibilityIdentifier)
       }
       .frame(maxWidth: .infinity, alignment: .leading)
     }
@@ -239,25 +252,27 @@ struct AgentPanelView: View {
   }
 
   private func branchRow(_ branchName: String) -> some View {
-    Button {
-      copyText(branchName)
+    let copied = isCopied(.branch)
+    return Button {
+      copy(branchName, target: .branch)
     } label: {
-      valueRow(icon: .asset("git-branch"), title: branchName)
+      valueRow(icon: .asset("git-branch"), title: copyTitle(branchName, for: .branch))
     }
     .buttonStyle(AgentPanelRowButtonStyle(palette: palette))
     .help("Copy branch name")
-    .accessibilityLabel("Copy branch name")
-    .accessibilityValue(branchName)
+    .accessibilityLabel(copied ? "Copied" : "Copy branch name")
+    .accessibilityValue(copied ? "" : branchName)
   }
 
   private func workingDirectoryRow(_ path: String) -> some View {
     let displayPath = (path as NSString).abbreviatingWithTildeInPath
+    let copied = isCopied(.workingDirectory)
     return Button {
-      copyText(path)
+      copy(path, target: .workingDirectory)
     } label: {
       AgentPanelRowContent(
         icon: .system("folder"),
-        title: displayPath,
+        title: copyTitle(displayPath, for: .workingDirectory),
         palette: palette,
         iconColor: palette.secondaryText,
         truncationMode: .middle
@@ -265,8 +280,21 @@ struct AgentPanelView: View {
     }
     .buttonStyle(AgentPanelRowButtonStyle(palette: palette))
     .help("Copy \(path)")
-    .accessibilityLabel("Copy working directory")
-    .accessibilityValue(path)
+    .accessibilityLabel(copied ? "Copied" : "Copy working directory")
+    .accessibilityValue(copied ? "" : path)
+  }
+
+  private func copy(_ text: String, target: AgentPanelCopyFeedback.Target) {
+    copyText(text)
+    copyFeedback = AgentPanelCopyFeedback(target: target)
+  }
+
+  private func copyTitle(_ title: String, for target: AgentPanelCopyFeedback.Target) -> String {
+    isCopied(target) ? "Copied" : title
+  }
+
+  private func isCopied(_ target: AgentPanelCopyFeedback.Target) -> Bool {
+    copyFeedback?.target == target
   }
 
   private func valueRow(
@@ -471,6 +499,17 @@ struct AgentPanelView: View {
     }
   }
 
+}
+
+private struct AgentPanelCopyFeedback {
+  enum Target: Equatable {
+    case workingDirectory
+    case branch
+    case sessionID
+  }
+
+  let id = UUID()
+  let target: Target
 }
 
 private enum AgentPanelIcon {

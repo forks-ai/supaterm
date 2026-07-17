@@ -24,6 +24,24 @@ final class AgentPanelUITests: SupatermUITestCase {
   }
 
   @MainActor
+  func testCopySessionIDShowsTemporaryCopiedFeedback() async throws {
+    _ = mainWindow
+    try await sendClaudeEvent("session-start")
+
+    let copyButton = app.buttons[
+      SupatermUITestIdentifier.Accessibility.agentPanelCopySessionID
+    ]
+    await assertEventually(copyButton, timeout: Self.coldStartTimeout) {
+      $0.exists && $0.isHittable
+    }
+
+    copyButton.click()
+
+    await assertEventually(copyButton) { $0.label == "Copied" }
+    await assertEventually(copyButton) { $0.label == "Copy session ID" }
+  }
+
+  @MainActor
   func testClaudeLifecycleUpdatesSidebarAndPanel() async throws {
     let tabRows = app.buttons.matching(
       identifier: SupatermUITestIdentifier.Accessibility.sidebarTabRow
