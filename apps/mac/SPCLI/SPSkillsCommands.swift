@@ -6,9 +6,9 @@ extension SP {
   struct Skills: ParsableCommand {
     static let configuration = CommandConfiguration(
       commandName: "skills",
-      abstract: "List, retrieve, and install Supaterm skills.",
+      abstract: "List, retrieve, locate, and install Supaterm skills.",
       discussion: SPHelp.skillsDiscussion,
-      subcommands: [ListSkills.self, GetSkill.self, InstallSkill.self],
+      subcommands: [ListSkills.self, GetSkill.self, PathSkill.self, InstallSkill.self],
       defaultSubcommand: ListSkills.self
     )
   }
@@ -50,20 +50,26 @@ extension SP {
     @Flag(name: .long, help: "Include every bundled file for the skill.")
     var full = false
 
-    @Flag(name: .long, help: "Print command output as JSON.")
-    var json = false
+    mutating func run() throws {
+      let skill = try SupatermSkills(homeDirectoryURL: cliHomeDirectoryURL())
+        .get(name: name, full: full)
+      let output = renderSkill(skill)
+      print(output, terminator: output.hasSuffix("\n") ? "" : "\n")
+    }
+  }
+
+  struct PathSkill: ParsableCommand {
+    static let configuration = CommandConfiguration(
+      commandName: "path",
+      abstract: "Print a bundled Supaterm skill directory.",
+      discussion: SPHelp.pathSkillDiscussion
+    )
+
+    @Argument(help: "Bundled skill name.")
+    var name: String
 
     mutating func run() throws {
-      let skill = try runSkillsOperation(json: json) {
-        try SupatermSkills(homeDirectoryURL: cliHomeDirectoryURL())
-          .get(name: name, full: full)
-      }
-      if json {
-        print(try jsonString(SPSkillsSuccess(data: [skill])))
-      } else {
-        let output = renderSkill(skill)
-        print(output, terminator: output.hasSuffix("\n") ? "" : "\n")
-      }
+      print(try SupatermSkills(homeDirectoryURL: cliHomeDirectoryURL()).path(name: name))
     }
   }
 

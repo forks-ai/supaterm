@@ -511,6 +511,7 @@ enum SPHelp {
       sp skills --json
       sp skills get core
       sp skills get coding-agents
+      sp skills path core
       sp skills install
     """
 
@@ -527,7 +528,14 @@ enum SPHelp {
     Example:
       sp skills get core
       sp skills get core --full
-      sp skills get coding-agents --json
+      sp skills get coding-agents
+    """
+
+  static let pathSkillDiscussion = """
+    Resolve the bundled directory when reading one reference directly.
+
+    Example:
+      sp skills path core
     """
 
   static let installSkillDiscussion = """

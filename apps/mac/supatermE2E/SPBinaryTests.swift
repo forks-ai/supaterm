@@ -274,37 +274,29 @@ extension SupatermE2ESuite {
         #expect(listResponse.data.map(\.name) == ["coding-agents", "core"])
 
         let core = try requireSuccessfulSPResult(
-          try runner.run(["skills", "get", "core", "--json"], cwd: space.directory)
+          try runner.run(["skills", "get", "core"], cwd: space.directory)
         )
-        let coreResponse = try decodeSPJSON(
-          SkillsResponse<SupatermSkillContent>.self,
-          from: core
-        )
-        let coreSkill = try #require(coreResponse.data.first)
-        #expect(coreSkill.content.contains("# Supaterm core"))
-        #expect(coreSkill.files == nil)
+        #expect(core.stdout.contains("# Supaterm core"))
+        #expect(!core.stdout.contains("--- references/"))
 
-        let codingAgents = try requireSuccessfulSPResult(
+        let fullCore = try requireSuccessfulSPResult(
           try runner.run(
-            ["skills", "get", "coding-agents", "--full", "--json"], cwd: space.directory)
+            ["skills", "get", "core", "--full"], cwd: space.directory)
         )
-        let codingAgentResponse = try decodeSPJSON(
-          SkillsResponse<SupatermSkillContent>.self,
-          from: codingAgents
+        #expect(fullCore.stdout.contains("--- references/pane.md ---"))
+
+        let path = try requireSuccessfulSPResult(
+          try runner.run(["skills", "path", "core"], cwd: space.directory)
         )
-        let codingAgentSkill = try #require(codingAgentResponse.data.first)
-        #expect(codingAgentSkill.content.contains("sp pane send --submit"))
-        let codingAgentFiles = try #require(codingAgentSkill.files)
-        #expect(codingAgentFiles.isEmpty)
+        let coreDirectory = path.stdout.trimmingCharacters(in: .whitespacesAndNewlines)
+        #expect(coreDirectory.hasSuffix("/skill-data/core"))
+        #expect(FileManager.default.fileExists(atPath: coreDirectory + "/SKILL.md"))
 
         let missing = try requireFailedSPResult(
-          try runner.run(
-            ["skills", "get", "missing", "--json"], cwd: space.directory)
+          try runner.run(["skills", "get", "missing"], cwd: space.directory)
         )
-        let missingResponse = try decodeSPJSON(SkillsErrorResponse.self, from: missing)
-        #expect(!missingResponse.success)
-        #expect(missingResponse.error.contains("Skill not found: missing"))
-        #expect(missing.stderr.isEmpty)
+        #expect(missing.stdout.isEmpty)
+        #expect(missing.stderr.contains("Skill not found: missing"))
 
         let install = try requireSuccessfulSPResult(
           try runner.run(["skills", "install", "--json"], cwd: space.directory)
@@ -928,11 +920,6 @@ private struct PingResult: Decodable {
 private struct SkillsResponse<Value: Decodable>: Decodable {
   let success: Bool
   let data: [Value]
-}
-
-private struct SkillsErrorResponse: Decodable {
-  let success: Bool
-  let error: String
 }
 
 private struct DiagnosticReport: Decodable {

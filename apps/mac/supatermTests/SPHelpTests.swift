@@ -196,11 +196,14 @@ struct SPHelpTests {
     let skillsHelp = SP.helpMessage(for: SP.Skills.self, columns: 100)
     let listHelp = SP.helpMessage(for: SP.ListSkills.self, columns: 100)
     let getHelp = SP.helpMessage(for: SP.GetSkill.self, columns: 100)
+    let pathHelp = SP.helpMessage(for: SP.PathSkill.self, columns: 100)
     let installHelp = SP.helpMessage(for: SP.InstallSkill.self, columns: 100)
 
     #expect(skillsHelp.contains("sp skills get coding-agents"))
     #expect(listHelp.contains("sp skills list --json"))
     #expect(getHelp.contains("sp skills get core --full"))
+    #expect(!getHelp.contains("--json"))
+    #expect(pathHelp.contains("sp skills path core"))
     #expect(installHelp.contains("sp skills install --json"))
   }
 

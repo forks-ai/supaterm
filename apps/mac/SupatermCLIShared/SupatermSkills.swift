@@ -10,7 +10,7 @@ public struct SupatermSkillSummary: Codable, Equatable, Sendable {
   }
 }
 
-public struct SupatermSkillFile: Codable, Equatable, Sendable {
+public struct SupatermSkillFile: Equatable, Sendable {
   public let path: String
   public let content: String
 
@@ -20,7 +20,7 @@ public struct SupatermSkillFile: Codable, Equatable, Sendable {
   }
 }
 
-public struct SupatermSkillContent: Codable, Equatable, Sendable {
+public struct SupatermSkillContent: Equatable, Sendable {
   public let name: String
   public let content: String
   public let files: [SupatermSkillFile]?
@@ -77,20 +77,14 @@ public struct SupatermSkills {
   }
 
   public func get(name: String, full: Bool = false) throws -> SupatermSkillContent {
-    guard name.range(of: #"^[a-z0-9][a-z0-9-]*$"#, options: .regularExpression) != nil else {
-      throw SupatermSkillsError.skillNotFound(name)
-    }
-    let skillDirectoryURL = try bundledSkillDataDirectoryURL()
-      .appendingPathComponent(name, isDirectory: true)
-    let skillDefinitionURL = Self.skillDefinitionURL(skillDirectoryURL: skillDirectoryURL)
-    guard fileManager.fileExists(atPath: skillDefinitionURL.path) else {
-      throw SupatermSkillsError.skillNotFound(name)
-    }
+    let skill = try skill(named: name)
+    let content = try String(contentsOf: skill.definitionURL, encoding: .utf8)
+    let files = full ? try files(in: skill.directoryURL) : nil
+    return SupatermSkillContent(name: skill.summary.name, content: content, files: files)
+  }
 
-    let summary = try summary(at: skillDirectoryURL)
-    let content = try String(contentsOf: skillDefinitionURL, encoding: .utf8)
-    let files = full ? try files(in: skillDirectoryURL) : nil
-    return SupatermSkillContent(name: summary.name, content: content, files: files)
+  public func path(name: String) throws -> String {
+    try skill(named: name).directoryURL.path
   }
 
   @discardableResult
@@ -130,6 +124,23 @@ public struct SupatermSkills {
       try fileManager.moveItem(at: stagingDirectoryURL, to: skillDirectoryURL)
     }
     return SupatermSkillInstallResult(path: skillDirectoryURL.path)
+  }
+
+  private func skill(named name: String) throws -> (
+    directoryURL: URL, definitionURL: URL, summary: SupatermSkillSummary
+  ) {
+    guard name.range(of: #"^[a-z0-9][a-z0-9-]*$"#, options: .regularExpression) != nil else {
+      throw SupatermSkillsError.skillNotFound(name)
+    }
+    let skillDirectoryURL = try bundledSkillDataDirectoryURL()
+      .appendingPathComponent(name, isDirectory: true)
+    let skillDefinitionURL = Self.skillDefinitionURL(skillDirectoryURL: skillDirectoryURL)
+    guard fileManager.fileExists(atPath: skillDefinitionURL.path) else {
+      throw SupatermSkillsError.skillNotFound(name)
+    }
+
+    let summary = try summary(at: skillDirectoryURL)
+    return (skillDirectoryURL, skillDefinitionURL, summary)
   }
 
   private static func skillsDirectoryURL(homeDirectoryURL: URL) -> URL {

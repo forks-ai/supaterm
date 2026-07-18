@@ -487,7 +487,7 @@ struct SPCommandTests {
   }
 
   @Test
-  func skillsParserAcceptsCatalogGetAndInstallCommands() throws {
+  func skillsParserAcceptsCatalogGetPathAndInstallCommands() throws {
     let defaultCommand = try #require(
       try SP.parseAsRoot(["skills"]) as? SP.ListSkills
     )
@@ -495,7 +495,10 @@ struct SPCommandTests {
       try SP.parseAsRoot(["skills", "list", "--json"]) as? SP.ListSkills
     )
     let getCommand = try #require(
-      try SP.parseAsRoot(["skills", "get", "core", "--full", "--json"]) as? SP.GetSkill
+      try SP.parseAsRoot(["skills", "get", "core", "--full"]) as? SP.GetSkill
+    )
+    let pathCommand = try #require(
+      try SP.parseAsRoot(["skills", "path", "core"]) as? SP.PathSkill
     )
     let installCommand = try #require(
       try SP.parseAsRoot(["skills", "install", "--json"]) as? SP.InstallSkill
@@ -505,8 +508,15 @@ struct SPCommandTests {
     #expect(listCommand.json)
     #expect(getCommand.name == "core")
     #expect(getCommand.full)
-    #expect(getCommand.json)
+    #expect(pathCommand.name == "core")
     #expect(installCommand.json)
+  }
+
+  @Test
+  func skillsGetRejectsJSONOutput() {
+    #expect(throws: (any Error).self) {
+      try SP.parseAsRoot(["skills", "get", "core", "--json"])
+    }
   }
 
   @Test

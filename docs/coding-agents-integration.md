@@ -70,6 +70,8 @@ Inspect the bundled catalog with:
 ```bash
 sp skills
 sp skills get core
+sp skills get core --full
+sp skills path core
 sp skills get coding-agents
 ```
 

@@ -40,27 +40,16 @@ struct SupatermSkillsTests {
   }
 
   @Test
-  func jsonUsesSuccessDataEnvelopeAndOmitsFilesUnlessFull() throws {
+  func returnsBundledSkillDirectoryPath() throws {
     let rootURL = try temporarySkillsRoot()
     defer { try? FileManager.default.removeItem(at: rootURL) }
     let bundledSkillsDirectoryURL = try bundledSkillsDirectory(in: rootURL)
-    let skills = SupatermSkills(bundledSkillsDirectoryURL: bundledSkillsDirectoryURL)
 
-    let conciseObject = try jsonObject(
-      SPSkillsSuccess(data: [try skills.get(name: "core")])
-    )
-    let conciseData = try #require(conciseObject["data"] as? [[String: Any]])
-    #expect(conciseObject["success"] as? Bool == true)
-    #expect(conciseData.count == 1)
-    #expect(conciseData[0]["name"] as? String == "core")
-    #expect(conciseData[0]["files"] == nil)
+    let path = try SupatermSkills(
+      bundledSkillsDirectoryURL: bundledSkillsDirectoryURL
+    ).path(name: "core")
 
-    let fullObject = try jsonObject(
-      SPSkillsSuccess(data: [try skills.get(name: "core", full: true)])
-    )
-    let fullData = try #require(fullObject["data"] as? [[String: Any]])
-    let files = try #require(fullData[0]["files"] as? [[String: Any]])
-    #expect(files.map { $0["path"] as? String } == ["references/panes.md", "references/tabs.md"])
+    #expect(path == skillDataURL(bundledSkillsDirectoryURL).appendingPathComponent("core").path)
   }
 
   @Test
@@ -116,6 +105,10 @@ struct SupatermSkillsTests {
     #expect(throws: SupatermSkillsError.skillNotFound("../skills/supaterm")) {
       try SupatermSkills(bundledSkillsDirectoryURL: bundledSkillsDirectoryURL)
         .get(name: "../skills/supaterm")
+    }
+    #expect(throws: SupatermSkillsError.skillNotFound("../skills/supaterm")) {
+      try SupatermSkills(bundledSkillsDirectoryURL: bundledSkillsDirectoryURL)
+        .path(name: "../skills/supaterm")
     }
   }
 
