@@ -45,8 +45,7 @@ nonisolated enum TerminalAgentEventTranslator {
     guard request.agent == .codex else {
       return .subagentStarted(
         nickname: nil,
-        role: role,
-        transcriptPath: request.event.transcriptPath
+        role: role
       )
     }
     let nickname = CodexTranscriptMetadataParser.subagentNickname(

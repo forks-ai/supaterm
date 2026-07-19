@@ -161,6 +161,26 @@ enum ClaudeProgressFixtures {
     )
   }
 
+  static func appendTeammateAgentResult(
+    name: String,
+    prompt: String,
+    to transcriptURL: URL
+  ) throws {
+    try appendLine(
+      [
+        "type": "user",
+        "toolUseResult": [
+          "status": "teammate_spawned",
+          "agent_id": "\(name)@session-claude-1",
+          "name": name,
+          "prompt": prompt,
+          "agent_type": "Explore",
+        ],
+      ],
+      to: transcriptURL
+    )
+  }
+
   static func appendTaskReminder(
     _ tasks: [[String: Any]],
     to transcriptURL: URL

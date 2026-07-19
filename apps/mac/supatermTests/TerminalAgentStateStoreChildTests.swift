@@ -286,7 +286,9 @@ extension TerminalAgentStateStoreTests {
         sessionID: "session-1",
         turnID: "turn-1",
         context: context,
-        action: .subagentTasksUpdated(["child-1": "Explore UI test infrastructure"])
+        action: .subagentTasksUpdated([
+          .subagentID("child-1"): "Explore UI test infrastructure"
+        ])
       )
     )
     let attentionActions: [TerminalAgentEvent.Action] = [
@@ -325,7 +327,9 @@ extension TerminalAgentStateStoreTests {
         sessionID: "session-1",
         turnID: "turn-1",
         context: context,
-        action: .subagentTasksUpdated(["child-1": "Explore UI test infrastructure"])
+        action: .subagentTasksUpdated([
+          .subagentID("child-1"): "Explore UI test infrastructure"
+        ])
       )
     )
     store.apply(
@@ -353,6 +357,113 @@ extension TerminalAgentStateStoreTests {
     )
 
     #expect(store.presentation(for: surfaceID, agent: .codex)?.activeChildren.first?.task == nil)
+  }
+
+  @Test
+  func namedChildTaskProjectsWhenChildStartsLater() throws {
+    let fixture = startedStore()
+    let surfaceID = fixture.surfaceID
+    let context = fixture.context
+    var store = fixture.store
+
+    store.apply(
+      event(
+        sessionID: "session-1",
+        turnID: "turn-1",
+        context: context,
+        action: .subagentTasksUpdated([
+          .name("explore-sidebar"): "Explore the sidebar architecture"
+        ])
+      )
+    )
+    store.apply(
+      event(
+        sessionID: "session-1",
+        turnID: "turn-1",
+        subagentID: "aexplore-sidebar-88ca",
+        context: context,
+        action: .subagentStarted(nickname: nil, role: " Explore-Sidebar ")
+      )
+    )
+
+    #expect(
+      store.presentation(for: surfaceID, agent: .codex)?.activeChildren.first?.task
+        == "Explore the sidebar architecture"
+    )
+  }
+
+  @Test
+  func namedChildTaskRefusesAmbiguousRoleMatch() throws {
+    let fixture = startedStore()
+    let surfaceID = fixture.surfaceID
+    let context = fixture.context
+    var store = fixture.store
+
+    for subagentID in ["child-1", "child-2"] {
+      store.apply(
+        event(
+          sessionID: "session-1",
+          turnID: "turn-1",
+          subagentID: subagentID,
+          context: context,
+          action: .subagentStarted(nickname: nil, role: "explore-sidebar")
+        )
+      )
+    }
+    store.apply(
+      event(
+        sessionID: "session-1",
+        turnID: "turn-1",
+        context: context,
+        action: .subagentTasksUpdated([
+          .name("explore-sidebar"): "Explore the sidebar architecture"
+        ])
+      )
+    )
+
+    let children = try #require(
+      store.presentation(for: surfaceID, agent: .codex)?.activeChildren
+    )
+    #expect(children.map(\.task) == [nil, nil])
+  }
+
+  @Test
+  func exactChildTaskProjectsBeforeNamedFallback() throws {
+    let fixture = startedStore()
+    let surfaceID = fixture.surfaceID
+    let context = fixture.context
+    var store = fixture.store
+
+    for subagentID in ["child-1", "child-2"] {
+      store.apply(
+        event(
+          sessionID: "session-1",
+          turnID: "turn-1",
+          subagentID: subagentID,
+          context: context,
+          action: .subagentStarted(nickname: nil, role: "explore-sidebar")
+        )
+      )
+    }
+    store.apply(
+      event(
+        sessionID: "session-1",
+        turnID: "turn-1",
+        context: context,
+        action: .subagentTasksUpdated([
+          .subagentID("child-1"): "Inspect the exact child",
+          .name("explore-sidebar"): "Inspect the remaining named child",
+        ])
+      )
+    )
+
+    let tasks = Dictionary(
+      uniqueKeysWithValues: try #require(
+        store.presentation(for: surfaceID, agent: .codex)?.activeChildren
+      ).map { ($0.subagentID, $0.task) }
+    )
+    #expect(tasks["child-1"] == "Inspect the exact child")
+    #expect(tasks["child-2"] == "Inspect the remaining named child")
   }
 
   @Test

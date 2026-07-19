@@ -356,6 +356,26 @@ struct TerminalAgentEventTranslatorTests {
   }
 
   @Test
+  func claudeSubagentStartDoesNotMonitorRootTranscriptAsChild() {
+    let request = SupatermAgentHookRequest(
+      agent: .claude,
+      event: SupatermAgentHookEvent(
+        agentType: "explore-sidebar",
+        hookEventName: .subagentStart,
+        sessionID: "session-1",
+        transcriptPath: "/tmp/root.jsonl",
+        agentID: "aexplore-sidebar-88ca"
+      )
+    )
+
+    #expect(
+      TerminalAgentEventTranslator.events(for: request).map(\.action) == [
+        .subagentStarted(nickname: nil, role: "explore-sidebar")
+      ]
+    )
+  }
+
+  @Test
   func claudeSessionStartPreservesSource() throws {
     let request = try request(
       agent: .claude,

@@ -5,7 +5,7 @@ struct AgentMonitorSnapshot: Equatable {
   var detail: String?
   var hoverMessages: [String] = []
   var progressRows: [PaneAgentProgressRow] = []
-  var childTasks: [String: String] = [:]
+  var childTasks: [TerminalAgentChildTaskTarget: String] = [:]
 }
 
 nonisolated struct AgentTranscriptUpdate: Sendable {

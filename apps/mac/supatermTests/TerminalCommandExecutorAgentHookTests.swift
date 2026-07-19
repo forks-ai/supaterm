@@ -192,6 +192,15 @@ struct TerminalCommandExecutorAgentHookTests {
     let transcriptURL = try ClaudeProgressFixtures.makeTranscript()
     defer { try? FileManager.default.removeItem(at: transcriptURL.deletingLastPathComponent()) }
     let harness = try makeClaudeHookHarness()
+    let rootScope = TerminalAgentEvent.Scope(
+      agent: .claude,
+      sessionID: ClaudeHookFixtures.sessionID
+    )
+    let childScope = TerminalAgentEvent.Scope(
+      agent: .claude,
+      sessionID: ClaudeHookFixtures.sessionID,
+      subagentID: "aexplore-sidebar-88ca"
+    )
 
     _ = try harness.commandExecutor.handleAgentHook(
       SupatermAgentHookRequest(
@@ -205,28 +214,30 @@ struct TerminalCommandExecutorAgentHookTests {
         )
       )
     )
+    #expect(harness.commandExecutor.agentMonitorStore.isTracking(scope: rootScope))
     _ = try harness.commandExecutor.handleAgentHook(
       SupatermAgentHookRequest(
         agent: .claude,
         context: harness.context,
         event: SupatermAgentHookEvent(
-          agentType: "Explore",
+          agentType: "explore-sidebar",
           hookEventName: .subagentStart,
           sessionID: ClaudeHookFixtures.sessionID,
           transcriptPath: transcriptURL.path,
-          agentID: "child-1"
+          agentID: "aexplore-sidebar-88ca"
         )
       )
     )
-    try ClaudeProgressFixtures.appendAsyncAgentResult(
-      agentID: "child-1",
-      description: "Explore UI test infrastructure",
+    #expect(!harness.commandExecutor.agentMonitorStore.isTracking(scope: childScope))
+    try ClaudeProgressFixtures.appendTeammateAgentResult(
+      name: "explore-sidebar",
+      prompt: "Explore the Supaterm macOS app",
       to: transcriptURL
     )
 
     let didLoadTask = await waitUntil {
       harness.host.agentPanelPresentation(for: harness.context.surfaceID)?
-        .activeChildren.first?.task == "Explore UI test infrastructure"
+        .activeChildren.first?.task == "Explore the Supaterm macOS app"
     }
     #expect(didLoadTask)
 
@@ -235,12 +246,12 @@ struct TerminalCommandExecutorAgentHookTests {
         agent: .claude,
         context: harness.context,
         event: SupatermAgentHookEvent(
-          agentType: "Explore",
+          agentType: "explore-sidebar",
           hookEventName: .preToolUse,
           sessionID: ClaudeHookFixtures.sessionID,
           toolName: "Bash",
           transcriptPath: transcriptURL.path,
-          agentID: "child-1"
+          agentID: "aexplore-sidebar-88ca"
         )
       )
     )
@@ -249,8 +260,8 @@ struct TerminalCommandExecutorAgentHookTests {
       harness.host.agentPanelPresentation(for: harness.context.surfaceID)?
         .activeChildren.first
     )
-    #expect(AgentPanelView.childTitle(child) == "Explore")
-    #expect(AgentPanelView.childDetail(child) == "Explore UI test infrastructure")
+    #expect(AgentPanelView.childTitle(child) == "Explore-Sidebar")
+    #expect(AgentPanelView.childDetail(child) == "Explore the Supaterm macOS app")
   }
   @Test
   func commandFinishedClearsAgentActivityAndStoredSessionRouting() throws {

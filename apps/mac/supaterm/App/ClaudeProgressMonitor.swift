@@ -282,18 +282,35 @@ private struct ClaudeTranscriptTaskState: Equatable {
 }
 
 private struct ClaudeTranscriptChildState: Equatable {
-  var tasks: [String: String] = [:]
+  var tasks: [TerminalAgentChildTaskTarget: String] = [:]
 
   mutating func apply(_ objects: [JSONObject]) {
     for object in objects {
       guard object["type"]?.stringValue == "user",
-        let result = object["toolUseResult"]?.objectValue,
-        let agentID = AgentProgressParsing.normalizedTitle(result["agentId"]?.stringValue),
-        let task = AgentProgressParsing.normalizedTitle(result["description"]?.stringValue)
+        let result = object["toolUseResult"]?.objectValue
       else {
         continue
       }
-      tasks[agentID] = task
+      switch result["status"]?.stringValue {
+      case "async_launched":
+        guard
+          let agentID = AgentProgressParsing.normalizedTitle(result["agentId"]?.stringValue),
+          let task = AgentProgressParsing.normalizedTitle(result["description"]?.stringValue)
+        else {
+          continue
+        }
+        tasks[.subagentID(agentID)] = task
+      case "teammate_spawned":
+        guard
+          let name = AgentProgressParsing.normalizedTitle(result["name"]?.stringValue)?.lowercased(),
+          let task = AgentProgressParsing.normalizedTitle(result["prompt"]?.stringValue)
+        else {
+          continue
+        }
+        tasks[.name(name)] = task
+      default:
+        continue
+      }
     }
   }
 }

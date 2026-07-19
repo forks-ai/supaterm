@@ -118,7 +118,7 @@ nonisolated struct TerminalAgentStateStore {
 
   private struct SessionState: Equatable {
     var activeChildren: [TerminalAgentActiveChild.Identity: TerminalAgentActiveChild] = [:]
-    var pendingChildTasks: [String: String] = [:]
+    var childTasks: [TerminalAgentChildTaskTarget: String] = [:]
     var detail: String?
     var attentionRequestID: String?
     var hoverMessages: [String] = []
@@ -325,7 +325,6 @@ nonisolated struct TerminalAgentStateStore {
     guard let childKey = Self.childKey(for: event) else { return }
     switch event.action {
     case .subagentStarted(let nickname, let role, let transcriptPath):
-      let task = state.pendingChildTasks.removeValue(forKey: childKey.subagentID)
       state.activeChildren = state.activeChildren.filter {
         $0.key.subagentID != childKey.subagentID || $0.key == childKey
       }
@@ -335,37 +334,53 @@ nonisolated struct TerminalAgentStateStore {
           role: role,
           transcriptPath: transcriptPath
         )
-        state.activeChildren[childKey] = task.map(child.updating(task:)) ?? child
+        state.activeChildren[childKey] = child
       } else {
         state.activeChildren[childKey] = TerminalAgentActiveChild(
           id: childKey,
           nickname: nickname,
           role: role,
           transcriptPath: transcriptPath,
-          task: task,
+          task: nil,
           phase: .running,
           detail: nil
         )
       }
+      projectChildTasks(state: &state)
     case .subagentStopped:
-      if let task = state.activeChildren[childKey]?.task {
-        state.pendingChildTasks[childKey.subagentID] = task
-      }
       state.activeChildren.removeValue(forKey: childKey)
+      projectChildTasks(state: &state)
     default:
       updateChild(event.action, key: childKey, state: &state)
     }
   }
 
   private func updateChildTasks(
-    _ tasks: [String: String],
+    _ tasks: [TerminalAgentChildTaskTarget: String],
     state: inout SessionState
   ) {
-    let activeIDs = Set(state.activeChildren.keys.map(\.subagentID))
+    state.childTasks = tasks
+    projectChildTasks(state: &state)
+  }
+
+  private func projectChildTasks(state: inout SessionState) {
+    var projectedTasks: [TerminalAgentActiveChild.Identity: String] = [:]
     for (key, child) in state.activeChildren {
-      state.activeChildren[key] = child.updating(task: tasks[key.subagentID])
+      projectedTasks[key] = state.childTasks[.subagentID(child.subagentID)]
     }
-    state.pendingChildTasks = tasks.filter { !activeIDs.contains($0.key) }
+    for (target, task) in state.childTasks {
+      guard case .name(let name) = target else { continue }
+      let matches = state.activeChildren.keys.filter { key in
+        projectedTasks[key] == nil
+          && Self.normalizedChildTaskName(state.activeChildren[key]?.role) == name
+      }
+      if matches.count == 1 {
+        projectedTasks[matches[0]] = task
+      }
+    }
+    for (key, child) in state.activeChildren {
+      state.activeChildren[key] = child.updating(task: projectedTasks[key])
+    }
   }
 
   private func updateChild(
@@ -402,7 +417,7 @@ nonisolated struct TerminalAgentStateStore {
     state: inout SessionState
   ) {
     state.activeChildren = state.activeChildren.filter { $0.key.turnID == turnID }
-    state.pendingChildTasks = [:]
+    state.childTasks = [:]
     state.turnLifecycle = .active(turnID)
     state.isActionable = true
     state.phase = .running
@@ -642,6 +657,11 @@ nonisolated struct TerminalAgentStateStore {
             ($0.id, $0)
           }
         ),
+        childTasks: Dictionary(
+          uniqueKeysWithValues: snapshot.activeChildren.compactMap { child in
+            child.task.map { (.subagentID(child.subagentID), $0) }
+          }
+        ),
         detail: snapshot.detail,
         attentionRequestID: snapshot.attentionRequestID,
         hoverMessages: snapshot.hoverMessages,
@@ -743,6 +763,13 @@ nonisolated struct TerminalAgentStateStore {
 
   private static func normalizedWorkingDirectoryPath(_ path: String?) -> String? {
     TerminalAgentPanelWorkspaceKey(workingDirectoryPath: path)?.workingDirectoryPath
+  }
+
+  private static func normalizedChildTaskName(_ name: String?) -> String? {
+    guard let name = name?.trimmingCharacters(in: .whitespacesAndNewlines), !name.isEmpty else {
+      return nil
+    }
+    return name.lowercased()
   }
 
   private static func highest(

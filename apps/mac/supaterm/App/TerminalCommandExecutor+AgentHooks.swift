@@ -261,7 +261,11 @@ extension TerminalCommandExecutor {
       || request.event.hookEventName == .stop
     {
       agentMonitorStore.cancelTracking(scope: scope)
-    } else if let transcriptPath = request.event.transcriptPath {
+    } else if let transcriptPath = transcriptPathForMonitoring(
+      request: request,
+      events: events,
+      scope: scope
+    ) {
       _ = agentMonitorStore.track(
         scope: scope,
         transcriptPath: transcriptPath,
@@ -299,6 +303,20 @@ extension TerminalCommandExecutor {
     default:
       break
     }
+  }
+
+  private func transcriptPathForMonitoring(
+    request: SupatermAgentHookRequest,
+    events: [TerminalAgentEvent],
+    scope: TerminalAgentEvent.Scope
+  ) -> String? {
+    guard scope.subagentID != nil else { return request.event.transcriptPath }
+    for event in events {
+      if case .subagentStarted(_, _, let transcriptPath) = event.action {
+        return transcriptPath
+      }
+    }
+    return nil
   }
 
   private func clearMonitoring(_ scope: TerminalAgentEvent.Scope) {

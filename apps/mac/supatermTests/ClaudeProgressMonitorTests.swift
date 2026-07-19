@@ -170,7 +170,32 @@ struct ClaudeProgressMonitorTests {
     let tick = try #require(AgentTranscriptTailer.start(at: transcriptURL.path))
     let snapshot = try #require(ClaudePanelMonitor().consume(AgentTranscriptUpdate(tick)))
 
-    #expect(snapshot.childTasks == ["child-1": "Explore UI test infrastructure"])
+    #expect(
+      snapshot.childTasks == [
+        .subagentID("child-1"): "Explore UI test infrastructure"
+      ]
+    )
+  }
+
+  @Test
+  func teammateAgentResultProducesNamedChildTask() throws {
+    let transcriptURL = try ClaudeProgressFixtures.makeTranscript()
+    defer { try? FileManager.default.removeItem(at: transcriptURL.deletingLastPathComponent()) }
+    try ClaudeProgressFixtures.appendTeammateAgentResult(
+      name: " Explore-Sidebar ",
+      prompt: "  Explore the Supaterm macOS app\n  and report the sidebar architecture.  ",
+      to: transcriptURL
+    )
+
+    let tick = try #require(AgentTranscriptTailer.start(at: transcriptURL.path))
+    let snapshot = try #require(ClaudePanelMonitor().consume(AgentTranscriptUpdate(tick)))
+
+    #expect(
+      snapshot.childTasks == [
+        .name("explore-sidebar"):
+          "Explore the Supaterm macOS app and report the sidebar architecture."
+      ]
+    )
   }
 
   @Test
