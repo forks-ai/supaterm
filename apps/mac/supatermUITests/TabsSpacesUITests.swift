@@ -288,7 +288,10 @@ final class TabsSpacesUITests: SupatermUITestCase {
 
     let firstTab = tabRow(named: "First UI Tab", in: regularSection)
     let thirdTab = tabRow(named: "Third UI Tab", in: regularSection)
-    firstTab.press(forDuration: 0.5, thenDragTo: thirdTab)
+    firstTab.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)).press(
+      forDuration: 0.5,
+      thenDragTo: thirdTab.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.9))
+    )
 
     let didReorder = await waitForTabOrder(["Second UI Tab", "Third UI Tab", "First UI Tab"])
     XCTAssertTrue(didReorder)
@@ -300,7 +303,14 @@ final class TabsSpacesUITests: SupatermUITestCase {
 
     let thirdTabInRegularSection = tabRow(named: "Third UI Tab", in: regularSection)
     let secondTabInPinnedSection = tabRow(named: "Second UI Tab", in: pinnedSection)
-    thirdTabInRegularSection.press(forDuration: 0.5, thenDragTo: secondTabInPinnedSection)
+    thirdTabInRegularSection.coordinate(
+      withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)
+    ).press(
+      forDuration: 0.5,
+      thenDragTo: secondTabInPinnedSection.coordinate(
+        withNormalizedOffset: CGVector(dx: 0.5, dy: 0.1)
+      )
+    )
 
     let didPinThirdTab = await waitForTab(named: "Third UI Tab", in: pinnedSection)
     XCTAssertTrue(didPinThirdTab)
