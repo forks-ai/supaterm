@@ -36,7 +36,7 @@ final class AgentPanelUITests: SupatermUITestCase {
       $0.exists
     }
 
-    app.typeKey("c", modifierFlags: [.command, .option])
+    copyButton.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)).click()
 
     await assertEventually(copyButton) { $0.label == "Copied" }
     await assertEventually(copyButton) { $0.label == "Copy session ID" }
