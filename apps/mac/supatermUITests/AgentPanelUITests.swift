@@ -27,6 +27,7 @@ final class AgentPanelUITests: SupatermUITestCase {
   func testCopySessionIDShowsTemporaryCopiedFeedback() async throws {
     _ = mainWindow
     try await sendClaudeEvent("session-start")
+    try await sendClaudeEvent("user-prompt-submit")
 
     let copyButton = app.buttons[
       SupatermUITestIdentifier.Accessibility.agentPanelCopySessionID
