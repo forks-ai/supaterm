@@ -146,6 +146,7 @@ struct GhosttySurfaceSearchOverlay: View {
       Text(matchLabelText)
         .font(.caption)
         .foregroundStyle(.secondary)
+        .accessibilityIdentifier("terminal.search.match-count")
         .padding(.trailing, 8)
     }
   }
