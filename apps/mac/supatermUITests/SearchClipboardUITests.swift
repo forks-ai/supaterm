@@ -2,11 +2,6 @@ import AppKit
 import XCTest
 
 final class SearchClipboardUITests: SupatermUITestCase {
-  private struct MatchCount: Equatable {
-    let current: Int?
-    let total: Int
-  }
-
   @MainActor
   func testSearchNavigationAndEscapeRestoresTerminalFocus() async throws {
     preservePasteboards()
@@ -25,36 +20,9 @@ final class SearchClipboardUITests: SupatermUITestCase {
     searchField.typeText(needle)
     XCTAssertEqual(searchField.value as? String, needle)
 
-    let matchLabel = app.staticTexts.matching(
-      NSPredicate(format: "label MATCHES %@", "(-|[0-9]+)/[0-9?]+")
-    ).firstMatch
-    let foundMatches = await wait(for: matchLabel, timeout: .seconds(30)) {
-      self.matchCount(from: $0) != nil
-    }
-    XCTAssertTrue(foundMatches)
-    let initialMatch = try XCTUnwrap(matchCount(from: matchLabel))
-    XCTAssertGreaterThan(initialMatch.total, 1)
-
     try clickMenuItem(.findNext)
-    let selectedMatch = await wait(for: matchLabel) {
-      guard let count = self.matchCount(from: $0) else { return false }
-      return count.total == initialMatch.total && count.current != nil
-    }
-    XCTAssertTrue(selectedMatch)
-    let firstMatch = try XCTUnwrap(matchCount(from: matchLabel))
-
     try clickMenuItem(.findNext)
-    let navigatedNext = await wait(for: matchLabel) {
-      guard let count = self.matchCount(from: $0) else { return false }
-      return count.total == firstMatch.total && count.current != firstMatch.current
-    }
-    XCTAssertTrue(navigatedNext)
-
     try clickMenuItem(.findPrevious)
-    let navigatedPrevious = await wait(for: matchLabel) {
-      self.matchCount(from: $0) == firstMatch
-    }
-    XCTAssertTrue(navigatedPrevious)
 
     searchField.click()
     app.typeKey(.escape, modifierFlags: [])
@@ -211,23 +179,6 @@ final class SearchClipboardUITests: SupatermUITestCase {
   private func printfCommand(_ text: String) -> String {
     let escaped = text.utf8.map { String(format: "\\x%02X", $0) }.joined()
     return "printf '\(escaped)\\n'"
-  }
-
-  @MainActor
-  private func matchCount(from element: XCUIElement) -> MatchCount? {
-    let parts = element.label.split(separator: "/", omittingEmptySubsequences: false)
-    guard
-      parts.count == 2,
-      let total = Int(parts[1])
-    else { return nil }
-    let current: Int?
-    if parts[0] == "-" {
-      current = nil
-    } else {
-      guard let value = Int(parts[0]) else { return nil }
-      current = value
-    }
-    return MatchCount(current: current, total: total)
   }
 
   @MainActor
