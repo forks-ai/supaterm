@@ -59,6 +59,12 @@ final class SearchClipboardUITests: SupatermUITestCase {
     let searchClosed = await wait(for: searchField) { !$0.exists }
     XCTAssertTrue(searchClosed)
 
+    let focusedTerminal = app.textViews.matching(
+      NSPredicate(format: "hasKeyboardFocus == true")
+    ).firstMatch
+    let terminalRegainedFocus = await wait(for: focusedTerminal) { $0.exists }
+    XCTAssertTrue(terminalRegainedFocus)
+
     let focusProbe = "TERMINALFOCUSRESTORED"
     app.typeText(focusProbe)
     let terminalReceivedInput = await wait(for: terminal) {
