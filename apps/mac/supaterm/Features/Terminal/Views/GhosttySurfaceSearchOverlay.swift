@@ -287,7 +287,7 @@ private struct GhosttySearchMatchLabel: NSViewRepresentable {
     let label = NSTextField(labelWithString: text)
     label.font = .systemFont(ofSize: NSFont.smallSystemFontSize)
     label.textColor = .secondaryLabelColor
-    label.cell?.setAccessibilityIdentifier("terminal.search.match-count")
+    label.setAccessibilityIdentifier("terminal.search.match-count")
     return label
   }
 
