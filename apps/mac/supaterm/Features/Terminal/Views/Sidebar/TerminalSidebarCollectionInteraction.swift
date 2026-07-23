@@ -238,15 +238,10 @@ final class TerminalSidebarCollectionView: NSCollectionView {
   override func mouseDown(with event: NSEvent) {
     let entryID = routedRowEntryID
     routedRowEntryID = nil
-    guard
-      let entryID,
-      rowMouseDown(entryID: entryID, event: event),
-      let window
-    else {
+    guard let entryID, handlePointerSequence(entryID: entryID, mouseDownEvent: event) else {
       super.mouseDown(with: event)
       return
     }
-    trackPointerSequence(for: entryID, in: window)
   }
 
   override func updateTrackingAreas() {
@@ -287,6 +282,15 @@ final class TerminalSidebarCollectionView: NSCollectionView {
 
   func rowMouseUp(entryID: TerminalSidebarEntryID, event: NSEvent) -> Bool {
     onRowMouseUp?(entryID, event) == true
+  }
+
+  func handlePointerSequence(
+    entryID: TerminalSidebarEntryID,
+    mouseDownEvent: NSEvent
+  ) -> Bool {
+    guard rowMouseDown(entryID: entryID, event: mouseDownEvent), let window else { return false }
+    trackPointerSequence(for: entryID, in: window)
+    return true
   }
 
   private func trackPointerSequence(

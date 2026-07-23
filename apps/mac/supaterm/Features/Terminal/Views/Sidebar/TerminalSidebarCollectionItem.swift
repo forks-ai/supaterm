@@ -137,25 +137,11 @@ private final class SidebarEventHostingView: NSHostingView<TerminalSidebarHosted
   var entryID: TerminalSidebarEntryID?
 
   override func mouseDown(with event: NSEvent) {
-    guard let entryID, collectionView?.rowMouseDown(entryID: entryID, event: event) == true else {
-      super.mouseDown(with: event)
-      return
-    }
-  }
-
-  override func mouseDragged(with event: NSEvent) {
     guard
       let entryID,
-      collectionView?.rowMouseDragged(entryID: entryID, event: event) == true
+      collectionView?.handlePointerSequence(entryID: entryID, mouseDownEvent: event) == true
     else {
-      super.mouseDragged(with: event)
-      return
-    }
-  }
-
-  override func mouseUp(with event: NSEvent) {
-    guard let entryID, collectionView?.rowMouseUp(entryID: entryID, event: event) == true else {
-      super.mouseUp(with: event)
+      super.mouseDown(with: event)
       return
     }
   }

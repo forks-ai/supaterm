@@ -78,15 +78,16 @@ struct TerminalSidebarPointerTests {
     }
     try await Task.sleep(for: .milliseconds(100))
     item.view.layoutSubtreeIfNeeded()
-    let location = item.view.convert(
-      NSPoint(x: item.view.bounds.midX, y: item.view.bounds.midY),
+    let hostedView = try #require(item.view.subviews.first)
+    let location = hostedView.convert(
+      NSPoint(x: hostedView.bounds.midX, y: hostedView.bounds.midY),
       to: nil
     )
     let mouseDown = try #require(mouseEvent(.leftMouseDown, at: location, in: window))
     let mouseUp = try #require(mouseEvent(.leftMouseUp, at: location, in: window))
 
     NSApplication.shared.postEvent(mouseUp, atStart: false)
-    dispatch(mouseDown)
+    hostedView.mouseDown(with: mouseDown)
     for _ in 0..<5 { await Task.yield() }
 
     #expect(recorder.commands == [.selectTab(firstTabID)])
@@ -150,17 +151,4 @@ struct TerminalSidebarPointerTests {
     )
   }
 
-  private func dispatch(_ event: NSEvent) {
-    NSApplication.shared.postEvent(event, atStart: true)
-    if let queued = NSApplication.shared.nextEvent(
-      matching: .leftMouseDown,
-      until: Date(timeIntervalSinceNow: 1),
-      inMode: .default,
-      dequeue: true
-    ) {
-      NSApplication.shared.sendEvent(queued)
-    } else {
-      Issue.record("Mouse event was not dispatched")
-    }
-  }
 }
