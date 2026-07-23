@@ -113,7 +113,6 @@ struct TerminalSidebarView: View {
         dismissReleaseAnnouncement: dismissReleaseAnnouncement
       )
       WindowTrafficLights()
-        .padding(.top, TerminalSidebarLayout.trafficLightTopPadding)
     }
     .padding(.bottom, sidebarBottomPadding)
     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)

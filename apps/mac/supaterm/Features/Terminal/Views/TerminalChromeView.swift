@@ -131,17 +131,9 @@ struct ToolbarIconButton: View {
 }
 
 enum WindowTrafficLightMetrics {
-  static var buttonSize: CGFloat {
-    if #available(macOS 26.0, *) {
-      14
-    } else {
-      12
-    }
-  }
-
+  static let buttonSize: CGFloat = 14
   static let buttonSpacing: CGFloat = 9
-  static let leadingPadding: CGFloat = 8
-  static let topPadding: CGFloat = 2
+  static let edgePadding: CGFloat = 19
   static let symbolSize: CGFloat = 8
 }
 
@@ -175,8 +167,7 @@ struct WindowTrafficLights: View {
         .accessibilityLabel(light.accessibilityLabel)
       }
     }
-    .padding(.leading, WindowTrafficLightMetrics.leadingPadding)
-    .padding(.top, WindowTrafficLightMetrics.topPadding)
+    .padding([.top, .leading], WindowTrafficLightMetrics.edgePadding)
     .onHover { hovering in
       TerminalMotion.animate(.easeInOut(duration: 0.1), reduceMotion: reduceMotion) {
         isHovering = hovering
