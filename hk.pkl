@@ -5,7 +5,7 @@ local prePushBranchCheck = """
 repo_root=$(git rev-parse --show-toplevel)
 cd "$repo_root"
 [ -d apps/mac ] || exit 0
-if ! awk 'NF && $1 !~ /^refs\\/tags\\// && $3 !~ /^refs\\/tags\\// { found = 1 } END { exit found ? 0 : 1 }'; then
+if ! awk 'NF && $1 !~ "^refs/tags/" && $3 !~ "^refs/tags/" { found = 1 } END { exit found ? 0 : 1 }'; then
   exit 0
 fi
 """
