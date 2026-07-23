@@ -1,3 +1,4 @@
+import AppKit
 import ComposableArchitecture
 import Foundation
 import SupaTheme
@@ -14,7 +15,25 @@ extension SnapshotCatalog {
       title: "Full sidebar chrome",
       size: CGSize(width: 280, height: 560)
     ) { appearance in
-      AnyView(SidebarChromeSnapshotFixture(appearance: appearance))
+      AnyView(
+        SidebarChromeSnapshotFixture(
+          appearance: appearance,
+          fixedHoveredGroupID: nil
+        )
+      )
+    },
+    scenario(
+      "full-group-hover",
+      group: "Sidebar",
+      title: "Full sidebar group hover",
+      size: CGSize(width: 280, height: 560)
+    ) { appearance in
+      AnyView(
+        SidebarChromeSnapshotFixture(
+          appearance: appearance,
+          fixedHoveredGroupID: SidebarChromeSnapshotContext.groupID
+        )
+      )
     },
     scenario(
       "basic-selected",
@@ -630,8 +649,7 @@ private struct SidebarRowSnapshotItem {
   var tab: TerminalTabItem {
     TerminalTabItem(
       id: TerminalTabID(rawValue: SnapshotFixtureValues.uuid(id)),
-      title: title,
-      isPinned: isPinned
+      title: title
     )
   }
 }
@@ -649,6 +667,7 @@ private struct SidebarRowSnapshotFixture: View {
       tab: item.tab,
       palette: palette,
       isSelected: item.isSelected,
+      isPinned: item.isPinned,
       notificationPreviewText: item.notificationPreviewText,
       paneWorkingDirectories: item.paneWorkingDirectories,
       unreadCount: item.unreadCount,
@@ -688,7 +707,7 @@ private struct SidebarRowSnapshotFixture: View {
   }
 
   private var rowAppearance: SelectableRowButtonStyle.ResolvedAppearance {
-    SelectableRowButtonStyle.Appearance.sidebar.resolve(palette: palette)
+    SelectableRowButtonStyle.Appearance.sidebar(restFill: .clear).resolve(palette: palette)
   }
 }
 
@@ -696,6 +715,12 @@ private struct SidebarRowSnapshotFixture: View {
 private enum SidebarChromeSnapshotContext {
   static let commandHold = CommandHoldObserver()
   static let ghosttyShortcuts = GhosttyShortcutManager(runtime: nil)
+  static let groupID = TerminalTabGroupID(
+    rawValue: SnapshotFixtureValues.uuid("50000000-0000-0000-0000-000000000001")
+  )
+  static let regularGroupID = TerminalTabGroupID(
+    rawValue: SnapshotFixtureValues.uuid("50000000-0000-0000-0000-000000000002")
+  )
 
   static let terminal: TerminalHostState = {
     let terminal = TerminalHostState(managesTerminalSurfaces: false)
@@ -711,36 +736,70 @@ private enum SidebarChromeSnapshotContext {
       from: TerminalSpaceCatalog(defaultSelectedSpaceID: spaces[0].id, spaces: spaces),
       initialSelectedSpaceID: spaces[0].id
     )
-    let tabs = [
-      tab("41", title: "dotfiles", isPinned: true),
-      tab("42", title: "notes", isPinned: true),
-      tab("43", title: "supaterm - fish"),
-      tab("44", title: "release-check"),
-      tab("45", title: "agent playground"),
+    let regularGroupTab = tab("43", title: "supaterm - fish")
+    let selectedGroupTab = tab("44", title: "release-check")
+    let rootItems = [
+      rootTab("41", title: "dotfiles", isPinned: true),
+      rootTab("42", title: "notes", isPinned: true),
+      TerminalTabRootItem.group(
+        TerminalTabGroupItem(
+          id: groupID,
+          title: "Release",
+          color: .neutral,
+          isPinned: true,
+          tabs: [
+            selectedGroupTab,
+            tab("45", title: "agent playground"),
+          ]
+        )
+      ),
+      TerminalTabRootItem.group(
+        TerminalTabGroupItem(
+          id: regularGroupID,
+          title: "Product",
+          color: .red,
+          isPinned: false,
+          tabs: [regularGroupTab]
+        )
+      ),
     ]
-    terminal.spaceManager.restoreTabs(
-      tabs,
-      selectedTabID: tabs[2].id,
+    terminal.spaceManager.restoreRootItems(
+      rootItems,
+      selectedTabID: selectedGroupTab.id,
       in: spaces[0].id
     )
     return terminal
   }()
 
-  private static func tab(
+  private static func rootTab(
     _ id: String,
     title: String,
     isPinned: Bool = false
+  ) -> TerminalTabRootItem {
+    .tab(
+      TerminalUngroupedTabItem(
+        tab: tab(id, title: title),
+        isPinned: isPinned
+      )
+    )
+  }
+
+  private static func tab(
+    _ id: String,
+    title: String
   ) -> TerminalTabItem {
     TerminalTabItem(
-      id: TerminalTabID(rawValue: SnapshotFixtureValues.uuid("40000000-0000-0000-0000-0000000000\(id)")),
-      title: title,
-      isPinned: isPinned
+      id: TerminalTabID(
+        rawValue: SnapshotFixtureValues.uuid("40000000-0000-0000-0000-0000000000\(id)")
+      ),
+      title: title
     )
   }
 }
 
 private struct SidebarChromeSnapshotFixture: View {
   let appearance: SnapshotAppearance
+  let fixedHoveredGroupID: TerminalTabGroupID?
 
   private var palette: Palette {
     Palette(colorScheme: appearance.colorScheme)
@@ -761,6 +820,7 @@ private struct SidebarChromeSnapshotFixture: View {
       releaseAnnouncement: nil,
       palette: palette,
       terminal: SidebarChromeSnapshotContext.terminal,
+      fixedHoveredGroupID: fixedHoveredGroupID,
       dismissReleaseAnnouncement: {}
     )
     .environment(SidebarChromeSnapshotContext.commandHold)

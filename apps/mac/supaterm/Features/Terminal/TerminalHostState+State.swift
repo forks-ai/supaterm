@@ -19,16 +19,27 @@ extension TerminalHostState {
     spaceManager.tabs
   }
 
-  var pinnedTabs: [TerminalTabItem] {
-    spaceManager.pinnedTabs
+  var rootItems: [TerminalTabRootItem] {
+    spaceManager.rootItems
   }
 
-  var regularTabs: [TerminalTabItem] {
-    spaceManager.regularTabs
+  var selectedSpaceTopologyRevision: UInt64 {
+    guard let selectedSpaceID else { return 0 }
+    return spaceManager.tabManager(for: selectedSpaceID)?.topologyRevision ?? 0
   }
 
   var visibleTabs: [TerminalTabItem] {
     spaceManager.visibleTabs
+  }
+
+  var collapsedTabGroupIDs: Set<TerminalTabGroupID> {
+    guard let selectedSpaceID else { return [] }
+    return collapsedTabGroupIDsBySpace[selectedSpaceID] ?? []
+  }
+
+  func isPinned(_ tabID: TerminalTabID) -> Bool {
+    guard let space = spaceManager.space(for: tabID) else { return false }
+    return spaceManager.tabManager(for: space.id)?.isPinned(tabID) == true
   }
 
   var hasUnreadSidebarNotifications: Bool {
@@ -97,20 +108,9 @@ extension TerminalHostState {
   }
 
   func paneWorkingDirectories(for tabID: TerminalTabID) -> [String] {
-    if let tree = trees[tabID] {
-      return Self.paneWorkingDirectories(
-        paths: tree.leaves().map { $0.bridge.state.pwd }
-      )
-    }
-    guard
-      let spaceID = spaceManager.space(for: tabID)?.id,
-      spaceManager.tab(for: tabID)?.isPinned == true,
-      let session = pinnedTabCatalog.tabs(in: spaceID).first(where: { $0.id == tabID })?.session
-    else {
-      return []
-    }
+    guard let tree = trees[tabID] else { return [] }
     return Self.paneWorkingDirectories(
-      paths: session.root.workingDirectoryPaths
+      paths: tree.leaves().map { $0.bridge.state.pwd }
     )
   }
 

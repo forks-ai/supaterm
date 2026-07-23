@@ -54,12 +54,15 @@ extension TerminalCommandExecutor {
         windowCount: windows.count,
         spaceCount: windows.reduce(0) { $0 + $1.spaces.count },
         tabCount: windows.reduce(0) { partial, window in
-          partial + window.spaces.reduce(0) { $0 + $1.tabs.count }
+          partial
+            + window.spaces.reduce(0) { spacePartial, space in
+              spacePartial + space.flattenedTabs.count
+            }
         },
         paneCount: windows.reduce(0) { partial, window in
           partial
             + window.spaces.reduce(0) { spacePartial, space in
-              spacePartial + space.tabs.reduce(0) { $0 + $1.panes.count }
+              spacePartial + space.flattenedTabs.reduce(0) { $0 + $1.panes.count }
             }
         },
         keyWindowIndex: windows.first(where: \.isKey)?.index
@@ -71,52 +74,6 @@ extension TerminalCommandExecutor {
   }
 
   func notify(_ request: TerminalNotifyRequest) throws -> SupatermNotifyResult {
-    switch request.target {
-    case .contextPane:
-      return try notifyContextPane(request)
-
-    case .pane(let windowIndex, let spaceIndex, let tabIndex, let paneIndex):
-      let entry = try registry.entry(for: windowIndex)
-      let localRequest = TerminalNotifyRequest(
-        body: request.body,
-        subtitle: request.subtitle,
-        target: .pane(
-          windowIndex: 1,
-          spaceIndex: spaceIndex,
-          tabIndex: tabIndex,
-          paneIndex: paneIndex
-        ),
-        title: request.title
-      )
-      do {
-        return TerminalWindowRegistry.rewrite(
-          try entry.terminal.notify(localRequest),
-          windowIndex: windowIndex
-        )
-      } catch let error as TerminalCreatePaneError {
-        throw TerminalWindowRegistry.rewrite(error, windowIndex: windowIndex)
-      }
-
-    case .tab(let windowIndex, let spaceIndex, let tabIndex):
-      let entry = try registry.entry(for: windowIndex)
-      let localRequest = TerminalNotifyRequest(
-        body: request.body,
-        subtitle: request.subtitle,
-        target: .tab(windowIndex: 1, spaceIndex: spaceIndex, tabIndex: tabIndex),
-        title: request.title
-      )
-      do {
-        return TerminalWindowRegistry.rewrite(
-          try entry.terminal.notify(localRequest),
-          windowIndex: windowIndex
-        )
-      } catch let error as TerminalCreatePaneError {
-        throw TerminalWindowRegistry.rewrite(error, windowIndex: windowIndex)
-      }
-    }
-  }
-
-  func notifyContextPane(_ request: TerminalNotifyRequest) throws -> SupatermNotifyResult {
     for (offset, entry) in registry.activeEntries().enumerated() {
       do {
         let result = try entry.terminal.notify(request)

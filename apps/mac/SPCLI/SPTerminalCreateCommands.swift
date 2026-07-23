@@ -20,6 +20,16 @@ extension SP {
     )
     var space: SPSpaceReference?
 
+    @Option(
+      name: .long,
+      help: "Create the tab in the specified group.",
+      transform: parseGroupReference
+    )
+    var group: SPGroupReference?
+
+    @Flag(name: .long, help: "Create the tab at the space root.")
+    var root = false
+
     @Flag(inversion: .prefixedNo, help: "Focus the new tab after creating it.")
     var focus = false
 
@@ -47,33 +57,26 @@ extension SP {
 
     func validate() throws {
       try validateStartupCommand(script: script, tokens: input)
+      if group != nil && root {
+        throw ValidationError("Provide either --group or --root, not both.")
+      }
     }
 
     private func requestPayload(client: SPSocketClient) throws -> SupatermNewTabRequest {
       let command = try startupCommand(script: script, tokens: input)
       let cwd = try resolvedWorkingDirectory(cwd)
-      switch try resolvePublicNewTabTarget(
-        space,
-        context: SupatermCLIContext.current,
-        snapshot: try treeSnapshot(client)
-      ) {
-      case .context(let contextPaneID):
-        return SupatermNewTabRequest(
-          startupCommand: command,
-          contextPaneID: contextPaneID,
-          cwd: cwd,
-          focus: focus
+      let destination = group.map(SPGroupDestinationReference.group) ?? (root ? .root : nil)
+      return SupatermNewTabRequest(
+        startupCommand: command,
+        cwd: cwd,
+        focus: focus,
+        target: try resolvePublicNewTabPlacement(
+          space: space,
+          group: destination,
+          context: SupatermCLIContext.current,
+          snapshot: try treeSnapshot(client)
         )
-
-      case .space(let windowIndex, let spaceIndex):
-        return SupatermNewTabRequest(
-          startupCommand: command,
-          cwd: cwd,
-          focus: focus,
-          targetWindowIndex: windowIndex,
-          targetSpaceIndex: spaceIndex
-        )
-      }
+      )
     }
   }
 
@@ -159,46 +162,18 @@ extension SP {
     private func requestPayload(client: SPSocketClient) throws -> SupatermNewPaneRequest {
       let command = try startupCommand(script: script, tokens: input)
       let cwd = try resolvedWorkingDirectory(cwd)
-      switch try resolvePublicSplitTarget(
-        container,
-        context: SupatermCLIContext.current,
-        snapshot: try treeSnapshot(client)
-      ) {
-      case .context(let contextPaneID):
-        return SupatermNewPaneRequest(
-          startupCommand: command,
-          contextPaneID: contextPaneID,
-          cwd: cwd,
-          direction: direction.direction,
-          focus: focus,
-          equalize: layout == .equalize
+      return SupatermNewPaneRequest(
+        startupCommand: command,
+        cwd: cwd,
+        direction: direction.direction,
+        focus: focus,
+        equalize: layout == .equalize,
+        target: try resolvePublicSplitTarget(
+          container,
+          context: SupatermCLIContext.current,
+          snapshot: try treeSnapshot(client)
         )
-
-      case .pane(let windowIndex, let spaceIndex, let tabIndex, let paneIndex):
-        return SupatermNewPaneRequest(
-          startupCommand: command,
-          cwd: cwd,
-          direction: direction.direction,
-          focus: focus,
-          equalize: layout == .equalize,
-          targetWindowIndex: windowIndex,
-          targetSpaceIndex: spaceIndex,
-          targetTabIndex: tabIndex,
-          targetPaneIndex: paneIndex
-        )
-
-      case .tab(let windowIndex, let spaceIndex, let tabIndex):
-        return SupatermNewPaneRequest(
-          startupCommand: command,
-          cwd: cwd,
-          direction: direction.direction,
-          focus: focus,
-          equalize: layout == .equalize,
-          targetWindowIndex: windowIndex,
-          targetSpaceIndex: spaceIndex,
-          targetTabIndex: tabIndex
-        )
-      }
+      )
     }
   }
 
@@ -240,31 +215,17 @@ extension SP {
 
     private func requestPayload(client: SPSocketClient) throws -> SupatermNotifyRequest {
       let body = body ?? ""
-      switch try resolvePublicPaneTarget(
+      let target = try resolvePublicPaneTarget(
         pane,
         context: SupatermCLIContext.current,
         snapshot: try treeSnapshot(client)
-      ) {
-      case .context(let contextPaneID):
-        return .init(
-          body: body,
-          contextPaneID: contextPaneID,
-          subtitle: subtitle,
-          title: title
-        )
-
-      case .pane(let windowIndex, let spaceIndex, let tabIndex, let paneIndex):
-        return .init(
-          body: body,
-          subtitle: subtitle,
-          targetPaneIndex: paneIndex,
-          targetSpaceIndex: spaceIndex,
-          targetTabIndex: tabIndex,
-          targetWindowIndex: windowIndex,
-          title: title
-        )
-
-      }
+      )
+      return .init(
+        body: body,
+        paneID: target.paneID,
+        subtitle: subtitle,
+        title: title
+      )
     }
   }
 }

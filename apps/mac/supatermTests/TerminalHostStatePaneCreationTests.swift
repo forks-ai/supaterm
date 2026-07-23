@@ -23,7 +23,7 @@ struct TerminalHostStatePaneCreationTests {
           direction: .right,
           focus: false,
           equalize: true,
-          target: .contextPane(paneID)
+          target: .pane(paneID)
         )
       )
 
@@ -51,7 +51,7 @@ struct TerminalHostStatePaneCreationTests {
           direction: .right,
           focus: false,
           equalize: false,
-          target: .contextPane(paneID)
+          target: .pane(paneID)
         )
       )
 
@@ -66,8 +66,9 @@ struct TerminalHostStatePaneCreationTests {
   private func restoredHost(rootRatio: Double) -> TerminalHostState {
     let host = TerminalHostState()
     let spaceID = host.spaces[0].id
+    let tabID = TerminalTabID()
     let tabSession = TerminalTabSession(
-      isPinned: false,
+      id: tabID,
       lockedTitle: nil,
       focusedPaneIndex: 1,
       root: TerminalPaneNodeSession.split(
@@ -81,7 +82,16 @@ struct TerminalHostStatePaneCreationTests {
     )
     let spaceSession = TerminalWindowSpaceSession(
       id: spaceID,
-      selectedTabIndex: 0,
+      selectedTabID: tabID,
+      nodes: [
+        TerminalTabNodeSession(
+          item: .tab(tabID),
+          parent: .root(isPinned: false),
+          order: 0
+        )
+      ],
+      groups: [],
+      collapsedGroupIDs: [],
       tabs: [tabSession]
     )
     let session = TerminalWindowSession(

@@ -12,14 +12,14 @@ extension SupatermE2ESuite {
       var paneIDs = try app.debugSnapshot()
         .windows
         .flatMap(\.spaces)
-        .flatMap(\.tabs)
+        .flatMap(\.flattenedTabs)
         .flatMap(\.panes)
         .map(\.id)
       #expect(!paneIDs.isEmpty)
 
       while let paneID = paneIDs.popLast() {
         _ = try app.send(
-          .closePane(SupatermPaneTargetRequest(contextPaneID: paneID)),
+          .closePane(SupatermPaneTargetRequest(paneID: paneID)),
           as: SupatermClosePaneResult.self
         )
       }
@@ -41,12 +41,7 @@ extension SupatermE2ESuite {
       let space = try #require(window.spaces.first)
 
       let message = try app.sendExpectingError(
-        .closeSpace(
-          SupatermSpaceTargetRequest(
-            targetWindowIndex: window.index,
-            targetSpaceIndex: space.index
-          )
-        )
+        .closeSpace(SupatermSpaceTargetRequest(spaceID: space.id))
       )
       #expect(!message.isEmpty)
 

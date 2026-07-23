@@ -17,6 +17,7 @@ final class MenusFirstRunUITests: SupatermUITestCase {
       exposes: [
         SupatermUITestIdentifier.MenuItemIdentifier.newWindow.rawValue,
         SupatermUITestIdentifier.MenuItemIdentifier.newTab.rawValue,
+        SupatermUITestIdentifier.MenuItemIdentifier.newTabInGroup.rawValue,
       ]
     )
     try assertMenu(
@@ -67,9 +68,7 @@ final class MenusFirstRunUITests: SupatermUITestCase {
   func testPinMenuFollowsSelectedTabState() async throws {
     _ = mainWindow
 
-    let tabRow = app.buttons.matching(
-      identifier: SupatermUITestIdentifier.Accessibility.sidebarTabRow
-    ).firstMatch
+    let tabRow = sidebarTabRows.firstMatch
     guard tabRow.waitForExistence(timeout: 30) else {
       XCTFail("Initial sidebar tab row did not appear")
       return
@@ -82,11 +81,8 @@ final class MenusFirstRunUITests: SupatermUITestCase {
     XCTAssertFalse(app.menuItems["Unpin Tab"].exists)
     pin.click()
 
-    let pinnedSection = element(SupatermUITestIdentifier.Accessibility.sidebarPinnedSection)
-    let didMoveToPinnedSection = await wait(for: pinnedSection) { section in
-      section.descendants(matching: .button).matching(
-        identifier: SupatermUITestIdentifier.Accessibility.sidebarTabRow
-      ).firstMatch.exists
+    let didMoveToPinnedSection = await wait(for: tabRow) { row in
+      row.exists && row.label.contains("Pinned")
     }
     XCTAssertTrue(didMoveToPinnedSection)
 

@@ -8,48 +8,38 @@ final class SessionRestoreUITests: SupatermUITestCase {
     let didShowInitialTab = await waitForCount(tabRows, equals: 1, timeout: .seconds(30))
     XCTAssertTrue(didShowInitialTab)
 
-    let pinnedSection = element(SupatermUITestIdentifier.Accessibility.sidebarPinnedSection)
-    let regularSection = element(SupatermUITestIdentifier.Accessibility.sidebarRegularSection)
-    let pinnedRows = pinnedSection.descendants(matching: .button).matching(
-      identifier: SupatermUITestIdentifier.Accessibility.sidebarTabRow
-    )
-    let regularRows = regularSection.descendants(matching: .button).matching(
-      identifier: SupatermUITestIdentifier.Accessibility.sidebarTabRow
-    )
-    let pinnedRow = pinnedRows.firstMatch
-    let regularRow = regularRows.firstMatch
+    let pinnedRow = tabRows.element(boundBy: 0)
+    let regularRow = tabRows.element(boundBy: 1)
 
-    try clickContextMenuItem("Pin Tab", on: tabRows.firstMatch)
+    try clickSidebarContextMenuItem("Pin Tab", on: tabRows.firstMatch)
     let didPinInitialTab = await wait(for: pinnedRow, timeout: .seconds(30)) { row in
-      row.exists && regularRows.count < 1
+      row.exists && self.tabRows.count == 1
     }
     XCTAssertTrue(didPinInitialTab)
 
     try clickMenuItem(.newTab)
-    let didCreateRegularTab = await wait(for: regularRow, timeout: .seconds(30)) { row in
+    let didCreateSecondTab = await wait(for: regularRow, timeout: .seconds(30)) { row in
       row.exists && row.isSelected
     }
-    XCTAssertTrue(didCreateRegularTab)
+    XCTAssertTrue(didCreateSecondTab)
+    try clickSidebarContextMenuItem("Unpin Tab", on: regularRow)
 
     pinnedRow.click()
     let didSelectPinnedTab = await wait(for: pinnedRow) { $0.isSelected }
     XCTAssertTrue(didSelectPinnedTab)
     XCTAssertFalse(regularRow.isSelected)
 
-    let pinnedTabsURL = stateHome.appendingPathComponent("pinned-tabs.json")
     let didSavePinnedSelection = await waitForSessionCatalog(at: sessionFileURL) { catalog in
       guard
-        let windows = catalog["windows"] as? [[String: Any]],
-        windows.count == 1,
-        let spaces = windows[0]["spaces"] as? [[String: Any]],
-        spaces.count == 1
+        catalog["version"] as? Int == 7,
+        let space = self.sessionSpace(in: catalog),
+        let topology = self.sessionTopology(in: space),
+        topology.orderedTabIDs.count == 2,
+        let selectedTabID = self.sessionTabID(space["selectedTabID"])
       else { return false }
-      guard let selectedPinnedTabID = spaces[0]["selectedPinnedTabID"] as? [String: Any] else {
-        return false
-      }
-      return selectedPinnedTabID["rawValue"] is String
-        && spaces[0]["selectedTabIndex"] == nil
-        && FileManager.default.fileExists(atPath: pinnedTabsURL.path)
+      return selectedTabID == topology.orderedTabIDs[0]
+        && topology.rootPinning[topology.orderedTabIDs[0]] == true
+        && topology.rootPinning[topology.orderedTabIDs[1]] == false
     }
     XCTAssertTrue(didSavePinnedSelection)
 
@@ -204,23 +194,7 @@ final class SessionRestoreUITests: SupatermUITestCase {
 
   @MainActor
   private var tabRows: XCUIElementQuery {
-    app.buttons.matching(
-      identifier: SupatermUITestIdentifier.Accessibility.sidebarTabRow
-    )
-  }
-
-  @MainActor
-  private func clickContextMenuItem(
-    _ title: String,
-    on element: XCUIElement,
-    timeout: TimeInterval = 10
-  ) throws {
-    let foundElement = try require(element, timeout: timeout)
-    foundElement.rightClick()
-
-    let itemCandidate = app.menuItems[title]
-    let item = try require(itemCandidate, timeout: timeout)
-    item.click()
+    sidebarTabRows
   }
 
   @MainActor
@@ -312,15 +286,26 @@ final class SessionRestoreUITests: SupatermUITestCase {
     guard
       let data = try? Data(contentsOf: url),
       let catalog = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
-      let windows = catalog["windows"] as? [[String: Any]],
-      windows.count == 1,
-      let spaces = windows[0]["spaces"] as? [[String: Any]],
-      spaces.count == 1,
-      let tabs = spaces[0]["tabs"] as? [[String: Any]]
+      catalog["version"] as? Int == 7,
+      let space = sessionSpace(in: catalog),
+      let topology = sessionTopology(in: space),
+      let tabs = space["tabs"] as? [[String: Any]]
     else { return nil }
+    let tabsByID = tabs.reduce(into: [String: [String: Any]]()) { result, tab in
+      guard let id = sessionTabID(tab["id"]), result[id] == nil else { return }
+      result[id] = tab
+    }
+    guard
+      tabsByID.count == tabs.count,
+      topology.orderedTabIDs.allSatisfy({ tabsByID[$0] != nil })
+    else { return nil }
+    let selectedTabIndex = sessionTabID(space["selectedTabID"]).flatMap {
+      topology.orderedTabIDs.firstIndex(of: $0)
+    }
     return SessionLayout(
-      selectedTabIndex: spaces[0]["selectedTabIndex"] as? Int,
-      tabs: tabs.compactMap { tab in
+      selectedTabIndex: selectedTabIndex,
+      tabs: topology.orderedTabIDs.compactMap { tabID in
+        guard let tab = tabsByID[tabID] else { return nil }
         guard let root = tab["root"] as? [String: Any] else { return nil }
         var leafIDs: [String] = []
         var splitDirections: [String] = []
@@ -328,6 +313,77 @@ final class SessionRestoreUITests: SupatermUITestCase {
         return SessionTabLayout(leafIDs: leafIDs, splitDirections: splitDirections)
       }
     )
+  }
+
+  private func sessionSpace(in catalog: [String: Any]) -> [String: Any]? {
+    guard
+      let windows = catalog["windows"] as? [[String: Any]],
+      windows.count == 1,
+      let spaces = windows[0]["spaces"] as? [[String: Any]],
+      spaces.count == 1
+    else { return nil }
+    return spaces[0]
+  }
+
+  private func sessionTopology(in space: [String: Any]) -> SessionTopology? {
+    guard let nodes = space["nodes"] as? [[String: Any]] else { return nil }
+    let indexedRootNodes = nodes.enumerated().filter { _, node in
+      (node["parent"] as? [String: Any])?["kind"] as? String == "root"
+    }
+    let rootNodes = indexedRootNodes.sorted { lhs, rhs in
+      let lhsParent = lhs.element["parent"] as? [String: Any]
+      let rhsParent = rhs.element["parent"] as? [String: Any]
+      let lhsPinned = lhsParent?["isPinned"] as? Bool == true
+      let rhsPinned = rhsParent?["isPinned"] as? Bool == true
+      if lhsPinned != rhsPinned { return lhsPinned }
+      let lhsOrder = lhs.element["order"] as? Int ?? .max
+      let rhsOrder = rhs.element["order"] as? Int ?? .max
+      return (lhsOrder, lhs.offset) < (rhsOrder, rhs.offset)
+    }
+    var orderedTabIDs: [String] = []
+    var rootPinning: [String: Bool] = [:]
+    for (_, rootNode) in rootNodes {
+      guard
+        let item = rootNode["item"] as? [String: Any],
+        let kind = item["kind"] as? String,
+        let parent = rootNode["parent"] as? [String: Any],
+        let isPinned = parent["isPinned"] as? Bool
+      else { return nil }
+      switch kind {
+      case "tab":
+        guard let id = sessionTabID(item["id"]) else { return nil }
+        orderedTabIDs.append(id)
+        rootPinning[id] = isPinned
+      case "group":
+        guard let id = item["id"] as? String else { return nil }
+        let childIDs = nodes.enumerated()
+          .filter { _, node in
+            guard
+              let childParent = node["parent"] as? [String: Any],
+              childParent["kind"] as? String == "group",
+              childParent["id"] as? String == id,
+              let childItem = node["item"] as? [String: Any]
+            else { return false }
+            return childItem["kind"] as? String == "tab"
+          }
+          .sorted { lhs, rhs in
+            let lhsOrder = lhs.element["order"] as? Int ?? .max
+            let rhsOrder = rhs.element["order"] as? Int ?? .max
+            return (lhsOrder, lhs.offset) < (rhsOrder, rhs.offset)
+          }
+          .compactMap { _, node in
+            sessionTabID((node["item"] as? [String: Any])?["id"])
+          }
+        orderedTabIDs.append(contentsOf: childIDs)
+      default:
+        return nil
+      }
+    }
+    return SessionTopology(orderedTabIDs: orderedTabIDs, rootPinning: rootPinning)
+  }
+
+  private func sessionTabID(_ value: Any?) -> String? {
+    (value as? [String: Any])?["rawValue"] as? String
   }
 
   private func flatten(
@@ -357,4 +413,9 @@ private struct SessionLayout: Equatable {
 private struct SessionTabLayout: Equatable {
   let leafIDs: [String]
   let splitDirections: [String]
+}
+
+private struct SessionTopology {
+  let orderedTabIDs: [String]
+  let rootPinning: [String: Bool]
 }

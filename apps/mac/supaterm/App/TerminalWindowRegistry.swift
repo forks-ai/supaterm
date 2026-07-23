@@ -32,6 +32,7 @@ final class TerminalWindowRegistry {
     let availability: CommandAvailability
     let closesKeyWindowDirectly: Bool
     let hasSearch: Bool
+    let hasSelectedGroup: Bool
     let updateMenuItemText: String
     let visibleTabCount: Int
     let spaceCount: Int
@@ -150,6 +151,7 @@ final class TerminalWindowRegistry {
           hasWindow: false, hasTab: false, hasSurface: false, hasAnySurface: hasAnySurface),
         closesKeyWindowDirectly: closesKeyWindowDirectly,
         hasSearch: false,
+        hasSelectedGroup: false,
         updateMenuItemText: "Check for Updates...",
         visibleTabCount: 0,
         spaceCount: 0,
@@ -164,6 +166,7 @@ final class TerminalWindowRegistry {
       availability: commandAvailability(for: entry),
       closesKeyWindowDirectly: closesKeyWindowDirectly,
       hasSearch: entry.terminal.selectedSurfaceState?.searchNeedle != nil,
+      hasSelectedGroup: selectedGroupID(in: entry) != nil,
       updateMenuItemText: updateState.phase.menuItemTitle,
       visibleTabCount: entry.terminal.visibleTabs.count,
       spaceCount: entry.terminal.spaces.count,
@@ -180,6 +183,23 @@ final class TerminalWindowRegistry {
     entry.store.send(
       .terminal(
         .newTabButtonTapped(inheritingFromSurfaceID: entry.terminal.selectedSurfaceView?.id)
+      )
+    )
+  }
+
+  func requestNewTabInSelectedGroupInKeyWindow() {
+    guard
+      let entry = preferredActiveEntry(),
+      let groupID = selectedGroupID(in: entry)
+    else {
+      return
+    }
+    entry.store.send(
+      .terminal(
+        .newTabInGroupRequested(
+          groupID,
+          inheritingFromSurfaceID: entry.terminal.selectedSurfaceView?.id
+        )
       )
     )
   }
@@ -439,7 +459,7 @@ final class TerminalWindowRegistry {
       selectedSpaceID: terminal.selectedSpaceID,
       spaces: terminal.spaces,
       selectedTabID: terminal.selectedTabID,
-      visibleTabs: terminal.visibleTabs
+      rootItems: terminal.rootItems
     )
   }
 
@@ -448,7 +468,7 @@ final class TerminalWindowRegistry {
     guard let window = entry.windowReference.value else { return }
     window.makeKeyAndOrderFront(nil)
     entry.terminal.updateWindowActivity(WindowActivityState(isKeyWindow: true, isVisible: true))
-    _ = try? entry.terminal.focusPane(.contextPane(target.surfaceID))
+    _ = try? entry.terminal.focusPane(TerminalPaneTarget(paneID: target.surfaceID))
   }
 
   @discardableResult
@@ -463,7 +483,7 @@ final class TerminalWindowRegistry {
         }
         window.makeKeyAndOrderFront(nil)
         entry.terminal.updateWindowActivity(WindowActivityState(isKeyWindow: true, isVisible: true))
-        _ = try entry.terminal.focusPane(.contextPane(surfaceID))
+        _ = try entry.terminal.focusPane(TerminalPaneTarget(paneID: surfaceID))
         return true
       } catch let error as TerminalControlError {
         if case .contextPaneNotFound = error {
@@ -489,15 +509,6 @@ final class TerminalWindowRegistry {
     entries.filter { $0.windowReference.value != nil }
   }
 
-  func entry(for windowIndex: Int) throws -> Entry {
-    let activeEntries = activeEntries()
-    let offset = windowIndex - 1
-    guard activeEntries.indices.contains(offset) else {
-      throw TerminalCreatePaneError.windowNotFound(windowIndex)
-    }
-    return activeEntries[offset]
-  }
-
   func preferredActiveEntry() -> Entry? {
     if let keyWindow = NSApp.keyWindow, let entry = entry(for: keyWindow) {
       return entry
@@ -514,6 +525,16 @@ final class TerminalWindowRegistry {
     guard let surfaceID = entry.terminal.selectedSurfaceView?.id else { return nil }
     guard let presentation = entry.terminal.agentPanelPresentation(for: surfaceID) else { return nil }
     return SelectedAgentPanel(surfaceID: surfaceID, session: presentation.session)
+  }
+
+  private func selectedGroupID(in entry: Entry) -> TerminalTabGroupID? {
+    guard
+      let tabID = entry.terminal.selectedTabID,
+      let tabManager = entry.terminal.spaceManager.activeTabManager
+    else {
+      return nil
+    }
+    return tabManager.groupID(containing: tabID)
   }
 
   private func commandAvailability(for entry: Entry) -> CommandAvailability {
@@ -796,49 +817,6 @@ final class TerminalWindowRegistry {
       return .creationFailed
     case .spaceNotFound(_, let spaceIndex):
       return .spaceNotFound(windowIndex: windowIndex, spaceIndex: spaceIndex)
-    case .windowNotFound:
-      return .windowNotFound(windowIndex)
-    }
-  }
-
-  static func rewrite(
-    _ error: TerminalControlError,
-    windowIndex: Int
-  ) -> TerminalControlError {
-    switch error {
-    case .captureFailed:
-      return .captureFailed
-    case .contextPaneNotFound:
-      return .contextPaneNotFound
-    case .invalidSpaceName:
-      return .invalidSpaceName
-    case .lastPaneNotFound:
-      return .lastPaneNotFound
-    case .lastSpaceNotFound:
-      return .lastSpaceNotFound
-    case .lastTabNotFound:
-      return .lastTabNotFound
-    case .onlyRemainingSpace:
-      return .onlyRemainingSpace
-    case .paneNotFound(_, let spaceIndex, let tabIndex, let paneIndex):
-      return .paneNotFound(
-        windowIndex: windowIndex,
-        spaceIndex: spaceIndex,
-        tabIndex: tabIndex,
-        paneIndex: paneIndex
-      )
-    case .resizeFailed:
-      return .resizeFailed
-    case .spaceNameUnavailable:
-      return .spaceNameUnavailable
-    case .spaceNotFound(_, let spaceIndex):
-      return .spaceNotFound(windowIndex: windowIndex, spaceIndex: spaceIndex)
-    case .tabNotFound(_, let spaceIndex, let tabIndex):
-      return .tabNotFound(
-        windowIndex: windowIndex,
-        spaceIndex: spaceIndex,
-        tabIndex: tabIndex
-      )
     case .windowNotFound:
       return .windowNotFound(windowIndex)
     }

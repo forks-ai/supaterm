@@ -461,7 +461,7 @@ struct TerminalWindowRegistryTests {
           direction: .right,
           focus: false,
           equalize: false,
-          target: .contextPane(selectedSurfaceID)
+          target: .pane(selectedSurfaceID)
         )
       )
 
@@ -685,6 +685,47 @@ struct TerminalWindowRegistryTests {
       await flushEffects()
 
       #expect(recorder.commands == [.createTab(inheritingFromSurfaceID: nil)])
+    }
+  }
+  @Test
+  func requestNewTabInSelectedGroupDispatchesReducerCommand() async throws {
+    try await withDependencies {
+      $0.defaultFileStorage = .inMemory
+    } operation: {
+      let registry = TerminalWindowRegistry()
+      let recorder = TerminalCommandRecorder()
+      let host = TerminalHostState(managesTerminalSurfaces: false)
+      let store = Store(initialState: AppFeature.State()) {
+        AppFeature()
+      } withDependencies: {
+        $0.terminalClient.send = { recorder.record($0) }
+      }
+      let windowControllerID = UUID()
+      let tabManager = try #require(host.spaceManager.activeTabManager)
+      let tabID = tabManager.createTab(title: "Terminal 1")
+      let groupID = try #require(
+        tabManager.createGroup(title: "Group", containing: [tabID])
+      ).groupID
+      tabManager.selectTab(tabID)
+
+      registry.register(
+        keyboardShortcutForAction: { _ in nil },
+        windowControllerID: windowControllerID,
+        store: store,
+        terminal: host,
+        requestConfirmedWindowClose: {}
+      )
+      let window = makeWindow()
+      registry.updateWindow(window, for: windowControllerID)
+
+      #expect(registry.menuContext().hasSelectedGroup)
+      registry.requestNewTabInSelectedGroupInKeyWindow()
+      await flushEffects()
+
+      #expect(
+        recorder.commands
+          == [.createTabInGroup(groupID, inheritingFromSurfaceID: nil)]
+      )
     }
   }
   @Test
@@ -938,7 +979,7 @@ struct TerminalWindowRegistryTests {
             direction: .right,
             focus: true,
             equalize: false,
-            target: .contextPane(surfaceID)
+            target: .pane(surfaceID)
           )
         ])
     }

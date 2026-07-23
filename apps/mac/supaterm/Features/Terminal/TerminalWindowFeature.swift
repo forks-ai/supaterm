@@ -113,6 +113,8 @@ struct TerminalWindowFeature {
         return "tab:\(tabID.rawValue.uuidString)"
       case .tabs(let tabIDs):
         return "tabs:\(tabIDs.map { $0.rawValue.uuidString }.joined(separator: ","))"
+      case .group(let groupID):
+        return "group:\(groupID.rawValue.uuidString)"
       }
     }
   }
@@ -121,6 +123,7 @@ struct TerminalWindowFeature {
     case surface(UUID)
     case tab(TerminalTabID)
     case tabs([TerminalTabID])
+    case group(TerminalTabGroupID)
   }
 
   private struct ResolvedCommandPalette {
@@ -146,9 +149,11 @@ struct TerminalWindowFeature {
     case closeConfirmationCancelButtonTapped
     case closeConfirmationConfirmButtonTapped
     case closeAllWindowsRequested([ObjectIdentifier])
-    case closeOtherTabsRequested(TerminalTabID)
+    case closeOtherTabsRequested([TerminalTabID])
+    case closeGroupRequested(TerminalTabGroupID)
     case closeSurfaceRequested(UUID)
     case closeTabRequested(TerminalTabID)
+    case closeTabsRequested([TerminalTabID])
     case closeTabsBelowRequested(TerminalTabID)
     case collapseSidebarButtonTapped
     case floatingSidebarVisibilityChanged(Bool)
@@ -161,23 +166,22 @@ struct TerminalWindowFeature {
     case agentPanelURLTapped(URL)
     case agentPanelVisibilityToggled(UUID)
     case navigateSearchMenuItemSelected(GhosttySearchDirection)
+    case createGroupRequested(title: String, color: TerminalTabGroupColor, tabIDs: [TerminalTabID])
     case newTabButtonTapped(inheritingFromSurfaceID: UUID?)
+    case newTabInGroupRequested(TerminalTabGroupID, inheritingFromSurfaceID: UUID?)
     case nextSpaceRequested
     case nextTabMenuItemSelected
-    case pinnedTabOrderChanged([TerminalTabID])
+    case moveCommitted(TerminalTabMoveRequest)
     case previousSpaceRequested
     case previousTabMenuItemSelected
-    case regularTabOrderChanged([TerminalTabID])
+    case removeTabFromGroupRequested(TerminalTabID)
+    case renameGroupRequested(TerminalTabGroupID, String)
     case selectLastTabMenuItemSelected
     case selectTabMenuItemSelected(Int)
     case selectSpaceButtonTapped(TerminalSpaceID)
     case selectSpaceMenuItemSelected(Int)
     case sidebarTabSplitRequested(surfaceID: UUID, direction: SupatermPaneDirection)
-    case sidebarTabMoveCommitted(
-      tabID: TerminalTabID,
-      pinnedOrder: [TerminalTabID],
-      regularOrder: [TerminalTabID]
-    )
+    case setGroupColorRequested(TerminalTabGroupID, TerminalTabGroupColor)
     case sidebarFractionChanged(CGFloat)
     case splitOperationRequested(tabID: TerminalTabID, operation: TerminalSplitTreeView.Operation)
     case tabSelected(TerminalTabID)
@@ -191,6 +195,9 @@ struct TerminalWindowFeature {
     case spaceEditorSaveButtonTapped
     case spaceEditorTextChanged(String)
     case togglePinned(TerminalTabID)
+    case toggleGroupCollapsedRequested(TerminalTabGroupID)
+    case togglePinnedRootItemRequested(TerminalTabRootItemID)
+    case ungroupRequested(TerminalTabGroupID)
     case toggleSidebarButtonTapped
     case confirmationCancelButtonTapped
     case confirmationConfirmButtonTapped
@@ -309,14 +316,20 @@ struct TerminalWindowFeature {
         state.pendingSpaceDeleteRequest = nil
         return sendCommand(.deleteSpace(request.space.id))
 
-      case .closeOtherTabsRequested(let tabID):
-        return sendCommand(.requestCloseOtherTabs(tabID))
+      case .closeOtherTabsRequested(let tabIDs):
+        return sendCommand(.requestCloseOtherTabs(tabIDs))
+
+      case .closeGroupRequested(let groupID):
+        return sendCommand(.requestCloseGroup(groupID))
 
       case .closeSurfaceRequested(let surfaceID):
         return sendCommand(.requestCloseSurface(surfaceID))
 
       case .closeTabRequested(let tabID):
         return sendCommand(.requestCloseTab(tabID))
+
+      case .closeTabsRequested(let tabIDs):
+        return sendCommand(.requestCloseTabs(tabIDs))
 
       case .closeTabsBelowRequested(let tabID):
         return sendCommand(.requestCloseTabsBelow(tabID))
@@ -353,7 +366,7 @@ struct TerminalWindowFeature {
               direction: direction,
               focus: true,
               equalize: false,
-              target: .contextPane(surfaceID)
+              target: .pane(surfaceID)
             )
           )
         }
@@ -374,9 +387,18 @@ struct TerminalWindowFeature {
       case .navigateSearchMenuItemSelected(let direction):
         return sendCommand(.navigateSearch(direction))
 
+      case .createGroupRequested(let title, let color, let tabIDs):
+        return sendCommand(.createGroup(title: title, color: color, tabIDs: tabIDs))
+
       case .newTabButtonTapped(let inheritingFromSurfaceID):
         analyticsClient.capture("terminal_tab_created")
         return sendCommand(.createTab(inheritingFromSurfaceID: inheritingFromSurfaceID))
+
+      case .newTabInGroupRequested(let groupID, let inheritingFromSurfaceID):
+        analyticsClient.capture("terminal_tab_created")
+        return sendCommand(
+          .createTabInGroup(groupID, inheritingFromSurfaceID: inheritingFromSurfaceID)
+        )
 
       case .nextSpaceRequested:
         return sendCommand(.nextSpace)
@@ -384,8 +406,8 @@ struct TerminalWindowFeature {
       case .nextTabMenuItemSelected:
         return sendCommand(.nextTab)
 
-      case .pinnedTabOrderChanged(let orderedIDs):
-        return sendCommand(.setPinnedTabOrder(orderedIDs))
+      case .moveCommitted(let request):
+        return sendCommand(.move(request))
 
       case .previousSpaceRequested:
         return sendCommand(.previousSpace)
@@ -393,8 +415,11 @@ struct TerminalWindowFeature {
       case .previousTabMenuItemSelected:
         return sendCommand(.previousTab)
 
-      case .regularTabOrderChanged(let orderedIDs):
-        return sendCommand(.setRegularTabOrder(orderedIDs))
+      case .removeTabFromGroupRequested(let tabID):
+        return sendCommand(.removeTabFromGroup(tabID))
+
+      case .renameGroupRequested(let groupID, let title):
+        return sendCommand(.renameGroup(groupID, title))
 
       case .selectLastTabMenuItemSelected:
         return sendCommand(.selectLastTab)
@@ -417,15 +442,13 @@ struct TerminalWindowFeature {
               direction: direction,
               focus: false,
               equalize: false,
-              target: .contextPane(surfaceID)
+              target: .pane(surfaceID)
             )
           )
         }
 
-      case .sidebarTabMoveCommitted(let tabID, let pinnedOrder, let regularOrder):
-        return sendCommand(
-          .moveSidebarTab(tabID: tabID, pinnedOrder: pinnedOrder, regularOrder: regularOrder)
-        )
+      case .setGroupColorRequested(let groupID, let color):
+        return sendCommand(.setGroupColor(groupID, color))
 
       case .sidebarFractionChanged(let fraction):
         state.sidebarFraction = fraction
@@ -496,6 +519,15 @@ struct TerminalWindowFeature {
 
       case .togglePinned(let tabID):
         return sendCommand(.togglePinned(tabID))
+
+      case .toggleGroupCollapsedRequested(let groupID):
+        return sendCommand(.toggleGroupCollapsed(groupID))
+
+      case .togglePinnedRootItemRequested(let rootItemID):
+        return sendCommand(.togglePinnedRootItem(rootItemID))
+
+      case .ungroupRequested(let groupID):
+        return sendCommand(.ungroup(groupID))
 
       case .toggleSidebarButtonTapped:
         state.isFloatingSidebarVisible = false
@@ -678,6 +710,8 @@ struct TerminalWindowFeature {
       return sendCommand(.closeTab(tabID))
     case .tabs(let tabIDs):
       return sendCommand(.closeTabs(tabIDs))
+    case .group(let groupID):
+      return sendCommand(.closeGroup(groupID))
     }
   }
 
@@ -689,6 +723,8 @@ struct TerminalWindowFeature {
       return .tab(tabID)
     case .tabs(let tabIDs):
       return .tabs(tabIDs)
+    case .group(let groupID):
+      return .group(groupID)
     }
   }
 
@@ -711,6 +747,12 @@ struct TerminalWindowFeature {
         target: .tabs(tabIDs),
         title: "Close Tabs?",
         message: "A process is still running in one or more of these tabs. Close them anyway?"
+      )
+    case .group(let groupID):
+      return PendingCloseRequest(
+        target: .group(groupID),
+        title: "Close Group?",
+        message: "Closing this group closes all its tabs and terminates any running processes. Close it anyway?"
       )
     }
   }

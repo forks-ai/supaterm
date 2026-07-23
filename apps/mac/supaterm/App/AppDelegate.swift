@@ -40,8 +40,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
   private var lastAppLaunchedDate: Date?
   @Shared(.terminalSessionCatalog)
   private var sessionCatalog = TerminalSessionCatalog.default
-  @Shared(.terminalPinnedTabCatalog)
-  private var pinnedTabCatalog = TerminalPinnedTabCatalog.default
+  @Shared(.terminalSpaceCatalog)
+  private var spaceCatalog = TerminalSpaceCatalog.default
 
   private let menuController: SupatermMenuController
   private let configurationDiagnosticsWindowController = ConfigurationDiagnosticsWindowController()
@@ -363,6 +363,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
     sessionPersistenceState = .restoring
     let requests = Self.initialWindowRequests(
       from: sessionCatalog,
+      validSpaceIDs: Set(spaceCatalog.spaces.map(\.id)),
       restoreTerminalLayoutEnabled: supatermSettings.restoreTerminalLayoutEnabled,
       lastAppLaunchedDate: lastAppLaunchedDate
     )
@@ -400,7 +401,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
         return Self.knownZmxSessionIDsForLaunchReaping(
           restoreTerminalLayoutEnabled: supatermSettings.restoreTerminalLayoutEnabled,
           sessionCatalog: sessionCatalog,
-          pinnedTabCatalog: pinnedTabCatalog,
           liveSurfaceIDs: terminalWindowRegistry.liveSurfaceIDs()
         )
       }
@@ -438,14 +438,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
   static func knownZmxSessionIDsForLaunchReaping(
     restoreTerminalLayoutEnabled: Bool,
     sessionCatalog: TerminalSessionCatalog,
-    pinnedTabCatalog: TerminalPinnedTabCatalog,
     liveSurfaceIDs: Set<UUID>
   ) -> Set<String> {
     let persistedSurfaceIDs =
       restoreTerminalLayoutEnabled
       ? sessionCatalog.surfaceIDs
       : []
-    let knownSurfaceIDs = persistedSurfaceIDs.union(pinnedTabCatalog.surfaceIDs).union(liveSurfaceIDs)
+    let knownSurfaceIDs = persistedSurfaceIDs.union(liveSurfaceIDs)
     return Set(knownSurfaceIDs.map { ZmxSessionID.make(surfaceID: $0) })
   }
 
@@ -528,24 +527,28 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
 
   static func initialWindowSessions(
     from sessionCatalog: TerminalSessionCatalog,
+    validSpaceIDs: Set<TerminalSpaceID>,
     restoreTerminalLayoutEnabled: Bool
   ) -> [TerminalWindowSession?] {
     guard restoreTerminalLayoutEnabled else {
       return [nil]
     }
-    if sessionCatalog.windows.isEmpty {
+    let windows = sessionCatalog.pruned(validSpaceIDs: validSpaceIDs).windows
+    if windows.isEmpty {
       return [nil]
     }
-    return sessionCatalog.windows.map(Optional.some)
+    return windows.map(Optional.some)
   }
 
   static func initialWindowRequests(
     from sessionCatalog: TerminalSessionCatalog,
+    validSpaceIDs: Set<TerminalSpaceID>,
     restoreTerminalLayoutEnabled: Bool,
     lastAppLaunchedDate: Date?
   ) -> [LaunchWindowRequest] {
     let sessions = initialWindowSessions(
       from: sessionCatalog,
+      validSpaceIDs: validSpaceIDs,
       restoreTerminalLayoutEnabled: restoreTerminalLayoutEnabled
     )
     let onboardingWindowIndex: Int?

@@ -131,9 +131,9 @@ struct TerminalWindowFeatureTests {
   }
 
   @Test
-  func closeOtherTabsRequestedAsksHostToResolveClose() async {
+  func closeTabsRequestedAsksHostToResolveClose() async {
     let recorder = TerminalCommandRecorder()
-    let tabID = TerminalTabID()
+    let tabIDs = [TerminalTabID(), TerminalTabID()]
 
     let store = TestStore(initialState: TerminalWindowFeature.State()) {
       TerminalWindowFeature()
@@ -141,9 +141,25 @@ struct TerminalWindowFeatureTests {
       $0.terminalClient.send = { recorder.record($0) }
     }
 
-    await store.send(.closeOtherTabsRequested(tabID))
+    await store.send(.closeTabsRequested(tabIDs))
 
-    #expect(recorder.commands == [.requestCloseOtherTabs(tabID)])
+    #expect(recorder.commands == [.requestCloseTabs(tabIDs)])
+  }
+
+  @Test
+  func closeOtherTabsRequestedAsksHostToResolveClose() async {
+    let recorder = TerminalCommandRecorder()
+    let tabIDs = [TerminalTabID(), TerminalTabID()]
+
+    let store = TestStore(initialState: TerminalWindowFeature.State()) {
+      TerminalWindowFeature()
+    } withDependencies: {
+      $0.terminalClient.send = { recorder.record($0) }
+    }
+
+    await store.send(.closeOtherTabsRequested(tabIDs))
+
+    #expect(recorder.commands == [.requestCloseOtherTabs(tabIDs)])
   }
 
   @Test
@@ -165,6 +181,33 @@ struct TerminalWindowFeatureTests {
 
     #expect(analyticsRecorder.recorded() == ["terminal_tab_created"])
     #expect(recorder.commands == [.createTab(inheritingFromSurfaceID: surfaceID)])
+  }
+
+  @Test
+  func newTabInGroupCaptureRecordsAnalyticsAndSendsCommand() async {
+    let analyticsRecorder = AnalyticsEventRecorder()
+    let recorder = TerminalCommandRecorder()
+    let groupID = TerminalTabGroupID()
+    let surfaceID = UUID()
+
+    let store = TestStore(initialState: TerminalWindowFeature.State()) {
+      TerminalWindowFeature()
+    } withDependencies: {
+      $0.analyticsClient.capture = { event in
+        analyticsRecorder.record(event)
+      }
+      $0.terminalClient.send = { recorder.record($0) }
+    }
+
+    await store.send(
+      .newTabInGroupRequested(groupID, inheritingFromSurfaceID: surfaceID)
+    )
+
+    #expect(analyticsRecorder.recorded() == ["terminal_tab_created"])
+    #expect(
+      recorder.commands
+        == [.createTabInGroup(groupID, inheritingFromSurfaceID: surfaceID)]
+    )
   }
 
   @Test
@@ -1006,7 +1049,7 @@ struct TerminalWindowFeatureTests {
           direction: SupatermPaneDirection.right,
           focus: false,
           equalize: false,
-          target: .contextPane(surfaceID)
+          target: .pane(surfaceID)
         )
     )
   }
@@ -1055,7 +1098,7 @@ struct TerminalWindowFeatureTests {
           direction: SupatermPaneDirection.down,
           focus: false,
           equalize: false,
-          target: .contextPane(surfaceID)
+          target: .pane(surfaceID)
         )
     )
   }
@@ -1129,18 +1172,19 @@ struct TerminalWindowFeatureTests {
           direction: .down,
           focus: true,
           equalize: false,
-          target: .contextPane(surfaceID)
+          target: .pane(surfaceID)
         )
       ]
     )
   }
 
   @Test
-  func sidebarTabMoveCommittedSendsAtomicMoveCommand() async {
+  func moveCommittedSendsStructuralMoveCommand() async {
     let recorder = TerminalCommandRecorder()
     let tabID = TerminalTabID()
-    let pinnedID = TerminalTabID()
-    let regularID = TerminalTabID()
+    let placement = TerminalTabPlacement.root(
+      TerminalRootPlacement(isPinned: true, index: 1)
+    )
 
     let store = TestStore(initialState: TerminalWindowFeature.State()) {
       TerminalWindowFeature()
@@ -1148,21 +1192,17 @@ struct TerminalWindowFeatureTests {
       $0.terminalClient.send = { recorder.record($0) }
     }
 
-    await store.send(
-      .sidebarTabMoveCommitted(
-        tabID: tabID,
-        pinnedOrder: [tabID, pinnedID],
-        regularOrder: [regularID]
-      )
+    let request = TerminalTabMoveRequest(
+      operationID: TerminalTabMoveOperationID(
+        rawValue: UUID(uuidString: "11111111-1111-1111-1111-111111111111")!
+      ),
+      expectedTopologyRevision: 7,
+      itemIDs: [.tab(tabID)],
+      destination: placement
     )
+    await store.send(.moveCommitted(request))
 
-    let expected = TerminalClient.Command.moveSidebarTab(
-      tabID: tabID,
-      pinnedOrder: [tabID, pinnedID],
-      regularOrder: [regularID]
-    )
-
-    #expect(recorder.commands == [expected])
+    #expect(recorder.commands == [.move(request)])
   }
 
   @Test
@@ -1345,9 +1385,19 @@ private func makeCommandPaletteSnapshot() -> TerminalCommandPaletteSnapshot {
       TerminalSpaceItem(id: otherSpaceID, name: "Workspace Beta"),
     ],
     selectedTabID: selectedTabID,
-    visibleTabs: [
-      TerminalTabItem(id: selectedTabID, title: "Main"),
-      TerminalTabItem(id: otherTabID, title: "Logs"),
+    rootItems: [
+      .tab(
+        TerminalUngroupedTabItem(
+          tab: TerminalTabItem(id: selectedTabID, title: "Main"),
+          isPinned: false
+        )
+      ),
+      .tab(
+        TerminalUngroupedTabItem(
+          tab: TerminalTabItem(id: otherTabID, title: "Logs"),
+          isPinned: false
+        )
+      ),
     ]
   )
 }

@@ -595,7 +595,6 @@ struct SupatermSocketProtocolTests {
   @Test
   func treeRequestAndSnapshotRoundTripThroughTypedHelpers() throws {
     let tab = SupatermTreeSnapshot.Tab(
-      index: 1,
       id: UUID(uuidString: "6BFC889D-2D0F-4675-924E-B15A6A4E372B")!,
       title: "zsh",
       isSelected: true,
@@ -617,7 +616,19 @@ struct SupatermSocketProtocolTests {
       id: UUID(uuidString: "A6E57B1B-0A61-4F72-BD52-B26DC5D3C497")!,
       name: "A",
       isSelected: true,
-      tabs: [tab]
+      rootItems: [
+        .group(
+          SupatermTreeSnapshot.Group(
+            color: .blue,
+            id: UUID(uuidString: "F08C721E-A7E9-4A7C-B350-944EDB986FA2")!,
+            isCollapsed: true,
+            isPinned: false,
+            title: "Work",
+            tabs: [tab]
+          )
+        ),
+        .tab(SupatermTreeSnapshot.RootTab(isPinned: true, tab: tab)),
+      ]
     )
     let window = SupatermTreeSnapshot.Window(
       index: 1,
@@ -633,6 +644,25 @@ struct SupatermSocketProtocolTests {
 
     #expect(request.method == SupatermSocketMethod.appTree)
     #expect(try response.decodeResult(SupatermTreeSnapshot.self) == snapshot)
+
+    let json = try #require(
+      JSONSerialization.jsonObject(with: JSONEncoder().encode(snapshot)) as? [String: Any]
+    )
+    let windows = try #require(json["windows"] as? [[String: Any]])
+    let spaces = try #require(windows.first?["spaces"] as? [[String: Any]])
+    let rootItems = try #require(spaces.first?["rootItems"] as? [[String: Any]])
+    let group = try #require(rootItems.first)
+    #expect(group["kind"] as? String == "group")
+    #expect(group["title"] as? String == "Work")
+    #expect(group["color"] as? String == "blue")
+    #expect(group["group"] == nil)
+    #expect((try #require(group["tabs"] as? [[String: Any]])).first?["index"] == nil)
+    let rootTab = try #require(rootItems.dropFirst().first)
+    #expect(rootTab["kind"] as? String == "tab")
+    #expect(rootTab["isPinned"] as? Bool == true)
+    #expect(rootTab["tab"] is [String: Any])
+    #expect(rootTab["tabs"] == nil)
+    #expect(rootTab["group"] == nil)
   }
 
   @Test
@@ -676,11 +706,9 @@ struct SupatermSocketProtocolTests {
       lastChildExitTimeMs: nil
     )
     let tab = SupatermAppDebugSnapshot.Tab(
-      index: 1,
       id: context.tabID,
       title: "zsh",
       isSelected: true,
-      isPinned: false,
       isDirty: true,
       isTitleLocked: false,
       hasRunningActivity: true,
@@ -694,7 +722,7 @@ struct SupatermSocketProtocolTests {
       id: UUID(uuidString: "3006D18B-D5B7-47E5-9632-5BFD80C1FF21")!,
       name: "A",
       isSelected: true,
-      tabs: [tab]
+      rootItems: [.tab(SupatermAppDebugSnapshot.RootTab(isPinned: false, tab: tab))]
     )
     let window = SupatermAppDebugSnapshot.Window(
       index: 1,
@@ -785,12 +813,12 @@ struct SupatermSocketProtocolTests {
 
   @Test
   func newTabRequestAndResponseRoundTripThroughTypedHelpers() throws {
+    let spaceID = UUID(uuidString: "A6E57B1B-0A61-4F72-BD52-B26DC5D3C497")!
     let requestPayload = SupatermNewTabRequest(
       startupCommand: "pwd",
       cwd: "/tmp/example",
       focus: false,
-      targetWindowIndex: 1,
-      targetSpaceIndex: 2
+      target: .space(spaceID)
     )
     let result = SupatermNewTabResult(
       isFocused: false,
@@ -798,7 +826,7 @@ struct SupatermSocketProtocolTests {
       isSelectedTab: false,
       windowIndex: 1,
       spaceIndex: 2,
-      spaceID: UUID(uuidString: "A6E57B1B-0A61-4F72-BD52-B26DC5D3C497")!,
+      spaceID: spaceID,
       tabIndex: 3,
       tabID: UUID(uuidString: "6BFC889D-2D0F-4675-924E-B15A6A4E372B")!,
       paneIndex: 1,
@@ -815,16 +843,14 @@ struct SupatermSocketProtocolTests {
 
   @Test
   func newPaneRequestAndResponseRoundTripThroughTypedHelpers() throws {
+    let paneID = UUID(uuidString: "2B8B3A57-D7F8-4EF7-930F-46B1F7281B2A")!
     let requestPayload = SupatermNewPaneRequest(
       startupCommand: "pwd",
       cwd: "/tmp/example",
       direction: .down,
       focus: false,
       equalize: false,
-      targetWindowIndex: 1,
-      targetSpaceIndex: 2,
-      targetTabIndex: 1,
-      targetPaneIndex: 2
+      target: .pane(paneID)
     )
     let result = SupatermNewPaneResult(
       direction: .down,
@@ -849,13 +875,11 @@ struct SupatermSocketProtocolTests {
 
   @Test
   func notifyRequestAndResponseRoundTripThroughTypedHelpers() throws {
+    let paneID = UUID(uuidString: "8CF762C9-61EB-4E8E-B2B2-A87D0C3FF5B9")!
     let requestPayload = SupatermNotifyRequest(
       body: "Build finished",
+      paneID: paneID,
       subtitle: "CI",
-      targetPaneIndex: 2,
-      targetSpaceIndex: 2,
-      targetTabIndex: 1,
-      targetWindowIndex: 1,
       title: "Deploy complete"
     )
     let result = SupatermNotifyResult(
@@ -868,7 +892,7 @@ struct SupatermSocketProtocolTests {
       tabIndex: 1,
       tabID: UUID(uuidString: "6BFC889D-2D0F-4675-924E-B15A6A4E372B")!,
       paneIndex: 2,
-      paneID: UUID(uuidString: "8CF762C9-61EB-4E8E-B2B2-A87D0C3FF5B9")!
+      paneID: paneID
     )
 
     let request = try SupatermSocketRequest.notify(requestPayload, id: "notify-1")
@@ -881,13 +905,14 @@ struct SupatermSocketProtocolTests {
 
   @Test
   func notifyRequestDecodingPreservesMissingTitle() throws {
+    let paneID = UUID(uuidString: "8CF762C9-61EB-4E8E-B2B2-A87D0C3FF5B9")!
     let request = SupatermSocketRequest(
       id: "notify-default-title",
       method: SupatermSocketMethod.terminalNotify,
       params: [
         "body": "Build finished",
-        "targetSpaceIndex": 1,
-        "targetTabIndex": 2,
+        "paneID": .string(paneID.uuidString),
+        "subtitle": "",
       ]
     )
 
@@ -895,8 +920,7 @@ struct SupatermSocketProtocolTests {
       try request.decodeParams(SupatermNotifyRequest.self)
         == SupatermNotifyRequest(
           body: "Build finished",
-          targetSpaceIndex: 1,
-          targetTabIndex: 2
+          paneID: paneID
         )
     )
   }
@@ -922,6 +946,7 @@ struct SupatermSocketProtocolTests {
 
   @Test
   func paneControlRequestsRoundTripThroughTypedHelpers() throws {
+    let paneID = UUID(uuidString: "2B8B3A57-D7F8-4EF7-930F-46B1F7281B2A")!
     let paneTarget = SupatermPaneTarget(
       windowIndex: 1,
       spaceIndex: 2,
@@ -929,15 +954,10 @@ struct SupatermSocketProtocolTests {
       tabIndex: 3,
       tabID: UUID(uuidString: "6BFC889D-2D0F-4675-924E-B15A6A4E372B")!,
       paneIndex: 4,
-      paneID: UUID(uuidString: "2B8B3A57-D7F8-4EF7-930F-46B1F7281B2A")!
+      paneID: paneID
     )
     let focusRequest = try SupatermSocketRequest.focusPane(
-      SupatermPaneTargetRequest(
-        targetWindowIndex: 1,
-        targetSpaceIndex: 2,
-        targetTabIndex: 3,
-        targetPaneIndex: 4
-      ),
+      SupatermPaneTargetRequest(paneID: paneID),
       id: "focus-pane-1"
     )
     let focusResponse = try SupatermSocketResponse.ok(
@@ -952,12 +972,7 @@ struct SupatermSocketProtocolTests {
       SupatermSetPaneSizeRequest(
         amount: 30,
         axis: .horizontal,
-        target: SupatermPaneTargetRequest(
-          targetWindowIndex: 1,
-          targetSpaceIndex: 2,
-          targetTabIndex: 3,
-          targetPaneIndex: 4
-        ),
+        target: SupatermPaneTargetRequest(paneID: paneID),
         unit: .percent
       ),
       id: "set-pane-size-1"
@@ -966,12 +981,7 @@ struct SupatermSocketProtocolTests {
     #expect(focusRequest.method == SupatermSocketMethod.terminalFocusPane)
     #expect(
       try focusRequest.decodeParams(SupatermPaneTargetRequest.self)
-        == SupatermPaneTargetRequest(
-          targetWindowIndex: 1,
-          targetSpaceIndex: 2,
-          targetTabIndex: 3,
-          targetPaneIndex: 4
-        )
+        == SupatermPaneTargetRequest(paneID: paneID)
     )
     #expect(try focusResponse.decodeResult(SupatermFocusPaneResult.self).target == paneTarget)
     #expect(setPaneSizeRequest.method == SupatermSocketMethod.terminalSetPaneSize)
@@ -980,12 +990,7 @@ struct SupatermSocketProtocolTests {
         == SupatermSetPaneSizeRequest(
           amount: 30,
           axis: .horizontal,
-          target: SupatermPaneTargetRequest(
-            targetWindowIndex: 1,
-            targetSpaceIndex: 2,
-            targetTabIndex: 3,
-            targetPaneIndex: 4
-          ),
+          target: SupatermPaneTargetRequest(paneID: paneID),
           unit: .percent
         )
     )
@@ -994,10 +999,7 @@ struct SupatermSocketProtocolTests {
   @Test
   func sendTextModesRoundTripThroughTypedHelper() throws {
     let target = SupatermPaneTargetRequest(
-      targetWindowIndex: 1,
-      targetSpaceIndex: 2,
-      targetTabIndex: 3,
-      targetPaneIndex: 4
+      paneID: UUID(uuidString: "2B8B3A57-D7F8-4EF7-930F-46B1F7281B2A")!
     )
     let payloads = [
       SupatermSendTextRequest(mode: .type, target: target, text: "echo hello\n"),
@@ -1014,6 +1016,7 @@ struct SupatermSocketProtocolTests {
 
   @Test
   func paneHealthRequestRoundTripsThroughTypedHelper() throws {
+    let paneID = UUID(uuidString: "2B8B3A57-D7F8-4EF7-930F-46B1F7281B2A")!
     let paneTarget = SupatermPaneTarget(
       windowIndex: 1,
       spaceIndex: 2,
@@ -1021,16 +1024,11 @@ struct SupatermSocketProtocolTests {
       tabIndex: 3,
       tabID: UUID(uuidString: "6BFC889D-2D0F-4675-924E-B15A6A4E372B")!,
       paneIndex: 4,
-      paneID: UUID(uuidString: "2B8B3A57-D7F8-4EF7-930F-46B1F7281B2A")!
+      paneID: paneID
     )
     let request = try SupatermSocketRequest.paneHealth(
       SupatermPaneHealthRequest(
-        target: SupatermPaneTargetRequest(
-          targetWindowIndex: 1,
-          targetSpaceIndex: 2,
-          targetTabIndex: 3,
-          targetPaneIndex: 4
-        )
+        target: SupatermPaneTargetRequest(paneID: paneID)
       ),
       id: "pane-health-1"
     )
@@ -1051,12 +1049,7 @@ struct SupatermSocketProtocolTests {
     #expect(
       try request.decodeParams(SupatermPaneHealthRequest.self)
         == SupatermPaneHealthRequest(
-          target: SupatermPaneTargetRequest(
-            targetWindowIndex: 1,
-            targetSpaceIndex: 2,
-            targetTabIndex: 3,
-            targetPaneIndex: 4
-          )
+          target: SupatermPaneTargetRequest(paneID: paneID)
         )
     )
     #expect(try response.decodeResult(SupatermPaneHealthResult.self).target == paneTarget)
@@ -1065,35 +1058,28 @@ struct SupatermSocketProtocolTests {
 
   @Test
   func spaceAndLayoutRequestsRoundTripThroughTypedHelpers() throws {
+    let windowAnchorPaneID = UUID(uuidString: "2B8B3A57-D7F8-4EF7-930F-46B1F7281B2A")!
+    let equalizeTabID = UUID(uuidString: "6BFC889D-2D0F-4675-924E-B15A6A4E372B")!
+    let tileTabID = UUID(uuidString: "EB0608F9-75AF-41C4-BE62-8070DC604550")!
+    let mainVerticalTabID = UUID(uuidString: "FBAE38E2-56FA-424C-91B0-4DE814DE39D2")!
     let createSpaceRequest = try SupatermSocketRequest.createSpace(
       SupatermCreateSpaceRequest(
+        focus: false,
         name: "Build",
-        target: SupatermSpaceNavigationRequest(targetWindowIndex: 1)
+        windowAnchorPaneID: windowAnchorPaneID
       ),
       id: "create-space-1"
     )
     let equalizeRequest = try SupatermSocketRequest.equalizePanes(
-      SupatermTabTargetRequest(
-        targetWindowIndex: 1,
-        targetSpaceIndex: 2,
-        targetTabIndex: 3
-      ),
+      SupatermTabTargetRequest(tabID: equalizeTabID),
       id: "equalize-panes-1"
     )
     let tileRequest = try SupatermSocketRequest.tilePanes(
-      SupatermTabTargetRequest(
-        targetWindowIndex: 4,
-        targetSpaceIndex: 5,
-        targetTabIndex: 6
-      ),
+      SupatermTabTargetRequest(tabID: tileTabID),
       id: "tile-panes-1"
     )
     let mainVerticalRequest = try SupatermSocketRequest.mainVerticalPanes(
-      SupatermTabTargetRequest(
-        targetWindowIndex: 7,
-        targetSpaceIndex: 8,
-        targetTabIndex: 9
-      ),
+      SupatermTabTargetRequest(tabID: mainVerticalTabID),
       id: "main-vertical-panes-1"
     )
 
@@ -1101,50 +1087,35 @@ struct SupatermSocketProtocolTests {
     #expect(
       try createSpaceRequest.decodeParams(SupatermCreateSpaceRequest.self)
         == SupatermCreateSpaceRequest(
+          focus: false,
           name: "Build",
-          target: SupatermSpaceNavigationRequest(targetWindowIndex: 1)
+          windowAnchorPaneID: windowAnchorPaneID
         )
     )
     #expect(equalizeRequest.method == SupatermSocketMethod.terminalEqualizePanes)
     #expect(
       try equalizeRequest.decodeParams(SupatermTabTargetRequest.self)
-        == SupatermTabTargetRequest(
-          targetWindowIndex: 1,
-          targetSpaceIndex: 2,
-          targetTabIndex: 3
-        )
+        == SupatermTabTargetRequest(tabID: equalizeTabID)
     )
     #expect(tileRequest.method == SupatermSocketMethod.terminalTilePanes)
     #expect(
       try tileRequest.decodeParams(SupatermTabTargetRequest.self)
-        == SupatermTabTargetRequest(
-          targetWindowIndex: 4,
-          targetSpaceIndex: 5,
-          targetTabIndex: 6
-        )
+        == SupatermTabTargetRequest(tabID: tileTabID)
     )
     #expect(mainVerticalRequest.method == SupatermSocketMethod.terminalMainVerticalPanes)
     #expect(
       try mainVerticalRequest.decodeParams(SupatermTabTargetRequest.self)
-        == SupatermTabTargetRequest(
-          targetWindowIndex: 7,
-          targetSpaceIndex: 8,
-          targetTabIndex: 9
-        )
+        == SupatermTabTargetRequest(tabID: mainVerticalTabID)
     )
   }
 
   @Test
   func sendKeyRequestRoundTripsThroughTypedHelper() throws {
+    let paneID = UUID(uuidString: "2B8B3A57-D7F8-4EF7-930F-46B1F7281B2A")!
     let request = try SupatermSocketRequest.sendKey(
       SupatermSendKeyRequest(
         key: .enter,
-        target: SupatermPaneTargetRequest(
-          targetWindowIndex: 7,
-          targetSpaceIndex: 8,
-          targetTabIndex: 9,
-          targetPaneIndex: 10
-        )
+        target: SupatermPaneTargetRequest(paneID: paneID)
       ),
       id: "send-key-1"
     )
@@ -1154,12 +1125,7 @@ struct SupatermSocketProtocolTests {
       try request.decodeParams(SupatermSendKeyRequest.self)
         == SupatermSendKeyRequest(
           key: .enter,
-          target: SupatermPaneTargetRequest(
-            targetWindowIndex: 7,
-            targetSpaceIndex: 8,
-            targetTabIndex: 9,
-            targetPaneIndex: 10
-          )
+          target: SupatermPaneTargetRequest(paneID: paneID)
         )
     )
   }

@@ -40,13 +40,16 @@ final class SupatermE2EApp: @unchecked Sendable {
       )
     }
 
-    instanceName = "e2e-\(UUID().uuidString.prefix(8).lowercased())"
+    let instanceName = "e2e-\(UUID().uuidString.prefix(8).lowercased())"
+    self.instanceName = instanceName
     stateHome = FileManager.default.temporaryDirectory
       .appendingPathComponent("supaterm-\(instanceName)", isDirectory: true)
     cliHome = stateHome.appendingPathComponent("home", isDirectory: true)
+    let runtimeHome = URL(fileURLWithPath: "/tmp/\(instanceName)", isDirectory: true)
     logURL = stateHome.appendingPathComponent("app.log", isDirectory: false)
 
     try FileManager.default.createDirectory(at: cliHome, withIntermediateDirectories: true)
+    try FileManager.default.createDirectory(at: runtimeHome, withIntermediateDirectories: true)
     FileManager.default.createFile(atPath: cliHome.appendingPathComponent(".zshrc").path, contents: nil)
     FileManager.default.createFile(atPath: logURL.path, contents: nil)
 
@@ -56,7 +59,9 @@ final class SupatermE2EApp: @unchecked Sendable {
       "PATH": "/usr/bin:/bin:/usr/sbin:/sbin",
       "SHELL": "/bin/zsh",
       "SUPATERM_TEST_MODE": "1",
+      "SUPATERM_VERBOSE_LOGGING": "1",
       "USER": NSUserName(),
+      "XDG_RUNTIME_DIR": runtimeHome.path,
       SupatermCLIEnvironment.instanceNameKey: instanceName,
       SupatermCLIEnvironment.stateHomeKey: stateHome.path,
     ]
@@ -147,15 +152,24 @@ final class SupatermE2EApp: @unchecked Sendable {
     try debugSnapshot()
       .windows
       .flatMap(\.spaces)
-      .flatMap(\.tabs)
+      .flatMap(\.flattenedTabs)
       .first { $0.id == tabID }
+  }
+
+  func debugRootTab(_ tabID: UUID) throws -> SupatermAppDebugSnapshot.RootTab? {
+    try debugSnapshot()
+      .windows
+      .flatMap(\.spaces)
+      .lazy
+      .compactMap { e2eRootTab(withID: tabID, in: $0) }
+      .first
   }
 
   func debugPane(_ paneID: UUID) throws -> SupatermAppDebugSnapshot.Pane? {
     try debugSnapshot()
       .windows
       .flatMap(\.spaces)
-      .flatMap(\.tabs)
+      .flatMap(\.flattenedTabs)
       .flatMap(\.panes)
       .first { $0.id == paneID }
   }
@@ -212,8 +226,17 @@ final class SupatermE2EApp: @unchecked Sendable {
     timeout: TimeInterval = 30,
     _ condition: (SupatermAppDebugSnapshot) throws -> Bool
   ) async throws {
-    try await waitUntil(label, timeout: timeout) {
-      try condition(debugSnapshot())
+    var lastSnapshot: SupatermAppDebugSnapshot?
+    do {
+      try await waitUntil(label, timeout: timeout) {
+        let snapshot = try debugSnapshot()
+        lastSnapshot = snapshot
+        return try condition(snapshot)
+      }
+    } catch {
+      throw SupatermE2EError(
+        "\(error)\n--- last debug snapshot ---\n\(String(describing: lastSnapshot))"
+      )
     }
   }
 
@@ -274,7 +297,6 @@ final class SupatermE2EApp: @unchecked Sendable {
     let files = [
       stateHome.appendingPathComponent("session.json", isDirectory: false),
       stateHome.appendingPathComponent("spaces.json", isDirectory: false),
-      stateHome.appendingPathComponent("pinned-tabs.json", isDirectory: false),
     ]
     let deadline = Date().addingTimeInterval(timeout)
     var stableSince: Date?

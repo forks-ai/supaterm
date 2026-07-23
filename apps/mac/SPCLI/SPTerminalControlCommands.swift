@@ -36,6 +36,7 @@ extension SP {
         UnpinTab.self,
         CloseTab.self,
         RenameTab.self,
+        MoveTab.self,
         NextTab.self,
         PreviousTab.self,
         LastTab.self,
@@ -96,15 +97,6 @@ extension SP {
         instance: options.connection.instance
       )
       let snapshot = try treeSnapshot(client)
-      var previousTarget: SPResolvedSpaceTarget?
-      if !focus {
-        previousTarget = try resolvePublicSpaceTarget(
-          nil,
-          context: SupatermCLIContext.current,
-          snapshot: snapshot
-        )
-      }
-
       let trimmedName = name.trimmingCharacters(in: .whitespacesAndNewlines)
       if trimmedName.isEmpty {
         throw ValidationError("Space names must not be empty.")
@@ -113,8 +105,9 @@ extension SP {
       let response = try client.send(
         .createSpace(
           .init(
+            focus: focus,
             name: trimmedName,
-            target: try resolvePublicSpaceNavigationRequest(
+            windowAnchorPaneID: try resolvePublicWindowAnchorPaneID(
               context: SupatermCLIContext.current,
               snapshot: snapshot
             )
@@ -125,13 +118,6 @@ extension SP {
         throw ValidationError(response.error?.message ?? "Supaterm socket request failed.")
       }
       let result = try response.decodeResult(SupatermCreateSpaceResult.self)
-
-      if let previousTarget {
-        let restoreResponse = try client.send(.selectSpace(spaceTargetRequest(previousTarget)))
-        guard restoreResponse.ok else {
-          throw ValidationError(restoreResponse.error?.message ?? "Supaterm socket request failed.")
-        }
-      }
 
       try emitCommandResult(
         result,
@@ -166,12 +152,10 @@ extension SP {
     }
 
     private func requestPayload(client: SPSocketClient) throws -> SupatermSpaceTargetRequest {
-      spaceTargetRequest(
-        try resolvePublicSpaceTarget(
-          space,
-          context: SupatermCLIContext.current,
-          snapshot: try treeSnapshot(client)
-        )
+      try resolvePublicSpaceTarget(
+        space,
+        context: SupatermCLIContext.current,
+        snapshot: try treeSnapshot(client)
       )
     }
   }
@@ -202,7 +186,7 @@ extension SP {
       if !yes {
         try confirmDestructiveAction(prompt: "Destroy \(destroyPromptTarget(target))? [y/N] ")
       }
-      let response = try client.send(.closeSpace(spaceTargetRequest(target)))
+      let response = try client.send(.closeSpace(target))
       guard response.ok else {
         throw ValidationError(response.error?.message ?? "Supaterm socket request failed.")
       }
@@ -215,7 +199,7 @@ extension SP {
       )
     }
 
-    private func resolveTarget(client: SPSocketClient) throws -> SPResolvedSpaceTarget {
+    private func resolveTarget(client: SPSocketClient) throws -> SupatermSpaceTargetRequest {
       try resolvePublicSpaceTarget(
         space,
         context: SupatermCLIContext.current,
@@ -223,12 +207,14 @@ extension SP {
       )
     }
 
-    private func destroyPromptTarget(_ target: SPResolvedSpaceTarget) -> String {
-      switch target {
-      case .context:
+    private func destroyPromptTarget(_ target: SupatermSpaceTargetRequest) -> String {
+      switch space {
+      case nil:
         return "the current space"
-      case .space(_, let spaceIndex):
+      case .index(let spaceIndex):
         return "space \(spaceIndex)"
+      case .id:
+        return "space \(target.spaceID.uuidString.lowercased())"
       }
     }
   }
@@ -268,12 +254,10 @@ extension SP {
 
     private func requestPayload(client: SPSocketClient) throws -> SupatermRenameSpaceRequest {
       .init(
-        target: spaceTargetRequest(
-          try resolvePublicSpaceTarget(
-            space,
-            context: SupatermCLIContext.current,
-            snapshot: try treeSnapshot(client)
-          )
+        target: try resolvePublicSpaceTarget(
+          space,
+          context: SupatermCLIContext.current,
+          snapshot: try treeSnapshot(client)
         ),
         name: name
       )
@@ -357,12 +341,10 @@ extension SP {
     }
 
     private func requestPayload(client: SPSocketClient) throws -> SupatermPaneTargetRequest {
-      paneTargetRequest(
-        try resolvePublicPaneTarget(
-          pane,
-          context: SupatermCLIContext.current,
-          snapshot: try treeSnapshot(client)
-        )
+      try resolvePublicPaneTarget(
+        pane,
+        context: SupatermCLIContext.current,
+        snapshot: try treeSnapshot(client)
       )
     }
   }
@@ -397,12 +379,10 @@ extension SP {
     }
 
     private func requestPayload(client: SPSocketClient) throws -> SupatermPaneTargetRequest {
-      paneTargetRequest(
-        try resolvePublicPaneTarget(
-          pane,
-          context: SupatermCLIContext.current,
-          snapshot: try treeSnapshot(client)
-        )
+      try resolvePublicPaneTarget(
+        pane,
+        context: SupatermCLIContext.current,
+        snapshot: try treeSnapshot(client)
       )
     }
   }
@@ -433,12 +413,10 @@ extension SP {
     }
 
     private func requestPayload(client: SPSocketClient) throws -> SupatermTabTargetRequest {
-      tabTargetRequest(
-        try resolvePublicTabTarget(
-          tab,
-          context: SupatermCLIContext.current,
-          snapshot: try treeSnapshot(client)
-        )
+      try resolvePublicTabTarget(
+        tab,
+        context: SupatermCLIContext.current,
+        snapshot: try treeSnapshot(client)
       )
     }
   }
@@ -467,12 +445,10 @@ extension SP {
     }
 
     private func requestPayload(client: SPSocketClient) throws -> SupatermTabTargetRequest {
-      tabTargetRequest(
-        try resolvePublicTabTarget(
-          tab,
-          context: SupatermCLIContext.current,
-          snapshot: try treeSnapshot(client)
-        )
+      try resolvePublicTabTarget(
+        tab,
+        context: SupatermCLIContext.current,
+        snapshot: try treeSnapshot(client)
       )
     }
   }
@@ -595,12 +571,10 @@ extension SP {
       let text = newline ? resolvedInput.text + "\n" : resolvedInput.text
       return .init(
         mode: submit ? .submit : .type,
-        target: paneTargetRequest(
-          try resolvePublicPaneTarget(
-            resolvedInput.target,
-            context: SupatermCLIContext.current,
-            snapshot: try treeSnapshot(client)
-          )
+        target: try resolvePublicPaneTarget(
+          resolvedInput.target,
+          context: SupatermCLIContext.current,
+          snapshot: try treeSnapshot(client)
         ),
         text: text
       )
@@ -652,12 +626,10 @@ extension SP {
       .init(
         lines: lines,
         scope: scope,
-        target: paneTargetRequest(
-          try resolvePublicPaneTarget(
-            pane,
-            context: SupatermCLIContext.current,
-            snapshot: try treeSnapshot(client)
-          )
+        target: try resolvePublicPaneTarget(
+          pane,
+          context: SupatermCLIContext.current,
+          snapshot: try treeSnapshot(client)
         )
       )
     }
@@ -688,12 +660,10 @@ extension SP {
 
     private func requestPayload(client: SPSocketClient) throws -> SupatermPaneHealthRequest {
       .init(
-        target: paneTargetRequest(
-          try resolvePublicPaneTarget(
-            pane,
-            context: SupatermCLIContext.current,
-            snapshot: try treeSnapshot(client)
-          )
+        target: try resolvePublicPaneTarget(
+          pane,
+          context: SupatermCLIContext.current,
+          snapshot: try treeSnapshot(client)
         )
       )
     }
@@ -754,12 +724,10 @@ extension SP {
 
     private func requestPayload(client: SPSocketClient) throws -> SupatermPaneHealthRequest {
       .init(
-        target: paneTargetRequest(
-          try resolvePublicPaneTarget(
-            pane,
-            context: SupatermCLIContext.current,
-            snapshot: try treeSnapshot(client)
-          )
+        target: try resolvePublicPaneTarget(
+          pane,
+          context: SupatermCLIContext.current,
+          snapshot: try treeSnapshot(client)
         )
       )
     }
@@ -824,12 +792,10 @@ extension SP {
       .init(
         amount: amount,
         direction: direction.resolved,
-        target: paneTargetRequest(
-          try resolvePublicPaneTarget(
-            pane,
-            context: SupatermCLIContext.current,
-            snapshot: try treeSnapshot(client)
-          )
+        target: try resolvePublicPaneTarget(
+          pane,
+          context: SupatermCLIContext.current,
+          snapshot: try treeSnapshot(client)
         )
       )
     }
@@ -872,12 +838,10 @@ extension SP {
 
     private func requestPayload(client: SPSocketClient) throws -> SupatermRenameTabRequest {
       .init(
-        target: tabTargetRequest(
-          try resolvePublicTabTarget(
-            tab,
-            context: SupatermCLIContext.current,
-            snapshot: try treeSnapshot(client)
-          )
+        target: try resolvePublicTabTarget(
+          tab,
+          context: SupatermCLIContext.current,
+          snapshot: try treeSnapshot(client)
         ),
         title: title
       )
@@ -965,12 +929,10 @@ extension SP {
         options: options,
         request: { client in
           try socketRequest(
-            target: tabTargetRequest(
-              try resolvePublicTabTarget(
-                tab,
-                context: SupatermCLIContext.current,
-                snapshot: try treeSnapshot(client)
-              )
+            target: try resolvePublicTabTarget(
+              tab,
+              context: SupatermCLIContext.current,
+              snapshot: try treeSnapshot(client)
             )
           )
         },
@@ -1052,45 +1014,6 @@ private func readStandardInput() -> String {
   String(decoding: FileHandle.standardInput.readDataToEndOfFile(), as: UTF8.self)
 }
 
-private func spaceTargetRequest(_ target: SPResolvedSpaceTarget) -> SupatermSpaceTargetRequest {
-  switch target {
-  case .context(let contextPaneID):
-    return .init(contextPaneID: contextPaneID)
-  case .space(let windowIndex, let spaceIndex):
-    return .init(
-      targetWindowIndex: windowIndex,
-      targetSpaceIndex: spaceIndex
-    )
-  }
-}
-
-private func tabTargetRequest(_ target: SPResolvedTabTarget) -> SupatermTabTargetRequest {
-  switch target {
-  case .context(let contextPaneID):
-    return .init(contextPaneID: contextPaneID)
-  case .tab(let windowIndex, let spaceIndex, let tabIndex):
-    return .init(
-      targetWindowIndex: windowIndex,
-      targetSpaceIndex: spaceIndex,
-      targetTabIndex: tabIndex
-    )
-  }
-}
-
-private func paneTargetRequest(_ target: SPResolvedPaneOnlyTarget) -> SupatermPaneTargetRequest {
-  switch target {
-  case .context(let contextPaneID):
-    return .init(contextPaneID: contextPaneID)
-  case .pane(let windowIndex, let spaceIndex, let tabIndex, let paneIndex):
-    return .init(
-      targetWindowIndex: windowIndex,
-      targetSpaceIndex: spaceIndex,
-      targetTabIndex: tabIndex,
-      targetPaneIndex: paneIndex
-    )
-  }
-}
-
 private func runSpaceNavigation(
   _ navigation: SPSpaceNavigationKind,
   options: SPCommandOptions
@@ -1159,12 +1082,10 @@ private func runTabPinnedState(
     request: { client in
       try tabPinnedStateRequest(
         state,
-        request: tabTargetRequest(
-          try resolvePublicTabTarget(
-            tab,
-            context: SupatermCLIContext.current,
-            snapshot: try treeSnapshot(client)
-          )
+        request: try resolvePublicTabTarget(
+          tab,
+          context: SupatermCLIContext.current,
+          snapshot: try treeSnapshot(client)
         )
       )
     },
