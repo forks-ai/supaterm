@@ -73,8 +73,7 @@ private final class TerminalSidebarHostingContainerView: NSView {
         || eventType == .leftMouseUp,
       point.x < bounds.maxX - 30,
       let hostingView,
-      case .group(let presentation) = hostingView.rootView.presentation,
-      hostingView.rootView.context.renameState.groupID != presentation.id,
+      routesPointerEvents(for: hostingView.rootView),
       let entryID = hostingView.entryID,
       let collectionView = hostingView.collectionView
     else { return super.hitTest(point) }
@@ -82,6 +81,17 @@ private final class TerminalSidebarHostingContainerView: NSView {
       collectionView.routeMouseDown(to: entryID)
     }
     return collectionView
+  }
+
+  private func routesPointerEvents(for row: TerminalSidebarHostedRow) -> Bool {
+    switch row.presentation {
+    case .tab:
+      true
+    case .group(let presentation):
+      row.context.renameState.groupID != presentation.id
+    case .pinDivider, .newTab:
+      false
+    }
   }
 
   func host(

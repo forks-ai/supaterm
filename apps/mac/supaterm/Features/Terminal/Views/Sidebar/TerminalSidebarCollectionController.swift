@@ -493,7 +493,7 @@ final class TerminalSidebarListController: NSViewController, NSCollectionViewDel
     case .group:
       return true
     case .tab:
-      return !modifierFlags.isEmpty
+      return true
     case .pinDivider, .newTab:
       return false
     }
@@ -535,7 +535,11 @@ final class TerminalSidebarListController: NSViewController, NSCollectionViewDel
       return true
     case .tab(let tabID):
       let modifiers = event.modifierFlags.intersection([.command, .shift])
-      guard !modifiers.isEmpty else { return consumes }
+      guard !modifiers.isEmpty else {
+        tabSelectionState.clear()
+        _ = context?.store.send(.tabSelected(tabID))
+        return true
+      }
       applyModifiedSelection(tabID: tabID, modifiers: modifiers)
       return true
     case .pinDivider, .newTab:
