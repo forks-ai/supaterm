@@ -9,7 +9,7 @@ import Testing
 @MainActor
 struct TerminalSidebarPointerTests {
   @Test
-  func clickingTabRowUsesNativePointerSequenceAndSelectsTab() async throws {
+  func clickingTabRowTracksMouseUpAndSelectsTab() async throws {
     let host = TerminalHostState(managesTerminalSurfaces: false)
     let manager = try #require(host.spaceManager.activeTabManager)
     let firstTabID = manager.createTab(title: "First")
@@ -34,13 +34,8 @@ struct TerminalSidebarPointerTests {
     let collectionView = TerminalSidebarCollectionView(
       frame: NSRect(x: 0, y: 0, width: 240, height: 100)
     )
-    var didRouteDrag = false
     collectionView.onRowMouseDown = { entryID, _ in
       entryID == .tab(firstTabID)
-    }
-    collectionView.onRowMouseDragged = { entryID, _ in
-      didRouteDrag = entryID == .tab(firstTabID)
-      return false
     }
     collectionView.onRowMouseUp = { entryID, _ in
       guard entryID == .tab(firstTabID) else { return false }
@@ -87,22 +82,23 @@ struct TerminalSidebarPointerTests {
       NSPoint(x: item.view.bounds.midX, y: item.view.bounds.midY),
       to: nil
     )
-    let dragLocation = collectionView.convert(
-      NSPoint(x: collectionView.bounds.midX, y: collectionView.bounds.maxY - 5),
-      to: nil
-    )
     let mouseDown = try #require(mouseEvent(.leftMouseDown, at: location, in: window))
-    let mouseDragged = try #require(
-      mouseEvent(.leftMouseDragged, at: dragLocation, in: window)
-    )
     let mouseUp = try #require(mouseEvent(.leftMouseUp, at: location, in: window))
 
+    NSApplication.shared.postEvent(mouseUp, atStart: false)
     dispatch(mouseDown)
-    dispatch(mouseDragged)
-    dispatch(mouseUp)
     for _ in 0..<5 { await Task.yield() }
 
-    #expect(didRouteDrag)
+    #expect(recorder.commands == [.selectTab(firstTabID)])
+
+    if let pendingMouseUp = NSApplication.shared.nextEvent(
+      matching: .leftMouseUp,
+      until: .distantPast,
+      inMode: .default,
+      dequeue: true
+    ) {
+      NSApplication.shared.sendEvent(pendingMouseUp)
+    }
     #expect(recorder.commands == [.selectTab(firstTabID)])
   }
 
@@ -155,16 +151,9 @@ struct TerminalSidebarPointerTests {
   }
 
   private func dispatch(_ event: NSEvent) {
-    let mask: NSEvent.EventTypeMask =
-      switch event.type {
-      case .leftMouseDown: .leftMouseDown
-      case .leftMouseDragged: .leftMouseDragged
-      case .leftMouseUp: .leftMouseUp
-      default: []
-      }
     NSApplication.shared.postEvent(event, atStart: true)
     if let queued = NSApplication.shared.nextEvent(
-      matching: mask,
+      matching: .leftMouseDown,
       until: Date(timeIntervalSinceNow: 1),
       inMode: .default,
       dequeue: true

@@ -204,7 +204,6 @@ struct TerminalSidebarDragCoordinator: Equatable {
 @MainActor
 final class TerminalSidebarCollectionView: NSCollectionView {
   private var pointerTrackingArea: NSTrackingArea?
-  private var capturedRowEntryID: TerminalSidebarEntryID?
   private var routedRowEntryID: TerminalSidebarEntryID?
 
   var onRowMouseDown: ((TerminalSidebarEntryID, NSEvent) -> Bool)?
@@ -237,36 +236,17 @@ final class TerminalSidebarCollectionView: NSCollectionView {
   }
 
   override func mouseDown(with event: NSEvent) {
-    capturedRowEntryID = nil
     let entryID = routedRowEntryID
     routedRowEntryID = nil
     guard
       let entryID,
-      rowMouseDown(entryID: entryID, event: event)
+      rowMouseDown(entryID: entryID, event: event),
+      let window
     else {
       super.mouseDown(with: event)
       return
     }
-    capturedRowEntryID = entryID
-  }
-
-  override func mouseDragged(with event: NSEvent) {
-    guard let entryID = capturedRowEntryID else {
-      super.mouseDragged(with: event)
-      return
-    }
-    if rowMouseDragged(entryID: entryID, event: event) {
-      capturedRowEntryID = nil
-    }
-  }
-
-  override func mouseUp(with event: NSEvent) {
-    guard let entryID = capturedRowEntryID else {
-      super.mouseUp(with: event)
-      return
-    }
-    capturedRowEntryID = nil
-    _ = rowMouseUp(entryID: entryID, event: event)
+    trackPointerSequence(for: entryID, in: window)
   }
 
   override func updateTrackingAreas() {
@@ -307,6 +287,29 @@ final class TerminalSidebarCollectionView: NSCollectionView {
 
   func rowMouseUp(entryID: TerminalSidebarEntryID, event: NSEvent) -> Bool {
     onRowMouseUp?(entryID, event) == true
+  }
+
+  private func trackPointerSequence(
+    for entryID: TerminalSidebarEntryID,
+    in window: NSWindow
+  ) {
+    let mask: NSEvent.EventTypeMask = [.leftMouseDragged, .leftMouseUp]
+    while let event = window.nextEvent(
+      matching: mask,
+      until: .distantFuture,
+      inMode: .eventTracking,
+      dequeue: true
+    ) {
+      switch event.type {
+      case .leftMouseDragged:
+        if rowMouseDragged(entryID: entryID, event: event) { return }
+      case .leftMouseUp:
+        _ = rowMouseUp(entryID: entryID, event: event)
+        return
+      default:
+        continue
+      }
+    }
   }
 
   private func updatePointer(with event: NSEvent) {
