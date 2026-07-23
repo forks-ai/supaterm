@@ -74,13 +74,10 @@ private final class TerminalSidebarHostingContainerView: NSView {
       point.x < bounds.maxX - 30,
       let hostingView,
       routesPointerEvents(for: hostingView.rootView),
-      let entryID = hostingView.entryID,
-      let collectionView = hostingView.collectionView
+      hostingView.entryID != nil,
+      hostingView.collectionView != nil
     else { return super.hitTest(point) }
-    if eventType == .leftMouseDown {
-      collectionView.routeMouseDown(to: entryID)
-    }
-    return collectionView
+    return hostingView
   }
 
   private func routesPointerEvents(for row: TerminalSidebarHostedRow) -> Bool {

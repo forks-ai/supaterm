@@ -204,7 +204,6 @@ struct TerminalSidebarDragCoordinator: Equatable {
 @MainActor
 final class TerminalSidebarCollectionView: NSCollectionView {
   private var pointerTrackingArea: NSTrackingArea?
-  private var routedRowEntryID: TerminalSidebarEntryID?
 
   var onRowMouseDown: ((TerminalSidebarEntryID, NSEvent) -> Bool)?
   var onRowMouseDragged: ((TerminalSidebarEntryID, NSEvent) -> Bool)?
@@ -230,19 +229,6 @@ final class TerminalSidebarCollectionView: NSCollectionView {
 
   @available(*, unavailable)
   required init?(coder: NSCoder) { fatalError("init(coder:) is unavailable") }
-
-  func routeMouseDown(to entryID: TerminalSidebarEntryID) {
-    routedRowEntryID = entryID
-  }
-
-  override func mouseDown(with event: NSEvent) {
-    let entryID = routedRowEntryID
-    routedRowEntryID = nil
-    guard let entryID, handlePointerSequence(entryID: entryID, mouseDownEvent: event) else {
-      super.mouseDown(with: event)
-      return
-    }
-  }
 
   override func updateTrackingAreas() {
     super.updateTrackingAreas()

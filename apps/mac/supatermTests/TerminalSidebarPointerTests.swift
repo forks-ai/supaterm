@@ -87,7 +87,7 @@ struct TerminalSidebarPointerTests {
     let mouseUp = try #require(mouseEvent(.leftMouseUp, at: location, in: window))
 
     NSApplication.shared.postEvent(mouseUp, atStart: false)
-    hostedView.mouseDown(with: mouseDown)
+    NSApplication.shared.sendEvent(mouseDown)
     for _ in 0..<5 { await Task.yield() }
 
     #expect(recorder.commands == [.selectTab(firstTabID)])
