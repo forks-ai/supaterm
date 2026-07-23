@@ -35,12 +35,12 @@ struct TerminalSidebarPointerTests {
       frame: NSRect(x: 0, y: 0, width: 240, height: 100)
     )
     collectionView.onRowMouseDown = { entryID, _ in
-      entryID == .tab(firstTabID)
-    }
-    collectionView.onRowMouseUp = { entryID, _ in
       guard entryID == .tab(firstTabID) else { return false }
       _ = store.send(.tabSelected(firstTabID))
       return true
+    }
+    collectionView.onRowMouseUp = { entryID, _ in
+      entryID == .tab(firstTabID)
     }
     let item = TerminalSidebarCollectionItem()
     item.host(
@@ -58,8 +58,7 @@ struct TerminalSidebarPointerTests {
           actions: rowActions
         )
       ),
-      entryID: .tab(firstTabID),
-      collectionView: collectionView
+      entryID: .tab(firstTabID)
     )
     item.view.frame = NSRect(x: 0, y: 0, width: 240, height: 60)
     collectionView.isSelectable = false
@@ -86,20 +85,12 @@ struct TerminalSidebarPointerTests {
     let mouseDown = try #require(mouseEvent(.leftMouseDown, at: location, in: window))
     let mouseUp = try #require(mouseEvent(.leftMouseUp, at: location, in: window))
 
-    NSApplication.shared.postEvent(mouseUp, atStart: false)
-    NSApplication.shared.sendEvent(mouseDown)
+    #expect(collectionView.handleRowMouseEvent(mouseDown) == nil)
     for _ in 0..<5 { await Task.yield() }
-
     #expect(recorder.commands == [.selectTab(firstTabID)])
 
-    if let pendingMouseUp = NSApplication.shared.nextEvent(
-      matching: .leftMouseUp,
-      until: .distantPast,
-      inMode: .default,
-      dequeue: true
-    ) {
-      NSApplication.shared.sendEvent(pendingMouseUp)
-    }
+    #expect(collectionView.handleRowMouseEvent(mouseUp) == nil)
+    for _ in 0..<5 { await Task.yield() }
     #expect(recorder.commands == [.selectTab(firstTabID)])
   }
 

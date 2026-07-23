@@ -204,6 +204,8 @@ struct TerminalSidebarDragCoordinator: Equatable {
 @MainActor
 final class TerminalSidebarCollectionView: NSCollectionView {
   private var pointerTrackingArea: NSTrackingArea?
+  private var rowMouseMonitor: Any?
+  private var trackedRow: TerminalSidebarEntryID?
 
   var onRowMouseDown: ((TerminalSidebarEntryID, NSEvent) -> Bool)?
   var onRowMouseDragged: ((TerminalSidebarEntryID, NSEvent) -> Bool)?
@@ -229,6 +231,15 @@ final class TerminalSidebarCollectionView: NSCollectionView {
 
   @available(*, unavailable)
   required init?(coder: NSCoder) { fatalError("init(coder:) is unavailable") }
+
+  override func viewDidMoveToWindow() {
+    super.viewDidMoveToWindow()
+    if window == nil {
+      removeRowMouseMonitor()
+    } else {
+      installRowMouseMonitor()
+    }
+  }
 
   override func updateTrackingAreas() {
     super.updateTrackingAreas()
@@ -270,36 +281,54 @@ final class TerminalSidebarCollectionView: NSCollectionView {
     onRowMouseUp?(entryID, event) == true
   }
 
-  func handlePointerSequence(
-    entryID: TerminalSidebarEntryID,
-    mouseDownEvent: NSEvent
-  ) -> Bool {
-    guard rowMouseDown(entryID: entryID, event: mouseDownEvent), let window else { return false }
-    trackPointerSequence(for: entryID, in: window)
-    return true
+  private func installRowMouseMonitor() {
+    guard rowMouseMonitor == nil else { return }
+    rowMouseMonitor = NSEvent.addLocalMonitorForEvents(
+      matching: [.leftMouseDown, .leftMouseDragged, .leftMouseUp]
+    ) { [weak self] event in
+      self?.handleRowMouseEvent(event) ?? event
+    }
   }
 
-  private func trackPointerSequence(
-    for entryID: TerminalSidebarEntryID,
-    in window: NSWindow
-  ) {
-    let mask: NSEvent.EventTypeMask = [.leftMouseDragged, .leftMouseUp]
-    while let event = window.nextEvent(
-      matching: mask,
-      until: .distantFuture,
-      inMode: .eventTracking,
-      dequeue: true
-    ) {
-      switch event.type {
-      case .leftMouseDragged:
-        if rowMouseDragged(entryID: entryID, event: event) { return }
-      case .leftMouseUp:
-        _ = rowMouseUp(entryID: entryID, event: event)
-        return
-      default:
-        continue
+  private func removeRowMouseMonitor() {
+    guard let rowMouseMonitor else { return }
+    NSEvent.removeMonitor(rowMouseMonitor)
+    self.rowMouseMonitor = nil
+    trackedRow = nil
+  }
+
+  func handleRowMouseEvent(_ event: NSEvent) -> NSEvent? {
+    guard event.window === window else { return event }
+    switch event.type {
+    case .leftMouseDown:
+      trackedRow = nil
+      guard
+        let entryID = rowEntry(at: event.locationInWindow),
+        rowMouseDown(entryID: entryID, event: event)
+      else { return event }
+      trackedRow = entryID
+      return nil
+    case .leftMouseDragged:
+      guard let trackedRow else { return event }
+      _ = rowMouseDragged(entryID: trackedRow, event: event)
+      return nil
+    case .leftMouseUp:
+      guard let trackedRow else { return event }
+      self.trackedRow = nil
+      _ = rowMouseUp(entryID: trackedRow, event: event)
+      return nil
+    default:
+      return event
+    }
+  }
+
+  private func rowEntry(at windowPoint: NSPoint) -> TerminalSidebarEntryID? {
+    for case let row as TerminalSidebarHostingContainerView in subviews.reversed() {
+      if let entryID = row.pointerEntry(at: windowPoint) {
+        return entryID
       }
     }
+    return nil
   }
 
   private func updatePointer(with event: NSEvent) {

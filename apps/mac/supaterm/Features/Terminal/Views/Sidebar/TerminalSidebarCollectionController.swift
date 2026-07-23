@@ -240,8 +240,7 @@ final class TerminalSidebarListController: NSViewController, NSCollectionViewDel
       guard let item = item as? TerminalSidebarCollectionItem else { return nil }
       item.host(
         TerminalSidebarHostedRow(presentation: presentation, context: context),
-        entryID: entryID,
-        collectionView: self.collectionView
+        entryID: entryID
       )
       item.view.setAccessibilityElement(true)
       item.view.setAccessibilityRole(.row)
@@ -1032,8 +1031,7 @@ final class TerminalSidebarListController: NSViewController, NSCollectionViewDel
       else { continue }
       item.host(
         TerminalSidebarHostedRow(presentation: presentation, context: context),
-        entryID: id,
-        collectionView: collectionView
+        entryID: id
       )
       item.view.setAccessibilityIdentifier(accessibilityIdentifier(for: presentation))
     }

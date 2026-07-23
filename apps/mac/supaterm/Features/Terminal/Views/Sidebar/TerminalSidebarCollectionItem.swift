@@ -12,10 +12,9 @@ final class TerminalSidebarCollectionItem: NSCollectionViewItem {
 
   func host(
     _ view: TerminalSidebarHostedRow,
-    entryID: TerminalSidebarEntryID,
-    collectionView: TerminalSidebarCollectionView
+    entryID: TerminalSidebarEntryID
   ) {
-    containerView.host(view, entryID: entryID, collectionView: collectionView)
+    containerView.host(view, entryID: entryID)
   }
 
   func liftHostedView(sourceFrame: CGRect) -> TerminalSidebarLiftedRow? {
@@ -57,8 +56,9 @@ struct TerminalSidebarLiftedRow {
 }
 
 @MainActor
-private final class TerminalSidebarHostingContainerView: NSView {
-  private var hostingView: SidebarEventHostingView?
+final class TerminalSidebarHostingContainerView: NSView {
+  private var hostingView: NSHostingView<TerminalSidebarHostedRow>?
+  private var entryID: TerminalSidebarEntryID?
   private var isLifted = false
 
   override func layout() {
@@ -66,18 +66,16 @@ private final class TerminalSidebarHostingContainerView: NSView {
     if !isLifted { hostingView?.frame = bounds }
   }
 
-  override func hitTest(_ point: NSPoint) -> NSView? {
+  func pointerEntry(at windowPoint: NSPoint) -> TerminalSidebarEntryID? {
+    let point = convert(windowPoint, from: nil)
     guard
-      let eventType = NSApp.currentEvent?.type,
-      eventType == .leftMouseDown || eventType == .leftMouseDragged
-        || eventType == .leftMouseUp,
+      bounds.contains(point),
       point.x < bounds.maxX - 30,
       let hostingView,
       routesPointerEvents(for: hostingView.rootView),
-      hostingView.entryID != nil,
-      hostingView.collectionView != nil
-    else { return super.hitTest(point) }
-    return hostingView
+      let entryID
+    else { return nil }
+    return entryID
   }
 
   private func routesPointerEvents(for row: TerminalSidebarHostedRow) -> Bool {
@@ -93,19 +91,15 @@ private final class TerminalSidebarHostingContainerView: NSView {
 
   func host(
     _ rootView: TerminalSidebarHostedRow,
-    entryID: TerminalSidebarEntryID,
-    collectionView: TerminalSidebarCollectionView
+    entryID: TerminalSidebarEntryID
   ) {
+    self.entryID = entryID
     if let hostingView {
       hostingView.rootView = rootView
-      hostingView.entryID = entryID
-      hostingView.collectionView = collectionView
       if !isLifted { hostingView.frame = bounds }
       return
     }
-    let hostingView = SidebarEventHostingView(rootView: rootView)
-    hostingView.entryID = entryID
-    hostingView.collectionView = collectionView
+    let hostingView = NSHostingView(rootView: rootView)
     hostingView.frame = bounds
     hostingView.autoresizingMask = [.width, .height]
     addSubview(hostingView)
@@ -125,21 +119,5 @@ private final class TerminalSidebarHostingContainerView: NSView {
     addSubview(hostedView)
     hostedView.frame = bounds
     isLifted = false
-  }
-}
-
-@MainActor
-private final class SidebarEventHostingView: NSHostingView<TerminalSidebarHostedRow> {
-  weak var collectionView: TerminalSidebarCollectionView?
-  var entryID: TerminalSidebarEntryID?
-
-  override func mouseDown(with event: NSEvent) {
-    guard
-      let entryID,
-      collectionView?.handlePointerSequence(entryID: entryID, mouseDownEvent: event) == true
-    else {
-      super.mouseDown(with: event)
-      return
-    }
   }
 }
