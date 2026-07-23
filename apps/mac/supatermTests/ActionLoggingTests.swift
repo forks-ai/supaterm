@@ -96,7 +96,7 @@ struct ActionLoggingTests {
 
     let events = LockIsolated<[String]>([])
 
-    let store = await TestStore(initialState: 0) {
+    let store = TestStore(initialState: 0) {
       Reduce<Int, TestAction> { state, _ in
         let stateValue = state
         events.withValue { $0.append("base:\(stateValue)") }
