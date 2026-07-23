@@ -69,9 +69,8 @@ final class TerminalSidebarDragPresentation {
     velocityTracker.update(point: screenPoint, timestamp: CACurrentMediaTime())
     let windowPoint = window.convertPoint(fromScreen: screenPoint)
     let pointer = collectionView.convert(windowPoint, from: nil)
-    let horizontalBounds = collectionView.bounds.insetBy(
-      dx: TerminalSidebarLayoutPlan.horizontalInset,
-      dy: 0
+    let horizontalBounds = TerminalSidebarLayout.cardHorizontalInsets.frame(
+      in: collectionView.bounds
     )
     liveView.frame.origin = CGPoint(
       x: TerminalSidebarLiveDragGeometry.constrainedX(

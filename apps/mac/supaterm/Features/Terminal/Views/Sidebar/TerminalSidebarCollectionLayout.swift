@@ -31,9 +31,6 @@ struct TerminalSidebarLayoutPlan: Equatable {
     let alpha: CGFloat
   }
 
-  static let horizontalInset: CGFloat = 4
-  static let childIndentation: CGFloat = 12
-  static let childTrailingInset: CGFloat = 6
   static let rootSpacing: CGFloat = 10
   static let pinDividerTopSpacing: CGFloat = 8
   private static let groupSurfaceVerticalOverflow: CGFloat = 2
@@ -86,7 +83,6 @@ struct TerminalSidebarLayoutPlan: Equatable {
       draggedItemIDs: dragDropState?.draggingItemIDs ?? [],
       insertionIndex: insertionIndex
     )
-    let availableWidth = max(1, width - Self.horizontalInset * 2)
     var items: [Item] = []
     var y = Self.initialY
     var dropPlaceholderFrame: CGRect?
@@ -96,7 +92,7 @@ struct TerminalSidebarLayoutPlan: Equatable {
         dropPlaceholderFrame = Self.placeholderFrame(
           y: y,
           height: dropGapHeight,
-          width: availableWidth,
+          width: width,
           destination: dragDropState?.target?.destination
         )
         y += dropGapHeight
@@ -114,9 +110,9 @@ struct TerminalSidebarLayoutPlan: Equatable {
         Item(
           id: entry.id,
           frame: CGRect(
-            x: Self.horizontalInset + insets.leading,
+            x: insets.leading,
             y: y,
-            width: max(1, availableWidth - insets.leading - insets.trailing),
+            width: insets.width(in: width),
             height: height
           ),
           alpha: isDragged ? 0 : visibility.alpha
@@ -129,7 +125,7 @@ struct TerminalSidebarLayoutPlan: Equatable {
       dropPlaceholderFrame = Self.placeholderFrame(
         y: y,
         height: dropGapHeight,
-        width: availableWidth,
+        width: width,
         destination: dragDropState?.target?.destination
       )
       y += dropGapHeight
@@ -546,27 +542,29 @@ struct TerminalSidebarLayoutPlan: Equatable {
     width: CGFloat,
     destination: TerminalSidebarDropDestination?
   ) -> CGRect {
-    let insets: (leading: CGFloat, trailing: CGFloat)
+    let insets: TerminalSidebarLayout.HorizontalInsets
     switch destination {
     case .group:
-      insets = (childIndentation, childTrailingInset)
+      insets = TerminalSidebarLayout.groupedTabHorizontalInsets
     case .root, nil:
-      insets = (0, 0)
+      insets = TerminalSidebarLayout.cardHorizontalInsets
     }
     return CGRect(
-      x: horizontalInset + insets.leading,
+      x: insets.leading,
       y: y,
-      width: max(1, width - insets.leading - insets.trailing),
+      width: insets.width(in: width),
       height: height
     )
   }
 
-  private static func horizontalInsets(
+  fileprivate static func horizontalInsets(
     for entry: TerminalSidebarEntry
-  ) -> (leading: CGFloat, trailing: CGFloat) {
+  ) -> TerminalSidebarLayout.HorizontalInsets {
     switch entry.kind {
-    case .tab(_, .some, _): (childIndentation, childTrailingInset)
-    case .tab(_, nil, _), .group, .pinDivider, .newTab: (0, 0)
+    case .tab(_, .some, _):
+      TerminalSidebarLayout.groupedTabHorizontalInsets
+    case .tab(_, nil, _), .group, .pinDivider, .newTab:
+      TerminalSidebarLayout.cardHorizontalInsets
     }
   }
 
@@ -681,11 +679,14 @@ final class TerminalSidebarCollectionLayout: NSCollectionViewLayout {
 
   private func rebuild(width: CGFloat, viewportHeight: CGFloat) {
     guard let collectionView else { return }
-    let itemWidth = max(1, width - TerminalSidebarLayoutPlan.horizontalInset * 2)
     let entries = outline.visibleEntries
     let heights = Dictionary(
       uniqueKeysWithValues: entries.map { entry in
-        (entry.id, preferredHeight?(entry.id, itemWidth) ?? TerminalSidebarLayout.tabRowMinHeight)
+        let itemWidth = TerminalSidebarLayoutPlan.horizontalInsets(for: entry).width(in: width)
+        return (
+          entry.id,
+          preferredHeight?(entry.id, itemWidth) ?? TerminalSidebarLayout.tabRowMinHeight
+        )
       }
     )
     let hitTestState = dragDropState.map {

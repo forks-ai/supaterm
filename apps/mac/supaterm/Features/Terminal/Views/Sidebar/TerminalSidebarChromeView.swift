@@ -62,7 +62,8 @@ struct TerminalSidebarChromeView: View {
           terminal: terminal
         )
       }
-      .padding(.horizontal, 8)
+      .padding(.leading, TerminalSidebarLayout.cardHorizontalInsets.leading)
+      .padding(.trailing, TerminalSidebarLayout.cardHorizontalInsets.trailing)
     }
     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
   }

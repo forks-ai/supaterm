@@ -299,24 +299,46 @@ struct TerminalSidebarLayoutPlanTests {
   }
 
   @Test
-  func groupedRowsUseTheirHorizontalInsets() throws {
+  func rowsUseEqualVisibleHorizontalInsets() throws {
+    let root = TerminalTabID()
     let child = TerminalTabID()
     let groupID = TerminalTabGroupID()
+    let width: CGFloat = 220
     let outline = TerminalSidebarTestFixture.outline(
       roots: [
+        TerminalSidebarOutline.Root(content: .tab(root), isPinned: false),
         TerminalSidebarOutline.Root(
           content: .group(groupID, .blue, .automatic, [child]),
           isPinned: false
-        )
+        ),
       ],
       revision: 1
     )
-    let plan = TerminalSidebarTestFixture.layoutPlan(outline: outline)
+    let plan = TerminalSidebarTestFixture.layoutPlan(outline: outline, width: width)
+    let rootFrame = try #require(plan.items.first { $0.id == .tab(root) }?.frame)
     let groupFrame = try #require(plan.groups.first?.frame)
     let childFrame = try #require(plan.items.first { $0.id == .tab(child) }?.frame)
 
-    #expect(childFrame.minX - groupFrame.minX == TerminalSidebarLayoutPlan.childIndentation)
-    #expect(groupFrame.maxX - childFrame.maxX == TerminalSidebarLayoutPlan.childTrailingInset)
+    #expect(rootFrame.minX == TerminalSidebarLayout.visibleHorizontalInset)
+    #expect(
+      width + TerminalChromeMetrics.paneInset - rootFrame.maxX
+        == TerminalSidebarLayout.visibleHorizontalInset
+    )
+    #expect(groupFrame.minX == TerminalSidebarLayout.visibleHorizontalInset)
+    #expect(
+      width + TerminalChromeMetrics.paneInset - groupFrame.maxX
+        == TerminalSidebarLayout.visibleHorizontalInset
+    )
+    #expect(
+      childFrame.minX - groupFrame.minX == TerminalSidebarLayout.groupedTabHorizontalInset
+    )
+    #expect(
+      groupFrame.maxX - childFrame.maxX == TerminalSidebarLayout.groupedTabHorizontalInset
+    )
+    #expect(
+      childFrame.minX
+        == width + TerminalChromeMetrics.paneInset - childFrame.maxX
+    )
   }
 
   @Test
