@@ -33,12 +33,12 @@ final class TerminalSidebarSelectionGlowView: NSView {
       dx: SelectableRowShadowMetrics.visualOutset,
       dy: SelectableRowShadowMetrics.visualOutset
     )
-    let shapePath = CGPath(
-      roundedRect: shapeBounds,
-      cornerWidth: TerminalSidebarLayout.tabRowCornerRadius,
-      cornerHeight: TerminalSidebarLayout.tabRowCornerRadius,
-      transform: nil
+    let shapePath = RoundedRectangle(
+      cornerRadius: TerminalSidebarLayout.tabRowCornerRadius,
+      style: .continuous
     )
+    .path(in: shapeBounds)
+    .cgPath
     let maskPath = CGMutablePath()
     maskPath.addRect(bounds)
     maskPath.addPath(shapePath)
