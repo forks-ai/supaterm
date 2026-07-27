@@ -383,12 +383,12 @@ struct TerminalSidebarLayoutPlanTests {
 
     #expect(rootFrame.minX == TerminalSidebarLayout.visibleHorizontalInset)
     #expect(
-      width + TerminalChromeMetrics.paneInset - rootFrame.maxX
+      width - rootFrame.maxX
         == TerminalSidebarLayout.visibleHorizontalInset
     )
     #expect(groupFrame.minX == TerminalSidebarLayout.visibleHorizontalInset)
     #expect(
-      width + TerminalChromeMetrics.paneInset - groupFrame.maxX
+      width - groupFrame.maxX
         == TerminalSidebarLayout.visibleHorizontalInset
     )
     #expect(
@@ -399,7 +399,7 @@ struct TerminalSidebarLayoutPlanTests {
     )
     #expect(
       childFrame.minX
-        == width + TerminalChromeMetrics.paneInset - childFrame.maxX
+        == width - childFrame.maxX
     )
   }
 

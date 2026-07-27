@@ -35,7 +35,7 @@ enum TerminalSidebarLayout {
   static var cardHorizontalInsets: HorizontalInsets {
     HorizontalInsets(
       leading: visibleHorizontalInset,
-      trailing: visibleHorizontalInset - TerminalChromeMetrics.paneInset
+      trailing: visibleHorizontalInset
     )
   }
   static var groupedTabHorizontalInsets: HorizontalInsets {
@@ -47,12 +47,14 @@ enum TerminalSidebarLayout {
   static let cardMinHeight: CGFloat = 36
   static let cardVerticalPadding: CGFloat = 8
   static let groupSurfaceTopOverflow: CGFloat = 2
+  static let trafficLightGap: CGFloat = 4
 
   static var scrollViewportTopInset: CGFloat {
     WindowTrafficLightMetrics.edgePadding
       + WindowTrafficLightMetrics.buttonSize
       + SelectableRowShadowMetrics.visualOutset
       + groupSurfaceTopOverflow
+      + trafficLightGap
   }
 
   static var firstVisibleSectionTopInset: CGFloat {

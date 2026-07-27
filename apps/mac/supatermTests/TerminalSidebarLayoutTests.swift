@@ -7,7 +7,7 @@ import Testing
 @MainActor
 struct TerminalSidebarLayoutTests {
   @Test
-  func scrollViewportClearsTrafficLights() throws {
+  func scrollViewportStartsSixteenPointsBelowTrafficLights() throws {
     let controller = TerminalSidebarListController()
     controller.view.frame = CGRect(x: 0, y: 0, width: 280, height: 160)
     controller.view.layoutSubtreeIfNeeded()
@@ -18,11 +18,7 @@ struct TerminalSidebarLayoutTests {
     let trafficLightBottom =
       WindowTrafficLightMetrics.edgePadding + WindowTrafficLightMetrics.buttonSize
 
-    #expect(
-      viewportTopInset - trafficLightBottom
-        == SelectableRowShadowMetrics.visualOutset
-        + TerminalSidebarLayout.groupSurfaceTopOverflow
-    )
+    #expect(viewportTopInset - trafficLightBottom == 16)
   }
 
   @Test
@@ -54,6 +50,42 @@ struct TerminalSidebarLayoutTests {
       TerminalSidebarLayout.firstVisibleSectionTopInset + groupFrame.minY
 
     #expect(groupSurfaceTop == SelectableRowShadowMetrics.visualOutset)
+  }
+
+  @Test
+  func selectedRowsKeepTheirFullGlowInsideTheScrollViewport() throws {
+    let root = TerminalTabID()
+    let child = TerminalTabID()
+    let groupID = TerminalTabGroupID()
+    let width: CGFloat = 280
+    let outline = TerminalSidebarTestFixture.outline(
+      roots: [
+        TerminalSidebarOutline.Root(content: .tab(root), isPinned: false),
+        TerminalSidebarOutline.Root(
+          content: .group(groupID, .yellow, .automatic, [child]),
+          isPinned: false
+        ),
+      ],
+      revision: 1
+    )
+    let plan = TerminalSidebarTestFixture.layoutPlan(outline: outline, width: width)
+    let controller = TerminalSidebarListController()
+    controller.view.frame = CGRect(x: 0, y: 0, width: width, height: 300)
+    controller.view.layoutSubtreeIfNeeded()
+    let scrollView = try #require(
+      controller.view.subviews.compactMap { $0 as? TerminalSidebarScrollView }.first
+    )
+    let viewport = scrollView.contentView.bounds
+
+    #expect(scrollView.contentView.clipsToBounds)
+
+    for tabID in [root, child] {
+      let itemFrame = try #require(plan.items.first { $0.id == .tab(tabID) }?.frame)
+      let glowFrame = TerminalSidebarSelectionGlowView.visualFrame(for: itemFrame)
+
+      #expect(glowFrame.minX >= viewport.minX)
+      #expect(glowFrame.maxX <= viewport.maxX)
+    }
   }
 
   @Test
