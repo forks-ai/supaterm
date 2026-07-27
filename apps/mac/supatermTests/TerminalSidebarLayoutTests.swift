@@ -7,7 +7,7 @@ import Testing
 @MainActor
 struct TerminalSidebarLayoutTests {
   @Test
-  func scrollViewportStartsSixteenPointsBelowTrafficLights() throws {
+  func scrollViewportClearsTrafficLightsWithoutContentInsets() throws {
     let controller = TerminalSidebarListController()
     controller.view.frame = CGRect(x: 0, y: 0, width: 280, height: 160)
     controller.view.layoutSubtreeIfNeeded()
@@ -18,47 +18,18 @@ struct TerminalSidebarLayoutTests {
     let trafficLightBottom =
       WindowTrafficLightMetrics.edgePadding + WindowTrafficLightMetrics.buttonSize
 
-    #expect(viewportTopInset - trafficLightBottom == 16)
+    #expect(viewportTopInset - trafficLightBottom == TerminalSidebarLayout.trafficLightGap)
+    #expect(!scrollView.automaticallyAdjustsContentInsets)
+    #expect(scrollView.contentInsets.top == 0)
+    #expect(scrollView.contentInsets.bottom == 0)
   }
 
   @Test
-  func firstVisibleSectionPreservesSelectionGlow() {
-    let selectionGlowTop =
-      TerminalSidebarLayout.firstVisibleSectionTopInset
-      + TerminalSidebarLayoutPlan.initialY
-      - SelectableRowShadowMetrics.visualOutset
-
-    #expect(selectionGlowTop == TerminalSidebarLayout.groupSurfaceTopOverflow)
-  }
-
-  @Test
-  func firstVisibleGroupPreservesItsSurfaceTop() throws {
-    let child = TerminalTabID()
-    let groupID = TerminalTabGroupID()
-    let outline = TerminalSidebarTestFixture.outline(
-      roots: [
-        TerminalSidebarOutline.Root(
-          content: .group(groupID, .yellow, .automatic, [child]),
-          isPinned: false
-        )
-      ],
-      revision: 1
-    )
-    let plan = TerminalSidebarTestFixture.layoutPlan(outline: outline)
-    let groupFrame = try #require(plan.groups.first?.frame)
-    let groupSurfaceTop =
-      TerminalSidebarLayout.firstVisibleSectionTopInset + groupFrame.minY
-
-    #expect(groupSurfaceTop == SelectableRowShadowMetrics.visualOutset)
-  }
-
-  @Test
-  func selectedRowsKeepTheirFullGlowInsideTheScrollViewport() throws {
+  func topEntriesKeepTheirInkInsideTheDocument() throws {
     let root = TerminalTabID()
     let child = TerminalTabID()
     let groupID = TerminalTabGroupID()
-    let width: CGFloat = 280
-    let outline = TerminalSidebarTestFixture.outline(
+    let rootFirst = TerminalSidebarTestFixture.outline(
       roots: [
         TerminalSidebarOutline.Root(content: .tab(root), isPinned: false),
         TerminalSidebarOutline.Root(
@@ -68,24 +39,22 @@ struct TerminalSidebarLayoutTests {
       ],
       revision: 1
     )
-    let plan = TerminalSidebarTestFixture.layoutPlan(outline: outline, width: width)
-    let controller = TerminalSidebarListController()
-    controller.view.frame = CGRect(x: 0, y: 0, width: width, height: 300)
-    controller.view.layoutSubtreeIfNeeded()
-    let scrollView = try #require(
-      controller.view.subviews.compactMap { $0 as? TerminalSidebarScrollView }.first
+    let groupFirst = TerminalSidebarTestFixture.outline(
+      roots: [
+        TerminalSidebarOutline.Root(
+          content: .group(groupID, .yellow, .automatic, [child]),
+          isPinned: false
+        )
+      ],
+      revision: 1
     )
-    let viewport = scrollView.contentView.bounds
+    let rootFirstPlan = TerminalSidebarTestFixture.layoutPlan(outline: rootFirst)
+    let groupFirstPlan = TerminalSidebarTestFixture.layoutPlan(outline: groupFirst)
+    let rootFrame = try #require(rootFirstPlan.items.first { $0.id == .tab(root) }?.frame)
+    let groupFrame = try #require(groupFirstPlan.groups.first?.frame)
 
-    #expect(scrollView.contentView.clipsToBounds)
-
-    for tabID in [root, child] {
-      let itemFrame = try #require(plan.items.first { $0.id == .tab(tabID) }?.frame)
-      let glowFrame = TerminalSidebarSelectionGlowView.visualFrame(for: itemFrame)
-
-      #expect(glowFrame.minX >= viewport.minX)
-      #expect(glowFrame.maxX <= viewport.maxX)
-    }
+    #expect(TerminalSidebarSelectionGlowView.visualFrame(for: rootFrame).minY >= 0)
+    #expect(groupFrame.minY == SelectableRowShadowMetrics.visualOutset)
   }
 
   @Test

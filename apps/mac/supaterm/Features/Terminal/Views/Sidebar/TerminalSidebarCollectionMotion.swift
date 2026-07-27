@@ -299,11 +299,8 @@ enum TerminalSidebarLiveDragGeometry {
 
 enum TerminalSidebarScrollGeometry {
   static func constrainedY(_ proposedY: CGFloat, in clipView: NSClipView) -> CGFloat {
-    let minimumY = clipView.documentRect.minY - clipView.contentInsets.top
-    let maximumY = max(
-      minimumY,
-      clipView.documentRect.maxY - clipView.bounds.height + clipView.contentInsets.bottom
-    )
+    let minimumY = clipView.documentRect.minY
+    let maximumY = max(minimumY, clipView.documentRect.maxY - clipView.bounds.height)
     return max(minimumY, min(proposedY, maximumY))
   }
 }

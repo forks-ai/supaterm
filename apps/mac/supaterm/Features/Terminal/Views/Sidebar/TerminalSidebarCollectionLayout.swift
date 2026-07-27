@@ -36,7 +36,8 @@ struct TerminalSidebarLayoutPlan: Equatable {
   static let expandedGroupTrailingSpacing: CGFloat = 3
   static let dividerHeight: CGFloat = 9
   static let rootBoundaryTargetHeight: CGFloat = 7
-  static let initialY: CGFloat = -3
+  static let initialY: CGFloat =
+    SelectableRowShadowMetrics.visualOutset + TerminalSidebarLayout.groupSurfaceOverflow
   static let bottomPadding: CGFloat = 120
 
   let items: [Item]
@@ -256,21 +257,10 @@ struct TerminalSidebarLayoutPlan: Equatable {
         $0.height > 0
       }
       let frame = descendantFrames.reduce(header.frame) { $0.union($1) }
-      let bottomOverflow =
-        descendantFrames.isEmpty
-        ? TerminalSidebarLayout.groupSurfaceTopOverflow
-        : SelectableRowShadowMetrics.visualOutset
       return Group(
         id: id,
         color: color,
-        frame: CGRect(
-          x: frame.minX,
-          y: frame.minY - TerminalSidebarLayout.groupSurfaceTopOverflow,
-          width: frame.width,
-          height: frame.height
-            + TerminalSidebarLayout.groupSurfaceTopOverflow
-            + bottomOverflow
-        ),
+        frame: frame.insetBy(dx: 0, dy: -TerminalSidebarLayout.groupSurfaceOverflow),
         alpha: header.alpha
       )
     }
@@ -424,8 +414,7 @@ struct TerminalSidebarLayoutPlan: Equatable {
 
     let childFrames = tabIDs.compactMap { context.itemByID[.tab($0)]?.frame }
     let childEndY = childFrames.map(\.maxY).max() ?? header.frame.maxY
-    let groupEndY = childEndY + SelectableRowShadowMetrics.visualOutset
-    let containerMaxY = groupEndY + expandedGroupTrailingSpacing
+    let containerMaxY = childEndY + expandedGroupTrailingSpacing
     guard !groupIsDragged else {
       return RootTargetGeometry(
         targets: [],
@@ -454,7 +443,7 @@ struct TerminalSidebarLayoutPlan: Equatable {
     ]
     targets.append(contentsOf: childTargets(groupID: groupID, tabIDs: tabIDs, context: context))
     let exitTargetHeight = expandedGroupExitTargetHeight(
-      groupEndY: groupEndY,
+      childEndY: childEndY,
       rootIndex: rootIndex,
       context: context
     )
@@ -464,7 +453,7 @@ struct TerminalSidebarLayoutPlan: Equatable {
           path: .rootBoundary(index: rootIndex, affinity: .after),
           frame: CGRect(
             x: 0,
-            y: groupEndY,
+            y: childEndY,
             width: context.width,
             height: exitTargetHeight
           )
@@ -478,7 +467,7 @@ struct TerminalSidebarLayoutPlan: Equatable {
   }
 
   private static func expandedGroupExitTargetHeight(
-    groupEndY: CGFloat,
+    childEndY: CGFloat,
     rootIndex: Int,
     context: TargetGeometryContext
   ) -> CGFloat {
@@ -489,7 +478,7 @@ struct TerminalSidebarLayoutPlan: Equatable {
     if let nextRoot, root.isPinned != nextRoot.isPinned { return 0 }
     let nextEntryID = nextRoot?.entryID ?? .newTab
     guard let nextItem = context.itemByID[nextEntryID] else { return 0 }
-    return max(0, nextItem.frame.minY - groupEndY)
+    return max(0, nextItem.frame.minY - childEndY)
   }
 
   private static func childTargets(
@@ -600,24 +589,14 @@ struct TerminalSidebarLayoutPlan: Equatable {
     previous: TerminalSidebarEntry?
   ) -> CGFloat {
     switch (previous?.kind, entry.kind) {
-    case (
-      .tab(_, .some(let previousGroupID), _),
-      .tab(_, .some(let groupID), _)
-    ) where previousGroupID == groupID:
-      TerminalSidebarLayout.tabRowSpacing
-    case (.tab(_, .some, _), .pinDivider):
-      pinDividerTopSpacing + SelectableRowShadowMetrics.visualOutset
-    case (.tab(_, .some, _), .tab(_, nil, _)),
-      (.tab(_, .some, _), .group),
-      (.tab(_, .some, _), .newTab):
-      rootSpacing + SelectableRowShadowMetrics.visualOutset
     case (_, .pinDivider):
       pinDividerTopSpacing
     case (.pinDivider, .group):
-      TerminalSidebarLayout.tabRowSpacing + TerminalSidebarLayout.groupSurfaceTopOverflow
+      TerminalSidebarLayout.tabRowSpacing + TerminalSidebarLayout.groupSurfaceOverflow
     case (.pinDivider, _):
       TerminalSidebarLayout.tabRowSpacing
-    case (.group, .tab(_, nil, _)):
+    case (.tab(_, .some, _), .tab(_, nil, _)),
+      (.group, .tab(_, nil, _)):
       rootSpacing
     case (_, .group), (_, .newTab):
       rootSpacing

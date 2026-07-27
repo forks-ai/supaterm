@@ -77,7 +77,10 @@ struct TerminalSidebarLayoutPlanTests {
     let rootTarget = try #require(plan.semanticTargets[safe: 0])
     let headerTarget = try #require(plan.semanticTargets[safe: 2])
     let exitTarget = try #require(plan.semanticTargets[safe: 5])
-    #expect(leading.frame == CGRect(x: 0, y: -3, width: 220, height: 37))
+    #expect(
+      leading.frame
+        == CGRect(x: 0, y: TerminalSidebarLayoutPlan.initialY, width: 220, height: 37)
+    )
     #expect(rootTarget.frame.height == 37)
     #expect(headerTarget.frame.minX == 3)
     #expect(headerTarget.frame.height == 34)
@@ -173,26 +176,6 @@ struct TerminalSidebarLayoutPlanTests {
   }
 
   @Test
-  func groupSurfaceContainsGroupedTabSelectionGlow() throws {
-    let child = TerminalTabID()
-    let groupID = TerminalTabGroupID()
-    let outline = TerminalSidebarTestFixture.outline(
-      roots: [
-        TerminalSidebarOutline.Root(
-          content: .group(groupID, .yellow, .automatic, [child]),
-          isPinned: false
-        )
-      ],
-      revision: 1
-    )
-    let plan = TerminalSidebarTestFixture.layoutPlan(outline: outline)
-    let childFrame = try #require(plan.items.first { $0.id == .tab(child) }?.frame)
-    let groupFrame = try #require(plan.groups.first?.frame)
-
-    #expect(groupFrame.contains(TerminalSidebarSelectionGlowView.visualFrame(for: childFrame)))
-  }
-
-  @Test
   func collapsedGroupSurfaceKeepsCompactOverflow() throws {
     let child = TerminalTabID()
     let groupID = TerminalTabGroupID()
@@ -210,7 +193,7 @@ struct TerminalSidebarLayoutPlanTests {
     let headerFrame = try #require(plan.items.first { $0.id == .group(groupID) }?.frame)
     let groupFrame = try #require(plan.groups.first?.frame)
 
-    #expect(groupFrame.maxY - headerFrame.maxY == TerminalSidebarLayout.groupSurfaceTopOverflow)
+    #expect(groupFrame.maxY - headerFrame.maxY == TerminalSidebarLayout.groupSurfaceOverflow)
   }
 
   @Test
@@ -284,14 +267,13 @@ struct TerminalSidebarLayoutPlanTests {
       outline: outline,
       draggingItemIDs: [.tab(source)]
     )
-    let pinnedGroupFrame = try #require(plan.groups.first { $0.id == groupID }?.frame)
+    let childFrame = try #require(plan.items.first { $0.id == .tab(child) }?.frame)
     let divider = try #require(plan.items.first { $0.id == .pinDivider }?.frame)
     let regularGroupFrame = try #require(plan.groups.first { $0.id == regularGroupID }?.frame)
     let footer = try #require(plan.items.first { $0.id == .newTab }?.frame)
 
     #expect(
-      divider.minY - pinnedGroupFrame.maxY
-        == TerminalSidebarLayoutPlan.pinDividerTopSpacing
+      divider.minY - childFrame.maxY == TerminalSidebarLayoutPlan.pinDividerTopSpacing
     )
     #expect(
       regularGroupFrame.minY - divider.maxY == TerminalSidebarLayout.tabRowSpacing
@@ -383,23 +365,23 @@ struct TerminalSidebarLayoutPlanTests {
 
     #expect(rootFrame.minX == TerminalSidebarLayout.visibleHorizontalInset)
     #expect(
-      width - rootFrame.maxX
+      width + TerminalChromeMetrics.paneInset - rootFrame.maxX
         == TerminalSidebarLayout.visibleHorizontalInset
     )
     #expect(groupFrame.minX == TerminalSidebarLayout.visibleHorizontalInset)
     #expect(
-      width - groupFrame.maxX
+      width + TerminalChromeMetrics.paneInset - groupFrame.maxX
         == TerminalSidebarLayout.visibleHorizontalInset
     )
     #expect(
-      childFrame.minX - groupFrame.minX == SelectableRowShadowMetrics.visualOutset
+      childFrame.minX - groupFrame.minX == TerminalSidebarLayout.groupedTabHorizontalInset
     )
     #expect(
-      groupFrame.maxX - childFrame.maxX == SelectableRowShadowMetrics.visualOutset
+      groupFrame.maxX - childFrame.maxX == TerminalSidebarLayout.groupedTabHorizontalInset
     )
     #expect(
       childFrame.minX
-        == width - childFrame.maxX
+        == width + TerminalChromeMetrics.paneInset - childFrame.maxX
     )
   }
 

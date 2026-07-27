@@ -186,7 +186,7 @@ final class TerminalSidebarListController: NSViewController, NSCollectionViewDel
 
   private func configureHierarchy() {
     scrollView.drawsBackground = false
-    scrollView.contentInsets.top = TerminalSidebarLayout.firstVisibleSectionTopInset
+    scrollView.automaticallyAdjustsContentInsets = false
     view.addSubview(scrollView)
 
     collectionView.collectionViewLayout = collectionLayout
@@ -323,12 +323,7 @@ final class TerminalSidebarListController: NSViewController, NSCollectionViewDel
       invalidateLayout()
       if isInitialSnapshot {
         let contentView = scrollView.contentView
-        contentView.scroll(
-          to: CGPoint(
-            x: contentView.documentRect.minX,
-            y: contentView.documentRect.minY - contentView.contentInsets.top
-          )
-        )
+        contentView.scroll(to: contentView.documentRect.origin)
         scrollView.reflectScrolledClipView(contentView)
       }
       revealSelectedTabIfNeeded()
@@ -1172,13 +1167,14 @@ final class TerminalSidebarListController: NSViewController, NSCollectionViewDel
       let entry = appliedOutline.visibleEntries.first(where: { $0.id == entryID }),
       let frame = collectionLayout.targetPlan.revealFrame(for: entry)
     else { return }
+    let revealFrame = frame.insetBy(dx: 0, dy: -SelectableRowShadowMetrics.visualOutset)
     let visibleRect = collectionView.visibleRect
     guard visibleRect.height >= TerminalSidebarLayout.tabRowMinHeight else { return }
-    if visibleRect.contains(frame) {
+    if visibleRect.contains(revealFrame) {
       pendingRevealTabID = nil
       return
     }
-    collectionView.scrollToVisible(frame)
+    collectionView.scrollToVisible(revealFrame)
     pendingRevealTabID = nil
   }
 
