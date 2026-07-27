@@ -47,6 +47,7 @@ enum TerminalSidebarLayout {
   static let cardCornerRadius: CGFloat = 12
   static let cardMinHeight: CGFloat = 36
   static let cardVerticalPadding: CGFloat = 8
+  static let groupSurfaceVerticalOverflow: CGFloat = 2
 
   static var scrollViewportTopInset: CGFloat {
     WindowTrafficLightMetrics.edgePadding
@@ -55,7 +56,9 @@ enum TerminalSidebarLayout {
   }
 
   static var firstVisibleSectionTopInset: CGFloat {
-    SelectableRowShadowMetrics.visualOutset - TerminalSidebarLayoutPlan.initialY
+    SelectableRowShadowMetrics.visualOutset
+      - TerminalSidebarLayoutPlan.initialY
+      + groupSurfaceVerticalOverflow
   }
 
   static func scrollViewportFrame(in bounds: CGRect) -> CGRect {

@@ -1169,7 +1169,8 @@ final class TerminalSidebarListController: NSViewController, NSCollectionViewDel
     guard let id = pendingRevealTabID else { return }
     let entryID = TerminalSidebarEntryID.tab(id)
     guard dataSource.snapshot().itemIdentifiers.contains(entryID),
-      let frame = collectionLayout.targetPlan.items.first(where: { $0.id == entryID })?.frame
+      let entry = appliedOutline.visibleEntries.first(where: { $0.id == entryID }),
+      let frame = collectionLayout.targetPlan.revealFrame(for: entry)
     else { return }
     let visibleRect = collectionView.visibleRect
     guard visibleRect.height >= TerminalSidebarLayout.tabRowMinHeight else { return }

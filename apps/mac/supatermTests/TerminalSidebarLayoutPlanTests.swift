@@ -153,6 +153,26 @@ struct TerminalSidebarLayoutPlanTests {
   }
 
   @Test
+  func groupedTabRevealIncludesItsGroupSurface() throws {
+    let child = TerminalTabID()
+    let groupID = TerminalTabGroupID()
+    let outline = TerminalSidebarTestFixture.outline(
+      roots: [
+        TerminalSidebarOutline.Root(
+          content: .group(groupID, .yellow, .automatic, [child]),
+          isPinned: false
+        )
+      ],
+      revision: 1
+    )
+    let plan = TerminalSidebarTestFixture.layoutPlan(outline: outline)
+    let childEntry = try #require(outline.visibleEntries.first { $0.id == .tab(child) })
+    let groupFrame = try #require(plan.groups.first?.frame)
+
+    #expect(plan.revealFrame(for: childEntry) == groupFrame)
+  }
+
+  @Test
   func collapsedAndEmptyGroupsSplitOneHeaderIntoTopAndBottomTargets() {
     let collapsedChild = TerminalTabID()
     let source = TerminalTabID()

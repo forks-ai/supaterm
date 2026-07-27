@@ -33,7 +33,6 @@ struct TerminalSidebarLayoutPlan: Equatable {
 
   static let rootSpacing: CGFloat = 10
   static let pinDividerTopSpacing: CGFloat = 8
-  private static let groupSurfaceVerticalOverflow: CGFloat = 2
   static let expandedGroupTrailingSpacing: CGFloat = 3
   static let dividerHeight: CGFloat = 9
   static let rootBoundaryTargetHeight: CGFloat = 7
@@ -168,6 +167,18 @@ struct TerminalSidebarLayoutPlan: Equatable {
     groups.first { $0.frame.contains(point) }?.id
   }
 
+  func revealFrame(for entry: TerminalSidebarEntry) -> CGRect? {
+    guard let itemFrame = items.first(where: { $0.id == entry.id })?.frame else {
+      return nil
+    }
+    guard let groupID = entry.parentGroupID,
+      let groupFrame = groups.first(where: { $0.id == groupID })?.frame
+    else {
+      return itemFrame
+    }
+    return groupFrame
+  }
+
   func interpolated(from origin: Self, progress: CGFloat) -> Self {
     let progress = max(0, min(progress, 1))
     let originItems = Dictionary(uniqueKeysWithValues: origin.items.map { ($0.id, $0) })
@@ -244,7 +255,7 @@ struct TerminalSidebarLayoutPlan: Equatable {
       return Group(
         id: id,
         color: color,
-        frame: frame.insetBy(dx: 0, dy: -Self.groupSurfaceVerticalOverflow),
+        frame: frame.insetBy(dx: 0, dy: -TerminalSidebarLayout.groupSurfaceVerticalOverflow),
         alpha: header.alpha
       )
     }
@@ -576,7 +587,7 @@ struct TerminalSidebarLayoutPlan: Equatable {
     case (_, .pinDivider):
       pinDividerTopSpacing
     case (.pinDivider, .group):
-      TerminalSidebarLayout.tabRowSpacing + groupSurfaceVerticalOverflow
+      TerminalSidebarLayout.tabRowSpacing + TerminalSidebarLayout.groupSurfaceVerticalOverflow
     case (.pinDivider, _):
       TerminalSidebarLayout.tabRowSpacing
     case (.tab(_, .some, _), .tab(_, nil, _)),

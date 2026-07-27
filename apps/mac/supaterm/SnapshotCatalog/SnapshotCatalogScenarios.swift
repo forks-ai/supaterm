@@ -60,6 +60,19 @@ extension SnapshotCatalog {
       )
     },
     scenario(
+      "window-controls-group",
+      group: "Sidebar",
+      title: "Window controls above selected group",
+      size: CGSize(width: 560, height: 132)
+    ) { appearance in
+      AnyView(
+        SidebarWindowControlsSnapshotFixture(
+          appearance: appearance,
+          terminal: SidebarChromeSnapshotContext.selectedGroupTerminal
+        )
+      )
+    },
+    scenario(
       "basic-selected",
       group: "Sidebar Rows",
       title: "Selected shell tab",
@@ -855,6 +868,39 @@ private enum SidebarChromeSnapshotContext {
     return terminal
   }()
 
+  static let selectedGroupTerminal: TerminalHostState = {
+    let terminal = TerminalHostState(managesTerminalSurfaces: false)
+    let space = PersistedTerminalSpace(
+      id: TerminalSpaceID(
+        rawValue: SnapshotFixtureValues.uuid("30000000-0000-0000-0000-000000000005")
+      ),
+      name: "supaterm"
+    )
+    terminal.spaceManager.bootstrap(
+      from: TerminalSpaceCatalog(defaultSelectedSpaceID: space.id, spaces: [space]),
+      initialSelectedSpaceID: space.id
+    )
+    let selectedTab = tab("47", title: "/Users/Developer/code/github.com/Goodnotes-CN/Good-Board")
+    terminal.spaceManager.restoreRootItems(
+      [
+        .group(
+          TerminalTabGroupItem(
+            id: TerminalTabGroupID(
+              rawValue: SnapshotFixtureValues.uuid("50000000-0000-0000-0000-000000000003")
+            ),
+            title: "🎨 Goodboard",
+            color: .yellow,
+            isPinned: false,
+            tabs: [selectedTab]
+          )
+        )
+      ],
+      selectedTabID: selectedTab.id,
+      in: space.id
+    )
+    return terminal
+  }()
+
   private static func rootTab(
     _ id: String,
     title: String,
@@ -918,6 +964,7 @@ private struct SidebarChromeSnapshotFixture: View {
 
 private struct SidebarWindowControlsSnapshotFixture: View {
   let appearance: SnapshotAppearance
+  var terminal = SidebarChromeSnapshotContext.selectedBeforeNewTabTerminal
 
   var body: some View {
     ZStack(alignment: .topLeading) {
@@ -925,7 +972,7 @@ private struct SidebarWindowControlsSnapshotFixture: View {
       SidebarChromeSnapshotFixture(
         appearance: appearance,
         fixedHoveredGroupID: nil,
-        terminal: SidebarChromeSnapshotContext.selectedBeforeNewTabTerminal
+        terminal: terminal
       )
       WindowTrafficLights()
     }
