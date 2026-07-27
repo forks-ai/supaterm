@@ -6,16 +6,13 @@ import Testing
 
 struct TerminalSidebarMotionTests {
   @Test
-  func activationRequiresSameEventThresholdAndExpandedContainment() {
-    let frame = CGRect(x: 10, y: 10, width: 100, height: 30)
-
+  func activationRequiresSameEventAndThreshold() {
     #expect(
       TerminalSidebarDragActivation.decision(
         mouseDownEventNumber: 41,
         currentEventNumber: 41,
         origin: CGPoint(x: 30, y: 20),
-        location: CGPoint(x: 37.9, y: 20),
-        sourceFrame: frame
+        location: CGPoint(x: 37.9, y: 20)
       ) == .pending
     )
     #expect(
@@ -23,8 +20,7 @@ struct TerminalSidebarMotionTests {
         mouseDownEventNumber: 41,
         currentEventNumber: 41,
         origin: CGPoint(x: 30, y: 20),
-        location: CGPoint(x: 38, y: 20),
-        sourceFrame: frame
+        location: CGPoint(x: 38, y: 20)
       ) == .begin
     )
     #expect(
@@ -32,18 +28,20 @@ struct TerminalSidebarMotionTests {
         mouseDownEventNumber: 41,
         currentEventNumber: 42,
         origin: CGPoint(x: 30, y: 20),
-        location: CGPoint(x: 38, y: 20),
-        sourceFrame: frame
+        location: CGPoint(x: 38, y: 20)
       ) == .rejected
     )
+  }
+
+  @Test
+  func coalescedJumpFarFromTheRowStillBeginsTheDrag() {
     #expect(
       TerminalSidebarDragActivation.decision(
         mouseDownEventNumber: 41,
         currentEventNumber: 41,
         origin: CGPoint(x: 30, y: 20),
-        location: CGPoint(x: 119, y: 20),
-        sourceFrame: frame
-      ) == .rejected
+        location: CGPoint(x: 34, y: 260)
+      ) == .begin
     )
   }
 

@@ -33,7 +33,6 @@ final class TerminalSidebarListController: NSViewController, NSCollectionViewDel
     let entryID: TerminalSidebarEntryID
     let eventNumber: Int
     let origin: CGPoint
-    let sourceFrame: CGRect
   }
 
   private struct DragSourceGeometry {
@@ -492,8 +491,7 @@ final class TerminalSidebarListController: NSViewController, NSCollectionViewDel
     pendingDrag = PendingDrag(
       entryID: entryID,
       eventNumber: event.eventNumber,
-      origin: location,
-      sourceFrame: attributes.frame
+      origin: location
     )
     switch entryID {
     case .group:
@@ -512,8 +510,7 @@ final class TerminalSidebarListController: NSViewController, NSCollectionViewDel
       mouseDownEventNumber: pendingDrag.eventNumber,
       currentEventNumber: event.eventNumber,
       origin: pendingDrag.origin,
-      location: location,
-      sourceFrame: pendingDrag.sourceFrame
+      location: location
     ) {
     case .pending:
       return false

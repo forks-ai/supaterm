@@ -8,19 +8,14 @@ enum TerminalSidebarDragActivation {
   }
 
   static let threshold: CGFloat = 8
-  static let sourceTolerance: CGFloat = 8
 
   static func decision(
     mouseDownEventNumber: Int,
     currentEventNumber: Int,
     origin: CGPoint,
-    location: CGPoint,
-    sourceFrame: CGRect
+    location: CGPoint
   ) -> Decision {
     guard mouseDownEventNumber == currentEventNumber else { return .rejected }
-    guard sourceFrame.insetBy(dx: -sourceTolerance, dy: -sourceTolerance).contains(location) else {
-      return .rejected
-    }
     guard hypot(location.x - origin.x, location.y - origin.y) >= threshold else {
       return .pending
     }
