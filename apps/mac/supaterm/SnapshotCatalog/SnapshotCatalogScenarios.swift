@@ -901,6 +901,22 @@ private enum SidebarChromeSnapshotContext {
     return terminal
   }()
 
+  static func windowStore() -> StoreOf<TerminalWindowFeature> {
+    Store(initialState: TerminalWindowFeature.State()) {
+      TerminalWindowFeature()
+    }
+  }
+
+  static func updateStore() -> StoreOf<UpdateFeature> {
+    Store(
+      initialState: UpdateFeature.State(canCheckForUpdates: true, phase: .idle)
+    ) {
+      UpdateFeature()
+    } withDependencies: {
+      $0.updateClient = .testValue
+    }
+  }
+
   private static func rootTab(
     _ id: String,
     title: String,
@@ -938,16 +954,8 @@ private struct SidebarChromeSnapshotFixture: View {
 
   var body: some View {
     TerminalSidebarChromeView(
-      store: Store(initialState: TerminalWindowFeature.State()) {
-        TerminalWindowFeature()
-      },
-      updateStore: Store(
-        initialState: UpdateFeature.State(canCheckForUpdates: true, phase: .idle)
-      ) {
-        UpdateFeature()
-      } withDependencies: {
-        $0.updateClient = .testValue
-      },
+      store: SidebarChromeSnapshotContext.windowStore(),
+      updateStore: SidebarChromeSnapshotContext.updateStore(),
       releaseAnnouncement: nil,
       palette: palette,
       terminal: terminal,
@@ -956,7 +964,7 @@ private struct SidebarChromeSnapshotFixture: View {
     )
     .environment(SidebarChromeSnapshotContext.commandHold)
     .environment(SidebarChromeSnapshotContext.ghosttyShortcuts)
-    .padding(.vertical, 8)
+    .padding(.bottom, 8)
     .background(palette.windowBackgroundTint)
     .background(palette.detailBackground)
   }
@@ -966,16 +974,23 @@ private struct SidebarWindowControlsSnapshotFixture: View {
   let appearance: SnapshotAppearance
   var terminal = SidebarChromeSnapshotContext.selectedBeforeNewTabTerminal
 
+  private var palette: Palette {
+    Palette(colorScheme: appearance.colorScheme)
+  }
+
   var body: some View {
-    ZStack(alignment: .topLeading) {
-      Palette(colorScheme: appearance.colorScheme).detailBackground
-      SidebarChromeSnapshotFixture(
-        appearance: appearance,
-        fixedHoveredGroupID: nil,
-        terminal: terminal
-      )
-      WindowTrafficLights()
-    }
+    TerminalSidebarView(
+      store: SidebarChromeSnapshotContext.windowStore(),
+      updateStore: SidebarChromeSnapshotContext.updateStore(),
+      releaseAnnouncement: nil,
+      palette: palette,
+      terminal: terminal,
+      dismissReleaseAnnouncement: {}
+    )
+    .environment(SidebarChromeSnapshotContext.commandHold)
+    .environment(SidebarChromeSnapshotContext.ghosttyShortcuts)
+    .background(palette.windowBackgroundTint)
+    .background(palette.detailBackground)
   }
 }
 

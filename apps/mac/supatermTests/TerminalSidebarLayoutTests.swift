@@ -18,7 +18,11 @@ struct TerminalSidebarLayoutTests {
     let trafficLightBottom =
       WindowTrafficLightMetrics.edgePadding + WindowTrafficLightMetrics.buttonSize
 
-    #expect(viewportTopInset - trafficLightBottom == 4)
+    #expect(
+      viewportTopInset - trafficLightBottom
+        == SelectableRowShadowMetrics.visualOutset
+        + TerminalSidebarLayout.groupSurfaceVerticalOverflow
+    )
   }
 
   @Test

@@ -52,7 +52,8 @@ enum TerminalSidebarLayout {
   static var scrollViewportTopInset: CGFloat {
     WindowTrafficLightMetrics.edgePadding
       + WindowTrafficLightMetrics.buttonSize
-      + 4
+      + SelectableRowShadowMetrics.visualOutset
+      + groupSurfaceVerticalOverflow
   }
 
   static var firstVisibleSectionTopInset: CGFloat {
