@@ -228,6 +228,8 @@ struct GhosttyBootstrapTests {
     let contents = try String(contentsOf: locations.preferred, encoding: .utf8)
 
     #expect(contents.contains("cursor-style = block"))
+    #expect(contents.contains("shell-integration-features = ssh-env,ssh-terminfo"))
+    #expect(contents.contains("quit-after-last-window-closed = true"))
     #expect(contents == GhosttySupport.defaultConfigContents)
   }
 

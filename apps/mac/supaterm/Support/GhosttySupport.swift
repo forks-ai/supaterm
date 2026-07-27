@@ -25,6 +25,8 @@ public enum GhosttySupport {
     theme = light:Zenbones Light,dark:Zenbones Dark
     cursor-style = block
     confirm-close-surface = always
+    shell-integration-features = ssh-env,ssh-terminfo
+    quit-after-last-window-closed = true
     """
 
   public static func resourceDirectories(
