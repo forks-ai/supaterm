@@ -49,7 +49,10 @@ enum TerminalSidebarLayout {
   static let cardVerticalPadding: CGFloat = 8
 
   static var firstVisibleSectionTopInset: CGFloat {
-    WindowTrafficLightMetrics.edgePadding + WindowTrafficLightMetrics.buttonSize + 4
+    WindowTrafficLightMetrics.edgePadding
+      + WindowTrafficLightMetrics.buttonSize
+      + SelectableRowShadowMetrics.visualOutset
+      + 4
   }
 
   static func spaceMonogram(

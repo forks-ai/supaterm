@@ -50,6 +50,16 @@ extension SnapshotCatalog {
       )
     },
     scenario(
+      "window-controls",
+      group: "Sidebar",
+      title: "Window controls above selected tab",
+      size: CGSize(width: 280, height: 160)
+    ) { appearance in
+      AnyView(
+        SidebarWindowControlsSnapshotFixture(appearance: appearance)
+      )
+    },
+    scenario(
       "basic-selected",
       group: "Sidebar Rows",
       title: "Selected shell tab",
@@ -702,6 +712,7 @@ private struct SidebarRowSnapshotItem {
 private struct SidebarRowSnapshotFixture: View {
   let appearance: SnapshotAppearance
   let item: SidebarRowSnapshotItem
+  var outerPadding: CGFloat = 10
 
   private var palette: Palette {
     Palette(colorScheme: appearance.colorScheme)
@@ -747,7 +758,7 @@ private struct SidebarRowSnapshotFixture: View {
         showsSelectionEdge: true
       )
     )
-    .padding(10)
+    .padding(outerPadding)
     .background(palette.detailBackground)
   }
 
@@ -902,6 +913,31 @@ private struct SidebarChromeSnapshotFixture: View {
     .padding(.vertical, 8)
     .background(palette.windowBackgroundTint)
     .background(palette.detailBackground)
+  }
+}
+
+private struct SidebarWindowControlsSnapshotFixture: View {
+  let appearance: SnapshotAppearance
+
+  var body: some View {
+    ZStack(alignment: .topLeading) {
+      Palette(colorScheme: appearance.colorScheme).detailBackground
+      SidebarRowSnapshotFixture(
+        appearance: appearance,
+        item: SidebarRowSnapshotItem(
+          id: "10000000-0000-0000-0000-000000000011",
+          title: "Home / X",
+          isSelected: true
+        ),
+        outerPadding: 0
+      )
+      .frame(width: 280 - (TerminalSidebarLayout.visibleHorizontalInset * 2))
+      .offset(
+        x: TerminalSidebarLayout.visibleHorizontalInset,
+        y: TerminalSidebarLayout.firstVisibleSectionTopInset
+      )
+      WindowTrafficLights()
+    }
   }
 }
 

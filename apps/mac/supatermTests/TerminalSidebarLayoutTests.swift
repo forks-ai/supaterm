@@ -1,8 +1,20 @@
+import CoreGraphics
 import Testing
 
 @testable import supaterm
 
 struct TerminalSidebarLayoutTests {
+  @Test
+  func firstVisibleSectionClearsTrafficLightsAndSelectionGlow() {
+    let trafficLightBottom =
+      WindowTrafficLightMetrics.edgePadding + WindowTrafficLightMetrics.buttonSize
+    let selectionGlowTop =
+      TerminalSidebarLayout.firstVisibleSectionTopInset
+      - SelectableRowShadowMetrics.visualOutset
+
+    #expect(selectionGlowTop - trafficLightBottom == 4)
+  }
+
   @Test
   func spaceMonogramUsesFirstNonWhitespaceCharacter() {
     #expect(TerminalSidebarLayout.spaceMonogram(for: "  shell", fallbackIndex: 2) == "S")
