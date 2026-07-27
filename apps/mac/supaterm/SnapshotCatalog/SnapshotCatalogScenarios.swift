@@ -63,7 +63,7 @@ extension SnapshotCatalog {
       "window-controls-group",
       group: "Sidebar",
       title: "Window controls above selected group",
-      size: CGSize(width: 560, height: 132)
+      size: CGSize(width: 560, height: 220)
     ) { appearance in
       AnyView(
         SidebarWindowControlsSnapshotFixture(

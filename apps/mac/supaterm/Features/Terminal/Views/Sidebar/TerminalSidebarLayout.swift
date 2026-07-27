@@ -32,7 +32,6 @@ enum TerminalSidebarLayout {
   static let tabRowMinHeight: CGFloat = 30
   static let rowHorizontalPadding: CGFloat = 10
   static let visibleHorizontalInset: CGFloat = 10
-  static let groupedTabHorizontalInset: CGFloat = 6
   static var cardHorizontalInsets: HorizontalInsets {
     HorizontalInsets(
       leading: visibleHorizontalInset,
@@ -40,26 +39,26 @@ enum TerminalSidebarLayout {
     )
   }
   static var groupedTabHorizontalInsets: HorizontalInsets {
-    cardHorizontalInsets.inset(by: groupedTabHorizontalInset)
+    cardHorizontalInsets.inset(by: SelectableRowShadowMetrics.visualOutset)
   }
   static let tabRowVerticalPadding: CGFloat = 5
   static let tabRowSpacing: CGFloat = 2
   static let cardCornerRadius: CGFloat = 12
   static let cardMinHeight: CGFloat = 36
   static let cardVerticalPadding: CGFloat = 8
-  static let groupSurfaceVerticalOverflow: CGFloat = 2
+  static let groupSurfaceTopOverflow: CGFloat = 2
 
   static var scrollViewportTopInset: CGFloat {
     WindowTrafficLightMetrics.edgePadding
       + WindowTrafficLightMetrics.buttonSize
       + SelectableRowShadowMetrics.visualOutset
-      + groupSurfaceVerticalOverflow
+      + groupSurfaceTopOverflow
   }
 
   static var firstVisibleSectionTopInset: CGFloat {
     SelectableRowShadowMetrics.visualOutset
       - TerminalSidebarLayoutPlan.initialY
-      + groupSurfaceVerticalOverflow
+      + groupSurfaceTopOverflow
   }
 
   static func scrollViewportFrame(in bounds: CGRect) -> CGRect {

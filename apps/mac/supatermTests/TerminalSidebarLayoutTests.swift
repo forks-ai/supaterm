@@ -21,7 +21,7 @@ struct TerminalSidebarLayoutTests {
     #expect(
       viewportTopInset - trafficLightBottom
         == SelectableRowShadowMetrics.visualOutset
-        + TerminalSidebarLayout.groupSurfaceVerticalOverflow
+        + TerminalSidebarLayout.groupSurfaceTopOverflow
     )
   }
 
@@ -32,7 +32,7 @@ struct TerminalSidebarLayoutTests {
       + TerminalSidebarLayoutPlan.initialY
       - SelectableRowShadowMetrics.visualOutset
 
-    #expect(selectionGlowTop == TerminalSidebarLayout.groupSurfaceVerticalOverflow)
+    #expect(selectionGlowTop == TerminalSidebarLayout.groupSurfaceTopOverflow)
   }
 
   @Test
