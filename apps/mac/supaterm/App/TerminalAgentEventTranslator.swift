@@ -43,9 +43,14 @@ nonisolated enum TerminalAgentEventTranslator {
   ) -> TerminalAgentEvent.Action {
     let role = normalized(request.event.agentType)
     guard request.agent == .codex else {
+      let metadata = ClaudeSubagentMetadataParser.metadata(
+        transcriptPath: request.event.transcriptPath,
+        agentID: request.event.agentID
+      )
       return .subagentStarted(
-        nickname: nil,
-        role: role
+        nickname: metadata?.nickname,
+        role: role,
+        task: metadata?.task
       )
     }
     let nickname = CodexTranscriptMetadataParser.subagentNickname(
@@ -78,7 +83,9 @@ nonisolated enum TerminalAgentEventTranslator {
       )
     case .postToolUse:
       let resolutionEvents = attentionResolutionEvents(for: request, scope: scope)
-      guard scope.subagentID == nil else { return resolutionEvents }
+      guard scope.subagentID == nil else {
+        return resolutionEvents + subagentDescribedEvents(for: request, scope: scope)
+      }
       return resolutionEvents + [
         event(
           request,
@@ -87,7 +94,9 @@ nonisolated enum TerminalAgentEventTranslator {
         )
       ]
     case .preToolUse:
-      guard scope.subagentID == nil else { return [] }
+      guard scope.subagentID == nil else {
+        return subagentDescribedEvents(for: request, scope: scope)
+      }
       action = .turnRunning(detail: request.event.toolName)
     case .sessionEnd:
       action = .sessionEnded
@@ -101,6 +110,27 @@ nonisolated enum TerminalAgentEventTranslator {
       return []
     }
     return [event(request, scope: scope, action: action)]
+  }
+
+  private static func subagentDescribedEvents(
+    for request: SupatermAgentHookRequest,
+    scope: TerminalAgentEvent.Scope
+  ) -> [TerminalAgentEvent] {
+    guard
+      let metadata = ClaudeSubagentMetadataParser.metadata(
+        transcriptPath: request.event.transcriptPath,
+        agentID: request.event.agentID
+      )
+    else {
+      return []
+    }
+    return [
+      event(
+        request,
+        scope: scope,
+        action: .subagentDescribed(nickname: metadata.nickname, task: metadata.task)
+      )
+    ]
   }
 
   private static func codexEvents(

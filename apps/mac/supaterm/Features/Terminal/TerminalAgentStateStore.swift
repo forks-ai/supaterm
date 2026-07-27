@@ -118,7 +118,6 @@ nonisolated struct TerminalAgentStateStore {
 
   private struct SessionState: Equatable {
     var activeChildren: [TerminalAgentActiveChild.Identity: TerminalAgentActiveChild] = [:]
-    var childTasks: [TerminalAgentChildTaskTarget: String] = [:]
     var detail: String?
     var attentionRequestID: String?
     var hoverMessages: [String] = []
@@ -200,9 +199,9 @@ nonisolated struct TerminalAgentStateStore {
       return targetsActiveTurn(event.scope.turnID, state: state)
         && state.phase == .needsInput
         && (state.attentionRequestID == nil || state.attentionRequestID == requestID)
-    case .hoverMessagesUpdated, .progressUpdated(_, source: .transcript), .subagentTasksUpdated:
+    case .hoverMessagesUpdated, .progressUpdated(_, source: .transcript):
       return acceptsTranscriptProjection(turnID: event.scope.turnID, state: state)
-    case .subagentStarted, .subagentStopped:
+    case .subagentDescribed, .subagentStarted, .subagentStopped:
       return false
     }
   }
@@ -215,7 +214,7 @@ nonisolated struct TerminalAgentStateStore {
     if case .subagentStarted = event.action { return true }
     guard let child = state.activeChildren[key] else { return false }
     switch event.action {
-    case .subagentStopped, .attentionRequested, .turnStarted, .turnCompleted:
+    case .subagentDescribed, .subagentStopped, .attentionRequested, .turnStarted, .turnCompleted:
       return true
     case .attentionResolved(let requestID):
       return child.phase == .needsInput
@@ -223,7 +222,7 @@ nonisolated struct TerminalAgentStateStore {
     case .turnRunning:
       return child.phase != .needsInput
     case .hoverMessagesUpdated, .progressUpdated, .sessionEnded, .sessionResumed, .sessionStarted,
-      .subagentStarted, .subagentTasksUpdated:
+      .subagentStarted:
       return false
     }
   }
@@ -311,9 +310,7 @@ nonisolated struct TerminalAgentStateStore {
       updateHoverMessages(messages, turnID: event.scope.turnID, state: &state)
     case .progressUpdated(let rows, let source):
       updateProgress(rows, source: source, turnID: event.scope.turnID, state: &state)
-    case .subagentTasksUpdated(let tasks):
-      updateChildTasks(tasks, state: &state)
-    case .sessionEnded, .subagentStarted, .subagentStopped:
+    case .sessionEnded, .subagentDescribed, .subagentStarted, .subagentStopped:
       break
     }
   }
@@ -324,62 +321,35 @@ nonisolated struct TerminalAgentStateStore {
   ) {
     guard let childKey = Self.childKey(for: event) else { return }
     switch event.action {
-    case .subagentStarted(let nickname, let role, let transcriptPath):
+    case .subagentStarted(let nickname, let role, let task, let transcriptPath):
       state.activeChildren = state.activeChildren.filter {
         $0.key.subagentID != childKey.subagentID || $0.key == childKey
       }
       if let child = state.activeChildren[childKey] {
-        let child = child.updating(
+        state.activeChildren[childKey] = child.updating(
           nickname: nickname,
           role: role,
+          task: task,
           transcriptPath: transcriptPath
         )
-        state.activeChildren[childKey] = child
       } else {
         state.activeChildren[childKey] = TerminalAgentActiveChild(
           id: childKey,
           nickname: nickname,
           role: role,
           transcriptPath: transcriptPath,
-          task: nil,
+          task: task,
           phase: .running,
           detail: nil
         )
       }
-      projectChildTasks(state: &state)
+    case .subagentDescribed(let nickname, let task):
+      guard let child = state.activeChildren[childKey] else { return }
+      state.activeChildren[childKey] = child.updating(nickname: nickname, task: task)
     case .subagentStopped:
       state.activeChildren.removeValue(forKey: childKey)
-      projectChildTasks(state: &state)
     default:
       updateChild(event.action, key: childKey, state: &state)
-    }
-  }
-
-  private func updateChildTasks(
-    _ tasks: [TerminalAgentChildTaskTarget: String],
-    state: inout SessionState
-  ) {
-    state.childTasks = tasks
-    projectChildTasks(state: &state)
-  }
-
-  private func projectChildTasks(state: inout SessionState) {
-    var projectedTasks: [TerminalAgentActiveChild.Identity: String] = [:]
-    for (key, child) in state.activeChildren {
-      projectedTasks[key] = state.childTasks[.subagentID(child.subagentID)]
-    }
-    for (target, task) in state.childTasks {
-      guard case .name(let name) = target else { continue }
-      let matches = state.activeChildren.keys.filter { key in
-        projectedTasks[key] == nil
-          && Self.normalizedChildTaskName(state.activeChildren[key]?.role) == name
-      }
-      if matches.count == 1 {
-        projectedTasks[matches[0]] = task
-      }
-    }
-    for (key, child) in state.activeChildren {
-      state.activeChildren[key] = child.updating(task: projectedTasks[key])
     }
   }
 
@@ -417,7 +387,6 @@ nonisolated struct TerminalAgentStateStore {
     state: inout SessionState
   ) {
     state.activeChildren = state.activeChildren.filter { $0.key.turnID == turnID }
-    state.childTasks = [:]
     state.turnLifecycle = .active(turnID)
     state.isActionable = true
     state.phase = .running
@@ -657,11 +626,6 @@ nonisolated struct TerminalAgentStateStore {
             ($0.id, $0)
           }
         ),
-        childTasks: Dictionary(
-          uniqueKeysWithValues: snapshot.activeChildren.compactMap { child in
-            child.task.map { (.subagentID(child.subagentID), $0) }
-          }
-        ),
         detail: snapshot.detail,
         attentionRequestID: snapshot.attentionRequestID,
         hoverMessages: snapshot.hoverMessages,
@@ -765,13 +729,6 @@ nonisolated struct TerminalAgentStateStore {
     TerminalAgentPanelWorkspaceKey(workingDirectoryPath: path)?.workingDirectoryPath
   }
 
-  private static func normalizedChildTaskName(_ name: String?) -> String? {
-    guard let name = name?.trimmingCharacters(in: .whitespacesAndNewlines), !name.isEmpty else {
-      return nil
-    }
-    return name.lowercased()
-  }
-
   private static func highest(
     _ lhs: AgentActivityPhase,
     _ rhs: AgentActivityPhase
@@ -810,28 +767,16 @@ nonisolated struct TerminalAgentStateStore {
 extension TerminalAgentActiveChild {
   fileprivate nonisolated func updating(
     nickname: String?,
-    role: String?,
-    transcriptPath: String?
+    role: String? = nil,
+    task: String?,
+    transcriptPath: String? = nil
   ) -> Self {
     Self(
       id: id,
       nickname: nickname ?? self.nickname,
       role: role ?? self.role,
       transcriptPath: transcriptPath ?? self.transcriptPath,
-      task: task,
-      phase: phase,
-      detail: detail,
-      attentionRequestID: attentionRequestID
-    )
-  }
-
-  fileprivate nonisolated func updating(task: String?) -> Self {
-    Self(
-      id: id,
-      nickname: nickname,
-      role: role,
-      transcriptPath: transcriptPath,
-      task: task,
+      task: task ?? self.task,
       phase: phase,
       detail: detail,
       attentionRequestID: attentionRequestID

@@ -188,7 +188,7 @@ struct TerminalCommandExecutorAgentHookTests {
     #expect(harness.host.agentActivity(for: harness.tabID) == .claude(.running))
   }
   @Test
-  func claudeChildTaskMatchesAgentManagerAndSurvivesToolHooks() async throws {
+  func claudeChildTaskArrivesWithSpawnMetadataAndSurvivesLaterTurns() throws {
     let transcriptURL = try ClaudeProgressFixtures.makeTranscript()
     defer { try? FileManager.default.removeItem(at: transcriptURL.deletingLastPathComponent()) }
     let harness = try makeClaudeHookHarness()
@@ -199,19 +199,36 @@ struct TerminalCommandExecutorAgentHookTests {
     let childScope = TerminalAgentEvent.Scope(
       agent: .claude,
       sessionID: ClaudeHookFixtures.sessionID,
-      subagentID: "aexplore-sidebar-88ca"
+      subagentID: "child-1"
     )
+    func childEvent(_ hookEventName: SupatermAgentHookEventName) -> SupatermAgentHookEvent {
+      SupatermAgentHookEvent(
+        agentType: "general-purpose",
+        hookEventName: hookEventName,
+        sessionID: ClaudeHookFixtures.sessionID,
+        toolName: hookEventName == .preToolUse ? "Bash" : nil,
+        transcriptPath: transcriptURL.path,
+        agentID: "child-1"
+      )
+    }
+    func rootEvent(_ hookEventName: SupatermAgentHookEventName) -> SupatermAgentHookEvent {
+      SupatermAgentHookEvent(
+        cwd: ClaudeHookFixtures.cwd,
+        hookEventName: hookEventName,
+        sessionID: ClaudeHookFixtures.sessionID,
+        transcriptPath: transcriptURL.path
+      )
+    }
+    func presentedChild() -> TerminalAgentActiveChild? {
+      harness.host.agentPanelPresentation(for: harness.context.surfaceID)?
+        .activeChildren.first
+    }
 
     _ = try harness.commandExecutor.handleAgentHook(
       SupatermAgentHookRequest(
         agent: .claude,
         context: harness.context,
-        event: SupatermAgentHookEvent(
-          cwd: ClaudeHookFixtures.cwd,
-          hookEventName: .sessionStart,
-          sessionID: ClaudeHookFixtures.sessionID,
-          transcriptPath: transcriptURL.path
-        )
+        event: rootEvent(.sessionStart)
       )
     )
     #expect(harness.commandExecutor.agentMonitorStore.isTracking(scope: rootScope))
@@ -219,49 +236,47 @@ struct TerminalCommandExecutorAgentHookTests {
       SupatermAgentHookRequest(
         agent: .claude,
         context: harness.context,
-        event: SupatermAgentHookEvent(
-          agentType: "explore-sidebar",
-          hookEventName: .subagentStart,
-          sessionID: ClaudeHookFixtures.sessionID,
-          transcriptPath: transcriptURL.path,
-          agentID: "aexplore-sidebar-88ca"
-        )
+        event: childEvent(.subagentStart)
       )
     )
     #expect(!harness.commandExecutor.agentMonitorStore.isTracking(scope: childScope))
-    try ClaudeProgressFixtures.appendTeammateAgentResult(
-      name: "explore-sidebar",
-      prompt: "Explore the Supaterm macOS app",
-      to: transcriptURL
+    #expect(try #require(presentedChild()).task == nil)
+
+    try ClaudeProgressFixtures.writeSubagentMetadata(
+      agentID: "child-1",
+      name: "goo4560",
+      description: "GOO-4560 board API table",
+      forTranscriptAt: transcriptURL
+    )
+    _ = try harness.commandExecutor.handleAgentHook(
+      SupatermAgentHookRequest(
+        agent: .claude,
+        context: harness.context,
+        event: childEvent(.preToolUse)
+      )
     )
 
-    let didLoadTask = await waitUntil {
-      harness.host.agentPanelPresentation(for: harness.context.surfaceID)?
-        .activeChildren.first?.task == "Explore the Supaterm macOS app"
-    }
-    #expect(didLoadTask)
+    var child = try #require(presentedChild())
+    #expect(AgentPanelView.childTitle(child) == "goo4560 [general-purpose]")
+    #expect(AgentPanelView.childDetail(child) == "GOO-4560 board API table")
 
     _ = try harness.commandExecutor.handleAgentHook(
       SupatermAgentHookRequest(
         agent: .claude,
         context: harness.context,
-        event: SupatermAgentHookEvent(
-          agentType: "explore-sidebar",
-          hookEventName: .preToolUse,
-          sessionID: ClaudeHookFixtures.sessionID,
-          toolName: "Bash",
-          transcriptPath: transcriptURL.path,
-          agentID: "aexplore-sidebar-88ca"
-        )
+        event: rootEvent(.stop)
+      )
+    )
+    _ = try harness.commandExecutor.handleAgentHook(
+      SupatermAgentHookRequest(
+        agent: .claude,
+        context: harness.context,
+        event: rootEvent(.userPromptSubmit)
       )
     )
 
-    let child = try #require(
-      harness.host.agentPanelPresentation(for: harness.context.surfaceID)?
-        .activeChildren.first
-    )
-    #expect(AgentPanelView.childTitle(child) == "Explore-Sidebar")
-    #expect(AgentPanelView.childDetail(child) == "Explore the Supaterm macOS app")
+    child = try #require(presentedChild())
+    #expect(AgentPanelView.childDetail(child) == "GOO-4560 board API table")
   }
   @Test
   func commandFinishedClearsAgentActivityAndStoredSessionRouting() throws {

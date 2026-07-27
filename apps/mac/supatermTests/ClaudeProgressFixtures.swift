@@ -142,43 +142,26 @@ enum ClaudeProgressFixtures {
     )
   }
 
-  static func appendAsyncAgentResult(
+  static func writeSubagentMetadata(
     agentID: String,
-    description: String,
-    to transcriptURL: URL
+    name: String? = nil,
+    description: String? = nil,
+    forTranscriptAt transcriptURL: URL
   ) throws {
-    try appendLine(
-      [
-        "type": "user",
-        "toolUseResult": [
-          "isAsync": true,
-          "status": "async_launched",
-          "agentId": agentID,
-          "description": description,
-        ],
-      ],
-      to: transcriptURL
-    )
-  }
-
-  static func appendTeammateAgentResult(
-    name: String,
-    prompt: String,
-    to transcriptURL: URL
-  ) throws {
-    try appendLine(
-      [
-        "type": "user",
-        "toolUseResult": [
-          "status": "teammate_spawned",
-          "agent_id": "\(name)@session-claude-1",
-          "name": name,
-          "prompt": prompt,
-          "agent_type": "Explore",
-        ],
-      ],
-      to: transcriptURL
-    )
+    let directoryURL =
+      transcriptURL
+      .deletingPathExtension()
+      .appendingPathComponent("subagents")
+    try FileManager.default.createDirectory(at: directoryURL, withIntermediateDirectories: true)
+    var object: [String: Any] = ["agentType": "general-purpose"]
+    if let name {
+      object["name"] = name
+    }
+    if let description {
+      object["description"] = description
+    }
+    let data = try JSONSerialization.data(withJSONObject: object, options: [.sortedKeys])
+    try data.write(to: directoryURL.appendingPathComponent("agent-\(agentID).meta.json"))
   }
 
   static func appendTaskReminder(

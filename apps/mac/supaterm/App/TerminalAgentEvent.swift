@@ -1,11 +1,6 @@
 import Foundation
 import SupatermCLIShared
 
-nonisolated enum TerminalAgentChildTaskTarget: Equatable, Hashable, Sendable {
-  case name(String)
-  case subagentID(String)
-}
-
 nonisolated struct TerminalAgentEvent: Equatable, Sendable {
   enum Origin: Equatable, Sendable {
     case native
@@ -51,9 +46,11 @@ nonisolated struct TerminalAgentEvent: Equatable, Sendable {
     case sessionEnded
     case sessionResumed(transcriptPath: String?)
     case sessionStarted(transcriptPath: String?)
-    case subagentStarted(nickname: String?, role: String?, transcriptPath: String? = nil)
+    case subagentDescribed(nickname: String?, task: String?)
+    case subagentStarted(
+      nickname: String?, role: String?, task: String? = nil, transcriptPath: String? = nil
+    )
     case subagentStopped
-    case subagentTasksUpdated([TerminalAgentChildTaskTarget: String])
     case turnCompleted(message: String?)
     case turnRunning(detail: String?)
     case turnStarted

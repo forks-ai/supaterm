@@ -278,17 +278,11 @@ extension TerminalAgentStateStoreTests {
         turnID: "turn-1",
         subagentID: "child-1",
         context: context,
-        action: .subagentStarted(nickname: nil, role: "Explore")
-      )
-    )
-    store.apply(
-      event(
-        sessionID: "session-1",
-        turnID: "turn-1",
-        context: context,
-        action: .subagentTasksUpdated([
-          .subagentID("child-1"): "Explore UI test infrastructure"
-        ])
+        action: .subagentStarted(
+          nickname: nil,
+          role: "Explore",
+          task: "Explore UI test infrastructure"
+        )
       )
     )
     let attentionActions: [TerminalAgentEvent.Action] = [
@@ -316,7 +310,7 @@ extension TerminalAgentStateStoreTests {
   }
 
   @Test
-  func childTaskProjectionWaitsForChildAndClearsMissingTasks() throws {
+  func describedChildGainsNicknameAndTask() throws {
     let fixture = startedStore()
     let surfaceID = fixture.surfaceID
     let context = fixture.context
@@ -326,10 +320,9 @@ extension TerminalAgentStateStoreTests {
       event(
         sessionID: "session-1",
         turnID: "turn-1",
+        subagentID: "child-1",
         context: context,
-        action: .subagentTasksUpdated([
-          .subagentID("child-1"): "Explore UI test infrastructure"
-        ])
+        action: .subagentStarted(nickname: nil, role: "general-purpose")
       )
     )
     store.apply(
@@ -338,132 +331,109 @@ extension TerminalAgentStateStoreTests {
         turnID: "turn-1",
         subagentID: "child-1",
         context: context,
-        action: .subagentStarted(nickname: nil, role: "Explore")
+        action: .subagentDescribed(nickname: "goo4560", task: "GOO-4560 board API table")
       )
     )
 
-    #expect(
-      store.presentation(for: surfaceID, agent: .codex)?.activeChildren.first?.task
-        == "Explore UI test infrastructure"
+    let child = try #require(
+      store.presentation(for: surfaceID, agent: .codex)?.activeChildren.first
     )
-
-    store.apply(
-      event(
-        sessionID: "session-1",
-        turnID: "turn-1",
-        context: context,
-        action: .subagentTasksUpdated([:])
-      )
-    )
-
-    #expect(store.presentation(for: surfaceID, agent: .codex)?.activeChildren.first?.task == nil)
+    #expect(child.nickname == "goo4560")
+    #expect(child.task == "GOO-4560 board API table")
   }
 
   @Test
-  func namedChildTaskProjectsWhenChildStartsLater() throws {
+  func describedChildKeepsKnownValuesWhenUpdateOmitsThem() throws {
     let fixture = startedStore()
     let surfaceID = fixture.surfaceID
     let context = fixture.context
     var store = fixture.store
 
-    store.apply(
-      event(
-        sessionID: "session-1",
-        turnID: "turn-1",
-        context: context,
-        action: .subagentTasksUpdated([
-          .name("explore-sidebar"): "Explore the sidebar architecture"
-        ])
-      )
-    )
-    store.apply(
-      event(
-        sessionID: "session-1",
-        turnID: "turn-1",
-        subagentID: "aexplore-sidebar-88ca",
-        context: context,
-        action: .subagentStarted(nickname: nil, role: " Explore-Sidebar ")
-      )
-    )
-
-    #expect(
-      store.presentation(for: surfaceID, agent: .codex)?.activeChildren.first?.task
-        == "Explore the sidebar architecture"
-    )
-  }
-
-  @Test
-  func namedChildTaskRefusesAmbiguousRoleMatch() throws {
-    let fixture = startedStore()
-    let surfaceID = fixture.surfaceID
-    let context = fixture.context
-    var store = fixture.store
-
-    for subagentID in ["child-1", "child-2"] {
+    for action in [
+      TerminalAgentEvent.Action.subagentStarted(
+        nickname: "goo4560",
+        role: "general-purpose",
+        task: "GOO-4560 board API table"
+      ),
+      .subagentDescribed(nickname: nil, task: nil),
+    ] {
       store.apply(
         event(
           sessionID: "session-1",
           turnID: "turn-1",
-          subagentID: subagentID,
+          subagentID: "child-1",
           context: context,
-          action: .subagentStarted(nickname: nil, role: "explore-sidebar")
+          action: action
         )
       )
     }
+
+    let child = try #require(
+      store.presentation(for: surfaceID, agent: .codex)?.activeChildren.first
+    )
+    #expect(child.nickname == "goo4560")
+    #expect(child.task == "GOO-4560 board API table")
+  }
+
+  @Test
+  func describeCannotCreateChild() {
+    let fixture = startedStore()
+    let surfaceID = fixture.surfaceID
+    let context = fixture.context
+    var store = fixture.store
+
     store.apply(
       event(
         sessionID: "session-1",
         turnID: "turn-1",
+        subagentID: "child-1",
         context: context,
-        action: .subagentTasksUpdated([
-          .name("explore-sidebar"): "Explore the sidebar architecture"
-        ])
+        action: .subagentDescribed(nickname: "goo4560", task: "GOO-4560 board API table")
+      )
+    )
+
+    #expect(store.presentation(for: surfaceID, agent: .codex)?.activeChildren.isEmpty == true)
+  }
+
+  @Test
+  func childTaskSurvivesLaterRootTurnsWithoutTurnIDs() throws {
+    let fixture = startedStore()
+    let surfaceID = fixture.surfaceID
+    let context = fixture.context
+    var store = fixture.store
+
+    store.apply(
+      event(
+        sessionID: "session-1",
+        subagentID: "child-1",
+        context: context,
+        action: .subagentStarted(
+          nickname: "goo4560",
+          role: "general-purpose",
+          task: "GOO-4560 board API table"
+        )
+      )
+    )
+    store.apply(
+      event(sessionID: "session-1", context: context, action: .turnCompleted(message: nil))
+    )
+    store.apply(
+      event(sessionID: "session-1", context: context, action: .turnStarted)
+    )
+    store.apply(
+      event(
+        sessionID: "session-1",
+        subagentID: "child-2",
+        context: context,
+        action: .subagentStarted(nickname: nil, role: "workflow-subagent")
       )
     )
 
     let children = try #require(
       store.presentation(for: surfaceID, agent: .codex)?.activeChildren
     )
-    #expect(children.map(\.task) == [nil, nil])
-  }
-
-  @Test
-  func exactChildTaskProjectsBeforeNamedFallback() throws {
-    let fixture = startedStore()
-    let surfaceID = fixture.surfaceID
-    let context = fixture.context
-    var store = fixture.store
-
-    for subagentID in ["child-1", "child-2"] {
-      store.apply(
-        event(
-          sessionID: "session-1",
-          turnID: "turn-1",
-          subagentID: subagentID,
-          context: context,
-          action: .subagentStarted(nickname: nil, role: "explore-sidebar")
-        )
-      )
-    }
-    store.apply(
-      event(
-        sessionID: "session-1",
-        turnID: "turn-1",
-        context: context,
-        action: .subagentTasksUpdated([
-          .subagentID("child-1"): "Inspect the exact child",
-          .name("explore-sidebar"): "Inspect the remaining named child",
-        ])
-      )
-    )
-
-    let tasks = Dictionary(
-      uniqueKeysWithValues: try #require(
-        store.presentation(for: surfaceID, agent: .codex)?.activeChildren
-      ).map { ($0.subagentID, $0.task) }
-    )
-    #expect(tasks["child-1"] == "Inspect the exact child")
-    #expect(tasks["child-2"] == "Inspect the remaining named child")
+    #expect(children.map(\.subagentID) == ["child-1", "child-2"])
+    #expect(children.map(\.task) == ["GOO-4560 board API table", nil])
   }
 
   @Test

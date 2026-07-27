@@ -158,67 +158,6 @@ struct ClaudeProgressMonitorTests {
   }
 
   @Test
-  func asyncAgentResultProducesChildTask() throws {
-    let transcriptURL = try ClaudeProgressFixtures.makeTranscript()
-    defer { try? FileManager.default.removeItem(at: transcriptURL.deletingLastPathComponent()) }
-    try ClaudeProgressFixtures.appendAsyncAgentResult(
-      agentID: "child-1",
-      description: " Explore UI test infrastructure ",
-      to: transcriptURL
-    )
-
-    let tick = try #require(AgentTranscriptTailer.start(at: transcriptURL.path))
-    let snapshot = try #require(ClaudePanelMonitor().consume(AgentTranscriptUpdate(tick)))
-
-    #expect(
-      snapshot.childTasks == [
-        .subagentID("child-1"): "Explore UI test infrastructure"
-      ]
-    )
-  }
-
-  @Test
-  func teammateAgentResultProducesNamedChildTask() throws {
-    let transcriptURL = try ClaudeProgressFixtures.makeTranscript()
-    defer { try? FileManager.default.removeItem(at: transcriptURL.deletingLastPathComponent()) }
-    try ClaudeProgressFixtures.appendTeammateAgentResult(
-      name: " Explore-Sidebar ",
-      prompt: "  Explore the Supaterm macOS app\n  and report the sidebar architecture.  ",
-      to: transcriptURL
-    )
-
-    let tick = try #require(AgentTranscriptTailer.start(at: transcriptURL.path))
-    let snapshot = try #require(ClaudePanelMonitor().consume(AgentTranscriptUpdate(tick)))
-
-    #expect(
-      snapshot.childTasks == [
-        .name("explore-sidebar"):
-          "Explore the Supaterm macOS app and report the sidebar architecture."
-      ]
-    )
-  }
-
-  @Test
-  func transcriptResetClearsChildTasks() throws {
-    let transcriptURL = try ClaudeProgressFixtures.makeTranscript()
-    defer { try? FileManager.default.removeItem(at: transcriptURL.deletingLastPathComponent()) }
-    try ClaudeProgressFixtures.appendAsyncAgentResult(
-      agentID: "child-1",
-      description: "Explore UI test infrastructure",
-      to: transcriptURL
-    )
-    let monitor = ClaudePanelMonitor()
-    let tick = try #require(AgentTranscriptTailer.start(at: transcriptURL.path))
-    _ = try #require(monitor.consume(AgentTranscriptUpdate(tick)))
-
-    let snapshot = try #require(
-      monitor.consume(AgentTranscriptUpdate(objects: [], didReset: true))
-    )
-
-    #expect(snapshot.childTasks.isEmpty)
-  }
-
-  @Test
   func taskCreateAndUpdateTranscriptProducesProgressRows() throws {
     let transcriptURL = try ClaudeProgressFixtures.makeTranscript()
     defer { try? FileManager.default.removeItem(at: transcriptURL.deletingLastPathComponent()) }

@@ -376,6 +376,69 @@ struct TerminalAgentEventTranslatorTests {
   }
 
   @Test
+  func claudeSubagentStartReadsSpawnMetadata() throws {
+    let transcript = try ClaudeProgressFixtures.makeTranscript()
+    defer { try? FileManager.default.removeItem(at: transcript.deletingLastPathComponent()) }
+    try ClaudeProgressFixtures.writeSubagentMetadata(
+      agentID: "child-1",
+      name: "goo4560",
+      description: "GOO-4560 board API table",
+      forTranscriptAt: transcript
+    )
+    let request = SupatermAgentHookRequest(
+      agent: .claude,
+      event: SupatermAgentHookEvent(
+        agentType: "general-purpose",
+        hookEventName: .subagentStart,
+        sessionID: "session-1",
+        transcriptPath: transcript.path,
+        agentID: "child-1"
+      )
+    )
+
+    #expect(
+      TerminalAgentEventTranslator.events(for: request).map(\.action) == [
+        .subagentStarted(
+          nickname: "goo4560",
+          role: "general-purpose",
+          task: "GOO-4560 board API table"
+        )
+      ]
+    )
+  }
+
+  @Test
+  func claudeSubagentToolUseDescribesChildOnceMetadataLands() throws {
+    let transcript = try ClaudeProgressFixtures.makeTranscript()
+    defer { try? FileManager.default.removeItem(at: transcript.deletingLastPathComponent()) }
+    let request = SupatermAgentHookRequest(
+      agent: .claude,
+      event: SupatermAgentHookEvent(
+        agentType: "general-purpose",
+        hookEventName: .preToolUse,
+        sessionID: "session-1",
+        toolName: "Bash",
+        transcriptPath: transcript.path,
+        agentID: "child-1"
+      )
+    )
+
+    #expect(TerminalAgentEventTranslator.events(for: request).isEmpty)
+
+    try ClaudeProgressFixtures.writeSubagentMetadata(
+      agentID: "child-1",
+      description: "GOO-4560 board API table",
+      forTranscriptAt: transcript
+    )
+
+    #expect(
+      TerminalAgentEventTranslator.events(for: request).map(\.action) == [
+        .subagentDescribed(nickname: nil, task: "GOO-4560 board API table")
+      ]
+    )
+  }
+
+  @Test
   func claudeSessionStartPreservesSource() throws {
     let request = try request(
       agent: .claude,
