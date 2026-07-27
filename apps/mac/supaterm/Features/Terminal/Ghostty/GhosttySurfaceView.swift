@@ -2065,7 +2065,7 @@ final class GhosttySurfaceScrollView: NSView {
     observers.forEach { NotificationCenter.default.removeObserver($0) }
   }
 
-  override var safeAreaInsets: NSEdgeInsets { NSEdgeInsetsZero }
+  nonisolated override var safeAreaInsets: NSEdgeInsets { NSEdgeInsetsZero }
 
   override func layout() {
     super.layout()

@@ -1422,7 +1422,7 @@ struct TerminalSplitTreeAXContainer: NSViewRepresentable {
 }
 
 private final class TerminalSplitHostingView: NSHostingView<AnyView> {
-  override var safeAreaInsets: NSEdgeInsets { NSEdgeInsetsZero }
+  nonisolated override var safeAreaInsets: NSEdgeInsets { NSEdgeInsetsZero }
 
   override var mouseDownCanMoveWindow: Bool { false }
 }
@@ -1438,7 +1438,7 @@ final class TerminalSplitAXContainerView: NSView {
   private var lastDividerPaths: [TerminalSplitAXPath] = []
   private var action: ((TerminalSplitTreeView.Operation) -> Void)?
 
-  override var safeAreaInsets: NSEdgeInsets { NSEdgeInsetsZero }
+  nonisolated override var safeAreaInsets: NSEdgeInsets { NSEdgeInsetsZero }
 
   func update(
     rootView: AnyView,

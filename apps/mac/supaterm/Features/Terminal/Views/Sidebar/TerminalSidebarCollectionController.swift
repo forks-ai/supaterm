@@ -5,12 +5,12 @@ import SupaTheme
 import SwiftUI
 
 final class TerminalSidebarScrollView: NSScrollView {
-  override var hasVerticalScroller: Bool {
+  nonisolated override var hasVerticalScroller: Bool {
     get { false }
     set {}
   }
 
-  override var verticalScroller: NSScroller? {
+  nonisolated override var verticalScroller: NSScroller? {
     get { nil }
     set {}
   }
