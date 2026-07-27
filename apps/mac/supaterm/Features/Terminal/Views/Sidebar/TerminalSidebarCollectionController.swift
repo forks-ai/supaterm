@@ -322,8 +322,14 @@ final class TerminalSidebarListController: NSViewController, NSCollectionViewDel
       collectionLayout.finishStructuralUpdate()
       invalidateLayout()
       if isInitialSnapshot {
-        scrollView.contentView.scroll(to: .zero)
-        scrollView.reflectScrolledClipView(scrollView.contentView)
+        let contentView = scrollView.contentView
+        contentView.scroll(
+          to: CGPoint(
+            x: contentView.documentRect.minX,
+            y: contentView.documentRect.minY - contentView.contentInsets.top
+          )
+        )
+        scrollView.reflectScrolledClipView(contentView)
       }
       revealSelectedTabIfNeeded()
       additionalCompletion?()
@@ -1051,7 +1057,7 @@ final class TerminalSidebarListController: NSViewController, NSCollectionViewDel
     guard !isLayingOut else { return }
     isLayingOut = true
     defer { isLayingOut = false }
-    scrollView.frame = view.bounds
+    scrollView.frame = TerminalSidebarLayout.scrollViewportFrame(in: view.bounds)
     scrollView.tile()
     let documentWidth = max(1, scrollView.contentView.bounds.width)
     let viewportHeight = max(1, scrollView.contentView.bounds.height)

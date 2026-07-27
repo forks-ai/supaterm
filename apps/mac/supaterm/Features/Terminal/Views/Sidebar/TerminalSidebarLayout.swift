@@ -48,11 +48,23 @@ enum TerminalSidebarLayout {
   static let cardMinHeight: CGFloat = 36
   static let cardVerticalPadding: CGFloat = 8
 
-  static var firstVisibleSectionTopInset: CGFloat {
+  static var scrollViewportTopInset: CGFloat {
     WindowTrafficLightMetrics.edgePadding
       + WindowTrafficLightMetrics.buttonSize
-      + SelectableRowShadowMetrics.visualOutset
       + 4
+  }
+
+  static var firstVisibleSectionTopInset: CGFloat {
+    SelectableRowShadowMetrics.visualOutset - TerminalSidebarLayoutPlan.initialY
+  }
+
+  static func scrollViewportFrame(in bounds: CGRect) -> CGRect {
+    CGRect(
+      x: bounds.minX,
+      y: bounds.minY,
+      width: bounds.width,
+      height: max(0, bounds.height - scrollViewportTopInset)
+    )
   }
 
   static func spaceMonogram(

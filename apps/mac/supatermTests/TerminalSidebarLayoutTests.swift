@@ -1,18 +1,34 @@
+import AppKit
 import CoreGraphics
 import Testing
 
 @testable import supaterm
 
+@MainActor
 struct TerminalSidebarLayoutTests {
   @Test
-  func firstVisibleSectionClearsTrafficLightsAndSelectionGlow() {
+  func scrollViewportClearsTrafficLights() throws {
+    let controller = TerminalSidebarListController()
+    controller.view.frame = CGRect(x: 0, y: 0, width: 280, height: 160)
+    controller.view.layoutSubtreeIfNeeded()
+    let scrollView = try #require(
+      controller.view.subviews.compactMap { $0 as? TerminalSidebarScrollView }.first
+    )
+    let viewportTopInset = controller.view.bounds.maxY - scrollView.frame.maxY
     let trafficLightBottom =
       WindowTrafficLightMetrics.edgePadding + WindowTrafficLightMetrics.buttonSize
+
+    #expect(viewportTopInset - trafficLightBottom == 4)
+  }
+
+  @Test
+  func firstVisibleSectionPreservesSelectionGlow() {
     let selectionGlowTop =
       TerminalSidebarLayout.firstVisibleSectionTopInset
+      + TerminalSidebarLayoutPlan.initialY
       - SelectableRowShadowMetrics.visualOutset
 
-    #expect(selectionGlowTop - trafficLightBottom == 4)
+    #expect(selectionGlowTop == 0)
   }
 
   @Test

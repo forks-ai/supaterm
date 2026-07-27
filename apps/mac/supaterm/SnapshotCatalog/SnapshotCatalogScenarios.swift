@@ -922,19 +922,10 @@ private struct SidebarWindowControlsSnapshotFixture: View {
   var body: some View {
     ZStack(alignment: .topLeading) {
       Palette(colorScheme: appearance.colorScheme).detailBackground
-      SidebarRowSnapshotFixture(
+      SidebarChromeSnapshotFixture(
         appearance: appearance,
-        item: SidebarRowSnapshotItem(
-          id: "10000000-0000-0000-0000-000000000011",
-          title: "Home / X",
-          isSelected: true
-        ),
-        outerPadding: 0
-      )
-      .frame(width: 280 - (TerminalSidebarLayout.visibleHorizontalInset * 2))
-      .offset(
-        x: TerminalSidebarLayout.visibleHorizontalInset,
-        y: TerminalSidebarLayout.firstVisibleSectionTopInset
+        fixedHoveredGroupID: nil,
+        terminal: SidebarChromeSnapshotContext.selectedBeforeNewTabTerminal
       )
       WindowTrafficLights()
     }
