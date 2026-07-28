@@ -408,6 +408,59 @@ struct TerminalAgentEventTranslatorTests {
   }
 
   @Test
+  func claudeTeammateStopIdlesChildInsteadOfRemovingIt() throws {
+    let transcript = try ClaudeProgressFixtures.makeTranscript()
+    defer { try? FileManager.default.removeItem(at: transcript.deletingLastPathComponent()) }
+    try ClaudeProgressFixtures.writeSubagentMetadata(
+      agentID: "child-1",
+      name: "supaterm-config-map",
+      description: "Map supaterm Ghostty config plumbing",
+      taskKind: "in_process_teammate",
+      forTranscriptAt: transcript
+    )
+    let request = SupatermAgentHookRequest(
+      agent: .claude,
+      event: SupatermAgentHookEvent(
+        agentType: "supaterm-config-map",
+        hookEventName: .subagentStop,
+        sessionID: "session-1",
+        transcriptPath: transcript.path,
+        agentID: "child-1"
+      )
+    )
+
+    let events = TerminalAgentEventTranslator.events(for: request)
+
+    #expect(events.map(\.scope.subagentID) == ["child-1"])
+    #expect(events.map(\.action) == [.turnCompleted(message: nil)])
+  }
+
+  @Test
+  func claudeTaskSubagentStopRemovesChild() throws {
+    let transcript = try ClaudeProgressFixtures.makeTranscript()
+    defer { try? FileManager.default.removeItem(at: transcript.deletingLastPathComponent()) }
+    try ClaudeProgressFixtures.writeSubagentMetadata(
+      agentID: "child-1",
+      description: "Survey macOS Swift config handling",
+      forTranscriptAt: transcript
+    )
+    let request = SupatermAgentHookRequest(
+      agent: .claude,
+      event: SupatermAgentHookEvent(
+        agentType: "Explore",
+        hookEventName: .subagentStop,
+        sessionID: "session-1",
+        transcriptPath: transcript.path,
+        agentID: "child-1"
+      )
+    )
+
+    #expect(
+      TerminalAgentEventTranslator.events(for: request).map(\.action) == [.subagentStopped]
+    )
+  }
+
+  @Test
   func claudeSubagentToolUseDescribesChildOnceMetadataLands() throws {
     let transcript = try ClaudeProgressFixtures.makeTranscript()
     defer { try? FileManager.default.removeItem(at: transcript.deletingLastPathComponent()) }

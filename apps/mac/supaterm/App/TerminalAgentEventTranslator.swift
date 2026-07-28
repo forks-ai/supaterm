@@ -15,7 +15,7 @@ nonisolated enum TerminalAgentEventTranslator {
           )
         ]
       case .subagentStop:
-        return [event(request, scope: scope, action: .subagentStopped)]
+        return [event(request, scope: scope, action: subagentStoppedAction(for: request))]
       default:
         break
       }
@@ -63,6 +63,20 @@ nonisolated enum TerminalAgentEventTranslator {
       role: role?.lowercased() == "default" ? nil : role,
       transcriptPath: request.event.transcriptPath
     )
+  }
+
+  private static func subagentStoppedAction(
+    for request: SupatermAgentHookRequest
+  ) -> TerminalAgentEvent.Action {
+    guard request.agent == .claude,
+      ClaudeSubagentMetadataParser.metadata(
+        transcriptPath: request.event.transcriptPath,
+        agentID: request.event.agentID
+      )?.isTeammate == true
+    else {
+      return .subagentStopped
+    }
+    return .turnCompleted(message: nil)
   }
 
   private static func claudeEvents(

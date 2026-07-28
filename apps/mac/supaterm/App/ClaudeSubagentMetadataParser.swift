@@ -5,6 +5,7 @@ nonisolated enum ClaudeSubagentMetadataParser {
   struct Metadata: Equatable {
     let nickname: String?
     let task: String?
+    let isTeammate: Bool
   }
 
   static func metadata(
@@ -20,7 +21,11 @@ nonisolated enum ClaudeSubagentMetadataParser {
     let nickname = AgentProgressParsing.normalizedTitle(object["name"]?.stringValue)
     let task = AgentProgressParsing.normalizedTitle(object["description"]?.stringValue)
     guard nickname != nil || task != nil else { return nil }
-    return Metadata(nickname: nickname, task: task)
+    return Metadata(
+      nickname: nickname,
+      task: task,
+      isTeammate: object["taskKind"]?.stringValue == "in_process_teammate"
+    )
   }
 
   private static func metadataPath(

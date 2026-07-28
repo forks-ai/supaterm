@@ -326,12 +326,14 @@ nonisolated struct TerminalAgentStateStore {
         $0.key.subagentID != childKey.subagentID || $0.key == childKey
       }
       if let child = state.activeChildren[childKey] {
-        state.activeChildren[childKey] = child.updating(
+        let updated = child.updating(
           nickname: nickname,
           role: role,
           task: task,
           transcriptPath: transcriptPath
         )
+        state.activeChildren[childKey] =
+          child.phase == .idle ? updated.updating(phase: .running, detail: nil) : updated
       } else {
         state.activeChildren[childKey] = TerminalAgentActiveChild(
           id: childKey,

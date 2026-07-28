@@ -176,6 +176,66 @@ extension TerminalAgentStateStoreTests {
   }
 
   @Test
+  func completedChildStaysListedAsIdle() throws {
+    let fixture = startedStore()
+    let surfaceID = fixture.surfaceID
+    let context = fixture.context
+    var store = fixture.store
+
+    for action in [
+      TerminalAgentEvent.Action.subagentStarted(
+        nickname: "supaterm-config-map",
+        role: "supaterm-config-map",
+        task: "Map supaterm Ghostty config plumbing"
+      ),
+      .turnCompleted(message: nil),
+    ] {
+      store.apply(
+        event(
+          sessionID: "session-1",
+          turnID: "turn-1",
+          subagentID: "child-1",
+          context: context,
+          action: action
+        )
+      )
+    }
+
+    let presentation = try #require(store.presentation(for: surfaceID, agent: .codex))
+    #expect(presentation.activeChildren.map(\.phase) == [.idle])
+    #expect(presentation.phase == .running)
+  }
+
+  @Test
+  func repeatedChildStartRevivesIdleChild() throws {
+    let fixture = startedStore()
+    let surfaceID = fixture.surfaceID
+    let context = fixture.context
+    var store = fixture.store
+
+    for action in [
+      TerminalAgentEvent.Action.subagentStarted(nickname: nil, role: "reviewer"),
+      .turnCompleted(message: nil),
+      .subagentStarted(nickname: nil, role: "reviewer"),
+    ] {
+      store.apply(
+        event(
+          sessionID: "session-1",
+          turnID: "turn-1",
+          subagentID: "child-1",
+          context: context,
+          action: action
+        )
+      )
+    }
+
+    #expect(
+      store.presentation(for: surfaceID, agent: .codex)?.activeChildren.map(\.phase)
+        == [.running]
+    )
+  }
+
+  @Test
   func lateScopedActivityCannotReactivateStoppedChild() {
     let fixture = startedStore()
     let surfaceID = fixture.surfaceID
