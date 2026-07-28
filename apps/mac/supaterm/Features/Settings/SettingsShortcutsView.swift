@@ -64,6 +64,40 @@ struct SettingsShortcutsView: View {
   }
 
   var body: some View {
+    VStack(alignment: .leading, spacing: 0) {
+      shortcutsTable
+      Text("Shortcuts not listed here, like ⌘1–9 for switching tabs, are managed by your Ghostty config.")
+        .font(.callout)
+        .foregroundStyle(.secondary)
+        .padding(.horizontal, 12)
+        .padding(.vertical, 10)
+    }
+    .searchable(text: $searchText, placement: .toolbar, prompt: "Search")
+    .navigationTitle("Shortcuts")
+    .toolbar {
+      ToolbarItem(placement: .primaryAction) {
+        Button {
+          isRestoreConfirmationPresented = true
+        } label: {
+          Image(systemName: "arrow.counterclockwise")
+            .accessibilityLabel("Restore Defaults")
+        }
+        .help("Restore all shortcuts to their defaults.")
+        .disabled(store.shortcutOverrides.isEmpty)
+        .confirmationDialog(
+          "Restore all keyboard shortcuts to their defaults?",
+          isPresented: $isRestoreConfirmationPresented,
+          titleVisibility: .visible
+        ) {
+          Button("Restore Defaults", role: .destructive) {
+            _ = store.send(.restoreShortcutDefaultsButtonTapped)
+          }
+        }
+      }
+    }
+  }
+
+  private var shortcutsTable: some View {
     Table(of: ShortcutTableItem.self) {
       TableColumn("Name") { item in
         ShortcutNameCell(
@@ -106,29 +140,6 @@ struct SettingsShortcutsView: View {
     }
     .alternatingRowBackgrounds()
     .padding(.leading, -6)
-    .searchable(text: $searchText, placement: .toolbar, prompt: "Search")
-    .navigationTitle("Shortcuts")
-    .toolbar {
-      ToolbarItem(placement: .primaryAction) {
-        Button {
-          isRestoreConfirmationPresented = true
-        } label: {
-          Image(systemName: "arrow.counterclockwise")
-            .accessibilityLabel("Restore Defaults")
-        }
-        .help("Restore all shortcuts to their defaults.")
-        .disabled(store.shortcutOverrides.isEmpty)
-        .confirmationDialog(
-          "Restore all keyboard shortcuts to their defaults?",
-          isPresented: $isRestoreConfirmationPresented,
-          titleVisibility: .visible
-        ) {
-          Button("Restore Defaults", role: .destructive) {
-            _ = store.send(.restoreShortcutDefaultsButtonTapped)
-          }
-        }
-      }
-    }
   }
 }
 
