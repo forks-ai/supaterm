@@ -279,6 +279,93 @@ struct TerminalCommandExecutorAgentHookTests {
     #expect(AgentPanelView.childDetail(child) == "GOO-4560 board API table")
   }
   @Test
+  func claudeSubagentStopDoesNotNotifyOrIdleRootTurn() throws {
+    let harness = try makeClaudeHookHarness(windowActivity: .inactive)
+    func childEvent(
+      _ hookEventName: SupatermAgentHookEventName,
+      lastAssistantMessage: String? = nil
+    ) -> SupatermAgentHookEvent {
+      SupatermAgentHookEvent(
+        agentType: "general-purpose",
+        hookEventName: hookEventName,
+        lastAssistantMessage: lastAssistantMessage,
+        sessionID: ClaudeHookFixtures.sessionID,
+        agentID: "child-1"
+      )
+    }
+
+    _ = try harness.commandExecutor.handleAgentHook(
+      ClaudeHookFixtures.request(ClaudeHookFixtures.sessionStart, context: harness.context)
+    )
+    _ = try harness.commandExecutor.handleAgentHook(
+      ClaudeHookFixtures.request(ClaudeHookFixtures.userPromptSubmit, context: harness.context)
+    )
+    _ = try harness.commandExecutor.handleAgentHook(
+      SupatermAgentHookRequest(
+        agent: .claude,
+        context: harness.context,
+        event: childEvent(.subagentStart)
+      )
+    )
+
+    let result = try harness.commandExecutor.handleAgentHook(
+      SupatermAgentHookRequest(
+        agent: .claude,
+        context: harness.context,
+        event: childEvent(.stop, lastAssistantMessage: "Child summary.")
+      )
+    )
+
+    #expect(result.desktopNotification == nil)
+    #expect(harness.host.agentActivity(for: harness.tabID) == .claude(.running))
+    #expect(harness.host.latestNotificationText(for: harness.tabID) == nil)
+    let child = try #require(
+      harness.host.agentPanelPresentation(for: harness.context.surfaceID)?.activeChildren.first
+    )
+    #expect(child.phase == .idle)
+  }
+  @Test
+  func claudeSubagentTurnStartKeepsRecentStructuredNotification() throws {
+    let harness = try makeClaudeHookHarness(windowActivity: .inactive)
+    func childEvent(_ hookEventName: SupatermAgentHookEventName) -> SupatermAgentHookEvent {
+      SupatermAgentHookEvent(
+        agentType: "general-purpose",
+        hookEventName: hookEventName,
+        sessionID: ClaudeHookFixtures.sessionID,
+        agentID: "child-1"
+      )
+    }
+
+    _ = try harness.commandExecutor.handleAgentHook(
+      ClaudeHookFixtures.request(ClaudeHookFixtures.sessionStart, context: harness.context)
+    )
+    _ = try harness.commandExecutor.handleAgentHook(
+      agentHookRequest(
+        agent: .claude,
+        sessionID: ClaudeHookFixtures.sessionID,
+        hookEventName: .stop,
+        context: harness.context,
+        lastAssistantMessage: "Root turn done."
+      )
+    )
+    _ = try harness.commandExecutor.handleAgentHook(
+      SupatermAgentHookRequest(
+        agent: .claude,
+        context: harness.context,
+        event: childEvent(.subagentStart)
+      )
+    )
+    _ = try harness.commandExecutor.handleAgentHook(
+      SupatermAgentHookRequest(
+        agent: .claude,
+        context: harness.context,
+        event: childEvent(.userPromptSubmit)
+      )
+    )
+
+    #expect(harness.host.clearRecentStructuredNotification(for: harness.context.surfaceID))
+  }
+  @Test
   func commandFinishedClearsAgentActivityAndStoredSessionRouting() throws {
     let harness = try makeClaudeHookHarness()
 

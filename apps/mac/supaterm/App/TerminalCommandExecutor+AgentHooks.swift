@@ -52,7 +52,7 @@ extension TerminalCommandExecutor {
     var didAccept = false
     var result = TerminalAgentHookResult(desktopNotification: nil)
     for event in events {
-      if event.action == .turnStarted {
+      if event.action == .turnStarted, event.scope.subagentID == nil {
         clearRecentStructuredNotification(for: terminal, event: event)
       }
       let application = terminal.applyAgentEvent(event)
@@ -227,7 +227,7 @@ extension TerminalCommandExecutor {
       body = message ?? request.event.notificationMessage()
       semantic = .attention
       subtitle = request.event.title ?? "Attention"
-    case .turnCompleted where suppressesCompletion:
+    case .turnCompleted where suppressesCompletion || event.scope.subagentID != nil:
       return nil
     case .turnCompleted(let message):
       body = message
