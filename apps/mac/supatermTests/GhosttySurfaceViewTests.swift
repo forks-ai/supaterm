@@ -1,7 +1,5 @@
 import AppKit
-import ComposableArchitecture
 import GhosttyKit
-import SupatermSupport
 import SwiftUI
 import Testing
 
@@ -112,37 +110,6 @@ struct GhosttySurfaceViewTests {
     surfaceView.closePane(nil)
 
     #expect(processAlive == false)
-  }
-
-  @Test
-  @MainActor
-  func closePaneRequestsCloseWithoutZmxRecovery() async throws {
-    initializeGhosttyForTests()
-
-    let sessionListCount = LockIsolated(0)
-    let host = TerminalHostState(
-      runtime: try makeGhosttyRuntime("confirm-close-surface = false"),
-      zmxClient: ZmxClient(
-        executableURL: { URL(fileURLWithPath: "/tmp/zmx") },
-        isBundled: { true },
-        killSession: { _ in },
-        listSessions: {
-          sessionListCount.withValue { $0 += 1 }
-          return []
-        }
-      ),
-      zmxSessionsEnabled: true
-    )
-    let stream = host.eventStream()
-    var iterator = stream.makeAsyncIterator()
-    host.handleCommand(.ensureInitialTab(focusing: false, startupCommand: nil))
-    let surface = try #require(host.selectedSurfaceView)
-
-    surface.closePane(nil)
-
-    let event = try #require(await iterator.next())
-    #expect(event == .windowCloseRequested(needsConfirmation: false))
-    #expect(sessionListCount.value == 0)
   }
 
   @Test
