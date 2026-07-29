@@ -686,6 +686,7 @@ nonisolated struct TerminalPaneAgentRecord: Equatable, Codable, Sendable {
   let nativePlanRows: [PaneAgentProgressRow]
   let transcriptRows: [PaneAgentProgressRow]
   let activeChildren: [TerminalAgentActiveChild]
+  let hasPendingBackgroundWork: Bool
   let isForeground: Bool
   let revision: Int
   let workingDirectoryPath: String?
@@ -703,6 +704,7 @@ nonisolated struct TerminalPaneAgentRecord: Equatable, Codable, Sendable {
     nativePlanRows: [PaneAgentProgressRow] = [],
     transcriptRows: [PaneAgentProgressRow] = [],
     activeChildren: [TerminalAgentActiveChild] = [],
+    hasPendingBackgroundWork: Bool = false,
     isForeground: Bool = false,
     revision: Int = 0,
     workingDirectoryPath: String? = nil
@@ -719,6 +721,7 @@ nonisolated struct TerminalPaneAgentRecord: Equatable, Codable, Sendable {
     self.nativePlanRows = nativePlanRows
     self.transcriptRows = transcriptRows
     self.activeChildren = activeChildren
+    self.hasPendingBackgroundWork = hasPendingBackgroundWork
     self.isForeground = isForeground
     self.revision = revision
     self.workingDirectoryPath = workingDirectoryPath
@@ -738,6 +741,7 @@ nonisolated struct TerminalPaneAgentRecord: Equatable, Codable, Sendable {
       nativePlanRows: snapshot.progressRowsBySource[.nativePlan] ?? [],
       transcriptRows: snapshot.progressRowsBySource[.transcript] ?? [],
       activeChildren: snapshot.activeChildren,
+      hasPendingBackgroundWork: snapshot.hasPendingBackgroundWork,
       isForeground: snapshot.isForeground,
       revision: snapshot.revision,
       workingDirectoryPath: snapshot.workingDirectoryPath
@@ -769,6 +773,7 @@ nonisolated struct TerminalPaneAgentRecord: Equatable, Codable, Sendable {
       isActionable: false,
       progressRowsBySource: progressRowsBySource,
       activeChildren: activeChildren,
+      hasPendingBackgroundWork: hasPendingBackgroundWork,
       isForeground: isForeground,
       revision: revision,
       workingDirectoryPath: workingDirectoryPath
@@ -794,6 +799,7 @@ nonisolated struct TerminalPaneAgentRecord: Equatable, Codable, Sendable {
       nativePlanRows: nativePlanRows,
       transcriptRows: transcriptRows,
       activeChildren: activeChildren,
+      hasPendingBackgroundWork: hasPendingBackgroundWork,
       isForeground: isForeground,
       revision: max(0, revision),
       workingDirectoryPath: workingDirectoryPath

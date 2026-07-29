@@ -52,6 +52,7 @@ nonisolated struct TerminalAgentEvent: Equatable, Sendable {
     )
     case subagentStopped
     case turnCompleted(message: String?)
+    case turnContinuesInBackground
     case turnRunning(detail: String?)
     case turnStarted
   }

@@ -1,3 +1,4 @@
+import CustomDump
 import Foundation
 import Testing
 
@@ -5,6 +6,47 @@ import Testing
 @testable import supaterm
 
 extension TerminalAgentStateStoreTests {
+  @Test
+  func snapshotRestorePreservesBackgroundWork() {
+    let surfaceID = UUID()
+    let context = SupatermCLIContext(surfaceID: surfaceID, tabID: UUID())
+    var store = TerminalAgentStateStore()
+
+    store.apply(
+      event(
+        agent: .claude,
+        sessionID: "session-1",
+        context: context,
+        action: .sessionStarted(transcriptPath: "/tmp/claude.jsonl")
+      )
+    )
+    store.apply(
+      event(
+        agent: .claude,
+        sessionID: "session-1",
+        context: context,
+        action: .turnStarted
+      )
+    )
+    store.apply(
+      event(
+        agent: .claude,
+        sessionID: "session-1",
+        context: context,
+        action: .turnContinuesInBackground
+      )
+    )
+
+    var restored = TerminalAgentStateStore()
+    restored.restore(store.snapshots(for: surfaceID))
+
+    expectNoDifference(
+      restored.presentation(for: surfaceID, agent: .claude),
+      store.presentation(for: surfaceID, agent: .claude)
+    )
+    #expect(restored.hasBackgroundWork(agent: .claude, sessionID: "session-1"))
+  }
+
   @Test
   func snapshotRestorePreservesForegroundStateAndRouting() throws {
     let surfaceID = UUID()

@@ -41,6 +41,13 @@ extension TerminalCommandExecutor {
     else {
       return TerminalAgentHookResult(desktopNotification: nil)
     }
+    if request.agent == .claude,
+      request.event.notificationType == "idle_prompt",
+      let sessionID = request.event.sessionID,
+      terminal.agentSessionHasBackgroundWork(agent: .claude, sessionID: sessionID)
+    {
+      return TerminalAgentHookResult(desktopNotification: nil)
+    }
     let suppressesCompletionNotification =
       request.agent == .claude
       && terminal.agentSessionHasActiveGoal(
@@ -255,9 +262,7 @@ extension TerminalCommandExecutor {
       agentMonitorStore.clearSession(agent: request.agent, sessionID: sessionID)
       return
     }
-    if request.event.hookEventName == .subagentStop
-      || request.event.hookEventName == .stop
-    {
+    if shouldCancelTranscriptTracking(for: request, events: events) {
       agentMonitorStore.cancelTracking(scope: scope)
     } else if let transcriptPath = transcriptPathForMonitoring(
       request: request,
@@ -274,18 +279,14 @@ extension TerminalCommandExecutor {
     guard terminal.agentSessionIsForeground(agent: request.agent, sessionID: sessionID) else {
       return
     }
-    if events.contains(where: { event in
-      if case .attentionRequested = event.action { return true }
-      return false
-    }) {
+    if requestsAttention(events) {
       agentMonitorStore.cancelRunningTimeout(agent: request.agent, sessionID: sessionID)
       return
     }
     switch request.event.hookEventName {
     case .postToolUse, .userPromptSubmit, .preToolUse:
-      if request.agent.drivesActivityFromTranscript,
-        agentMonitorStore.isTracking(scope: scope)
-      {
+      guard request.agent.drivesActivityFromTranscript else { return }
+      if agentMonitorStore.isTracking(scope: scope) {
         agentMonitorStore.cancelRunningTimeout(agent: request.agent, sessionID: sessionID)
         return
       }
@@ -300,6 +301,24 @@ extension TerminalCommandExecutor {
       agentMonitorStore.cancelRunningTimeout(agent: request.agent, sessionID: sessionID)
     default:
       break
+    }
+  }
+
+  private func requestsAttention(_ events: [TerminalAgentEvent]) -> Bool {
+    events.contains {
+      if case .attentionRequested = $0.action { return true }
+      return false
+    }
+  }
+
+  private func shouldCancelTranscriptTracking(
+    for request: SupatermAgentHookRequest,
+    events: [TerminalAgentEvent]
+  ) -> Bool {
+    if request.event.hookEventName == .subagentStop { return true }
+    return events.contains {
+      if case .turnCompleted = $0.action { return true }
+      return false
     }
   }
 

@@ -117,13 +117,27 @@ nonisolated enum TerminalAgentEventTranslator {
     case .sessionStart:
       action = sessionAction(for: request)
     case .stop:
-      action = .turnCompleted(message: request.event.lastAssistantMessage)
+      action =
+        hasActiveClaudeBackgroundWork(request.event)
+        ? .turnContinuesInBackground
+        : .turnCompleted(message: request.event.lastAssistantMessage)
     case .userPromptSubmit:
       action = .turnStarted
     default:
       return []
     }
     return [event(request, scope: scope, action: action)]
+  }
+
+  private static func hasActiveClaudeBackgroundWork(
+    _ event: SupatermAgentHookEvent
+  ) -> Bool {
+    if event.payload["session_crons"]?.arrayValue?.isEmpty == false {
+      return true
+    }
+    return event.payload["background_tasks"]?.arrayValue?.contains {
+      $0.objectValue?["status"]?.stringValue == "running"
+    } == true
   }
 
   private static func subagentDescribedEvents(

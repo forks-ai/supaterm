@@ -354,6 +354,10 @@ extension TerminalHostState {
     agentStateStore.isForeground(agent: agent, sessionID: sessionID)
   }
 
+  func agentSessionHasBackgroundWork(agent: SupatermAgentKind, sessionID: String) -> Bool {
+    agentStateStore.hasBackgroundWork(agent: agent, sessionID: sessionID)
+  }
+
   func agentSessionHasActiveGoal(agent: SupatermAgentKind, sessionID: String) -> Bool {
     guard let surfaceID = agentStateStore.surfaceID(agent: agent, sessionID: sessionID),
       let presentation = agentStateStore.presentation(for: surfaceID, agent: agent),

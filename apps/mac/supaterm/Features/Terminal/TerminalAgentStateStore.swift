@@ -86,6 +86,7 @@ nonisolated struct TerminalAgentStateSnapshot: Equatable, Sendable {
   let isActionable: Bool
   let progressRowsBySource: [TerminalAgentEvent.ProgressSource: [PaneAgentProgressRow]]
   let activeChildren: [TerminalAgentActiveChild]
+  let hasPendingBackgroundWork: Bool
   let isForeground: Bool
   let revision: Int
   let workingDirectoryPath: String?
@@ -121,6 +122,7 @@ nonisolated struct TerminalAgentStateStore {
     var detail: String?
     var attentionRequestID: String?
     var hoverMessages: [String] = []
+    var hasPendingBackgroundWork = false
     var isActionable = false
     var phase = AgentActivityPhase.idle
     var processes: Set<TerminalAgentProcessIdentity> = []
@@ -184,7 +186,7 @@ nonisolated struct TerminalAgentStateStore {
       return true
     case .sessionEnded:
       return sessionExists
-    case .turnCompleted:
+    case .turnCompleted, .turnContinuesInBackground:
       return state.turnLifecycle == .unseen
         || targetsActiveTurn(event.scope.turnID, state: state)
     case .attentionRequested, .progressUpdated(_, source: .nativePlan):
@@ -214,7 +216,8 @@ nonisolated struct TerminalAgentStateStore {
     if case .subagentStarted = event.action { return true }
     guard let child = state.activeChildren[key] else { return false }
     switch event.action {
-    case .subagentDescribed, .subagentStopped, .attentionRequested, .turnStarted, .turnCompleted:
+    case .subagentDescribed, .subagentStopped, .attentionRequested, .turnStarted, .turnCompleted,
+      .turnContinuesInBackground:
       return true
     case .attentionResolved(let requestID):
       return child.phase == .needsInput
@@ -263,7 +266,7 @@ nonisolated struct TerminalAgentStateStore {
     switch event.action {
     case .turnStarted:
       foregroundSessions[key] = event.scope.sessionID
-    case .attentionRequested, .progressUpdated, .turnRunning:
+    case .attentionRequested, .progressUpdated, .turnContinuesInBackground, .turnRunning:
       if foregroundSessions[key] == nil
         || (event.origin == .native && (isNewSession || !state.isActionable))
       {
@@ -292,6 +295,12 @@ nonisolated struct TerminalAgentStateStore {
       completeTurn(
         event.scope.turnID,
         message: message,
+        makesActionable: event.origin == .native,
+        state: &state
+      )
+    case .turnContinuesInBackground:
+      continueTurnInBackground(
+        event.scope.turnID,
         makesActionable: event.origin == .native,
         state: &state
       )
@@ -376,6 +385,7 @@ nonisolated struct TerminalAgentStateStore {
       update = (.running, nil)
     case .turnStarted: update = (.running, nil)
     case .turnCompleted: update = (.idle, nil)
+    case .turnContinuesInBackground: update = (.running, nil)
     case .turnRunning(let detail) where child.phase != .needsInput: update = (.running, detail)
     default: update = nil
     }
@@ -410,6 +420,7 @@ nonisolated struct TerminalAgentStateStore {
       guard targetsActiveTurn(turnID, state: state) else { return }
       state.turnLifecycle = .completed(turnID)
     }
+    state.hasPendingBackgroundWork = false
     state.isActionable = state.isActionable || makesActionable
     state.phase = .idle
     state.detail = nil
@@ -418,6 +429,20 @@ nonisolated struct TerminalAgentStateStore {
     if let message = Self.normalizedMessages([message].compactMap(\.self)).first {
       state.hoverMessages = [message]
     }
+  }
+
+  private func continueTurnInBackground(
+    _ turnID: String?,
+    makesActionable: Bool,
+    state: inout SessionState
+  ) {
+    recoverTurnIfNeeded(turnID, state: &state)
+    guard targetsActiveTurn(turnID, state: state) else { return }
+    state.hasPendingBackgroundWork = true
+    state.isActionable = state.isActionable || makesActionable
+    state.phase = .running
+    state.detail = nil
+    state.attentionRequestID = nil
   }
 
   private func requestAttention(
@@ -582,6 +607,14 @@ nonisolated struct TerminalAgentStateStore {
     return foregroundSessionID(for: surfaceID, agent: agent) == sessionID
   }
 
+  func hasBackgroundWork(
+    agent: SupatermAgentKind,
+    sessionID: String
+  ) -> Bool {
+    sessions[SessionKey(agent: agent, sessionID: sessionID)]?.hasPendingBackgroundWork
+      == true
+  }
+
   func surfaceID(
     agent: SupatermAgentKind,
     sessionID: String
@@ -606,6 +639,7 @@ nonisolated struct TerminalAgentStateStore {
         isActionable: state.isActionable,
         progressRowsBySource: state.progressRowsBySource,
         activeChildren: Self.sortedChildren(state.activeChildren.values),
+        hasPendingBackgroundWork: state.hasPendingBackgroundWork,
         isForeground: foregroundSessionID(for: surfaceID, agent: key.agent) == key.sessionID,
         revision: state.revision,
         workingDirectoryPath: state.workingDirectoryPath
@@ -631,6 +665,7 @@ nonisolated struct TerminalAgentStateStore {
         detail: snapshot.detail,
         attentionRequestID: snapshot.attentionRequestID,
         hoverMessages: snapshot.hoverMessages,
+        hasPendingBackgroundWork: snapshot.hasPendingBackgroundWork,
         isActionable: snapshot.isActionable,
         phase: snapshot.phase,
         processes: snapshot.processes,

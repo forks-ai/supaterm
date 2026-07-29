@@ -1,6 +1,7 @@
 import AppKit
 import Clocks
 import ComposableArchitecture
+import CustomDump
 import SupatermSupport
 import SupatermTerminalCore
 import Testing
@@ -186,6 +187,114 @@ struct TerminalCommandExecutorAgentHookTests {
     )
 
     #expect(harness.host.agentActivity(for: harness.tabID) == .claude(.running))
+  }
+  @Test
+  func claudeRunningDoesNotExpireWithoutLifecycleEvent() async throws {
+    let clock = TestClock()
+    let harness = try makeClaudeHookHarness(
+      agentRunningTimeout: .milliseconds(10),
+      clock: clock
+    )
+
+    _ = try harness.commandExecutor.handleAgentHook(
+      ClaudeHookFixtures.request(ClaudeHookFixtures.sessionStart, context: harness.context)
+    )
+    _ = try harness.commandExecutor.handleAgentHook(
+      ClaudeHookFixtures.request(ClaudeHookFixtures.preToolUse, context: harness.context)
+    )
+
+    await advanceClock(clock)
+
+    expectNoDifference(
+      harness.host.agentActivity(for: harness.tabID),
+      .claude(.running)
+    )
+  }
+  @Test
+  func claudeStopKeepsTabRunningWhileBackgroundTaskRemains() throws {
+    try verifyClaudeStopKeepsTabRunning(
+      ClaudeHookFixtures.stopWithPendingBackgroundTask
+    )
+  }
+  @Test
+  func claudeStopKeepsTabRunningWhileCronRemains() throws {
+    try verifyClaudeStopKeepsTabRunning(ClaudeHookFixtures.stopWithPendingCron)
+  }
+  private func verifyClaudeStopKeepsTabRunning(_ stop: String) throws {
+    let harness = try makeClaudeHookHarness()
+
+    _ = try harness.commandExecutor.handleAgentHook(
+      ClaudeHookFixtures.request(ClaudeHookFixtures.sessionStart, context: harness.context)
+    )
+    _ = try harness.commandExecutor.handleAgentHook(
+      ClaudeHookFixtures.request(ClaudeHookFixtures.preToolUse, context: harness.context)
+    )
+    let result = try harness.commandExecutor.handleAgentHook(
+      ClaudeHookFixtures.request(stop, context: harness.context)
+    )
+
+    expectNoDifference(
+      harness.host.agentActivity(for: harness.tabID),
+      .claude(.running)
+    )
+    #expect(result.desktopNotification == nil)
+    #expect(harness.host.unreadNotificationCount(for: harness.tabID) == 0)
+  }
+  @Test
+  func claudeStopMarksTabIdleAfterBackgroundWorkDrains() throws {
+    let harness = try makeClaudeHookHarness()
+
+    _ = try harness.commandExecutor.handleAgentHook(
+      ClaudeHookFixtures.request(ClaudeHookFixtures.sessionStart, context: harness.context)
+    )
+    _ = try harness.commandExecutor.handleAgentHook(
+      ClaudeHookFixtures.request(ClaudeHookFixtures.preToolUse, context: harness.context)
+    )
+    _ = try harness.commandExecutor.handleAgentHook(
+      ClaudeHookFixtures.request(
+        ClaudeHookFixtures.stopWithPendingBackgroundTask,
+        context: harness.context
+      )
+    )
+    _ = try harness.commandExecutor.handleAgentHook(
+      ClaudeHookFixtures.request(ClaudeHookFixtures.stop, context: harness.context)
+    )
+
+    expectNoDifference(
+      harness.host.agentActivity(for: harness.tabID),
+      .claude(.idle)
+    )
+    #expect(harness.host.latestNotificationText(for: harness.tabID) == "Done.")
+  }
+  @Test
+  func claudeIdlePromptDoesNotOverridePendingBackgroundWork() throws {
+    let harness = try makeClaudeHookHarness()
+
+    _ = try harness.commandExecutor.handleAgentHook(
+      ClaudeHookFixtures.request(ClaudeHookFixtures.sessionStart, context: harness.context)
+    )
+    _ = try harness.commandExecutor.handleAgentHook(
+      ClaudeHookFixtures.request(ClaudeHookFixtures.preToolUse, context: harness.context)
+    )
+    _ = try harness.commandExecutor.handleAgentHook(
+      ClaudeHookFixtures.request(
+        ClaudeHookFixtures.stopWithPendingBackgroundTask,
+        context: harness.context
+      )
+    )
+    _ = try harness.commandExecutor.handleAgentHook(
+      ClaudeHookFixtures.request(ClaudeHookFixtures.userPromptSubmit, context: harness.context)
+    )
+    let result = try harness.commandExecutor.handleAgentHook(
+      ClaudeHookFixtures.request(ClaudeHookFixtures.idlePrompt, context: harness.context)
+    )
+
+    expectNoDifference(
+      harness.host.agentActivity(for: harness.tabID),
+      .claude(.running)
+    )
+    #expect(result.desktopNotification == nil)
+    #expect(harness.host.unreadNotificationCount(for: harness.tabID) == 0)
   }
   @Test
   func claudeChildTaskArrivesWithSpawnMetadataAndSurvivesLaterTurns() throws {
@@ -497,7 +606,7 @@ struct TerminalCommandExecutorAgentHookTests {
     #expect(harness.host.agentActivity(for: harness.tabID) == .codex(.running))
   }
   @Test
-  func unscopedClaudeAttentionSurvivesTimeoutAndResolvesOnToolCompletion() async throws {
+  func unscopedClaudeAttentionRemainsUntilToolCompletion() async throws {
     let clock = TestClock()
     let harness = try makeClaudeHookHarness(
       agentRunningTimeout: .milliseconds(10),
