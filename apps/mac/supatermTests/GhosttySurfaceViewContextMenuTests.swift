@@ -7,15 +7,16 @@ import Testing
 struct GhosttySurfaceViewContextMenuTests {
   @Test
   func contextMenuDisablesWritingToolsInsertion() {
-    let menu = GhosttySurfaceView.contextMenu(hasSelection: false)
+    let menu = GhosttySurfaceView.contextMenu(hasSelection: false, target: NSObject())
 
     #expect(!menu.automaticallyInsertsWritingToolsItems)
   }
 
   @Test
   func contextMenuIncludesCopyOnlyWhenThereIsSelection() {
-    let menuWithSelection = GhosttySurfaceView.contextMenu(hasSelection: true)
-    let menuWithoutSelection = GhosttySurfaceView.contextMenu(hasSelection: false)
+    let target = NSObject()
+    let menuWithSelection = GhosttySurfaceView.contextMenu(hasSelection: true, target: target)
+    let menuWithoutSelection = GhosttySurfaceView.contextMenu(hasSelection: false, target: target)
 
     #expect(menuWithSelection.items.first?.title == "Copy")
     #expect(menuWithoutSelection.items.first?.title == "Paste")
@@ -23,14 +24,14 @@ struct GhosttySurfaceViewContextMenuTests {
 
   @Test
   func contextMenuIncludesTitleItemsInGhosttyOrder() {
-    let menu = GhosttySurfaceView.contextMenu(hasSelection: false)
+    let menu = GhosttySurfaceView.contextMenu(hasSelection: false, target: NSObject())
 
     #expect(Array(menu.items.map(\.title).suffix(2)) == ["Change Tab Title...", "Change Terminal Title..."])
   }
 
   @Test
   func contextMenuUsesItemTitlesForImageAccessibilityDescriptions() {
-    let menu = GhosttySurfaceView.contextMenu(hasSelection: false)
+    let menu = GhosttySurfaceView.contextMenu(hasSelection: false, target: NSObject())
     let expectedTitles = Set([
       "Split Right",
       "Split Left",
@@ -45,6 +46,16 @@ struct GhosttySurfaceViewContextMenuTests {
     for item in menu.items where expectedTitles.contains(item.title) {
       #expect(item.image != nil)
       #expect(item.image?.accessibilityDescription == item.title)
+    }
+  }
+
+  @Test
+  func contextMenuActionsTargetTheClickedPane() {
+    let target = NSObject()
+    let menu = GhosttySurfaceView.contextMenu(hasSelection: true, target: target)
+
+    for item in menu.items where item.action != nil {
+      #expect(item.target === target)
     }
   }
 }

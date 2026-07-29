@@ -1417,11 +1417,14 @@ final class GhosttySurfaceView: NSView, Identifiable {
       return nil
     }
 
-    return Self.contextMenu(hasSelection: ghostty_surface_has_selection(surface))
+    return Self.contextMenu(
+      hasSelection: ghostty_surface_has_selection(surface),
+      target: self
+    )
   }
 
   @MainActor
-  static func contextMenu(hasSelection: Bool) -> NSMenu {
+  static func contextMenu(hasSelection: Bool, target: AnyObject) -> NSMenu {
     let menu = NSMenu()
     menu.automaticallyInsertsWritingToolsItems = false
     if hasSelection {
@@ -1479,6 +1482,9 @@ final class GhosttySurfaceView: NSView, Identifiable {
         action: #selector(GhosttySurfaceView.changeTitle(_:)),
         symbol: "pencil.line"
       ))
+    for item in menu.items where item.action != nil {
+      item.target = target
+    }
     return menu
   }
 

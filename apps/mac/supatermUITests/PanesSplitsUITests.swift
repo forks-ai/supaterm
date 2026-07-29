@@ -218,16 +218,7 @@ final class PanesSplitsUITests: SupatermUITestCase {
 
   @MainActor
   func testCommandWClosesFocusedPaneNotWindow() async throws {
-    let ghosttyConfigDirectory = stateHome.appendingPathComponent("ghostty", isDirectory: true)
-    try FileManager.default.createDirectory(
-      at: ghosttyConfigDirectory,
-      withIntermediateDirectories: true
-    )
-    try Data("confirm-close-surface = false\n".utf8).write(
-      to: ghosttyConfigDirectory.appendingPathComponent("config")
-    )
-    app.launchEnvironment["XDG_CONFIG_HOME"] = stateHome.path
-    try relaunch()
+    try relaunchWithoutCloseConfirmation()
 
     _ = try await requireVisiblePanes(count: 1)
     try clickMenuItem(.splitRight)
@@ -245,6 +236,27 @@ final class PanesSplitsUITests: SupatermUITestCase {
     XCTAssertEqual(mainWindow.sheets.count, 0)
     XCTAssertEqual(app.windows.count, 1)
     XCTAssertTrue(mainWindow.exists)
+  }
+
+  @MainActor
+  func testContextMenuClosesClickedPane() async throws {
+    try relaunchWithoutCloseConfirmation()
+
+    _ = try await requireVisiblePanes(count: 1)
+    try clickMenuItem(.splitRight)
+    let panes = try await requireVisiblePanes(count: 2)
+    let leftPane = try XCTUnwrap(panes.min { $0.frame.midX < $1.frame.midX })
+    let rightPane = try XCTUnwrap(panes.max { $0.frame.midX < $1.frame.midX })
+
+    leftPane.click()
+    try await requireFocus(on: leftPane)
+    rightPane.rightClick()
+    let closePane = app.menuItems["Close Pane"].firstMatch
+    try require(closePane)
+    closePane.click()
+
+    let survivors = try await requireVisiblePanes(count: 1)
+    XCTAssertEqual(survivors[0].identifier, leftPane.identifier)
   }
 
   @MainActor
@@ -363,5 +375,19 @@ final class PanesSplitsUITests: SupatermUITestCase {
     let focusedPane = focusedTerminalPanes.matching(identifier: pane.identifier).firstMatch
     let didFocus = await wait(for: focusedPane) { $0.exists }
     XCTAssertTrue(didFocus, "Expected pane \(pane.identifier) to have keyboard focus")
+  }
+
+  @MainActor
+  private func relaunchWithoutCloseConfirmation() throws {
+    let ghosttyConfigDirectory = stateHome.appendingPathComponent("ghostty", isDirectory: true)
+    try FileManager.default.createDirectory(
+      at: ghosttyConfigDirectory,
+      withIntermediateDirectories: true
+    )
+    try Data("confirm-close-surface = false\n".utf8).write(
+      to: ghosttyConfigDirectory.appendingPathComponent("config")
+    )
+    app.launchEnvironment["XDG_CONFIG_HOME"] = stateHome.path
+    try relaunch()
   }
 }
