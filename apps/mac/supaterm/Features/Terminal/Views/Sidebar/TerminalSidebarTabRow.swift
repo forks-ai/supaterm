@@ -289,14 +289,11 @@ struct TerminalSidebarTabRow: View {
 
           case .moveToNewGroup:
             Button {
-              let result = terminal.createGroup(
-                title: "New Group",
-                color: .neutral,
-                containing: [tab.id]
+              createSidebarGroup(
+                terminal: terminal,
+                tabIDs: [tab.id],
+                renameState: renameState
               )
-              if let result {
-                renameState?.begin(groupID: result.groupID, title: "New Group")
-              }
             } label: {
               Label("Move to New Group", systemImage: "rectangle.3.group")
             }
@@ -399,6 +396,22 @@ struct TerminalSidebarTabRow: View {
     TerminalMotion.animate(.easeInOut(duration: 0.15), reduceMotion: reduceMotion) {
       _ = store.send(.closeTabRequested(tab.id))
     }
+  }
+}
+
+private func createSidebarGroup(
+  terminal: TerminalHostState,
+  tabIDs: [TerminalTabID],
+  renameState: TerminalSidebarRenameState?
+) {
+  guard let title = terminal.suggestedGroupTitle(containing: tabIDs) else { return }
+  let result = terminal.createGroup(
+    title: title,
+    color: .neutral,
+    containing: tabIDs
+  )
+  if let result {
+    renameState?.begin(groupID: result.groupID, title: title)
   }
 }
 
@@ -507,14 +520,11 @@ struct TerminalSidebarBatchTabMenu: View {
   }
 
   private func createGroup() {
-    let result = terminal.createGroup(
-      title: "New Group",
-      color: .neutral,
-      containing: tabIDs
+    createSidebarGroup(
+      terminal: terminal,
+      tabIDs: tabIDs,
+      renameState: renameState
     )
-    if let result {
-      renameState?.begin(groupID: result.groupID, title: "New Group")
-    }
   }
 
   private func moveToGroup(_ group: TerminalTabGroupItem) {

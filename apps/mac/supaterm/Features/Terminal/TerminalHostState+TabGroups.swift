@@ -1,6 +1,35 @@
 import Foundation
 
 extension TerminalHostState {
+  func suggestedGroupTitle(containing tabIDs: [TerminalTabID]) -> String? {
+    guard !tabIDs.isEmpty else { return nil }
+    let tabs = tabIDs.compactMap(spaceManager.tab(for:))
+    let spaceIDs = Set(tabIDs.compactMap { spaceManager.space(for: $0)?.id })
+    guard
+      tabs.count == tabIDs.count,
+      spaceIDs.count == 1,
+      let spaceID = spaceIDs.first,
+      let manager = spaceManager.tabManager(for: spaceID)
+    else {
+      return nil
+    }
+
+    let sharedRepositoryName = TerminalTabGroupTitleSuggester.sharedRepositoryName(
+      workingDirectoryPathsByTab: tabIDs.map(paneWorkingDirectoryPaths)
+    )
+    let existingTitles = manager.rootItems.compactMap { root -> String? in
+      guard case .group(let group) = root else { return nil }
+      return group.title
+    }
+    return TerminalTabGroupTitleSuggester.title(
+      for: tabs.map {
+        TerminalTabGroupTitleInput(title: $0.title, isTitleLocked: $0.isTitleLocked)
+      },
+      sharedRepositoryName: sharedRepositoryName,
+      existingTitles: existingTitles
+    )
+  }
+
   @discardableResult
   func createGroup(
     title: String,

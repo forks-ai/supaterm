@@ -108,10 +108,14 @@ extension TerminalHostState {
   }
 
   func paneWorkingDirectories(for tabID: TerminalTabID) -> [String] {
+    paneWorkingDirectoryPaths(for: tabID).map {
+      ($0 as NSString).abbreviatingWithTildeInPath
+    }
+  }
+
+  func paneWorkingDirectoryPaths(for tabID: TerminalTabID) -> [String] {
     guard let tree = trees[tabID] else { return [] }
-    return Self.paneWorkingDirectories(
-      paths: tree.leaves().map { $0.bridge.state.pwd }
-    )
+    return Self.paneWorkingDirectoryPaths(paths: tree.leaves().map { $0.bridge.state.pwd })
   }
 
   var terminalBackgroundColor: Color {
@@ -225,12 +229,20 @@ extension TerminalHostState {
   static func paneWorkingDirectories(
     paths: [String?]
   ) -> [String] {
+    paneWorkingDirectoryPaths(paths: paths).map {
+      ($0 as NSString).abbreviatingWithTildeInPath
+    }
+  }
+
+  static func paneWorkingDirectoryPaths(
+    paths: [String?]
+  ) -> [String] {
     var seen = Set<String>()
     return paths.compactMap { path in
       guard let path = trimmedNonEmpty(path) else { return nil }
       let normalized = GhosttySurfaceView.normalizedWorkingDirectoryPath(path)
       guard seen.insert(normalized).inserted else { return nil }
-      return (normalized as NSString).abbreviatingWithTildeInPath
+      return normalized
     }
   }
 
