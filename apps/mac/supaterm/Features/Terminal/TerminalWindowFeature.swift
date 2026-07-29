@@ -223,10 +223,29 @@ struct TerminalWindowFeature {
           return .send(.commandPaletteToggleRequested)
 
         case .closeRequested(let request):
+          SupatermLog.debug(
+            SupatermLog.terminal,
+            "terminal.close.reducer.requestReceived",
+            fields: [
+              "target=\(request.target)",
+              "needsConfirmation=\(request.needsConfirmation)",
+              "hadPendingRequest=\(state.pendingCloseRequest != nil)",
+            ]
+          )
           if request.needsConfirmation {
             state.pendingCloseRequest = pendingCloseRequest(for: request.target)
+            SupatermLog.debug(
+              SupatermLog.terminal,
+              "terminal.close.reducer.confirmationPresented",
+              fields: ["target=\(request.target)"]
+            )
             return .none
           }
+          SupatermLog.debug(
+            SupatermLog.terminal,
+            "terminal.close.reducer.execute",
+            fields: ["target=\(request.target)"]
+          )
           return executeClose(for: request.target)
 
         case .gotoTabRequested(let target):
@@ -259,9 +278,22 @@ struct TerminalWindowFeature {
             )
           }
 
-        case .windowCloseRequested:
+        case .windowCloseRequested(let needsConfirmation):
+          SupatermLog.debug(
+            SupatermLog.terminal,
+            "terminal.close.reducer.windowRequestReceived",
+            fields: [
+              "needsConfirmation=\(needsConfirmation)",
+              "hasWindowID=\(state.windowID != nil)",
+              "hadConfirmationRequest=\(state.confirmationRequest != nil)",
+            ]
+          )
           guard let windowID = state.windowID else { return .none }
           state.confirmationRequest = confirmationRequest(for: .closeWindow(windowID))
+          SupatermLog.debug(
+            SupatermLog.terminal,
+            "terminal.close.reducer.windowConfirmationPresented"
+          )
           return .none
         }
 
@@ -299,11 +331,30 @@ struct TerminalWindowFeature {
         return .none
 
       case .closeConfirmationCancelButtonTapped:
+        SupatermLog.debug(
+          SupatermLog.terminal,
+          "terminal.close.reducer.confirmationCancelled",
+          fields: [
+            "target=\(state.pendingCloseRequest.map { "\($0.target)" } ?? "nil")"
+          ]
+        )
         state.pendingCloseRequest = nil
         return .none
 
       case .closeConfirmationConfirmButtonTapped:
-        guard let pendingCloseRequest = state.pendingCloseRequest else { return .none }
+        guard let pendingCloseRequest = state.pendingCloseRequest else {
+          SupatermLog.debug(
+            SupatermLog.terminal,
+            "terminal.close.reducer.confirmationConfirmDropped",
+            fields: ["reason=missingRequest"]
+          )
+          return .none
+        }
+        SupatermLog.debug(
+          SupatermLog.terminal,
+          "terminal.close.reducer.confirmationConfirmed",
+          fields: ["target=\(pendingCloseRequest.target)"]
+        )
         state.pendingCloseRequest = nil
         return executeClose(for: closeTarget(for: pendingCloseRequest.target))
 
@@ -536,6 +587,11 @@ struct TerminalWindowFeature {
 
       case .confirmationCancelButtonTapped:
         guard let confirmationRequest = state.confirmationRequest else { return .none }
+        SupatermLog.debug(
+          SupatermLog.terminal,
+          "terminal.close.reducer.windowConfirmationCancelled",
+          fields: ["target=\(confirmationTargetLabel(confirmationRequest.target))"]
+        )
         state.confirmationRequest = nil
         switch confirmationRequest.target {
         case .closeWindow, .closeAllWindows:
@@ -544,6 +600,11 @@ struct TerminalWindowFeature {
 
       case .confirmationConfirmButtonTapped:
         guard let confirmationRequest = state.confirmationRequest else { return .none }
+        SupatermLog.debug(
+          SupatermLog.terminal,
+          "terminal.close.reducer.windowConfirmationConfirmed",
+          fields: ["target=\(confirmationTargetLabel(confirmationRequest.target))"]
+        )
         state.confirmationRequest = nil
         switch confirmationRequest.target {
         case .closeWindow(let windowID):
@@ -712,6 +773,15 @@ struct TerminalWindowFeature {
       return sendCommand(.closeTabs(tabIDs))
     case .group(let groupID):
       return sendCommand(.closeGroup(groupID))
+    }
+  }
+
+  private func confirmationTargetLabel(_ target: ConfirmationTarget) -> String {
+    switch target {
+    case .closeWindow:
+      return "closeWindow"
+    case .closeAllWindows:
+      return "closeAllWindows"
     }
   }
 

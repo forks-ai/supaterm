@@ -187,7 +187,18 @@ extension TerminalHostState {
     _ surfaceID: UUID,
     source: TerminalSurfaceCloseSource
   ) {
-    guard zmxSessionsEnabled, zmxClient.isBundled() else {
+    let zmxBundled = zmxClient.isBundled()
+    SupatermLog.debug(
+      SupatermLog.terminal,
+      "terminal.close.afterExit.start",
+      fields: [
+        "source=\(source.rawValue)",
+        "surfaceID=\(SupatermLog.uuid(surfaceID))",
+        "zmxSessionsEnabled=\(zmxSessionsEnabled)",
+        "zmxBundled=\(zmxBundled)",
+      ]
+    )
+    guard zmxSessionsEnabled, zmxBundled else {
       requestCloseSurface(
         surfaceID,
         needsConfirmation: false,
@@ -218,6 +229,18 @@ extension TerminalHostState {
     source: TerminalSurfaceCloseSource,
     didRetry: Bool
   ) {
+    SupatermLog.debug(
+      SupatermLog.terminal,
+      "terminal.close.afterExit.sessions",
+      fields: [
+        "source=\(source.rawValue)",
+        "surfaceID=\(SupatermLog.uuid(surfaceID))",
+        "didRetry=\(didRetry)",
+        "sessionListAvailable=\(sessionIDs != nil)",
+        "sessionCount=\(sessionIDs?.count ?? 0)",
+        "sessionPresent=\(sessionIDs?.contains(sessionID) == true)",
+      ]
+    )
     guard let sessionIDs else {
       guard !didRetry else {
         requestCloseSurface(

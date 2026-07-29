@@ -92,6 +92,28 @@ struct GhosttySurfaceViewTests {
 
   @Test
   @MainActor
+  func closePaneBindingReachesGhosttyCloseCallback() throws {
+    initializeGhosttyForTests()
+
+    let surfaceView = GhosttySurfaceView(
+      runtime: try makeGhosttyRuntime("confirm-close-surface = false"),
+      tabID: UUID(),
+      workingDirectory: nil,
+      context: GHOSTTY_SURFACE_CONTEXT_TAB
+    )
+    defer { surfaceView.closeSurface() }
+    var processAlive: Bool?
+    surfaceView.bridge.onCloseRequest = {
+      processAlive = $0
+    }
+
+    surfaceView.closePane(nil)
+
+    #expect(processAlive == false)
+  }
+
+  @Test
+  @MainActor
   func focusedKeyInputAdvancesUserInputGeneration() throws {
     initializeGhosttyForTests()
 

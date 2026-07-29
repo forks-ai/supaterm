@@ -1511,7 +1511,29 @@ final class GhosttySurfaceView: NSView, Identifiable {
   }
 
   @IBAction func closePane(_ sender: Any?) {
-    performBindingAction(SupatermCommand.closeSurface.ghosttyBindingAction)
+    let menuItem = sender as? NSMenuItem
+    SupatermLog.debug(
+      SupatermLog.terminal,
+      "terminal.close.contextMenu.action",
+      fields: [
+        "surfaceID=\(SupatermLog.uuid(id))",
+        "hasSurface=\(surface != nil)",
+        "focused=\(focused)",
+        "windowIsKey=\(window?.isKeyWindow == true)",
+        "firstResponderIsSurface=\(window?.firstResponder === self)",
+        "menuTargetIsSurface=\(menuItem?.target === self)",
+        "needsConfirmation=\(needsCloseConfirmation)",
+      ]
+    )
+    let accepted = performBindingAction(SupatermCommand.closeSurface.ghosttyBindingAction)
+    SupatermLog.debug(
+      SupatermLog.terminal,
+      "terminal.close.contextMenu.bindingResult",
+      fields: [
+        "surfaceID=\(SupatermLog.uuid(id))",
+        "accepted=\(accepted)",
+      ]
+    )
   }
 
   @IBAction func resetTerminal(_ sender: Any?) {
@@ -1592,9 +1614,10 @@ final class GhosttySurfaceView: NSView, Identifiable {
     return ghostty_surface_key(surface, key)
   }
 
-  func performBindingAction(_ action: String) {
-    guard let surface else { return }
-    _ = action.withCString { ptr in
+  @discardableResult
+  func performBindingAction(_ action: String) -> Bool {
+    guard let surface else { return false }
+    return action.withCString { ptr in
       ghostty_surface_binding_action(surface, ptr, UInt(action.lengthOfBytes(using: .utf8)))
     }
   }

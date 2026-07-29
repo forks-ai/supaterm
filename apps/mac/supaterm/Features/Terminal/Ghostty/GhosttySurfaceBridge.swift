@@ -3,6 +3,7 @@ import Carbon.HIToolbox
 import Foundation
 import GhosttyKit
 import SupatermCLIShared
+import SupatermSupport
 
 enum GhosttyInputChunk: Equatable {
   case key(SupatermInputKey)
@@ -254,6 +255,16 @@ final class GhosttySurfaceBridge {
   }
 
   func closeSurface(processAlive: Bool) {
+    SupatermLog.debug(
+      SupatermLog.terminal,
+      "terminal.close.ghosttyCallback",
+      fields: [
+        "surfaceID=\(SupatermLog.uuid(surfaceView?.id))",
+        "processAlive=\(processAlive)",
+        "hasSurfaceView=\(surfaceView != nil)",
+        "hasCloseHandler=\(onCloseRequest != nil)",
+      ]
+    )
     onCloseRequest?(processAlive)
   }
 

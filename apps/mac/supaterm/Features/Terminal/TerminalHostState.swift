@@ -961,6 +961,20 @@ final class TerminalHostState {
     }
     view.bridge.onCloseRequest = { [weak self, weak view] processAlive in
       guard let self, let view else { return }
+      let tabID = self.tabID(containing: view.id)
+      SupatermLog.debug(
+        SupatermLog.terminal,
+        "terminal.close.hostCallback",
+        fields: [
+          "surfaceID=\(SupatermLog.uuid(view.id))",
+          "tabID=\(SupatermLog.uuid(tabID?.rawValue))",
+          "selectedTabID=\(SupatermLog.uuid(self.selectedTabID?.rawValue))",
+          "focusedSurfaceID=\(SupatermLog.uuid(tabID.flatMap { self.focusHistoryByTab[$0]?.current }))",
+          "processAlive=\(processAlive)",
+          "surfaceRegistered=\(self.surfaces[view.id] === view)",
+          "zmxSessionsEnabled=\(self.zmxSessionsEnabled)",
+        ]
+      )
       guard !processAlive else {
         self.requestCloseSurface(
           view.id,
