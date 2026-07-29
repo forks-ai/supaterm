@@ -959,7 +959,7 @@ final class TerminalHostState {
       )
       return true
     }
-    view.bridge.onCloseRequest = { [weak self, weak view] processAlive in
+    view.bridge.onCloseRequest = { [weak self, weak view] needsConfirmation in
       guard let self, let view else { return }
       let tabID = self.tabID(containing: view.id)
       SupatermLog.debug(
@@ -970,21 +970,14 @@ final class TerminalHostState {
           "tabID=\(SupatermLog.uuid(tabID?.rawValue))",
           "selectedTabID=\(SupatermLog.uuid(self.selectedTabID?.rawValue))",
           "focusedSurfaceID=\(SupatermLog.uuid(tabID.flatMap { self.focusHistoryByTab[$0]?.current }))",
-          "processAlive=\(processAlive)",
+          "needsConfirmation=\(needsConfirmation)",
           "surfaceRegistered=\(self.surfaces[view.id] === view)",
           "zmxSessionsEnabled=\(self.zmxSessionsEnabled)",
         ]
       )
-      guard !processAlive else {
-        self.requestCloseSurface(
-          view.id,
-          needsConfirmation: true,
-          source: .ghosttyCloseSurfaceCallback
-        )
-        return
-      }
-      self.requestCloseSurfaceAfterProcessExit(
+      self.requestCloseSurface(
         view.id,
+        needsConfirmation: needsConfirmation,
         source: .ghosttyCloseSurfaceCallback
       )
     }
