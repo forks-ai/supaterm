@@ -239,14 +239,32 @@ final class PanesSplitsUITests: SupatermUITestCase {
   }
 
   @MainActor
-  func testContextMenuClosesClickedPane() async throws {
-    try relaunchWithoutCloseConfirmation()
+  func testContextMenuClosesClickedPaneWhenSessionPersistenceIsDisabled() async throws {
+    try await assertContextMenuClosesClickedPane(zmxSessionsEnabled: false)
+  }
 
+  @MainActor
+  func testContextMenuClosesClickedPaneWhenSessionPersistenceIsEnabled() async throws {
+    try await assertContextMenuClosesClickedPane(zmxSessionsEnabled: true)
+  }
+
+  @MainActor
+  private func assertContextMenuClosesClickedPane(zmxSessionsEnabled: Bool) async throws {
+    try relaunchWithoutCloseConfirmation(zmxSessionsEnabled: zmxSessionsEnabled)
     _ = try await requireVisiblePanes(count: 1)
     try clickMenuItem(.splitRight)
     let panes = try await requireVisiblePanes(count: 2)
     let leftPane = try XCTUnwrap(panes.min { $0.frame.midX < $1.frame.midX })
     let rightPane = try XCTUnwrap(panes.max { $0.frame.midX < $1.frame.midX })
+
+    rightPane.click()
+    try await requireFocus(on: rightPane)
+    let marker = "close-pane-ready-\(UUID().uuidString.prefix(8))"
+    rightPane.typeText("echo \(marker)\n")
+    let shellIsReady = await wait(for: rightPane, timeout: .seconds(30)) {
+      ($0.value as? String)?.contains(marker) == true
+    }
+    XCTAssertTrue(shellIsReady)
 
     leftPane.click()
     try await requireFocus(on: leftPane)
@@ -378,7 +396,7 @@ final class PanesSplitsUITests: SupatermUITestCase {
   }
 
   @MainActor
-  private func relaunchWithoutCloseConfirmation() throws {
+  private func relaunchWithoutCloseConfirmation(zmxSessionsEnabled: Bool? = nil) throws {
     let ghosttyConfigDirectory = stateHome.appendingPathComponent("ghostty", isDirectory: true)
     try FileManager.default.createDirectory(
       at: ghosttyConfigDirectory,
@@ -387,6 +405,15 @@ final class PanesSplitsUITests: SupatermUITestCase {
     try Data("confirm-close-surface = false\n".utf8).write(
       to: ghosttyConfigDirectory.appendingPathComponent("config")
     )
+    if let zmxSessionsEnabled {
+      try Data(
+        """
+        [terminal]
+        zmx_sessions_enabled = \(zmxSessionsEnabled)
+
+        """.utf8
+      ).write(to: stateHome.appendingPathComponent("settings.toml"))
+    }
     app.launchEnvironment["XDG_CONFIG_HOME"] = stateHome.path
     try relaunch()
   }
