@@ -60,7 +60,7 @@ struct TerminalDetailView: View {
       )
     }
     .compositingGroup()
-    .terminalPaneChrome(palette: palette)
+    .terminalDetailPaneChrome(palette: palette)
   }
 }
 

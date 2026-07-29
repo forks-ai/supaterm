@@ -49,6 +49,9 @@ enum TerminalSplitMetrics {
 enum TerminalChromeMetrics {
   static let paneInset: CGFloat = 6
   static let paneCornerRadius: CGFloat = 16
+  static var paneShape: RoundedRectangle {
+    RoundedRectangle(cornerRadius: paneCornerRadius, style: .continuous)
+  }
 
   static func nestedCornerRadius(
     inside outerCornerRadius: CGFloat,
@@ -63,13 +66,37 @@ enum TerminalCoordinateSpace {
   static let floatingSidebar = "TerminalFloatingSidebar"
 }
 
+private struct TerminalPaneSurfaceModifier: ViewModifier {
+  let stroke: Color
+
+  func body(content: Content) -> some View {
+    content
+      .clipShape(TerminalChromeMetrics.paneShape)
+      .overlay {
+        TerminalChromeMetrics.paneShape
+          .stroke(stroke, lineWidth: 1)
+      }
+  }
+}
+
 extension View {
   func terminalPaneChrome(palette: Palette) -> some View {
     self
-      .clipShape(.rect(cornerRadius: TerminalChromeMetrics.paneCornerRadius))
-      .overlay {
-        RoundedRectangle(cornerRadius: TerminalChromeMetrics.paneCornerRadius, style: .continuous)
-          .stroke(palette.detailStroke, lineWidth: 1)
+      .modifier(TerminalPaneSurfaceModifier(stroke: palette.detailStroke))
+      .padding(TerminalChromeMetrics.paneInset)
+  }
+
+  func terminalDetailPaneChrome(palette: Palette) -> some View {
+    self
+      .modifier(
+        TerminalPaneSurfaceModifier(
+          stroke: palette.colorScheme == .dark ? palette.detailStroke : .clear
+        )
+      )
+      .background {
+        TerminalChromeMetrics.paneShape
+          .fill(palette.detailBackground)
+          .shadow(color: palette.detailShadow, radius: 2, x: 0, y: 1)
       }
       .padding(TerminalChromeMetrics.paneInset)
   }

@@ -71,6 +71,7 @@ struct TerminalSplitView: View {
             selectedTabID: selectedTabID
           )
           .frame(maxWidth: .infinity, maxHeight: .infinity)
+          .zIndex(1)
         } else {
           Color.clear
             .frame(maxWidth: .infinity, maxHeight: .infinity)

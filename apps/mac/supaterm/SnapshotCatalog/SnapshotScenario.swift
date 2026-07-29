@@ -62,6 +62,7 @@ struct SnapshotCatalogScenarioRender: View {
 enum SnapshotCatalog {
   static let scenarios: [SnapshotScenario] =
     sidebarScenarios
+    + terminalChromeScenarios
     + agentPanelScenarios
     + rendererFailureScenarios
     + updateScenarios

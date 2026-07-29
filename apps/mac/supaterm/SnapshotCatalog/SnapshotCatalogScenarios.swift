@@ -781,7 +781,7 @@ private struct SidebarRowSnapshotFixture: View {
 }
 
 @MainActor
-private enum SidebarChromeSnapshotContext {
+enum SidebarChromeSnapshotContext {
   static let commandHold = CommandHoldObserver()
   static let ghosttyShortcuts = GhosttyShortcutManager(runtime: nil)
   static let groupID = TerminalTabGroupID(
@@ -898,6 +898,7 @@ private enum SidebarChromeSnapshotContext {
       selectedTabID: selectedTab.id,
       in: space.id
     )
+    terminal.trees[selectedTab.id] = SplitTree(root: nil, zoomed: nil)
     return terminal
   }()
 

@@ -56,6 +56,7 @@ public struct Palette {
   public var detailBackground: Color { detailBackgroundValue.color }
   public var agentPanelBackground: Color { agentPanelBackgroundValue.color }
   public var detailStroke: Color { isDark ? Color.white.opacity(0.08) : Color.black.opacity(0.06) }
+  public var detailShadow: Color { isDark ? .clear : Color.black.opacity(0.14) }
   public var unselectedFill: Color { (isDark ? Color.white : .black).opacity(0.06) }
   public var hoverFill: Color { Color.white.opacity(isDark ? 0.16 : 0.55) }
   public var pressedFill: Color { Color.white.opacity(isDark ? 0.31 : 0.7) }
