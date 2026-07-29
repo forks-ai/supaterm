@@ -10,6 +10,30 @@ import Testing
 @MainActor
 struct TerminalWindowControllerTests {
   @Test
+  func windowAllowsBehindWindowMaterials() throws {
+    try withDependencies {
+      $0.defaultFileStorage = .inMemory
+    } operation: {
+      initializeGhosttyForTests()
+
+      let controller = TerminalWindowController(
+        runtime: GhosttyRuntime(applicationIsActive: { false }),
+        registry: TerminalWindowRegistry(zmxClient: .noop),
+        zmxClient: .noop,
+        zmxSessionsEnabled: false
+      )
+      defer {
+        controller.window?.delegate = nil
+        controller.window?.close()
+      }
+      let window = try #require(controller.window)
+
+      #expect(!window.isOpaque)
+      #expect(window.backgroundColor == .clear)
+    }
+  }
+
+  @Test
   func injectedRuntimeReloadUpdatesEveryWindow() async throws {
     try await withDependencies {
       $0.defaultFileStorage = .inMemory

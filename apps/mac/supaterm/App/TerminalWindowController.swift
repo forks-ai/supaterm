@@ -147,6 +147,8 @@ final class TerminalWindowController: NSWindowController {
     window.title = Bundle.main.object(forInfoDictionaryKey: "CFBundleDisplayName") as? String ?? "Supaterm"
     window.titleVisibility = .hidden
     window.titlebarAppearsTransparent = true
+    window.isOpaque = false
+    window.backgroundColor = .clear
     Self.applyRestoredFrame(session?.frame, to: window)
     window.onModifierFlagsChanged = { [commandHoldObserver] modifierFlags in
       commandHoldObserver.update(modifierFlags: modifierFlags)
