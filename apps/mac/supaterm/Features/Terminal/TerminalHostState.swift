@@ -1184,21 +1184,12 @@ final class TerminalHostState {
   }
 
   func latestUnreadNotifiedSurfaceID(in tabID: TerminalTabID) -> UUID? {
-    notifications(for: tabID)
-      .compactMap { surfaceID, notifications -> (UUID, PaneNotification)? in
-        guard
-          let latestUnreadNotification = Self.latestNotification(
-            in: notifications.filter { $0.attentionState == .unread }
-          )
-        else {
-          return nil
-        }
-        return (surfaceID, latestUnreadNotification)
-      }
-      .max { lhs, rhs in
-        lhs.1.createdAt < rhs.1.createdAt
-      }?
-      .0
+    guard let tree = trees[tabID] else { return nil }
+    return notificationStore.latestUnreadTarget(among: tree.leaves().map(\.id))?.surfaceID
+  }
+
+  func latestUnreadNotificationTarget() -> TerminalNotificationStore.UnreadTarget? {
+    notificationStore.latestUnreadTarget(among: surfaces.keys)
   }
 
   func clearUnreadOnFocusedSurfaceIfNeeded() {

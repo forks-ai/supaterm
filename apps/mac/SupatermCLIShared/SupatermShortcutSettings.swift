@@ -3,6 +3,7 @@ import Foundation
 public enum SupatermShortcutID: Codable, Hashable, Sendable, CodingKeyRepresentable {
   case copyAgentSessionID
   case forkAgentSession
+  case jumpToLatestUnread
   case newTabInGroup
   case selectSpace(Int)
   case toggleAgentPanel
@@ -22,6 +23,8 @@ public enum SupatermShortcutID: Codable, Hashable, Sendable, CodingKeyRepresenta
       "Copy Agent Session ID"
     case .forkAgentSession:
       "Fork Agent Session"
+    case .jumpToLatestUnread:
+      "Jump to Latest Unread"
     case .newTabInGroup:
       "New Tab in Group"
     case .selectSpace(let index):
@@ -39,6 +42,8 @@ public enum SupatermShortcutID: Codable, Hashable, Sendable, CodingKeyRepresenta
       "copy_agent_session_id"
     case .forkAgentSession:
       "fork_agent_session"
+    case .jumpToLatestUnread:
+      "jump_to_latest_unread"
     case .newTabInGroup:
       "new_tab_in_group"
     case .selectSpace(let index):
@@ -64,6 +69,8 @@ public enum SupatermShortcutID: Codable, Hashable, Sendable, CodingKeyRepresenta
       self = .copyAgentSessionID
     case "fork_agent_session":
       self = .forkAgentSession
+    case "jump_to_latest_unread":
+      self = .jumpToLatestUnread
     case "new_tab_in_group":
       self = .newTabInGroup
     case "toggle_agent_panel":

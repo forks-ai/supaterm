@@ -530,6 +530,75 @@ struct TerminalWindowRegistryTests {
   }
 
   @Test
+  func jumpToLatestUnreadMovesNewestFirstAcrossWindows() throws {
+    try withDependencies {
+      $0.defaultFileStorage = .inMemory
+    } operation: {
+      initializeGhosttyForTests()
+
+      let registry = TerminalWindowRegistry()
+      let olderHost = try makeCommandPaletteHost(title: "older", workingDirectory: nil)
+      let newerHost = try makeCommandPaletteHost(title: "newer", workingDirectory: nil)
+      olderHost.windowActivity = .inactive
+      newerHost.windowActivity = .inactive
+      let olderTabID = try #require(olderHost.selectedTabID)
+      let newerTabID = try #require(newerHost.selectedTabID)
+      let olderSurfaceID = try #require(olderHost.selectedSurfaceView?.id)
+      let newerSurfaceID = try #require(newerHost.selectedSurfaceView?.id)
+
+      olderHost.notificationStore.append(
+        TerminalHostState.PaneNotification(
+          attentionState: .unread,
+          body: "older",
+          createdAt: Date(timeIntervalSince1970: 1),
+          title: "Older"
+        ),
+        for: olderSurfaceID
+      )
+      newerHost.notificationStore.append(
+        TerminalHostState.PaneNotification(
+          attentionState: .unread,
+          body: "newer",
+          createdAt: Date(timeIntervalSince1970: 2),
+          title: "Newer"
+        ),
+        for: newerSurfaceID
+      )
+
+      let olderWindowControllerID = UUID()
+      let newerWindowControllerID = UUID()
+      registry.register(
+        keyboardShortcutForAction: { _ in nil },
+        windowControllerID: olderWindowControllerID,
+        store: Store(initialState: AppFeature.State()) { AppFeature() },
+        terminal: olderHost,
+        requestConfirmedWindowClose: {}
+      )
+      registry.register(
+        keyboardShortcutForAction: { _ in nil },
+        windowControllerID: newerWindowControllerID,
+        store: Store(initialState: AppFeature.State()) { AppFeature() },
+        terminal: newerHost,
+        requestConfirmedWindowClose: {}
+      )
+      let olderWindow = makeWindow()
+      let newerWindow = makeWindow()
+      registry.updateWindow(olderWindow, for: olderWindowControllerID)
+      registry.updateWindow(newerWindow, for: newerWindowControllerID)
+
+      #expect(registry.hasUnreadNotifications)
+      #expect(registry.jumpToLatestUnread())
+      #expect(newerHost.unreadNotificationCount(for: newerTabID) == 0)
+      #expect(olderHost.unreadNotificationCount(for: olderTabID) == 1)
+
+      #expect(registry.jumpToLatestUnread())
+      #expect(olderHost.unreadNotificationCount(for: olderTabID) == 0)
+      #expect(!registry.hasUnreadNotifications)
+      #expect(!registry.jumpToLatestUnread())
+    }
+  }
+
+  @Test
   func performCommandPaletteUpdateActionDispatchesToRequestedStore() async {
     let registry = TerminalWindowRegistry()
     let recorder = UpdateMenuActionRecorder()

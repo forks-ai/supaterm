@@ -136,6 +136,11 @@ public enum SupatermShortcuts {
     keyCode: UInt16(kVK_ANSI_I),
     modifiers: .command
   )
+  public static let jumpToLatestUnread = SupatermShortcut(
+    id: .jumpToLatestUnread,
+    keyCode: UInt16(kVK_ANSI_U),
+    modifiers: [.command, .control]
+  )
   public static let forkAgentSession = SupatermShortcut(
     id: .forkAgentSession,
     keyCode: UInt16(kVK_ANSI_F),
@@ -158,7 +163,7 @@ public enum SupatermShortcuts {
   public static let groups = [
     SupatermShortcutGroup(
       category: .interface,
-      shortcuts: [toggleSidebar, toggleAgentPanel]
+      shortcuts: [toggleSidebar, toggleAgentPanel, jumpToLatestUnread]
     ),
     SupatermShortcutGroup(
       category: .tabs,

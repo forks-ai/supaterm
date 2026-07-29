@@ -68,6 +68,8 @@ final class SupatermMenuController: NSObject {
     static let changeTerminalTitle = NSUserInterfaceItemIdentifier("app.supabit.supaterm.view.changeTerminalTitle")
     static let nextTab = NSUserInterfaceItemIdentifier("app.supabit.supaterm.tabs.next")
     static let previousTab = NSUserInterfaceItemIdentifier("app.supabit.supaterm.tabs.previous")
+    static let jumpToLatestUnread = NSUserInterfaceItemIdentifier(
+      "app.supabit.supaterm.tabs.jumpToLatestUnread")
     static let selectLastTab = NSUserInterfaceItemIdentifier("app.supabit.supaterm.tabs.last")
     static let selectTabPrefix = "app.supabit.supaterm.tabs.select."
     static let selectSpacePrefix = "app.supabit.supaterm.spaces.select."
@@ -325,6 +327,8 @@ final class SupatermMenuController: NSObject {
     SupatermMenuSectionSpec(
       title: "Tabs",
       entries: [
+        .item(MenuItemIdentifier.jumpToLatestUnread),
+        .separator,
         .item(MenuItemIdentifier.nextTab),
         .item(MenuItemIdentifier.previousTab),
         .separator,
@@ -648,6 +652,13 @@ final class SupatermMenuController: NSObject {
 
   private func tabsMenuSpecs() -> [SupatermMenuItemSpec] {
     var specs: [SupatermMenuItemSpec] = [
+      SupatermMenuItemSpec(
+        id: MenuItemIdentifier.jumpToLatestUnread,
+        title: "Jump to Latest Unread",
+        action: #selector(jumpToLatestUnread(_:)),
+        symbol: "bell.badge",
+        shortcut: .appRouted(.jumpToLatestUnread)
+      ),
       SupatermMenuItemSpec(
         id: MenuItemIdentifier.nextTab,
         title: "Next Tab",
@@ -1120,6 +1131,10 @@ final class SupatermMenuController: NSObject {
     registry.requestNextTabInKeyWindow()
   }
 
+  @objc func jumpToLatestUnread(_ sender: Any?) {
+    registry.jumpToLatestUnread()
+  }
+
   @objc func previousTab(_ sender: Any?) {
     registry.requestPreviousTabInKeyWindow()
   }
@@ -1361,14 +1376,25 @@ extension SupatermMenuController: NSMenuItemValidation {
       return context.availability.hasSurface
     case MenuItemIdentifier.hideFindBar:
       return context.hasSearch
-    case MenuItemIdentifier.nextTab,
+    case MenuItemIdentifier.jumpToLatestUnread,
+      MenuItemIdentifier.nextTab,
       MenuItemIdentifier.previousTab,
       MenuItemIdentifier.changeTabTitle,
       MenuItemIdentifier.selectLastTab:
-      return context.visibleTabCount > 0
+      return validateTabMenuItem(item, context: context)
     default:
       return validateIndexedMenuItem(item, context: context)
     }
+  }
+
+  private func validateTabMenuItem(
+    _ item: NSMenuItem,
+    context: TerminalWindowRegistry.MenuContext
+  ) -> Bool {
+    if item.identifier == MenuItemIdentifier.jumpToLatestUnread {
+      return context.hasUnreadNotifications
+    }
+    return context.visibleTabCount > 0
   }
 
   private func validateIndexedMenuItem(

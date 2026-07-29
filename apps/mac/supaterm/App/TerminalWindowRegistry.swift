@@ -33,6 +33,7 @@ final class TerminalWindowRegistry {
     let closesKeyWindowDirectly: Bool
     let hasSearch: Bool
     let hasSelectedGroup: Bool
+    let hasUnreadNotifications: Bool
     let updateMenuItemText: String
     let visibleTabCount: Int
     let spaceCount: Int
@@ -152,6 +153,7 @@ final class TerminalWindowRegistry {
         closesKeyWindowDirectly: closesKeyWindowDirectly,
         hasSearch: false,
         hasSelectedGroup: false,
+        hasUnreadNotifications: false,
         updateMenuItemText: "Check for Updates...",
         visibleTabCount: 0,
         spaceCount: 0,
@@ -167,6 +169,7 @@ final class TerminalWindowRegistry {
       closesKeyWindowDirectly: closesKeyWindowDirectly,
       hasSearch: entry.terminal.selectedSurfaceState?.searchNeedle != nil,
       hasSelectedGroup: selectedGroupID(in: entry) != nil,
+      hasUnreadNotifications: hasUnreadNotifications,
       updateMenuItemText: updateState.phase.menuItemTitle,
       visibleTabCount: entry.terminal.visibleTabs.count,
       spaceCount: entry.terminal.spaces.count,
@@ -431,6 +434,10 @@ final class TerminalWindowRegistry {
     !liveSurfaceIDs().isEmpty
   }
 
+  var hasUnreadNotifications: Bool {
+    activeEntries().contains { $0.terminal.latestUnreadNotificationTarget() != nil }
+  }
+
   func liveSurfaceIDs() -> Set<UUID> {
     activeEntries().reduce(into: Set<UUID>()) { result, entry in
       result.formUnion(entry.terminal.liveSurfaceIDs())
@@ -495,6 +502,18 @@ final class TerminalWindowRegistry {
       }
     }
     return false
+  }
+
+  @discardableResult
+  func jumpToLatestUnread() -> Bool {
+    guard
+      let target = activeEntries()
+        .compactMap({ $0.terminal.latestUnreadNotificationTarget() })
+        .max(by: { $0.isOlder(than: $1) })
+    else {
+      return false
+    }
+    return focusNotificationSurface(target.surfaceID)
   }
 
   func performCommandPaletteUpdateAction(

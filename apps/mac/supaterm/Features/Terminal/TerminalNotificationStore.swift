@@ -1,6 +1,18 @@
 import Foundation
 
 struct TerminalNotificationStore {
+  struct UnreadTarget: Equatable {
+    let createdAt: Date
+    let surfaceID: UUID
+
+    func isOlder(than other: Self) -> Bool {
+      if createdAt != other.createdAt {
+        return createdAt < other.createdAt
+      }
+      return surfaceID.uuidString < other.surfaceID.uuidString
+    }
+  }
+
   static let coalescingWindow: TimeInterval = 2
 
   private var notificationsBySurfaceID: [UUID: [TerminalHostState.PaneNotification]] = [:]
@@ -9,6 +21,19 @@ struct TerminalNotificationStore {
 
   func notifications(for surfaceID: UUID) -> [TerminalHostState.PaneNotification]? {
     notificationsBySurfaceID[surfaceID]
+  }
+
+  func latestUnreadTarget(
+    among surfaceIDs: some Sequence<UUID>
+  ) -> UnreadTarget? {
+    surfaceIDs
+      .compactMap { surfaceID in
+        notificationsBySurfaceID[surfaceID]?
+          .filter { $0.attentionState == .unread }
+          .max { $0.createdAt < $1.createdAt }
+          .map { UnreadTarget(createdAt: $0.createdAt, surfaceID: surfaceID) }
+      }
+      .max { $0.isOlder(than: $1) }
   }
 
   mutating func append(

@@ -192,6 +192,10 @@ struct SupatermSettingsTests {
       keyCode: 11,
       modifiers: [.command, .option]
     )
+    settings.shortcutOverrides[.jumpToLatestUnread] = SupatermShortcutOverride(
+      keyCode: 32,
+      modifiers: [.command, .control]
+    )
     settings.shortcutOverrides[.selectSpace(10)] = .disabled
 
     let data = try SupatermSettingsCodec.encode(settings)
@@ -199,6 +203,7 @@ struct SupatermSettingsTests {
     let decoded = try SupatermSettingsCodec.decode(data)
 
     #expect(string.contains("[shortcuts.toggle_sidebar]"))
+    #expect(string.contains("[shortcuts.jump_to_latest_unread]"))
     #expect(string.contains("[shortcuts.select_space_10]"))
     #expect(decoded.shortcutOverrides == settings.shortcutOverrides)
   }

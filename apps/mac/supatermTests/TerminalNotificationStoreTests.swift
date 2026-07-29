@@ -1,12 +1,16 @@
+import CustomDump
 import Foundation
 import Testing
 
 @testable import supaterm
 
 struct TerminalNotificationStoreTests {
-  private func makeNotification(createdAt: TimeInterval = 1) -> TerminalHostState.PaneNotification {
+  private func makeNotification(
+    attentionState: SupatermNotificationAttentionState? = .unread,
+    createdAt: TimeInterval = 1
+  ) -> TerminalHostState.PaneNotification {
     TerminalHostState.PaneNotification(
-      attentionState: .unread,
+      attentionState: attentionState,
       body: "body",
       createdAt: Date(timeIntervalSince1970: createdAt),
       title: "title"
@@ -23,6 +27,38 @@ struct TerminalNotificationStoreTests {
 
     #expect(store.notifications(for: surfaceID)?.count == 2)
     #expect(store.notifications(for: UUID()) == nil)
+  }
+
+  @Test
+  func latestUnreadTargetUsesNewestAllowedUnreadSurface() throws {
+    var store = TerminalNotificationStore()
+    let olderSurfaceID = try #require(
+      UUID(uuidString: "00000000-0000-0000-0000-000000000001")
+    )
+    let readSurfaceID = try #require(
+      UUID(uuidString: "00000000-0000-0000-0000-000000000002")
+    )
+    let expectedSurfaceID = try #require(
+      UUID(uuidString: "00000000-0000-0000-0000-000000000003")
+    )
+    let excludedSurfaceID = try #require(
+      UUID(uuidString: "00000000-0000-0000-0000-000000000004")
+    )
+
+    store.append(makeNotification(createdAt: 1), for: olderSurfaceID)
+    store.append(makeNotification(attentionState: nil, createdAt: 3), for: readSurfaceID)
+    store.append(makeNotification(createdAt: 2), for: expectedSurfaceID)
+    store.append(makeNotification(createdAt: 4), for: excludedSurfaceID)
+
+    expectNoDifference(
+      store.latestUnreadTarget(
+        among: [olderSurfaceID, readSurfaceID, expectedSurfaceID]
+      ),
+      TerminalNotificationStore.UnreadTarget(
+        createdAt: Date(timeIntervalSince1970: 2),
+        surfaceID: expectedSurfaceID
+      )
+    )
   }
 
   @Test

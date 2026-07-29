@@ -82,6 +82,7 @@ struct SupatermMenuControllerTests {
         "app.supabit.supaterm.file.openCommandPalette",
         "app.supabit.supaterm.view.changeTabTitle",
         "app.supabit.supaterm.view.changeTerminalTitle",
+        "app.supabit.supaterm.tabs.jumpToLatestUnread",
         "app.supabit.supaterm.window.zoomSplit",
         "app.supabit.supaterm.window.previousSplit",
         "app.supabit.supaterm.window.nextSplit",
@@ -437,6 +438,71 @@ struct SupatermMenuControllerTests {
 
       #expect(controller.performGhosttyBindingMenuKeyEquivalent(with: event))
       #expect(store.terminal.commandPalette != nil)
+    }
+  }
+
+  @Test
+  func performGhosttyBindingMenuKeyEquivalentRoutesJumpToLatestUnreadShortcut() throws {
+    try withDependencies {
+      $0.defaultFileStorage = .inMemory
+    } operation: {
+      initializeGhosttyForTests()
+
+      let app = NSApplication.shared
+      let previousMainMenu = app.mainMenu
+      let registry = TerminalWindowRegistry()
+      let host = TerminalHostState()
+      host.windowActivity = .inactive
+      host.handleCommand(.ensureInitialTab(focusing: false, startupCommand: nil))
+      let tabID = try #require(host.selectedTabID)
+      let surfaceID = try #require(host.selectedSurfaceView?.id)
+      host.notificationStore.append(
+        TerminalHostState.PaneNotification(
+          attentionState: .unread,
+          body: "Done",
+          createdAt: Date(timeIntervalSince1970: 1),
+          title: "Codex"
+        ),
+        for: surfaceID
+      )
+      let store = Store(initialState: AppFeature.State()) {
+        AppFeature()
+      }
+      let windowControllerID = UUID()
+      registry.register(
+        keyboardShortcutForAction: { _ in nil },
+        windowControllerID: windowControllerID,
+        store: store,
+        terminal: host,
+        requestConfirmedWindowClose: {}
+      )
+      let window = makeWindow()
+      registry.updateWindow(window, for: windowControllerID)
+      let controller = SupatermMenuController(registry: registry)
+      defer {
+        app.mainMenu = previousMainMenu
+      }
+
+      controller.install()
+      controller.refresh()
+
+      let event = try #require(
+        NSEvent.keyEvent(
+          with: .keyDown,
+          location: .zero,
+          modifierFlags: [.command, .control],
+          timestamp: 0,
+          windowNumber: 0,
+          context: nil,
+          characters: "u",
+          charactersIgnoringModifiers: "u",
+          isARepeat: false,
+          keyCode: UInt16(kVK_ANSI_U)
+        )
+      )
+
+      #expect(controller.performGhosttyBindingMenuKeyEquivalent(with: event))
+      #expect(host.unreadNotificationCount(for: tabID) == 0)
     }
   }
 
@@ -883,6 +949,8 @@ struct SupatermMenuControllerTests {
     let tabsMenu = try #require(menu?.items.first(where: { $0.title == "Tabs" })?.submenu)
     #expect(
       tabsMenu.items.map(\.title) == [
+        "Jump to Latest Unread",
+        "",
         "Next Tab",
         "Previous Tab",
         "",
@@ -898,6 +966,9 @@ struct SupatermMenuControllerTests {
         "Tab 10",
         "Last Tab",
       ])
+    #expect(tabsMenu.items[0].keyEquivalent == "u")
+    #expect(tabsMenu.items[0].keyEquivalentModifierMask == [.command, .control])
+    #expect(tabsMenu.items[0].image != nil)
   }
 
   private func assertViewMenu(_ menu: NSMenu?) throws {
