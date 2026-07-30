@@ -1,5 +1,4 @@
 import CoreGraphics
-import Foundation
 
 enum TerminalSidebarLayout {
   struct HorizontalInsets {
@@ -65,16 +64,4 @@ enum TerminalSidebarLayout {
       height: max(0, bounds.height - scrollViewportTopInset)
     )
   }
-
-  static func spaceMonogram(
-    for name: String,
-    fallbackIndex: Int
-  ) -> String {
-    let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
-    if let first = trimmed.first {
-      return String(first).uppercased()
-    }
-    return String(fallbackIndex + 1)
-  }
-
 }
