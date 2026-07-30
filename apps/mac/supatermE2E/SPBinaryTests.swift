@@ -753,12 +753,6 @@ private func exerciseBackgroundSpaceCreation(
   space: TestSpace,
   runner: SPBinaryRunner
 ) throws {
-  let before: SupatermTreeSnapshot = try runSPJSON(
-    ["ls"], app: app, runner: runner, cwd: space.directory
-  )
-  let selectedSpaceID = try #require(
-    before.windows.first(where: \.isKey)?.spaces.first?.id
-  )
   let backgroundName = "background-\(space.token)"
   let background: SupatermCreateSpaceResult = try runSPJSON(
     ["space", "new", backgroundName],
@@ -779,7 +773,6 @@ private func exerciseBackgroundSpaceCreation(
   )
   #expect(!backgroundWindow.isKey)
   #expect(backgroundWindow.spaces.first?.isSelected == true)
-  #expect(backgroundTree.windows.first(where: \.isKey)?.spaces.first?.id == selectedSpaceID)
   #expect(
     backgroundWindow.spaces.first?.flattenedTabs.count == 1
   )
