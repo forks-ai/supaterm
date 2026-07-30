@@ -5,11 +5,12 @@ import Testing
 extension SupatermE2ESuite {
   @Suite struct CommandMatrixTests {
     @Test(.timeLimit(.minutes(5)))
-    func selectSpaceUpdatesSelection() async throws {
+    func selectSpaceRaisesOwningWindow() async throws {
       try await withTestSpace { app, space in
         let snapshot = try app.debugSnapshot()
-        let window = try #require(snapshot.windows.first)
-        let otherSpace = try #require(window.spaces.first { $0.id != space.spaceID })
+        let otherSpace = try #require(
+          snapshot.windows.lazy.flatMap(\.spaces).first { $0.id != space.spaceID }
+        )
 
         let selectedOther = try app.send(
           .selectSpace(SupatermSpaceTargetRequest(spaceID: otherSpace.id)),
@@ -25,9 +26,16 @@ extension SupatermE2ESuite {
         #expect(selectedBack.target.spaceID == space.spaceID)
 
         let after = try app.debugSnapshot()
-        let spaces = try #require(after.windows.first).spaces
-        #expect(spaces.first { $0.id == space.spaceID }?.isSelected == true)
-        #expect(spaces.first { $0.id == otherSpace.id }?.isSelected == false)
+        let selectedWindow = try #require(
+          after.windows.first { $0.spaces.contains { $0.id == space.spaceID } }
+        )
+        let otherWindow = try #require(
+          after.windows.first { $0.spaces.contains { $0.id == otherSpace.id } }
+        )
+        #expect(selectedWindow.spaces.first?.isSelected == true)
+        #expect(otherWindow.spaces.first?.isSelected == true)
+        #expect(after.windows.last?.spaces.first?.id == space.spaceID)
+        #expect(selectedBack.target.windowIndex == after.windows.count)
       }
     }
 

@@ -364,6 +364,7 @@ struct TerminalSidebarTabRow: View {
         }
       }
     }
+    .accessibilityElement(children: .combine)
     .accessibilityAddTraits(.isButton)
     .accessibilityAddTraits(isSelected ? .isSelected : [])
     .accessibilityAction { select() }

@@ -68,7 +68,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
   private var windowControllers: [UUID: TerminalWindowController] = [:]
 
   private static var onboardingStartupCommand: String {
-    SupatermShellCommand.interactiveStartupCommand(for: "sp onboard")
+    SupatermShellCommand.interactiveStartupCommand(
+      for: #"sp onboard --socket "$SUPATERM_SOCKET_PATH""#
+    )
   }
 
   override init() {

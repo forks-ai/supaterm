@@ -2,6 +2,8 @@ import Foundation
 import XCTest
 
 final class SessionRestoreUITests: SupatermUITestCase {
+  private static let sessionCatalogVersion = 8
+
   @MainActor
   func testSelectedPinnedTabStaysSelectedAfterRelaunch() async throws {
     _ = mainWindow
@@ -31,11 +33,11 @@ final class SessionRestoreUITests: SupatermUITestCase {
 
     let didSavePinnedSelection = await waitForSessionCatalog(at: sessionFileURL) { catalog in
       guard
-        catalog["version"] as? Int == 7,
-        let space = self.sessionSpace(in: catalog),
-        let topology = self.sessionTopology(in: space),
+        catalog["version"] as? Int == Self.sessionCatalogVersion,
+        let window = self.sessionWindow(in: catalog),
+        let topology = self.sessionTopology(in: window),
         topology.orderedTabIDs.count == 2,
-        let selectedTabID = self.sessionTabID(space["selectedTabID"])
+        let selectedTabID = self.sessionTabID(window["selectedTabID"])
       else { return false }
       return selectedTabID == topology.orderedTabIDs[0]
         && topology.rootPinning[topology.orderedTabIDs[0]] == true
@@ -286,10 +288,10 @@ final class SessionRestoreUITests: SupatermUITestCase {
     guard
       let data = try? Data(contentsOf: url),
       let catalog = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
-      catalog["version"] as? Int == 7,
-      let space = sessionSpace(in: catalog),
-      let topology = sessionTopology(in: space),
-      let tabs = space["tabs"] as? [[String: Any]]
+      catalog["version"] as? Int == Self.sessionCatalogVersion,
+      let window = sessionWindow(in: catalog),
+      let topology = sessionTopology(in: window),
+      let tabs = window["tabs"] as? [[String: Any]]
     else { return nil }
     let tabsByID = tabs.reduce(into: [String: [String: Any]]()) { result, tab in
       guard let id = sessionTabID(tab["id"]), result[id] == nil else { return }
@@ -299,7 +301,7 @@ final class SessionRestoreUITests: SupatermUITestCase {
       tabsByID.count == tabs.count,
       topology.orderedTabIDs.allSatisfy({ tabsByID[$0] != nil })
     else { return nil }
-    let selectedTabIndex = sessionTabID(space["selectedTabID"]).flatMap {
+    let selectedTabIndex = sessionTabID(window["selectedTabID"]).flatMap {
       topology.orderedTabIDs.firstIndex(of: $0)
     }
     return SessionLayout(
@@ -315,18 +317,16 @@ final class SessionRestoreUITests: SupatermUITestCase {
     )
   }
 
-  private func sessionSpace(in catalog: [String: Any]) -> [String: Any]? {
+  private func sessionWindow(in catalog: [String: Any]) -> [String: Any]? {
     guard
       let windows = catalog["windows"] as? [[String: Any]],
-      windows.count == 1,
-      let spaces = windows[0]["spaces"] as? [[String: Any]],
-      spaces.count == 1
+      windows.count == 1
     else { return nil }
-    return spaces[0]
+    return windows[0]
   }
 
-  private func sessionTopology(in space: [String: Any]) -> SessionTopology? {
-    guard let nodes = space["nodes"] as? [[String: Any]] else { return nil }
+  private func sessionTopology(in window: [String: Any]) -> SessionTopology? {
+    guard let nodes = window["nodes"] as? [[String: Any]] else { return nil }
     let indexedRootNodes = nodes.enumerated().filter { _, node in
       (node["parent"] as? [String: Any])?["kind"] as? String == "root"
     }

@@ -757,7 +757,7 @@ private func exerciseBackgroundSpaceCreation(
     ["ls"], app: app, runner: runner, cwd: space.directory
   )
   let selectedSpaceID = try #require(
-    before.windows.flatMap(\.spaces).first(where: \.isSelected)?.id
+    before.windows.first(where: \.isKey)?.spaces.first?.id
   )
   let backgroundName = "background-\(space.token)"
   let background: SupatermCreateSpaceResult = try runSPJSON(
@@ -767,15 +767,21 @@ private func exerciseBackgroundSpaceCreation(
     cwd: space.directory
   )
   #expect(!background.isFocused)
-  #expect(!background.isSelectedSpace)
-  #expect(!background.isSelectedTab)
+  #expect(background.isSelectedSpace)
+  #expect(background.isSelectedTab)
   let backgroundTree: SupatermTreeSnapshot = try runSPJSON(
     ["ls"], app: app, runner: runner, cwd: space.directory
   )
-  #expect(backgroundTree.windows.flatMap(\.spaces).first(where: \.isSelected)?.id == selectedSpaceID)
+  let backgroundWindow = try #require(
+    backgroundTree.windows.first {
+      $0.spaces.contains { $0.id == background.target.spaceID }
+    }
+  )
+  #expect(!backgroundWindow.isKey)
+  #expect(backgroundWindow.spaces.first?.isSelected == true)
+  #expect(backgroundTree.windows.first(where: \.isKey)?.spaces.first?.id == selectedSpaceID)
   #expect(
-    backgroundTree.windows.flatMap(\.spaces)
-      .first { $0.id == background.target.spaceID }?.flattenedTabs.count == 1
+    backgroundWindow.spaces.first?.flattenedTabs.count == 1
   )
   let duplicateCreate = try requireFailedSPResult(
     try runner.run(

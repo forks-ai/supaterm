@@ -121,9 +121,11 @@ final class TabsSpacesUITests: SupatermUITestCase {
     XCTAssertTrue(deleteSpace.waitForExistence(timeout: 10))
     deleteSpace.click()
 
-    let deleteTitle = app.staticTexts["Delete Space \"Renamed UI Space\"?"]
+    let deleteSheet = app.sheets.firstMatch
+    XCTAssertTrue(deleteSheet.waitForExistence(timeout: 10))
+    let deleteTitle = deleteSheet.staticTexts["Delete Space \"Renamed UI Space\"?"]
     XCTAssertTrue(deleteTitle.waitForExistence(timeout: 10))
-    let deleteButton = app.buttons["Delete"]
+    let deleteButton = deleteSheet.buttons["Delete"]
     XCTAssertTrue(deleteButton.waitForExistence(timeout: 10))
     deleteButton.click()
 
