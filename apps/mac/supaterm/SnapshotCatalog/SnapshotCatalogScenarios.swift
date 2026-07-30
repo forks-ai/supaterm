@@ -1,6 +1,7 @@
 import AppKit
 import ComposableArchitecture
 import Foundation
+import Sharing
 import SupaTheme
 import SupatermCLIShared
 import SupatermSettingsFeature
@@ -792,19 +793,15 @@ enum SidebarChromeSnapshotContext {
   )
 
   static let terminal: TerminalHostState = {
-    let terminal = TerminalHostState(managesTerminalSurfaces: false)
     let spaces = ["supaterm", "research", "ops"].enumerated().map { index, name in
-      PersistedTerminalSpace(
+      TerminalSpaceItem(
         id: TerminalSpaceID(
           rawValue: SnapshotFixtureValues.uuid("30000000-0000-0000-0000-00000000000\(index + 1)")
         ),
         name: name
       )
     }
-    terminal.spaceManager.bootstrap(
-      from: TerminalSpaceCatalog(defaultSelectedSpaceID: spaces[0].id, spaces: spaces),
-      initialSelectedSpaceID: spaces[0].id
-    )
+    let terminal = makeTerminal(space: spaces[0], spaces: spaces)
     let regularGroupTab = tab("43", title: "supaterm - fish")
     let selectedGroupTab = tab("44", title: "release-check")
     let rootItems = [
@@ -841,17 +838,13 @@ enum SidebarChromeSnapshotContext {
   }()
 
   static let selectedBeforeNewTabTerminal: TerminalHostState = {
-    let terminal = TerminalHostState(managesTerminalSurfaces: false)
-    let space = PersistedTerminalSpace(
+    let space = TerminalSpaceItem(
       id: TerminalSpaceID(
         rawValue: SnapshotFixtureValues.uuid("30000000-0000-0000-0000-000000000004")
       ),
       name: "supaterm"
     )
-    terminal.spaceManager.bootstrap(
-      from: TerminalSpaceCatalog(defaultSelectedSpaceID: space.id, spaces: [space]),
-      initialSelectedSpaceID: space.id
-    )
+    let terminal = makeTerminal(space: space, spaces: [space])
     let selectedTab = tab("46", title: "Home / X")
     terminal.spaceManager.restoreRootItems(
       [
@@ -869,17 +862,13 @@ enum SidebarChromeSnapshotContext {
   }()
 
   static let selectedGroupTerminal: TerminalHostState = {
-    let terminal = TerminalHostState(managesTerminalSurfaces: false)
-    let space = PersistedTerminalSpace(
+    let space = TerminalSpaceItem(
       id: TerminalSpaceID(
         rawValue: SnapshotFixtureValues.uuid("30000000-0000-0000-0000-000000000005")
       ),
       name: "supaterm"
     )
-    terminal.spaceManager.bootstrap(
-      from: TerminalSpaceCatalog(defaultSelectedSpaceID: space.id, spaces: [space]),
-      initialSelectedSpaceID: space.id
-    )
+    let terminal = makeTerminal(space: space, spaces: [space])
     let selectedTab = tab("47", title: "/Users/Developer/code/github.com/Goodnotes-CN/Good-Board")
     terminal.spaceManager.restoreRootItems(
       [
@@ -905,6 +894,21 @@ enum SidebarChromeSnapshotContext {
   static func windowStore() -> StoreOf<TerminalWindowFeature> {
     Store(initialState: TerminalWindowFeature.State()) {
       TerminalWindowFeature()
+    }
+  }
+
+  private static func makeTerminal(
+    space: TerminalSpaceItem,
+    spaces: [TerminalSpaceItem]
+  ) -> TerminalHostState {
+    withDependencies {
+      $0.defaultFileStorage = .inMemory
+    } operation: {
+      @Shared(.terminalSpaceCatalog) var catalog = TerminalSpaceCatalog.default
+      $catalog.withLock {
+        $0 = TerminalSpaceCatalog(defaultSelectedSpaceID: space.id, spaces: spaces)
+      }
+      return TerminalHostState(managesTerminalSurfaces: false, spaceID: space.id)
     }
   }
 

@@ -94,8 +94,8 @@ struct TerminalWindowControllerTests {
   }
 
   @Test
-  func restoredSessionAppliesSavedWindowFrame() async throws {
-    try await withDependencies {
+  func restoredSessionAppliesSavedWindowFrame() {
+    withDependencies {
       $0.defaultFileStorage = .inMemory
     } operation: {
       initializeGhosttyForTests()
@@ -108,8 +108,12 @@ struct TerminalWindowControllerTests {
         height: 740
       )
       let session = TerminalWindowSession(
-        selectedSpaceID: TerminalSpaceID(),
-        spaces: [],
+        spaceID: TerminalSpaceCatalog.default.defaultSelectedSpaceID,
+        selectedTabID: nil,
+        nodes: [],
+        groups: [],
+        collapsedGroupIDs: [],
+        tabs: [],
         frame: TerminalWindowFrame(frame)
       )
       let controller = TerminalWindowController(
@@ -120,16 +124,20 @@ struct TerminalWindowControllerTests {
         zmxSessionsEnabled: false
       )
       defer {
+        for tab in controller.terminal.visibleTabs {
+          controller.terminal.closeTab(tab.id)
+        }
         controller.window?.close()
       }
 
       #expect(controller.window?.frame == frame.constrained(to: visibleFrame))
+      #expect(controller.terminal.visibleTabs.count == 1)
     }
   }
 
   @Test
-  func redButtonCloseWarnsBeforeTerminatingLiveSessions() async throws {
-    try await withDependencies {
+  func redButtonCloseWarnsBeforeTerminatingLiveSessions() throws {
+    try withDependencies {
       $0.defaultFileStorage = .inMemory
     } operation: {
       initializeGhosttyForTests()

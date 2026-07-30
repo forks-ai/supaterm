@@ -110,13 +110,15 @@ final class MenusFirstRunUITests: SupatermUITestCase {
     terminal.click()
     app.typeText("sp space new Second\n")
 
-    let spaceButtons = app.buttons.matching(
-      identifier: SupatermUITestIdentifier.Accessibility.sidebarSpaceButton
+    let spaceSwitchers = app.descendants(matching: .any).matching(
+      identifier: SupatermUITestIdentifier.Accessibility.titlebarSpaceSwitcher
     )
-    let didCreateSecondSpace = await wait(
-      for: spaceButtons.element(boundBy: 1),
-      timeout: .seconds(30)
-    ) { $0.exists }
+    let secondSpaceSwitcher = spaceSwitchers.matching(
+      NSPredicate(format: "label == %@", "Space Second")
+    ).firstMatch
+    let didCreateSecondSpace = await wait(for: secondSpaceSwitcher, timeout: .seconds(30)) {
+      $0.exists && spaceSwitchers.count == 2
+    }
     XCTAssertTrue(didCreateSecondSpace)
 
     try openMenu("Spaces")

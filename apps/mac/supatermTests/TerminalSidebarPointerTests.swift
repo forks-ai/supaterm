@@ -11,7 +11,7 @@ struct TerminalSidebarPointerTests {
   @Test
   func tabRowRoutesPlainAndModifiedClicksThroughCollectionController() async throws {
     let host = TerminalHostState(managesTerminalSurfaces: false)
-    let manager = try #require(host.spaceManager.activeTabManager)
+    let manager = host.spaceManager.tabManager
     let firstTabID = manager.createTab(title: "First")
     let secondTabID = manager.createTab(title: "Second")
     manager.selectTab(secondTabID)

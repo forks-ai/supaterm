@@ -1,8 +1,7 @@
 enum SupatermUITestIdentifier {
   enum Accessibility {
     static let sidebarStructuralRowPrefix = "sidebar."
-    static let sidebarSpaceButton = "sidebar.space-button"
-    static let sidebarCreateSpaceButton = "sidebar.create-space-button"
+    static let titlebarSpaceSwitcher = "titlebar.space-switcher"
     static let sidebarRootTabRowPrefix = "sidebar.tab-row."
     static let sidebarGroupPrefix = "sidebar.group."
     static let sidebarGroupHeaderPrefix = "sidebar.group-header."

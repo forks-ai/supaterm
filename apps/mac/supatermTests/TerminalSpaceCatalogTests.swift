@@ -38,7 +38,7 @@ struct TerminalSpaceCatalogTests {
 
   @Test
   func sanitizedFallsBackToDefaultCatalogWhenCatalogIsMissingOrInvalid() {
-    let invalidSpace = PersistedTerminalSpace(name: "   ")
+    let invalidSpace = TerminalSpaceItem(name: "   ")
 
     let catalog = TerminalSpaceCatalog.sanitized(
       TerminalSpaceCatalog(
@@ -53,11 +53,11 @@ struct TerminalSpaceCatalogTests {
 
   @Test
   func sanitizedFallsBackToFirstSpaceWhenPersistedDefaultIsMissing() {
-    let firstSpace = PersistedTerminalSpace(
+    let firstSpace = TerminalSpaceItem(
       id: TerminalSpaceID(rawValue: UUID(uuidString: "AAAAAAAA-AAAA-AAAA-AAAA-AAAAAAAAAAAA")!),
       name: "A"
     )
-    let secondSpace = PersistedTerminalSpace(
+    let secondSpace = TerminalSpaceItem(
       id: TerminalSpaceID(rawValue: UUID(uuidString: "BBBBBBBB-BBBB-BBBB-BBBB-BBBBBBBBBBBB")!),
       name: "B"
     )

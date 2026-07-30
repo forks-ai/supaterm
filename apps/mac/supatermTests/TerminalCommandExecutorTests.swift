@@ -1,6 +1,7 @@
 import AppKit
 import Clocks
 import ComposableArchitecture
+import Sharing
 import SupatermSupport
 import SupatermTerminalCore
 import SupatermUpdateFeature
@@ -11,6 +12,132 @@ import Testing
 
 @MainActor
 struct TerminalCommandExecutorTests {
+  @Test
+  func createSpaceCreatesOneWindowAndHonorsFocus() throws {
+    try withDependencies {
+      $0.defaultFileStorage = .inMemory
+    } operation: {
+      initializeGhosttyForTests()
+      let initialSpace = TerminalSpaceItem(name: "Initial")
+      @Shared(.terminalSpaceCatalog) var catalog = TerminalSpaceCatalog.default
+      $catalog.withLock {
+        $0 = TerminalSpaceCatalog(
+          defaultSelectedSpaceID: initialSpace.id,
+          spaces: [initialSpace]
+        )
+      }
+      let registry = TerminalWindowRegistry()
+      let commandExecutor = makeCommandExecutor(registry: registry)
+      let initialWindow = registerSpaceCommandWindow(
+        in: registry,
+        spaceID: initialSpace.id,
+        isKey: true
+      )
+      var createdWindows: [SpaceCommandWindow] = []
+      var focusRequests: [Bool] = []
+      registry.onCreateWindow = { spaceID, focus in
+        createdWindows.append(
+          registerSpaceCommandWindow(
+            in: registry,
+            spaceID: spaceID,
+            isKey: focus
+          )
+        )
+        focusRequests.append(focus)
+      }
+
+      let unfocused = try commandExecutor.createSpace(
+        TerminalCreateSpaceRequest(
+          focus: false,
+          name: "Background",
+          windowAnchorPaneID: initialWindow.paneID
+        )
+      )
+
+      #expect(catalog.defaultSelectedSpaceID == initialSpace.id)
+      #expect(focusRequests == [false])
+      #expect(unfocused.target.windowIndex == 2)
+      #expect(unfocused.target.spaceIndex == 1)
+      #expect(unfocused.target.name == "Background")
+      #expect(unfocused.isSelectedSpace)
+      #expect(!unfocused.isFocused)
+
+      let focused = try commandExecutor.createSpace(
+        TerminalCreateSpaceRequest(
+          focus: true,
+          name: "Foreground",
+          windowAnchorPaneID: initialWindow.paneID
+        )
+      )
+
+      #expect(catalog.defaultSelectedSpaceID.rawValue == focused.target.spaceID)
+      #expect(focusRequests == [false, true])
+      #expect(focused.target.windowIndex == 3)
+      withExtendedLifetime([initialWindow.window] + createdWindows.map(\.window)) {}
+    }
+  }
+
+  @Test
+  func spaceCommandsRouteBetweenFixedSpaceWindows() throws {
+    try withDependencies {
+      $0.defaultFileStorage = .inMemory
+    } operation: {
+      initializeGhosttyForTests()
+      let spaces = [TerminalSpaceItem(name: "First"), TerminalSpaceItem(name: "Second")]
+      @Shared(.terminalSpaceCatalog) var catalog = TerminalSpaceCatalog.default
+      $catalog.withLock {
+        $0 = TerminalSpaceCatalog(defaultSelectedSpaceID: spaces[0].id, spaces: spaces)
+      }
+      let registry = TerminalWindowRegistry()
+      let commandExecutor = makeCommandExecutor(registry: registry)
+      let first = registerSpaceCommandWindow(in: registry, spaceID: spaces[0].id)
+      var closedSecondWindow = false
+      let second = registerSpaceCommandWindow(
+        in: registry,
+        spaceID: spaces[1].id,
+        onClose: { closedSecondWindow = true }
+      )
+
+      let renamed = try commandExecutor.renameSpace(
+        TerminalRenameSpaceRequest(
+          name: "Build",
+          target: TerminalSpaceTarget(spaceID: spaces[1].id.rawValue)
+        )
+      )
+      #expect(renamed.name == "Build")
+      #expect(catalog.spaces.map(\.name) == ["First", "Build"])
+
+      let selected = try commandExecutor.selectSpace(
+        TerminalSpaceTarget(spaceID: spaces[1].id.rawValue)
+      )
+      #expect(selected.target.windowIndex == 2)
+      #expect(selected.target.spaceID == spaces[1].id.rawValue)
+
+      let previous = try commandExecutor.previousSpace(
+        TerminalSpaceNavigationRequest(spaceID: spaces[1].id.rawValue)
+      )
+      #expect(previous.target.spaceID == spaces[0].id.rawValue)
+
+      let last = try commandExecutor.lastSpace(
+        TerminalSpaceNavigationRequest(spaceID: spaces[0].id.rawValue)
+      )
+      #expect(last.target.spaceID == spaces[1].id.rawValue)
+
+      let next = try commandExecutor.nextSpace(
+        TerminalSpaceNavigationRequest(spaceID: spaces[1].id.rawValue)
+      )
+      #expect(next.target.spaceID == spaces[0].id.rawValue)
+
+      let closed = try commandExecutor.closeSpace(
+        TerminalSpaceTarget(spaceID: spaces[1].id.rawValue)
+      )
+      #expect(closed.spaceID == spaces[1].id.rawValue)
+      #expect(closedSecondWindow)
+      #expect(catalog.spaces.map(\.id) == [spaces[0].id])
+      withExtendedLifetime([first.window, second.window]) {}
+    }
+  }
+
   @Test
   func debugSnapshotUsesUpdatePhaseIdentifierAndDetail() {
     let registry = TerminalWindowRegistry()
@@ -531,15 +658,46 @@ struct TerminalCommandExecutorTests {
       let unpinned = try commandExecutor.unpinTab(TerminalTabTarget(tabID: groupedTabID.rawValue))
 
       #expect(!unpinned.isPinned)
-      #expect(host.spaceManager.activeTabManager?.rootItemID(containing: groupedTabID) == .group(groupID))
-      #expect(host.spaceManager.activeTabManager?.tabIDs(in: groupID) == [firstTabID, groupedTabID])
+      #expect(host.spaceManager.tabManager.rootItemID(containing: groupedTabID) == .group(groupID))
+      #expect(host.spaceManager.tabManager.tabIDs(in: groupID) == [firstTabID, groupedTabID])
 
       let pinned = try commandExecutor.pinTab(TerminalTabTarget(tabID: groupedTabID.rawValue))
 
       #expect(pinned.isPinned)
-      #expect(host.spaceManager.activeTabManager?.rootItemID(containing: groupedTabID) == .tab(groupedTabID))
-      #expect(host.spaceManager.activeTabManager?.pinnedRootItems.map(\.id) == [.tab(groupedTabID)])
-      #expect(host.spaceManager.activeTabManager?.tabIDs(in: groupID) == [firstTabID])
+      #expect(host.spaceManager.tabManager.rootItemID(containing: groupedTabID) == .tab(groupedTabID))
+      #expect(host.spaceManager.tabManager.pinnedRootItems.map(\.id) == [.tab(groupedTabID)])
+      #expect(host.spaceManager.tabManager.tabIDs(in: groupID) == [firstTabID])
     }
   }
+}
+
+@MainActor
+private func registerSpaceCommandWindow(
+  in registry: TerminalWindowRegistry,
+  spaceID: TerminalSpaceID,
+  isKey: Bool = false,
+  onClose: @escaping @MainActor @Sendable () -> Void = {}
+) -> SpaceCommandWindow {
+  let host = TerminalHostState(spaceID: spaceID)
+  host.handleCommand(.ensureInitialTab(focusing: false, startupCommand: nil))
+  host.windowActivity = WindowActivityState(isKeyWindow: isKey, isVisible: true)
+  let store = Store(initialState: AppFeature.State()) {
+    AppFeature()
+  }
+  let windowControllerID = UUID()
+  registry.register(
+    keyboardShortcutForAction: { _ in nil },
+    windowControllerID: windowControllerID,
+    store: store,
+    terminal: host,
+    requestConfirmedWindowClose: onClose
+  )
+  let window = makeWindow()
+  registry.updateWindow(window, for: windowControllerID)
+  return SpaceCommandWindow(paneID: host.selectedSurfaceView!.id, window: window)
+}
+
+private struct SpaceCommandWindow {
+  let paneID: UUID
+  let window: NSWindow
 }

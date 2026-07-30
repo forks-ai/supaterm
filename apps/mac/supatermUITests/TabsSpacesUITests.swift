@@ -68,31 +68,34 @@ final class TabsSpacesUITests: SupatermUITestCase {
     _ = mainWindow
     let didShowInitialTab = await waitForSidebarElementCount(tabRows, equals: 1, timeout: .seconds(30))
     XCTAssertTrue(didShowInitialTab)
-    XCTAssertEqual(spaceButtons.count, 0)
-
-    try await enterFullScreen()
+    XCTAssertEqual(spaceSwitchers.count, 1)
 
     try await createSpace(named: "UI Space")
 
-    let didShowSpaceBar = await waitForSidebarElementCount(spaceButtons, equals: 2)
-    XCTAssertTrue(didShowSpaceBar)
+    let didOpenSpaceWindow = await wait {
+      self.app.windows.count == 2 && self.spaceSwitchers.count == 2
+    }
+    XCTAssertTrue(didOpenSpaceWindow)
 
-    let initialSpace = spaceButton(named: "1")
-    let createdSpace = spaceButton(named: "UI Space")
+    let initialSpace = spaceSwitcher(named: "1")
+    let createdSpace = spaceSwitcher(named: "UI Space")
     XCTAssertTrue(initialSpace.exists)
-    XCTAssertTrue(createdSpace.isSelected)
+    XCTAssertTrue(createdSpace.exists)
 
     app.typeKey("1", modifierFlags: .control)
 
-    let didSelectInitialSpace = await waitForSidebarSelection(initialSpace)
-    XCTAssertTrue(didSelectInitialSpace)
+    let didFocusInitialSpace = await wait(for: initialSpace) { $0.isHittable }
+    XCTAssertTrue(didFocusInitialSpace)
 
     app.typeKey("2", modifierFlags: .control)
 
-    let didSelectCreatedSpace = await waitForSidebarSelection(createdSpace)
-    XCTAssertTrue(didSelectCreatedSpace)
+    let didFocusCreatedSpace = await wait(for: createdSpace) { $0.isHittable }
+    XCTAssertTrue(didFocusCreatedSpace)
 
-    try clickSidebarContextMenuItem("Rename Space", on: createdSpace)
+    createdSpace.click()
+    let renameSpace = app.menuItems["Rename Space"]
+    XCTAssertTrue(renameSpace.waitForExistence(timeout: 10))
+    renameSpace.click()
 
     let nameField = app.textFields[
       SupatermUITestIdentifier.Accessibility.dialogSpaceName
@@ -108,20 +111,27 @@ final class TabsSpacesUITests: SupatermUITestCase {
     XCTAssertTrue(confirm.waitForExistence(timeout: 10))
     confirm.click()
 
-    let renamedSpace = spaceButton(named: "Renamed UI Space")
+    let renamedSpace = spaceSwitcher(named: "Renamed UI Space")
     let didRenameSpace = await wait(for: renamedSpace) { $0.exists }
     XCTAssertTrue(didRenameSpace)
-    XCTAssertFalse(spaceButton(named: "UI Space").exists)
+    XCTAssertFalse(spaceSwitcher(named: "UI Space").exists)
 
-    try clickSidebarContextMenuItem("Delete Space", on: renamedSpace)
+    renamedSpace.click()
+    let deleteSpace = app.menuItems["Delete Space"]
+    XCTAssertTrue(deleteSpace.waitForExistence(timeout: 10))
+    deleteSpace.click()
 
     let deleteTitle = app.staticTexts["Delete Space \"Renamed UI Space\"?"]
     XCTAssertTrue(deleteTitle.waitForExistence(timeout: 10))
-    let deleteButton = mainWindow.buttons["Delete"]
+    let deleteButton = app.buttons["Delete"]
     XCTAssertTrue(deleteButton.waitForExistence(timeout: 10))
     deleteButton.click()
 
-    let didDeleteSpace = await waitForSidebarElementCount(spaceButtons, equals: 0)
+    let didDeleteSpace = await wait {
+      self.app.windows.count == 1
+        && self.spaceSwitchers.count == 1
+        && !self.spaceSwitcher(named: "Renamed UI Space").exists
+    }
     XCTAssertTrue(didDeleteSpace)
   }
 
@@ -330,9 +340,9 @@ final class TabsSpacesUITests: SupatermUITestCase {
   }
 
   @MainActor
-  private var spaceButtons: XCUIElementQuery {
-    app.buttons.matching(
-      identifier: SupatermUITestIdentifier.Accessibility.sidebarSpaceButton
+  private var spaceSwitchers: XCUIElementQuery {
+    app.descendants(matching: .any).matching(
+      identifier: SupatermUITestIdentifier.Accessibility.titlebarSpaceSwitcher
     )
   }
 
@@ -340,8 +350,8 @@ final class TabsSpacesUITests: SupatermUITestCase {
   private func tabRow(named title: String) -> XCUIElement { sidebarTabRow(named: title) }
 
   @MainActor
-  private func spaceButton(named name: String) -> XCUIElement {
-    spaceButtons.matching(
+  private func spaceSwitcher(named name: String) -> XCUIElement {
+    spaceSwitchers.matching(
       NSPredicate(format: "label == %@", "Space \(name)")
     ).firstMatch
   }
@@ -410,13 +420,10 @@ final class TabsSpacesUITests: SupatermUITestCase {
 
   @MainActor
   private func createSpace(named name: String) async throws {
-    let createButtonCandidate = app.buttons[
-      SupatermUITestIdentifier.Accessibility.sidebarCreateSpaceButton
-    ]
-    let createButton = try require(createButtonCandidate)
-    createButton.coordinate(
-      withNormalizedOffset: CGVector(dx: 0.5, dy: 0.1)
-    ).click()
+    let switcher = try require(spaceSwitchers.firstMatch)
+    switcher.click()
+    let createSpace = try require(app.menuItems["New Space"])
+    createSpace.click()
 
     let nameFieldCandidate = app.textFields[
       SupatermUITestIdentifier.Accessibility.dialogSpaceName
@@ -432,21 +439,6 @@ final class TabsSpacesUITests: SupatermUITestCase {
 
     let didDismissEditor = await wait(for: nameField) { !$0.exists }
     XCTAssertTrue(didDismissEditor)
-  }
-
-  @MainActor
-  private func enterFullScreen() async throws {
-    let buttonCandidate = mainWindow.buttons["Enter full screen"]
-    let button = try require(buttonCandidate)
-    button.click()
-
-    let createButton = app.buttons[
-      SupatermUITestIdentifier.Accessibility.sidebarCreateSpaceButton
-    ]
-    let didMoveAboveDock = await wait(for: createButton) {
-      $0.frame.maxY <= self.app.frame.maxY - 20
-    }
-    XCTAssertTrue(didMoveAboveDock)
   }
 
   @MainActor

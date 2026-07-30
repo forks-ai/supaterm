@@ -103,18 +103,15 @@ struct TerminalSidebarView: View {
   let dismissReleaseAnnouncement: () -> Void
 
   var body: some View {
-    ZStack(alignment: .topLeading) {
-      TerminalSidebarChromeView(
-        store: store,
-        updateStore: updateStore,
-        releaseAnnouncement: releaseAnnouncement,
-        palette: palette,
-        terminal: terminal,
-        fixedHoveredGroupID: nil,
-        dismissReleaseAnnouncement: dismissReleaseAnnouncement
-      )
-      WindowTrafficLights()
-    }
+    TerminalSidebarChromeView(
+      store: store,
+      updateStore: updateStore,
+      releaseAnnouncement: releaseAnnouncement,
+      palette: palette,
+      terminal: terminal,
+      fixedHoveredGroupID: nil,
+      dismissReleaseAnnouncement: dismissReleaseAnnouncement
+    )
     .padding(.bottom, sidebarBottomPadding)
     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
   }

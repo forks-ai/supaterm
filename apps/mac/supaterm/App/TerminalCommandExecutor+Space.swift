@@ -4,51 +4,46 @@ import SupatermTerminalCore
 
 extension TerminalCommandExecutor {
   func createSpace(_ request: TerminalCreateSpaceRequest) throws -> SupatermCreateSpaceResult {
-    try executeTargeted(
-      operation: { try $0.terminal.createSpace(request) },
-      rewrite: TerminalWindowRegistry.rewrite
-    )
+    guard
+      registry.activeEntries().contains(where: {
+        $0.terminal.tabID(containing: request.windowAnchorPaneID) != nil
+      })
+    else {
+      throw TerminalControlError.contextPaneNotFound
+    }
+    return try registry.createSpaceResult(named: request.name, focus: request.focus)
   }
 
   func selectSpace(_ target: TerminalSpaceTarget) throws -> SupatermSelectSpaceResult {
-    try executeTargeted(
-      operation: { try $0.terminal.selectSpace(target) },
-      rewrite: TerminalWindowRegistry.rewrite
-    )
+    try registry.selectSpaceResult(TerminalSpaceID(rawValue: target.spaceID))
   }
 
   func closeSpace(_ target: TerminalSpaceTarget) throws -> SupatermCloseSpaceResult {
-    try executeTargeted(
-      operation: { try $0.terminal.closeSpace(target) },
-      rewrite: TerminalWindowRegistry.rewrite
-    )
+    try registry.deleteSpaceResult(TerminalSpaceID(rawValue: target.spaceID))
   }
 
   func renameSpace(_ request: TerminalRenameSpaceRequest) throws -> SupatermSpaceTarget {
-    try executeTargeted(
-      operation: { try $0.terminal.renameSpace(request) },
-      rewrite: TerminalWindowRegistry.rewrite
+    try registry.renameSpaceResult(
+      TerminalSpaceID(rawValue: request.target.spaceID),
+      to: request.name
     )
   }
 
   func nextSpace(_ request: TerminalSpaceNavigationRequest) throws -> SupatermSelectSpaceResult {
-    try executeTargeted(
-      operation: { try $0.terminal.nextSpace(request) },
-      rewrite: TerminalWindowRegistry.rewrite
+    try registry.adjacentSpaceResult(
+      from: TerminalSpaceID(rawValue: request.spaceID),
+      step: 1
     )
   }
 
   func previousSpace(_ request: TerminalSpaceNavigationRequest) throws -> SupatermSelectSpaceResult {
-    try executeTargeted(
-      operation: { try $0.terminal.previousSpace(request) },
-      rewrite: TerminalWindowRegistry.rewrite
+    try registry.adjacentSpaceResult(
+      from: TerminalSpaceID(rawValue: request.spaceID),
+      step: -1
     )
   }
 
   func lastSpace(_ request: TerminalSpaceNavigationRequest) throws -> SupatermSelectSpaceResult {
-    try executeTargeted(
-      operation: { try $0.terminal.lastSpace(request) },
-      rewrite: TerminalWindowRegistry.rewrite
-    )
+    try registry.lastSpaceResult(from: TerminalSpaceID(rawValue: request.spaceID))
   }
 }

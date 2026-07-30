@@ -6,77 +6,39 @@ import Testing
 @MainActor
 struct TerminalSpaceManagerTests {
   @Test
-  func bootstrapUsesCatalogDefaultSelectionWhenInitialSelectionMissing() {
-    let manager = TerminalSpaceManager()
-    let catalog = makeCatalog(["A", "B"], defaultSelectedIndex: 1)
+  func ownsOnlyItsFixedSpace() {
+    let space = TerminalSpaceItem(name: "A")
+    let manager = TerminalSpaceManager(space: space)
+    let otherSpaceID = TerminalSpaceID()
 
-    manager.bootstrap(from: catalog, initialSelectedSpaceID: nil)
-
-    #expect(manager.spaces.map(\.name) == ["A", "B"])
-    #expect(manager.selectedSpaceID == catalog.spaces[1].id)
+    #expect(manager.spaces == [space])
+    #expect(manager.selectedSpaceID == space.id)
+    #expect(manager.tabManager(for: otherSpaceID) == nil)
+    #expect(manager.tabs(in: otherSpaceID).isEmpty)
   }
 
   @Test
-  func bootstrapPrefersProvidedInitialSelectionWhenItExists() {
-    let manager = TerminalSpaceManager()
-    let catalog = makeCatalog(["A", "B"], defaultSelectedIndex: 1)
-
-    manager.bootstrap(from: catalog, initialSelectedSpaceID: catalog.spaces[0].id)
-
-    #expect(manager.selectedSpaceID == catalog.spaces[0].id)
-  }
-
-  @Test
-  func isNameAvailableRejectsEmptyAndDuplicateNames() {
-    let manager = TerminalSpaceManager()
-    let catalog = makeCatalog(["A", "B"])
-
-    manager.bootstrap(from: catalog, initialSelectedSpaceID: nil)
-
-    #expect(manager.isNameAvailable("   ") == false)
-    #expect(manager.isNameAvailable("a") == false)
-    #expect(manager.isNameAvailable("Shell"))
-  }
-
-  @Test
-  func applyCatalogReselectsPreviousSpaceAndReturnsRemovedTabs() {
-    let manager = TerminalSpaceManager()
-    let catalog = makeCatalog(["A", "B", "C"])
-    manager.bootstrap(from: catalog, initialSelectedSpaceID: catalog.spaces[2].id)
-    let removedTabID = manager.tabManager(for: catalog.spaces[2].id)?
-      .createTab(title: "Terminal 1")
-
+  func catalogUpdatesRenameWithoutChangingOwnershipOrTabs() {
+    let space = TerminalSpaceItem(name: "A")
+    let manager = TerminalSpaceManager(space: space)
+    let tabID = manager.tabManager.createTab(title: "Terminal 1")
     let updatedCatalog = TerminalSpaceCatalog(
-      defaultSelectedSpaceID: catalog.spaces[0].id,
-      spaces: Array(catalog.spaces.dropLast())
+      defaultSelectedSpaceID: space.id,
+      spaces: [TerminalSpaceItem(id: space.id, name: "Renamed")]
     )
-    let diff = manager.applyCatalog(updatedCatalog)
+    manager.applyCatalog(updatedCatalog)
 
-    #expect(diff.removedTabIDs == [removedTabID].compactMap { $0 })
-    #expect(manager.spaces.map(\.name) == ["A", "B"])
-    #expect(manager.selectedSpaceID == catalog.spaces[1].id)
+    #expect(manager.spaces.map(\.name) == ["Renamed"])
+    #expect(manager.selectedSpaceID == space.id)
+    #expect(manager.tabs.map(\.id) == [tabID].compactMap { $0 })
   }
 
   @Test
-  func spaceAtIndexUsesOneBasedOrdering() {
-    let manager = TerminalSpaceManager()
-    let catalog = makeCatalog(["A", "B"])
+  func spaceAtIndexExposesOnlyTheOwnedSpace() {
+    let space = TerminalSpaceItem(name: "A")
+    let manager = TerminalSpaceManager(space: space)
 
-    manager.bootstrap(from: catalog, initialSelectedSpaceID: nil)
-
-    #expect(manager.space(at: 1)?.id == catalog.spaces[0].id)
-    #expect(manager.space(at: 2)?.id == catalog.spaces[1].id)
-    #expect(manager.space(at: 3) == nil)
-  }
-
-  private func makeCatalog(
-    _ spaceNames: [String],
-    defaultSelectedIndex: Int = 0
-  ) -> TerminalSpaceCatalog {
-    let spaces = spaceNames.map { PersistedTerminalSpace(name: $0) }
-    return TerminalSpaceCatalog(
-      defaultSelectedSpaceID: spaces[defaultSelectedIndex].id,
-      spaces: spaces
-    )
+    #expect(manager.space(at: 1) == space)
+    #expect(manager.space(at: 2) == nil)
   }
 }

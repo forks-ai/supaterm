@@ -16,45 +16,30 @@ private struct TerminalRootSessionSnapshot {
 
 extension TerminalHostState {
   func restorationSnapshot() -> TerminalWindowSession {
-    let spaces = spaces.map { space in
-      var rootOrderByPinned = [true: 0, false: 0]
-      var rootSnapshots: [TerminalRootSessionSnapshot] = []
-      for item in spaceManager.rootItems(in: space.id) {
-        let rootOrder = rootOrderByPinned[item.isPinned, default: 0]
-        guard let snapshot = restorationSnapshot(for: item, rootOrder: rootOrder) else {
-          continue
-        }
-        rootSnapshots.append(snapshot)
-        rootOrderByPinned[item.isPinned] = rootOrder + 1
+    let spaceID = selectedSpaceID ?? spaceCatalog.defaultSelectedSpaceID
+    var rootOrderByPinned = [true: 0, false: 0]
+    var rootSnapshots: [TerminalRootSessionSnapshot] = []
+    for item in spaceManager.rootItems(in: spaceID) {
+      let rootOrder = rootOrderByPinned[item.isPinned, default: 0]
+      guard let snapshot = restorationSnapshot(for: item, rootOrder: rootOrder) else {
+        continue
       }
-      let tabs = rootSnapshots.flatMap(\.tabs)
-      let tabIDs = Set(tabs.map(\.id))
-      let selectedTabID =
-        spaceManager.selectedTabID(in: space.id).flatMap {
-          tabIDs.contains($0) ? $0 : nil
-        } ?? tabs.first?.id
-      return TerminalWindowSpaceSession(
-        id: space.id,
-        selectedTabID: selectedTabID,
-        nodes: rootSnapshots.flatMap(\.nodes),
-        groups: rootSnapshots.compactMap(\.group),
-        collapsedGroupIDs: rootSnapshots.compactMap(\.group).map(\.id).filter {
-          collapsedTabGroupIDsBySpace[space.id]?.contains($0) == true
-        },
-        tabs: tabs
-      )
+      rootSnapshots.append(snapshot)
+      rootOrderByPinned[item.isPinned] = rootOrder + 1
     }
-
-    let resolvedSelectedSpaceID =
-      self.selectedSpaceID.flatMap { selectedSpaceID in
-        spaces.contains(where: { $0.id == selectedSpaceID }) ? selectedSpaceID : nil
-      }
-      ?? spaces.first?.id
-      ?? spaceCatalog.defaultSelectedSpaceID
-
+    let tabs = rootSnapshots.flatMap(\.tabs)
+    let tabIDs = Set(tabs.map(\.id))
     return TerminalWindowSession(
-      selectedSpaceID: resolvedSelectedSpaceID,
-      spaces: spaces
+      spaceID: spaceID,
+      selectedTabID: spaceManager.selectedTabID(in: spaceID).flatMap {
+        tabIDs.contains($0) ? $0 : nil
+      } ?? tabs.first?.id,
+      nodes: rootSnapshots.flatMap(\.nodes),
+      groups: rootSnapshots.compactMap(\.group),
+      collapsedGroupIDs: rootSnapshots.compactMap(\.group).map(\.id).filter {
+        collapsedTabGroupIDsBySpace[spaceID]?.contains($0) == true
+      },
+      tabs: tabs
     )
   }
 
@@ -64,7 +49,7 @@ extension TerminalHostState {
       SupatermLog.terminal,
       "terminal.session.restore.requested",
       fields: [
-        "spaces=\(session.spaces.count)",
+        "spaceID=\(SupatermLog.uuid(session.spaceID.rawValue))",
         "surfaces=\(session.surfaceIDs.count)",
       ]
     )
@@ -89,7 +74,7 @@ extension TerminalHostState {
       SupatermLog.terminal,
       "terminal.session.restore.pruned",
       fields: [
-        "spaces=\(session.spaces.count)",
+        "spaceID=\(SupatermLog.uuid(session.spaceID.rawValue))",
         "surfaces=\(session.surfaceIDs.count)",
       ]
     )
@@ -101,8 +86,8 @@ extension TerminalHostState {
 
   func restorePrunedSession(_ session: TerminalWindowSession) -> Bool {
     clearSessionState()
-    let restoredSpaces = restoreTabItems(from: session)
-    restorePaneSessions(restoredSpaces)
+    let restoredSpace = restoreTabItems(from: session)
+    restorePaneSessions(restoredSpace, in: session.spaceID)
     return finalizeRestoredSession(session)
   }
 
@@ -154,40 +139,29 @@ extension TerminalHostState {
 
   private func restoreTabItems(
     from session: TerminalWindowSession
-  ) -> [TerminalSpaceID: RestoredTerminalSpace] {
-    let sessionsBySpaceID = Dictionary(uniqueKeysWithValues: session.spaces.map { ($0.id, $0) })
-    var restoredSpaces: [TerminalSpaceID: RestoredTerminalSpace] = [:]
-
-    for space in spaces {
-      let spaceSession = sessionsBySpaceID[space.id]
-      let restoredSpace = restoredSpace(for: spaceSession)
-      restoredSpaces[space.id] = restoredSpace
-      collapsedTabGroupIDsBySpace[space.id] = Set(spaceSession?.collapsedGroupIDs ?? [])
-      _ = spaceManager.restoreRootItems(
-        restoredSpace.rootItems,
-        selectedTabID: spaceSession?.selectedTabID,
-        in: space.id
-      )
-    }
-
-    return restoredSpaces
+  ) -> RestoredTerminalSpace {
+    let restoredSpace = restoredSpace(for: session)
+    collapsedTabGroupIDsBySpace[session.spaceID] = Set(session.collapsedGroupIDs)
+    _ = spaceManager.restoreRootItems(
+      restoredSpace.rootItems,
+      selectedTabID: session.selectedTabID,
+      in: session.spaceID
+    )
+    return restoredSpace
   }
 
   private func restoredSpace(
-    for spaceSession: TerminalWindowSpaceSession?
+    for session: TerminalWindowSession
   ) -> RestoredTerminalSpace {
-    guard let spaceSession else {
-      return RestoredTerminalSpace(rootItems: [], tabs: [])
-    }
-    let tabSessionsByID = Dictionary(uniqueKeysWithValues: spaceSession.tabs.map { ($0.id, $0) })
-    let groupSessionsByID = Dictionary(uniqueKeysWithValues: spaceSession.groups.map { ($0.id, $0) })
+    let tabSessionsByID = Dictionary(uniqueKeysWithValues: session.tabs.map { ($0.id, $0) })
+    let groupSessionsByID = Dictionary(uniqueKeysWithValues: session.groups.map { ($0.id, $0) })
     var tabNodesByGroupID: [TerminalTabGroupID: [TerminalTabNodeSession]] = [:]
-    for node in spaceSession.nodes {
+    for node in session.nodes {
       guard let groupID = node.parent.groupID else { continue }
       tabNodesByGroupID[groupID, default: []].append(node)
     }
     tabNodesByGroupID = tabNodesByGroupID.mapValues { $0.sorted { $0.order < $1.order } }
-    let rootNodes = spaceSession.nodes.filter { $0.parent.isPinned != nil }.sorted {
+    let rootNodes = session.nodes.filter { $0.parent.isPinned != nil }.sorted {
       let lhsLane = $0.parent.isPinned == true ? 0 : 1
       let rhsLane = $1.parent.isPinned == true ? 0 : 1
       return (lhsLane, $0.order) < (rhsLane, $1.order)
@@ -230,42 +204,37 @@ extension TerminalHostState {
   }
 
   private func restorePaneSessions(
-    _ restoredSpaces: [TerminalSpaceID: RestoredTerminalSpace]
+    _ restoredSpace: RestoredTerminalSpace,
+    in spaceID: TerminalSpaceID
   ) {
-    for (spaceID, restoredSpace) in restoredSpaces {
-      for tab in restoredSpace.tabs {
-        restoreTabSession(tab, in: spaceID)
-      }
+    for tab in restoredSpace.tabs {
+      restoreTabSession(tab, in: spaceID)
     }
   }
 
   func finalizeRestoredSession(_ session: TerminalWindowSession) -> Bool {
-    guard spaces.contains(where: { !spaceManager.rootItems(in: $0.id).isEmpty }) else {
+    guard !spaceManager.rootItems(in: session.spaceID).isEmpty else {
       logRestoreFailed(reason: "noRestoredItems")
       clearSessionState()
       return false
     }
 
-    let selectedSpaceID =
-      spaces.contains(where: { $0.id == session.selectedSpaceID })
-      ? session.selectedSpaceID
-      : spaces.first?.id
-    guard let selectedSpaceID, applySelectedSpace(selectedSpaceID) else {
+    guard selectedSpaceID == session.spaceID else {
       logRestoreFailed(reason: "selectedSpaceMissing")
       clearSessionState()
       return false
     }
 
-    if spaceManager.tabs(in: selectedSpaceID).isEmpty {
+    if spaceManager.tabs(in: session.spaceID).isEmpty {
       _ = createTab(
-        in: selectedSpaceID,
+        in: session.spaceID,
         focusing: false,
         sessionChangesEnabled: false,
         synchronizesFocus: false
       )
     }
     finalizeRestoredSelection()
-    logRestoreFinished(selectedSpaceID)
+    logRestoreFinished(session.spaceID)
     return true
   }
 
@@ -443,7 +412,6 @@ extension TerminalHostState {
       focusHistoryByTab[tabID]?.previous = nil
     }
     previousSelectedTabIDBySpace.removeAll()
-    previousSelectedSpaceID = nil
     lastEmittedFocusSurfaceID = nil
   }
 

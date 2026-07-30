@@ -73,6 +73,7 @@ final class TerminalWindowController: NSWindowController {
     runtime: GhosttyRuntime,
     registry: TerminalWindowRegistry,
     session: TerminalWindowSession? = nil,
+    spaceID: TerminalSpaceID? = nil,
     startupCommand: String? = nil,
     zmxClient: ZmxClient = .live,
     zmxSessionsEnabled: Bool = true,
@@ -84,13 +85,12 @@ final class TerminalWindowController: NSWindowController {
 
     let terminal = TerminalHostState(
       runtime: runtime,
+      spaceID: session?.spaceID ?? spaceID,
       zmxClient: zmxClient,
       zmxSessionsEnabled: zmxSessionsEnabled
     )
     terminal.onSessionChange = onSessionChange
-    if let session {
-      _ = terminal.restore(from: session)
-    }
+    Self.prepareTerminal(terminal, session: session, startupCommand: startupCommand)
     let commandPaletteClient = TerminalCommandPaletteClient.live(registry: registry)
     let store = Store(
       initialState: AppFeature.State(
@@ -186,6 +186,17 @@ final class TerminalWindowController: NSWindowController {
     _ = store.send(.terminal(.windowIdentifierChanged(ObjectIdentifier(window))))
   }
 
+  private static func prepareTerminal(
+    _ terminal: TerminalHostState,
+    session: TerminalWindowSession?,
+    startupCommand: String?
+  ) {
+    if let session, terminal.restore(from: session) {
+      return
+    }
+    terminal.ensureInitialTab(focusing: false, startupCommand: startupCommand)
+  }
+
   deinit {
     let windowControllerID = self.windowControllerID
     let registry = self.registry
@@ -231,6 +242,7 @@ final class TerminalWindowController: NSWindowController {
 extension TerminalWindowController: NSWindowDelegate {
   func windowDidBecomeKey(_ notification: Notification) {
     commandHoldObserver.update(modifierFlags: NSEvent.modifierFlags)
+    registry.markWindowFocused(windowControllerID)
   }
 
   func windowDidResignKey(_ notification: Notification) {

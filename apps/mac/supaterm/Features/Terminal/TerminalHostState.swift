@@ -28,8 +28,6 @@ nonisolated enum TerminalTreeRemovalSource: String, Sendable {
   case closeTab = "closeTab"
   case controlCleanup = "control.cleanup"
   case sessionClear = "session.clear"
-  case spaceCatalogObserved = "spaceCatalog.observed"
-  case spaceCatalogWrite = "spaceCatalog.write"
 }
 
 nonisolated struct TerminalClosePerformLogContext: Sendable {
@@ -47,9 +45,17 @@ nonisolated struct TerminalClosePerformLogContext: Sendable {
 @MainActor
 @Observable
 final class TerminalHostState {
+  enum SpaceAction: Equatable {
+    case create(String)
+    case delete(TerminalSpaceID)
+    case next
+    case previous
+    case rename(TerminalSpaceID, String)
+    case select(TerminalSpaceID)
+    case selectSlot(Int)
+  }
+
   struct NewTabSelectionInput: Equatable {
-    let selectedSpaceID: TerminalSpaceID?
-    let targetSpaceID: TerminalSpaceID
     let selectedTabID: TerminalTabID?
     let targetTabID: TerminalTabID
     let windowActivity: WindowActivityState
@@ -287,13 +293,14 @@ final class TerminalHostState {
   @ObservationIgnored
   var lastAppliedSpaceCatalog = TerminalSpaceCatalog.default
   var onSessionChange: @MainActor () -> Void = {}
+  var onSpaceAction: @MainActor (SpaceAction) -> Void = { _ in }
   @ObservationIgnored
   var onSurfaceCommandFinished: @MainActor (UUID) -> Void = { _ in }
   @ObservationIgnored
   var onSurfaceRemoved: @MainActor (UUID) -> Void = { _ in }
   @ObservationIgnored
   var agentPanelController: TerminalAgentPanelController?
-  let spaceManager = TerminalSpaceManager()
+  let spaceManager: TerminalSpaceManager
 
   var pendingEvents: [TerminalClient.Event] = []
   var trees: [TerminalTabID: SplitTree<GhosttySurfaceView>] = [:]
@@ -304,7 +311,6 @@ final class TerminalHostState {
   var agentStateStore = TerminalAgentStateStore()
   var previousSelectedTabIDBySpace: [TerminalSpaceID: TerminalTabID] = [:]
   var collapsedTabGroupIDsBySpace: [TerminalSpaceID: Set<TerminalTabGroupID>] = [:]
-  var previousSelectedSpaceID: TerminalSpaceID?
   var lastEmittedFocusSurfaceID: UUID?
   var runtimeConfigGeneration = 0
   var suppressesSessionChanges = 0
@@ -314,23 +320,29 @@ final class TerminalHostState {
   init(
     runtime: GhosttyRuntime? = nil,
     managesTerminalSurfaces: Bool = true,
+    spaceID: TerminalSpaceID? = nil,
     zmxClient: ZmxClient = .live,
     zmxSessionsEnabled: Bool = true
   ) {
+    @Shared(.terminalSpaceCatalog) var launchSpaceCatalog = TerminalSpaceCatalog.default
+    let initialSpaceCatalog = TerminalSpaceCatalog.sanitized(launchSpaceCatalog)
+    let resolvedSpaceID = spaceID ?? initialSpaceCatalog.defaultSelectedSpaceID
+    guard let persistedSpace = initialSpaceCatalog.spaces.first(where: { $0.id == resolvedSpaceID })
+    else {
+      preconditionFailure("TerminalHostState requires a catalog Space")
+    }
     self.managesTerminalSurfaces = managesTerminalSurfaces
     self.runtime = managesTerminalSurfaces ? (runtime ?? GhosttyRuntime()) : runtime
+    self.spaceManager = TerminalSpaceManager(
+      space: TerminalSpaceItem(id: persistedSpace.id, name: persistedSpace.name)
+    )
     self.zmxClient = zmxClient
     self.zmxSessionsEnabled = zmxSessionsEnabled
 
-    let initialSpaceCatalog = TerminalSpaceCatalog.sanitized(spaceCatalog)
     if initialSpaceCatalog != spaceCatalog {
       replaceSpaceCatalog(initialSpaceCatalog)
     }
     lastAppliedSpaceCatalog = initialSpaceCatalog
-    spaceManager.bootstrap(
-      from: initialSpaceCatalog,
-      initialSelectedSpaceID: initialSpaceCatalog.defaultSelectedSpaceID
-    )
     observeRuntimeConfig()
     observeSpaceCatalog()
     agentPanelController = TerminalAgentPanelController(terminal: self)
@@ -465,7 +477,7 @@ final class TerminalHostState {
         workingDirectoryPath: workingDirectoryPath
       )
     case .createSpace(let name):
-      _ = try? createSpace(named: name)
+      onSpaceAction(.create(name))
     default:
       return
     }
@@ -486,7 +498,7 @@ final class TerminalHostState {
     case .previousTab:
       previousTab()
     case .renameSpace(let spaceID, let name):
-      try? renameSpace(spaceID, to: name)
+      onSpaceAction(.rename(spaceID, name))
     default:
       return
     }
@@ -497,21 +509,21 @@ final class TerminalHostState {
     case .selectLastTab:
       selectLastTab()
     case .nextSpace:
-      nextSpace()
+      onSpaceAction(.next)
     case .selectTab(let tabID):
       selectTab(tabID)
     case .selectTabSlot(let slot):
       selectTab(slot: slot)
     case .selectSpaceSlot(let slot):
-      selectSpace(slot: slot)
+      onSpaceAction(.selectSlot(slot))
     case .selectSpace(let spaceID):
-      selectSpace(spaceID)
+      onSpaceAction(.select(spaceID))
     case .previousSpace:
-      previousSpace()
+      onSpaceAction(.previous)
     case .togglePinned(let tabID):
       togglePinned(tabID)
     case .deleteSpace(let spaceID):
-      deleteSpace(spaceID)
+      onSpaceAction(.delete(spaceID))
     case .updateWindowActivity(let activity):
       updateWindowActivity(activity)
     default:
@@ -1116,25 +1128,11 @@ final class TerminalHostState {
   }
 
   static func selectedTabID(
-    afterCreatingTabIn targetSpaceID: TerminalSpaceID,
-    targetTabID: TerminalTabID,
+    afterCreatingTab targetTabID: TerminalTabID,
     focusRequested: Bool,
-    currentSelectedSpaceID: TerminalSpaceID?,
     currentSelectedTabID: TerminalTabID?
   ) -> TerminalTabID {
-    guard !focusRequested else { return targetTabID }
-    guard currentSelectedSpaceID == targetSpaceID, let currentSelectedTabID else {
-      return targetTabID
-    }
-    return currentSelectedTabID
-  }
-
-  static func shouldSyncFocusDuringTabCreation(
-    targetSpaceID: TerminalSpaceID,
-    focusRequested: Bool,
-    currentSelectedSpaceID: TerminalSpaceID?
-  ) -> Bool {
-    focusRequested || currentSelectedSpaceID != targetSpaceID
+    focusRequested ? targetTabID : currentSelectedTabID ?? targetTabID
   }
 
   static func selectedTabID(
@@ -1165,8 +1163,7 @@ final class TerminalHostState {
   }
 
   static func newTabSelectionState(_ input: NewTabSelectionInput) -> NewTabSelectionState {
-    let isSelectedSpace = input.targetSpaceID == input.selectedSpaceID
-    let isSelectedTab = isSelectedSpace && input.targetTabID == input.selectedTabID
+    let isSelectedTab = input.targetTabID == input.selectedTabID
     let activity = surfaceActivity(
       isSelectedTab: isSelectedTab,
       windowIsVisible: input.windowActivity.isVisible,
@@ -1176,7 +1173,7 @@ final class TerminalHostState {
     )
     return NewTabSelectionState(
       isFocused: activity.isFocused,
-      isSelectedSpace: isSelectedSpace,
+      isSelectedSpace: true,
       isSelectedTab: isSelectedTab
     )
   }

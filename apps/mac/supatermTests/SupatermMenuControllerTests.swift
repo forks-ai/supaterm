@@ -522,7 +522,7 @@ struct SupatermMenuControllerTests {
         $0.terminalClient.send = { recorder.record($0) }
       }
       let windowControllerID = UUID()
-      let tabManager = try #require(host.spaceManager.activeTabManager)
+      let tabManager = host.spaceManager.tabManager
       let tabID = tabManager.createTab(title: "Terminal 1")
       tabManager.selectTab(tabID)
       registry.register(

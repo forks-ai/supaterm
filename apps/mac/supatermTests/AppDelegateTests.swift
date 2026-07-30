@@ -165,7 +165,7 @@ struct AppDelegateTests {
   func initialWindowSessionsFallsBackToSingleBlankWindowWhenRestoreIsDisabled() {
     let sessions = AppDelegate.initialWindowSessions(
       from: TerminalSessionCatalog(
-        windows: [TerminalWindowSession(selectedSpaceID: TerminalSpaceID(), spaces: [])]
+        windows: [emptyWindowSession(spaceID: TerminalSpaceID())]
       ),
       validSpaceIDs: [],
       restoreTerminalLayoutEnabled: false
@@ -179,14 +179,8 @@ struct AppDelegateTests {
   func initialWindowSessionsPreservesSavedWindowOrder() {
     let firstSpaceID = TerminalSpaceID()
     let secondSpaceID = TerminalSpaceID()
-    let first = TerminalWindowSession(
-      selectedSpaceID: firstSpaceID,
-      spaces: [emptySpaceSession(id: firstSpaceID)]
-    )
-    let second = TerminalWindowSession(
-      selectedSpaceID: secondSpaceID,
-      spaces: [emptySpaceSession(id: secondSpaceID)]
-    )
+    let first = emptyWindowSession(spaceID: firstSpaceID)
+    let second = emptyWindowSession(spaceID: secondSpaceID)
 
     let sessions = AppDelegate.initialWindowSessions(
       from: TerminalSessionCatalog(windows: [first, second]),
@@ -238,10 +232,7 @@ struct AppDelegateTests {
   @Test
   func initialWindowRequestsDoNotInjectOnboardingIntoRestoredWindows() {
     let spaceID = TerminalSpaceID()
-    let session = TerminalWindowSession(
-      selectedSpaceID: spaceID,
-      spaces: [emptySpaceSession(id: spaceID)]
-    )
+    let session = emptyWindowSession(spaceID: spaceID)
 
     let requests = AppDelegate.initialWindowRequests(
       from: TerminalSessionCatalog(windows: [session]),
@@ -271,47 +262,42 @@ struct AppDelegateTests {
     let sessionCatalog = TerminalSessionCatalog(
       windows: [
         TerminalWindowSession(
-          selectedSpaceID: spaceID,
-          spaces: [
-            TerminalWindowSpaceSession(
-              id: spaceID,
-              selectedTabID: firstTabID,
-              nodes: [
-                TerminalTabNodeSession(
-                  item: .tab(secondTabID),
-                  parent: .root(isPinned: true),
-                  order: 0
-                ),
-                TerminalTabNodeSession(
-                  item: .tab(firstTabID),
-                  parent: .root(isPinned: false),
-                  order: 0
-                ),
-              ],
-              groups: [],
-              collapsedGroupIDs: [],
-              tabs: [
-                TerminalTabSession(
-                  id: firstTabID,
-                  lockedTitle: nil,
-                  focusedPaneIndex: 0,
-                  root: .leaf(
-                    TerminalPaneLeafSession(id: persistedSurfaceID, workingDirectoryPath: nil)
-                  )
-                ),
-                TerminalTabSession(
-                  id: secondTabID,
-                  lockedTitle: nil,
-                  focusedPaneIndex: 0,
-                  root: .leaf(
-                    TerminalPaneLeafSession(
-                      id: secondPersistedSurfaceID,
-                      workingDirectoryPath: nil
-                    )
-                  )
-                ),
-              ]
-            )
+          spaceID: spaceID,
+          selectedTabID: firstTabID,
+          nodes: [
+            TerminalTabNodeSession(
+              item: .tab(secondTabID),
+              parent: .root(isPinned: true),
+              order: 0
+            ),
+            TerminalTabNodeSession(
+              item: .tab(firstTabID),
+              parent: .root(isPinned: false),
+              order: 0
+            ),
+          ],
+          groups: [],
+          collapsedGroupIDs: [],
+          tabs: [
+            TerminalTabSession(
+              id: firstTabID,
+              lockedTitle: nil,
+              focusedPaneIndex: 0,
+              root: .leaf(
+                TerminalPaneLeafSession(id: persistedSurfaceID, workingDirectoryPath: nil)
+              )
+            ),
+            TerminalTabSession(
+              id: secondTabID,
+              lockedTitle: nil,
+              focusedPaneIndex: 0,
+              root: .leaf(
+                TerminalPaneLeafSession(
+                  id: secondPersistedSurfaceID,
+                  workingDirectoryPath: nil
+                )
+              )
+            ),
           ]
         )
       ]
@@ -332,9 +318,9 @@ struct AppDelegateTests {
     )
   }
 
-  private func emptySpaceSession(id: TerminalSpaceID) -> TerminalWindowSpaceSession {
-    TerminalWindowSpaceSession(
-      id: id,
+  private func emptyWindowSession(spaceID: TerminalSpaceID) -> TerminalWindowSession {
+    TerminalWindowSession(
+      spaceID: spaceID,
       selectedTabID: nil,
       nodes: [],
       groups: [],

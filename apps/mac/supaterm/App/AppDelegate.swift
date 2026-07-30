@@ -105,6 +105,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
     terminalWindowRegistry.onChange = { [weak menuController] in
       menuController?.refresh()
     }
+    terminalWindowRegistry.onCreateWindow = { [weak self] spaceID, focus in
+      guard let self else { return }
+      let controller = createWindow(spaceID: spaceID)
+      if focus {
+        activateForWindowPresentation()
+        controller.window?.makeKeyAndOrderFront(nil)
+      }
+    }
     menuController.setNewWindowAction { [weak self] in
       self?.performNewWindow() ?? false
     }
@@ -286,7 +294,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
 
   @discardableResult
   func performNewWindow() -> Bool {
-    let controller = createWindow()
+    let controller = createWindow(
+      spaceID: terminalWindowRegistry.preferredSpaceID ?? spaceCatalog.defaultSelectedSpaceID
+    )
     AppPostHog.capture("window_created")
     activateForWindowPresentation()
     controller.window?.makeKeyAndOrderFront(nil)
@@ -480,12 +490,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
 
   private func createWindow(
     session: TerminalWindowSession? = nil,
+    spaceID: TerminalSpaceID? = nil,
     startupCommand: String? = nil
   ) -> TerminalWindowController {
     let controller = TerminalWindowController(
       runtime: ghosttyRuntime,
       registry: terminalWindowRegistry,
       session: session,
+      spaceID: spaceID,
       startupCommand: startupCommand,
       zmxClient: launchZmxClient,
       zmxSessionsEnabled: zmxSessionsEnabledAtLaunch
@@ -497,7 +509,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
       self?.saveSession()
     }
     windowControllers[controller.windowControllerID] = controller
-    controller.showWindow(nil)
+    controller.window?.orderFront(nil)
     saveSession()
     return controller
   }

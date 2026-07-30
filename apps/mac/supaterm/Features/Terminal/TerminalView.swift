@@ -101,6 +101,13 @@ struct TerminalView: View {
           _ = store.send(.windowActivityChanged(activity))
         }
       )
+      .overlay(alignment: .topLeading) {
+        TerminalWindowHeader(
+          store: store,
+          palette: palette,
+          terminal: terminal
+        )
+      }
       .ignoresSafeArea()
       .task(id: resolvedWindowActivity) {
         let activity = resolvedWindowActivity
@@ -224,7 +231,7 @@ struct TerminalView: View {
       )
       .terminalAnimation(
         .spring(response: 0.28, dampingFraction: 0.82),
-        value: terminal.spaces.map(\.id),
+        value: terminal.availableSpaces.map(\.id),
         reduceMotion: reduceMotion
       )
       .environment(\.colorScheme, chromeColorScheme)

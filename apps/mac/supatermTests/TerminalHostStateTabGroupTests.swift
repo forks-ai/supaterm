@@ -22,8 +22,8 @@ struct TerminalHostStateTabGroupTests {
 
       let rootTabID = try #require(host.createTab(focusing: false))
 
-      #expect(host.spaceManager.activeTabManager?.tabIDs(in: groupID) == [anchorTabID])
-      #expect(host.spaceManager.activeTabManager?.rootItemID(containing: rootTabID) == .tab(rootTabID))
+      #expect(host.spaceManager.tabManager.tabIDs(in: groupID) == [anchorTabID])
+      #expect(host.spaceManager.tabManager.rootItemID(containing: rootTabID) == .tab(rootTabID))
       #expect(!host.collapsedTabGroupIDs.contains(groupID))
 
       let groupedTabID = try #require(
@@ -35,7 +35,7 @@ struct TerminalHostStateTabGroupTests {
       )
 
       #expect(
-        host.spaceManager.activeTabManager?.tabIDs(in: groupID)
+        host.spaceManager.tabManager.tabIDs(in: groupID)
           == [anchorTabID, groupedTabID]
       )
       #expect(!host.collapsedTabGroupIDs.contains(groupID))
@@ -45,7 +45,7 @@ struct TerminalHostStateTabGroupTests {
       host.selectTab(anchorTabID)
 
       let pinnedTabID = try #require(host.createTab(focusing: false))
-      let manager = try #require(host.spaceManager.activeTabManager)
+      let manager = host.spaceManager.tabManager
 
       #expect(manager.rootItemID(containing: pinnedTabID) == .tab(pinnedTabID))
       #expect(manager.isPinned(pinnedTabID) == true)
@@ -58,7 +58,7 @@ struct TerminalHostStateTabGroupTests {
       $0.defaultFileStorage = .inMemory
     } operation: {
       let host = TerminalHostState(managesTerminalSurfaces: false)
-      let manager = try #require(host.spaceManager.activeTabManager)
+      let manager = host.spaceManager.tabManager
       let first = manager.createTab(title: "First")
       let second = manager.createTab(title: "Second")
       let groupID = try #require(
@@ -80,7 +80,7 @@ struct TerminalHostStateTabGroupTests {
       $0.defaultFileStorage = .inMemory
     } operation: {
       let host = TerminalHostState(managesTerminalSurfaces: false)
-      let manager = try #require(host.spaceManager.activeTabManager)
+      let manager = host.spaceManager.tabManager
       let first = manager.createTab(title: "First")
       let second = manager.createTab(title: "Second")
       let groupID = try #require(
@@ -100,7 +100,7 @@ struct TerminalHostStateTabGroupTests {
       $0.defaultFileStorage = .inMemory
     } operation: {
       let host = TerminalHostState(managesTerminalSurfaces: false)
-      let manager = try #require(host.spaceManager.activeTabManager)
+      let manager = host.spaceManager.tabManager
       let source = manager.createTab(title: "Source")
       let grouped = manager.createTab(title: "Grouped")
       let groupID = try #require(
@@ -154,7 +154,7 @@ struct TerminalHostStateTabGroupTests {
       $0.defaultFileStorage = .inMemory
     } operation: {
       let host = TerminalHostState(managesTerminalSurfaces: false)
-      let manager = try #require(host.spaceManager.activeTabManager)
+      let manager = host.spaceManager.tabManager
       let selected = manager.createTab(title: "Selected")
       let groupID = try #require(
         manager.createGroup(title: "Group", containing: [selected])
@@ -190,7 +190,7 @@ struct TerminalHostStateTabGroupTests {
       let confirmingTabIDs = Set([first])
       #expect(
         TerminalHostState.anyTabNeedsCloseConfirmation(
-          host.spaceManager.activeTabManager?.tabIDs(in: groupID) ?? [],
+          host.spaceManager.tabManager.tabIDs(in: groupID),
           tabNeedsCloseConfirmation: confirmingTabIDs.contains
         )
       )
@@ -212,7 +212,7 @@ struct TerminalHostStateTabGroupTests {
       )
       host.closeGroup(groupID)
 
-      let manager = try #require(host.spaceManager.activeTabManager)
+      let manager = host.spaceManager.tabManager
       #expect(manager.group(for: groupID) == nil)
       #expect(host.spaceManager.tab(for: first) == nil)
       #expect(host.spaceManager.tab(for: second) == nil)
@@ -231,7 +231,7 @@ struct TerminalHostStateTabGroupTests {
 
       host.requestCloseGroup(groupID)
 
-      #expect(host.spaceManager.activeTabManager?.group(for: groupID) == nil)
+      #expect(host.spaceManager.tabManager.group(for: groupID) == nil)
     }
   }
 
@@ -241,7 +241,7 @@ struct TerminalHostStateTabGroupTests {
       $0.defaultFileStorage = .inMemory
     } operation: {
       let host = TerminalHostState(managesTerminalSurfaces: false)
-      let manager = try #require(host.spaceManager.activeTabManager)
+      let manager = host.spaceManager.tabManager
       let survivor = manager.createTab(title: "Survivor")
       let child = manager.createTab(title: "Child")
       let groupID = try #require(host.createGroup(title: "Group", containing: [child])).groupID
@@ -261,7 +261,7 @@ struct TerminalHostStateTabGroupTests {
       $0.defaultFileStorage = .inMemory
     } operation: {
       let host = TerminalHostState(managesTerminalSurfaces: false)
-      let manager = try #require(host.spaceManager.activeTabManager)
+      let manager = host.spaceManager.tabManager
       let survivor = manager.createTab(title: "Survivor")
       let child = manager.createTab(title: "Child")
       let target = manager.createTab(title: "Target")

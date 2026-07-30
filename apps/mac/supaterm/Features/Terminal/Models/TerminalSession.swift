@@ -3,7 +3,7 @@ import Foundation
 import SupatermCLIShared
 
 nonisolated struct TerminalSessionCatalog: Equatable, Codable, Sendable {
-  static let currentVersion = 7
+  static let currentVersion = 8
   static let `default` = Self(windows: [])
 
   let version: Int
@@ -71,71 +71,6 @@ nonisolated struct TerminalSessionCatalog: Equatable, Codable, Sendable {
   }
 }
 
-nonisolated struct TerminalWindowSession: Equatable, Codable, Sendable {
-  var selectedSpaceID: TerminalSpaceID
-  var spaces: [TerminalWindowSpaceSession]
-  var frame: TerminalWindowFrame?
-
-  init(
-    selectedSpaceID: TerminalSpaceID,
-    spaces: [TerminalWindowSpaceSession],
-    frame: TerminalWindowFrame? = nil
-  ) {
-    self.selectedSpaceID = selectedSpaceID
-    self.spaces = spaces
-    self.frame = frame
-  }
-
-  func pruned(validSpaceIDs: Set<TerminalSpaceID>) -> TerminalWindowSession? {
-    var seenTabIDs: Set<TerminalTabID> = []
-    var seenGroupIDs: Set<TerminalTabGroupID> = []
-    var seenSurfaceIDs: Set<UUID> = []
-    return pruned(
-      validSpaceIDs: validSpaceIDs,
-      seenTabIDs: &seenTabIDs,
-      seenGroupIDs: &seenGroupIDs,
-      seenSurfaceIDs: &seenSurfaceIDs
-    )
-  }
-
-  fileprivate func pruned(
-    validSpaceIDs: Set<TerminalSpaceID>,
-    seenTabIDs: inout Set<TerminalTabID>,
-    seenGroupIDs: inout Set<TerminalTabGroupID>,
-    seenSurfaceIDs: inout Set<UUID>
-  ) -> TerminalWindowSession? {
-    var seenSpaceIDs: Set<TerminalSpaceID> = []
-    let spaces = spaces.compactMap { space -> TerminalWindowSpaceSession? in
-      guard validSpaceIDs.contains(space.id) else { return nil }
-      guard seenSpaceIDs.insert(space.id).inserted else { return nil }
-      let space = space.pruned(
-        excludingTabIDs: seenTabIDs,
-        excludingGroupIDs: seenGroupIDs,
-        seenSurfaceIDs: &seenSurfaceIDs
-      )
-      seenTabIDs.formUnion(space.tabs.map(\.id))
-      seenGroupIDs.formUnion(space.groups.map(\.id))
-      return space
-    }
-    guard !spaces.isEmpty else { return nil }
-    let resolvedSelectedSpaceID =
-      spaces.contains(where: { $0.id == self.selectedSpaceID })
-      ? self.selectedSpaceID
-      : spaces[0].id
-    return TerminalWindowSession(
-      selectedSpaceID: resolvedSelectedSpaceID,
-      spaces: spaces,
-      frame: frame
-    )
-  }
-
-  var surfaceIDs: Set<UUID> {
-    spaces.reduce(into: Set<UUID>()) { result, space in
-      result.formUnion(space.surfaceIDs)
-    }
-  }
-}
-
 nonisolated struct TerminalWindowFrame: Equatable, Codable, Sendable {
   var x: Double
   var y: Double
@@ -168,15 +103,34 @@ nonisolated struct TerminalWindowFrame: Equatable, Codable, Sendable {
   }
 }
 
-nonisolated struct TerminalWindowSpaceSession: Equatable, Codable, Sendable {
-  var id: TerminalSpaceID
+nonisolated struct TerminalWindowSession: Equatable, Codable, Sendable {
+  var spaceID: TerminalSpaceID
   var selectedTabID: TerminalTabID?
   var nodes: [TerminalTabNodeSession]
   var groups: [TerminalTabGroupSession]
   var collapsedGroupIDs: [TerminalTabGroupID]
   var tabs: [TerminalTabSession]
+  var frame: TerminalWindowFrame?
 
-  func pruned() -> TerminalWindowSpaceSession {
+  init(
+    spaceID: TerminalSpaceID,
+    selectedTabID: TerminalTabID?,
+    nodes: [TerminalTabNodeSession],
+    groups: [TerminalTabGroupSession],
+    collapsedGroupIDs: [TerminalTabGroupID],
+    tabs: [TerminalTabSession],
+    frame: TerminalWindowFrame? = nil
+  ) {
+    self.spaceID = spaceID
+    self.selectedTabID = selectedTabID
+    self.nodes = nodes
+    self.groups = groups
+    self.collapsedGroupIDs = collapsedGroupIDs
+    self.tabs = tabs
+    self.frame = frame
+  }
+
+  func pruned() -> TerminalWindowSession {
     var seenSurfaceIDs: Set<UUID> = []
     return pruned(
       excludingTabIDs: [],
@@ -185,11 +139,40 @@ nonisolated struct TerminalWindowSpaceSession: Equatable, Codable, Sendable {
     )
   }
 
+  func pruned(validSpaceIDs: Set<TerminalSpaceID>) -> TerminalWindowSession? {
+    var seenTabIDs: Set<TerminalTabID> = []
+    var seenGroupIDs: Set<TerminalTabGroupID> = []
+    var seenSurfaceIDs: Set<UUID> = []
+    return pruned(
+      validSpaceIDs: validSpaceIDs,
+      seenTabIDs: &seenTabIDs,
+      seenGroupIDs: &seenGroupIDs,
+      seenSurfaceIDs: &seenSurfaceIDs
+    )
+  }
+
+  fileprivate func pruned(
+    validSpaceIDs: Set<TerminalSpaceID>,
+    seenTabIDs: inout Set<TerminalTabID>,
+    seenGroupIDs: inout Set<TerminalTabGroupID>,
+    seenSurfaceIDs: inout Set<UUID>
+  ) -> TerminalWindowSession? {
+    guard validSpaceIDs.contains(spaceID) else { return nil }
+    let window = pruned(
+      excludingTabIDs: seenTabIDs,
+      excludingGroupIDs: seenGroupIDs,
+      seenSurfaceIDs: &seenSurfaceIDs
+    )
+    seenTabIDs.formUnion(window.tabs.map(\.id))
+    seenGroupIDs.formUnion(window.groups.map(\.id))
+    return window
+  }
+
   fileprivate func pruned(
     excludingTabIDs: Set<TerminalTabID>,
     excludingGroupIDs: Set<TerminalTabGroupID>,
     seenSurfaceIDs: inout Set<UUID>
-  ) -> TerminalWindowSpaceSession {
+  ) -> TerminalWindowSession {
     let tabSessionsByID = uniqueTabSessions(excluding: excludingTabIDs)
     let groupSessionsByID = uniqueGroupSessions(excluding: excludingGroupIDs)
     let indexedGroupNodes = indexedGroupNodes(groupSessionsByID: groupSessionsByID)
@@ -254,13 +237,14 @@ nonisolated struct TerminalWindowSpaceSession: Equatable, Codable, Sendable {
       selectedTabID.flatMap { resolvedTabIDs.contains($0) ? $0 : nil }
       ?? topology.tabIDs.first
     let collapsedGroupIDSet = Set(collapsedGroupIDs)
-    return TerminalWindowSpaceSession(
-      id: id,
+    return TerminalWindowSession(
+      spaceID: spaceID,
       selectedTabID: selectedTabID,
       nodes: topology.nodes,
       groups: resolvedGroups,
       collapsedGroupIDs: topology.rootGroupIDs.filter(collapsedGroupIDSet.contains),
-      tabs: resolvedTabs
+      tabs: resolvedTabs,
+      frame: frame
     )
   }
 

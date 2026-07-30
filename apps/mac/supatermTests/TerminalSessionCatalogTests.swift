@@ -17,7 +17,7 @@ struct TerminalSessionCatalogTests {
 
   @Test
   func catalogRejectsUnsupportedAndPreviousVersions() {
-    for version in [6, 999] {
+    for version in [7, 999] {
       let data = Data("{\"version\":\(version),\"windows\":[]}".utf8)
       #expect(throws: DecodingError.self) {
         try JSONDecoder().decode(TerminalSessionCatalog.self, from: data)
@@ -26,21 +26,43 @@ struct TerminalSessionCatalogTests {
   }
 
   @Test
-  func windowSessionPrunesMissingSpacesAndFallsBackSelection() {
+  func windowSessionOwnsOneSpace() throws {
+    let spaceID = TerminalSpaceID()
+    let tabID = TerminalTabID()
+    let session = TerminalWindowSession(
+      spaceID: spaceID,
+      selectedTabID: tabID,
+      nodes: [tabNode(tabID, parent: .root(isPinned: false), order: 0)],
+      groups: [],
+      collapsedGroupIDs: [],
+      tabs: [tabSession(id: tabID, title: "Selected")]
+    )
+
+    let data = try TerminalSessionCatalog.fileStorageEncoder().encode(
+      TerminalSessionCatalog(windows: [session])
+    )
+    let json = try #require(String(bytes: data, encoding: .utf8))
+
+    #expect(json.contains(#""version":8"#))
+    #expect(json.contains(#""spaceID":"#))
+    #expect(!json.contains(#""selectedSpaceID""#))
+    #expect(!json.contains(#""spaces""#))
+  }
+
+  @Test
+  func catalogPrunesWindowsForMissingSpaces() {
     let validSpace = TerminalSpaceID()
     let missingSpace = TerminalSpaceID()
-    let session = TerminalWindowSession(
-      selectedSpaceID: missingSpace,
-      spaces: [
-        emptySpaceSession(id: missingSpace),
-        emptySpaceSession(id: validSpace),
+    let catalog = TerminalSessionCatalog(
+      windows: [
+        emptyWindowSession(spaceID: missingSpace),
+        emptyWindowSession(spaceID: validSpace),
       ]
     )
 
-    let pruned = session.pruned(validSpaceIDs: [validSpace])
+    let pruned = catalog.pruned(validSpaceIDs: [validSpace])
 
-    #expect(pruned?.selectedSpaceID == validSpace)
-    #expect(pruned?.spaces.map(\.id) == [validSpace])
+    #expect(pruned.windows.map(\.spaceID) == [validSpace])
   }
 
   @Test
@@ -85,12 +107,12 @@ struct TerminalSessionCatalogTests {
   }
 
   @Test
-  func spaceSessionNormalizesParentOrdersAndPreservesStableSelection() throws {
+  func windowSessionNormalizesParentOrdersAndPreservesStableSelection() throws {
     let selectedTabID = TerminalTabID()
     let groupedTabID = TerminalTabID()
     let groupID = TerminalTabGroupID()
-    let session = TerminalWindowSpaceSession(
-      id: TerminalSpaceID(),
+    let session = TerminalWindowSession(
+      spaceID: TerminalSpaceID(),
       selectedTabID: selectedTabID,
       nodes: [
         tabNode(selectedTabID, parent: .root(isPinned: false), order: 8),
@@ -125,7 +147,7 @@ struct TerminalSessionCatalogTests {
   }
 
   @Test
-  func spaceSessionPrunesOrphansAndGloballyDuplicateNodes() throws {
+  func windowSessionPrunesOrphansAndGloballyDuplicateNodes() throws {
     let firstTabID = TerminalTabID()
     let secondTabID = TerminalTabID()
     let orphanTabID = TerminalTabID()
@@ -133,8 +155,8 @@ struct TerminalSessionCatalogTests {
     let firstGroupID = TerminalTabGroupID()
     let secondGroupID = TerminalTabGroupID()
     let missingGroupID = TerminalTabGroupID()
-    let session = TerminalWindowSpaceSession(
-      id: TerminalSpaceID(),
+    let session = TerminalWindowSession(
+      spaceID: TerminalSpaceID(),
       selectedTabID: missingTabID,
       nodes: [
         groupNode(firstGroupID, isPinned: false, order: 9),
@@ -179,31 +201,26 @@ struct TerminalSessionCatalogTests {
   }
 
   @Test
-  func windowSessionPrunesDuplicateIDsAndSurfacesAcrossSpaces() throws {
+  func catalogPrunesDuplicateIDsAndSurfacesAcrossWindows() throws {
     let firstSpaceID = TerminalSpaceID()
     let secondSpaceID = TerminalSpaceID()
     let tabID = TerminalTabID()
     let surfaceID = UUID()
-    let firstSpace = spaceSession(
-      id: firstSpaceID,
+    let firstWindow = windowSession(
+      spaceID: firstSpaceID,
       tab: tabSession(id: tabID, title: "First", surfaceID: surfaceID)
     )
-    let secondSpace = spaceSession(
-      id: secondSpaceID,
+    let secondWindow = windowSession(
+      spaceID: secondSpaceID,
       tab: tabSession(id: tabID, title: "Second", surfaceID: surfaceID)
     )
-    let window = TerminalWindowSession(
-      selectedSpaceID: firstSpaceID,
-      spaces: [firstSpace, secondSpace]
-    )
 
-    let pruned = try #require(
-      window.pruned(validSpaceIDs: [firstSpaceID, secondSpaceID])
-    )
+    let pruned = TerminalSessionCatalog(windows: [firstWindow, secondWindow])
+      .pruned(validSpaceIDs: [firstSpaceID, secondSpaceID])
 
-    #expect(pruned.spaces[0].tabs.map(\.id) == [tabID])
-    #expect(pruned.spaces[1].tabs.isEmpty)
-    #expect(pruned.spaces[1].nodes.isEmpty)
+    #expect(pruned.windows[0].tabs.map(\.id) == [tabID])
+    #expect(pruned.windows[1].tabs.isEmpty)
+    #expect(pruned.windows[1].nodes.isEmpty)
   }
 
   @Test
@@ -214,31 +231,26 @@ struct TerminalSessionCatalogTests {
     let surfaceID = UUID()
     let windows = ["First", "Second"].map { title in
       TerminalWindowSession(
-        selectedSpaceID: spaceID,
-        spaces: [
-          TerminalWindowSpaceSession(
-            id: spaceID,
-            selectedTabID: tabID,
-            nodes: [
-              groupNode(groupID, isPinned: false, order: 0),
-              tabNode(tabID, parent: .group(groupID), order: 0),
-            ],
-            groups: [groupSession(id: groupID, title: title, lifetime: .automatic)],
-            collapsedGroupIDs: [],
-            tabs: [tabSession(id: tabID, title: title, surfaceID: surfaceID)]
-          )
-        ]
+        spaceID: spaceID,
+        selectedTabID: tabID,
+        nodes: [
+          groupNode(groupID, isPinned: false, order: 0),
+          tabNode(tabID, parent: .group(groupID), order: 0),
+        ],
+        groups: [groupSession(id: groupID, title: title, lifetime: .automatic)],
+        collapsedGroupIDs: [],
+        tabs: [tabSession(id: tabID, title: title, surfaceID: surfaceID)]
       )
     }
 
     let catalog = TerminalSessionCatalog(windows: windows).pruned(validSpaceIDs: [spaceID])
 
     #expect(catalog.windows.count == 2)
-    #expect(catalog.windows[0].spaces[0].groups.map(\.id) == [groupID])
-    #expect(catalog.windows[0].spaces[0].tabs.map(\.id) == [tabID])
-    #expect(catalog.windows[1].spaces[0].groups.isEmpty)
-    #expect(catalog.windows[1].spaces[0].tabs.isEmpty)
-    #expect(catalog.windows[1].spaces[0].nodes.isEmpty)
+    #expect(catalog.windows[0].groups.map(\.id) == [groupID])
+    #expect(catalog.windows[0].tabs.map(\.id) == [tabID])
+    #expect(catalog.windows[1].groups.isEmpty)
+    #expect(catalog.windows[1].tabs.isEmpty)
+    #expect(catalog.windows[1].nodes.isEmpty)
     #expect(catalog.surfaceIDs == [surfaceID])
   }
 
@@ -246,8 +258,8 @@ struct TerminalSessionCatalogTests {
   func pruningRetainsEmptyDurableGroupsAndRemovesEmptyAutomaticGroups() {
     let durableGroupID = TerminalTabGroupID()
     let automaticGroupID = TerminalTabGroupID()
-    let session = TerminalWindowSpaceSession(
-      id: TerminalSpaceID(),
+    let session = TerminalWindowSession(
+      spaceID: TerminalSpaceID(),
       selectedTabID: nil,
       nodes: [
         groupNode(durableGroupID, isPinned: false, order: 4),
@@ -273,8 +285,8 @@ struct TerminalSessionCatalogTests {
   func pruningPreservesTheSelectedTabsCollapsedGroup() {
     let tabID = TerminalTabID()
     let groupID = TerminalTabGroupID()
-    let session = TerminalWindowSpaceSession(
-      id: TerminalSpaceID(),
+    let session = TerminalWindowSession(
+      spaceID: TerminalSpaceID(),
       selectedTabID: tabID,
       nodes: [
         groupNode(groupID, isPinned: false, order: 0),
@@ -292,7 +304,7 @@ struct TerminalSessionCatalogTests {
   }
 
   @Test
-  func catalogEncodingUsesNormalizedV7ParentGraph() throws {
+  func catalogEncodingUsesNormalizedV8ParentGraph() throws {
     let spaceID = TerminalSpaceID(rawValue: UUID(uuidString: "AAAAAAAA-AAAA-AAAA-AAAA-AAAAAAAAAAAA")!)
     let tabID = TerminalTabID(rawValue: UUID(uuidString: "DDDDDDDD-DDDD-DDDD-DDDD-DDDDDDDDDDDD")!)
     let groupID = TerminalTabGroupID(rawValue: UUID(uuidString: "CCCCCCCC-CCCC-CCCC-CCCC-CCCCCCCCCCCC")!)
@@ -301,22 +313,17 @@ struct TerminalSessionCatalogTests {
     let catalog = TerminalSessionCatalog(
       windows: [
         TerminalWindowSession(
-          selectedSpaceID: spaceID,
-          spaces: [
-            TerminalWindowSpaceSession(
-              id: spaceID,
-              selectedTabID: tabID,
-              nodes: [
-                groupNode(groupID, isPinned: true, order: 0),
-                tabNode(tabID, parent: .group(groupID), order: 0),
-              ],
-              groups: [
-                groupSession(id: groupID, title: "Build", lifetime: .automatic)
-              ],
-              collapsedGroupIDs: [groupID],
-              tabs: [tab]
-            )
-          ]
+          spaceID: spaceID,
+          selectedTabID: tabID,
+          nodes: [
+            groupNode(groupID, isPinned: true, order: 0),
+            tabNode(tabID, parent: .group(groupID), order: 0),
+          ],
+          groups: [
+            groupSession(id: groupID, title: "Build", lifetime: .automatic)
+          ],
+          collapsedGroupIDs: [groupID],
+          tabs: [tab]
         )
       ]
     )
@@ -326,7 +333,7 @@ struct TerminalSessionCatalogTests {
     let decoded = try JSONDecoder().decode(TerminalSessionCatalog.self, from: data)
 
     #expect(decoded == catalog)
-    #expect(json.contains(#""version":7"#))
+    #expect(json.contains(#""version":8"#))
     #expect(json.contains(#""nodes""#))
     #expect(json.contains(#""parent":{"id":"CCCCCCCC-CCCC-CCCC-CCCC-CCCCCCCCCCCC","kind":"group"}"#))
     #expect(json.contains(#""collapsedGroupIDs":["CCCCCCCC-CCCC-CCCC-CCCC-CCCCCCCCCCCC"]"#))
@@ -380,9 +387,9 @@ struct TerminalSessionCatalogTests {
     #expect(decoded == record)
   }
 
-  private func emptySpaceSession(id: TerminalSpaceID) -> TerminalWindowSpaceSession {
-    TerminalWindowSpaceSession(
-      id: id,
+  private func emptyWindowSession(spaceID: TerminalSpaceID) -> TerminalWindowSession {
+    TerminalWindowSession(
+      spaceID: spaceID,
       selectedTabID: nil,
       nodes: [],
       groups: [],
@@ -391,12 +398,12 @@ struct TerminalSessionCatalogTests {
     )
   }
 
-  private func spaceSession(
-    id: TerminalSpaceID,
+  private func windowSession(
+    spaceID: TerminalSpaceID,
     tab: TerminalTabSession
-  ) -> TerminalWindowSpaceSession {
-    TerminalWindowSpaceSession(
-      id: id,
+  ) -> TerminalWindowSession {
+    TerminalWindowSession(
+      spaceID: spaceID,
       selectedTabID: tab.id,
       nodes: [tabNode(tab.id, parent: .root(isPinned: false), order: 0)],
       groups: [],

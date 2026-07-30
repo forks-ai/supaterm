@@ -56,11 +56,6 @@ struct TerminalSidebarChromeView: View {
             dismiss: dismissReleaseAnnouncement
           )
         }
-        TerminalSidebarSpaceBar(
-          store: store,
-          palette: palette,
-          terminal: terminal
-        )
       }
       .padding(.leading, TerminalSidebarLayout.cardHorizontalInsets.leading)
       .padding(.trailing, TerminalSidebarLayout.cardHorizontalInsets.trailing)

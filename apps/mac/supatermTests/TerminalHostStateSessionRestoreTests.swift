@@ -166,7 +166,7 @@ struct TerminalHostStateSessionRestoreTests {
       let host = TerminalHostState()
       host.handleCommand(.ensureInitialTab(focusing: false, startupCommand: nil))
 
-      let firstSpaceID = try #require(host.selectedSpaceID)
+      let spaceID = try #require(host.selectedSpaceID)
       let firstSurfaceID = try #require(host.selectedSurfaceView?.id)
       host.selectedSurfaceView?.bridge.state.pwd = restoredPathString
 
@@ -181,76 +181,61 @@ struct TerminalHostStateSessionRestoreTests {
       )
       host.selectedSurfaceView?.bridge.state.pwd = restoredPathString
 
-      host.handleCommand(.createSpace(name: "Workspace"))
-      let secondSpaceID = try #require(host.selectedSpaceID)
-      let secondSpaceInitialTabID = try #require(host.selectedTabID)
-      host.handleCommand(.togglePinned(secondSpaceInitialTabID))
-
       _ = try host.createTab(
         TerminalCreateTabRequest(
           startupCommand: nil,
           cwd: restoredPathString,
           focus: false,
-          target: .space(secondSpaceID.rawValue)
+          target: .space(spaceID.rawValue)
         )
       )
 
-      let secondSpaceTabs = host.spaceManager.tabs(in: secondSpaceID)
-      let secondSpaceSelectedTabID = try #require(secondSpaceTabs.last?.id)
-      host.handleCommand(.selectTab(secondSpaceSelectedTabID))
-      host.spaceManager.tabManager(for: secondSpaceID)?.setLockedTitle(
-        secondSpaceSelectedTabID, title: "Pinned Tab")
+      let tabs = host.spaceManager.tabs(in: spaceID)
+      let firstTabID = try #require(tabs.first?.id)
+      let groupedTabID = try #require(tabs.last?.id)
+      host.handleCommand(.selectTab(groupedTabID))
+      host.spaceManager.tabManager(for: spaceID)?.setLockedTitle(
+        groupedTabID, title: "Grouped Tab")
       host.selectedSurfaceView?.setTitleOverride("Pane Title")
       let groupID = try #require(
-        host.createGroup(title: "Workspace", color: .purple, containing: [secondSpaceSelectedTabID])
+        host.createGroup(title: "Workspace", color: .purple, containing: [groupedTabID])
       ).groupID
-      host.handleCommand(.selectTab(secondSpaceInitialTabID))
+      host.handleCommand(.selectTab(firstTabID))
       #expect(host.setGroupCollapsed(groupID, isCollapsed: true))
 
       let snapshot = host.restorationSnapshot()
-      let secondSpaceSnapshot = try #require(
-        snapshot.spaces.first(where: { $0.id == secondSpaceID })
-      )
-      #expect(secondSpaceSnapshot.selectedTabID == secondSpaceInitialTabID)
-      #expect(secondSpaceSnapshot.groups.first?.lifetime == .automatic)
-      #expect(secondSpaceSnapshot.collapsedGroupIDs == [groupID])
+      #expect(snapshot.spaceID == spaceID)
+      #expect(snapshot.selectedTabID == firstTabID)
+      #expect(snapshot.groups.first?.lifetime == .automatic)
+      #expect(snapshot.collapsedGroupIDs == [groupID])
 
       let restored = TerminalHostState()
       #expect(restored.restore(from: snapshot))
-      #expect(restored.selectedSpaceID == secondSpaceID)
-      #expect(
-        restored.spaceManager.selectedTabID(in: firstSpaceID)
-          == restored.spaceManager.tabs(in: firstSpaceID).first?.id)
-      #expect(
-        restored.spaceManager.selectedTabID(in: secondSpaceID)
-          == secondSpaceInitialTabID
-      )
-      #expect(restored.spaceManager.tabs(in: secondSpaceID).count == secondSpaceTabs.count)
-      #expect(
-        restored.spaceManager.tabs(in: secondSpaceID).map(\.id)
-          == secondSpaceTabs.map(\.id)
-      )
-      #expect(restored.spaceManager.rootItems(in: secondSpaceID).map(\.isPinned) == [true, true])
+      #expect(restored.selectedSpaceID == spaceID)
+      #expect(restored.spaceManager.selectedTabID(in: spaceID) == firstTabID)
+      #expect(restored.spaceManager.tabs(in: spaceID).map(\.id) == tabs.map(\.id))
       #expect(restored.collapsedTabGroupIDs == [groupID])
-      let restoredGroupedTabID = try #require(
-        restored.spaceManager.tabs(in: secondSpaceID).last?.id
+      #expect(
+        restored.spaceManager.tabManager(for: spaceID)?.groupID(containing: groupedTabID) == groupID
       )
       #expect(
-        restored.spaceManager.tabManager(for: secondSpaceID)?.groupID(
-          containing: restoredGroupedTabID
-        ) == groupID
-      )
-      #expect(
-        restored.spaceManager.tabManager(for: secondSpaceID)?.group(for: groupID)?.lifetime
+        restored.spaceManager.tabManager(for: spaceID)?.group(for: groupID)?.lifetime
           == .automatic
       )
-      #expect(restored.spaceManager.tabs(in: secondSpaceID).last?.title == "Pinned Tab")
-      #expect(restored.spaceManager.tabs(in: secondSpaceID).last?.isTitleLocked == true)
-      restored.handleCommand(.selectTab(restoredGroupedTabID))
+      #expect(restored.spaceManager.tabs(in: spaceID).last?.title == "Grouped Tab")
+      #expect(restored.spaceManager.tabs(in: spaceID).last?.isTitleLocked == true)
+      restored.handleCommand(.selectTab(groupedTabID))
       #expect(restored.selectedSurfaceState?.pwd == restoredPathString)
       #expect(restored.selectedSurfaceState?.titleOverride == "Pane Title")
 
-      try expectDebugSnapshot(restored, firstSpaceID: firstSpaceID)
+      let debug = restored.debugWindowSnapshot(index: 1)
+      let debugSpace = try #require(debug.spaces.first)
+      let debugTabs = debugTabs(in: debugSpace)
+      #expect(debugTabs.first?.panes.count == 2)
+      #expect(debugTabs.first?.panes.filter(\.isFocused).count == 1)
+      #expect(
+        debugTabs.last?.panes.first(where: \.isFocused)?.displayTitle == "Pane Title"
+      )
     }
   }
 
@@ -268,53 +253,48 @@ struct TerminalHostStateSessionRestoreTests {
       let automaticTabID = TerminalTabID()
       let durableTabID = TerminalTabID()
       let session = TerminalWindowSession(
-        selectedSpaceID: spaceID,
-        spaces: [
-          TerminalWindowSpaceSession(
-            id: spaceID,
-            selectedTabID: automaticTabID,
-            nodes: [
-              TerminalTabNodeSession(
-                item: .group(automaticGroupID),
-                parent: .root(isPinned: false),
-                order: 0
-              ),
-              TerminalTabNodeSession(
-                item: .tab(automaticTabID),
-                parent: .group(automaticGroupID),
-                order: 0
-              ),
-              TerminalTabNodeSession(
-                item: .group(durableGroupID),
-                parent: .root(isPinned: false),
-                order: 1
-              ),
-              TerminalTabNodeSession(
-                item: .tab(durableTabID),
-                parent: .group(durableGroupID),
-                order: 0
-              ),
-            ],
-            groups: [
-              TerminalTabGroupSession(
-                id: automaticGroupID,
-                title: "Automatic",
-                color: .blue,
-                lifetime: .automatic
-              ),
-              TerminalTabGroupSession(
-                id: durableGroupID,
-                title: "Durable",
-                color: .purple,
-                lifetime: .durable
-              ),
-            ],
-            collapsedGroupIDs: [automaticGroupID, durableGroupID],
-            tabs: [
-              tabSession(id: automaticTabID, title: "Automatic"),
-              tabSession(id: durableTabID, title: "Durable"),
-            ]
-          )
+        spaceID: spaceID,
+        selectedTabID: automaticTabID,
+        nodes: [
+          TerminalTabNodeSession(
+            item: .group(automaticGroupID),
+            parent: .root(isPinned: false),
+            order: 0
+          ),
+          TerminalTabNodeSession(
+            item: .tab(automaticTabID),
+            parent: .group(automaticGroupID),
+            order: 0
+          ),
+          TerminalTabNodeSession(
+            item: .group(durableGroupID),
+            parent: .root(isPinned: false),
+            order: 1
+          ),
+          TerminalTabNodeSession(
+            item: .tab(durableTabID),
+            parent: .group(durableGroupID),
+            order: 0
+          ),
+        ],
+        groups: [
+          TerminalTabGroupSession(
+            id: automaticGroupID,
+            title: "Automatic",
+            color: .blue,
+            lifetime: .automatic
+          ),
+          TerminalTabGroupSession(
+            id: durableGroupID,
+            title: "Durable",
+            color: .purple,
+            lifetime: .durable
+          ),
+        ],
+        collapsedGroupIDs: [automaticGroupID, durableGroupID],
+        tabs: [
+          tabSession(id: automaticTabID, title: "Automatic"),
+          tabSession(id: durableTabID, title: "Durable"),
         ]
       )
 
@@ -383,23 +363,6 @@ struct TerminalHostStateSessionRestoreTests {
         [rootTab.tab]
       }
     }
-  }
-
-  private func expectDebugSnapshot(
-    _ host: TerminalHostState,
-    firstSpaceID: TerminalSpaceID
-  ) throws {
-    let debug = host.debugWindowSnapshot(index: 1)
-    let firstSpace = try #require(
-      debug.spaces.first(where: { $0.id == firstSpaceID.rawValue }))
-    let firstTab = try #require(debugTabs(in: firstSpace).first)
-    let lastSpace = try #require(debug.spaces.last)
-
-    #expect(firstTab.panes.count == 2)
-    #expect(firstTab.panes.filter(\.isFocused).count == 1)
-    #expect(
-      debugTabs(in: lastSpace).last?.panes.first(where: \.isFocused)?.displayTitle
-        == "Pane Title")
   }
 
   private func tabSession(

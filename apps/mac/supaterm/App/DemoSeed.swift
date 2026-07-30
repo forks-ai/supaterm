@@ -111,24 +111,19 @@
       $spaceCatalog.withLock {
         $0 = TerminalSpaceCatalog(
           defaultSelectedSpaceID: IDs.space,
-          spaces: [PersistedTerminalSpace(id: IDs.space, name: "Supaterm")]
+          spaces: [TerminalSpaceItem(id: IDs.space, name: "Supaterm")]
         )
       }
       $sessionCatalog.withLock {
         $0 = TerminalSessionCatalog(
           windows: [
             TerminalWindowSession(
-              selectedSpaceID: IDs.space,
-              spaces: [
-                TerminalWindowSpaceSession(
-                  id: IDs.space,
-                  selectedTabID: IDs.deployTab,
-                  nodes: nodes,
-                  groups: groups,
-                  collapsedGroupIDs: [IDs.researchGroup],
-                  tabs: tabSessions
-                )
-              ]
+              spaceID: IDs.space,
+              selectedTabID: IDs.deployTab,
+              nodes: nodes,
+              groups: groups,
+              collapsedGroupIDs: [IDs.researchGroup],
+              tabs: tabSessions
             )
           ]
         )

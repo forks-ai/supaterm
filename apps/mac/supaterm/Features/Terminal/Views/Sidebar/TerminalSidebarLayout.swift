@@ -76,10 +76,4 @@ enum TerminalSidebarLayout {
     return String(fallbackIndex + 1)
   }
 
-  static func showsSpaceList(
-    spacesCount: Int
-  ) -> Bool {
-    spacesCount > 1
-  }
-
 }

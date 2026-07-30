@@ -73,12 +73,44 @@ struct TerminalSidebarLayoutTests {
   }
 
   @Test
-  func singleSpaceHidesSpaceList() {
-    #expect(!TerminalSidebarLayout.showsSpaceList(spacesCount: 1))
+  func spaceSwitcherResolvesSelectedSpace() throws {
+    let first = TerminalSpaceItem(id: TerminalSpaceID(), name: "First")
+    let second = TerminalSpaceItem(id: TerminalSpaceID(), name: "Second")
+
+    let presentation = try #require(
+      TerminalSpaceSwitcherPresentation(
+        spaces: [first, second],
+        selectedSpaceID: second.id
+      )
+    )
+
+    #expect(presentation.selectedSpace == second)
+    #expect(presentation.canDelete)
   }
 
   @Test
-  func multipleSpacesShowSpaceList() {
-    #expect(TerminalSidebarLayout.showsSpaceList(spacesCount: 2))
+  func spaceSwitcherDisablesDeletingOnlySpace() throws {
+    let space = TerminalSpaceItem(id: TerminalSpaceID(), name: "Only")
+
+    let presentation = try #require(
+      TerminalSpaceSwitcherPresentation(
+        spaces: [space],
+        selectedSpaceID: space.id
+      )
+    )
+
+    #expect(!presentation.canDelete)
+  }
+
+  @Test
+  func spaceSwitcherRejectsMissingSelection() {
+    let space = TerminalSpaceItem(id: TerminalSpaceID(), name: "Only")
+
+    #expect(
+      TerminalSpaceSwitcherPresentation(
+        spaces: [space],
+        selectedSpaceID: TerminalSpaceID()
+      ) == nil
+    )
   }
 }

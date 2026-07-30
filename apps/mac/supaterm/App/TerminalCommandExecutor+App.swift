@@ -52,7 +52,7 @@ extension TerminalCommandExecutor {
       update: updateSnapshot(updateEntry.map { $0.store.update }),
       summary: SupatermAppDebugSnapshot.Summary(
         windowCount: windows.count,
-        spaceCount: windows.reduce(0) { $0 + $1.spaces.count },
+        spaceCount: registry.spaceCount,
         tabCount: windows.reduce(0) { partial, window in
           partial
             + window.spaces.reduce(0) { spacePartial, space in

@@ -123,7 +123,7 @@ final class CommandPaletteUITests: SupatermUITestCase {
   }
 
   @MainActor
-  func testCreateSpaceCommandAddsSpaceBarButton() async throws {
+  func testCreateSpaceCommandOpensSpaceWindow() async throws {
     let terminal = try readyTerminal()
     terminal.click()
 
@@ -147,14 +147,14 @@ final class CommandPaletteUITests: SupatermUITestCase {
     XCTAssertTrue(didEnableConfirm)
     confirmButton.click()
 
-    let spaceButtons = app.buttons.matching(
-      identifier: SupatermUITestIdentifier.Accessibility.sidebarSpaceButton
+    let spaceSwitchers = app.descendants(matching: .any).matching(
+      identifier: SupatermUITestIdentifier.Accessibility.titlebarSpaceSwitcher
     )
-    let createdSpaceButton = spaceButtons.matching(
+    let createdSpaceSwitcher = spaceSwitchers.matching(
       NSPredicate(format: "label == %@", "Space \(spaceName)")
     ).firstMatch
-    let didCreateSpace = await wait(for: createdSpaceButton) {
-      $0.exists && spaceButtons.count == 2
+    let didCreateSpace = await wait(for: createdSpaceSwitcher) {
+      $0.exists && spaceSwitchers.count == 2 && self.app.windows.count == 2
     }
     XCTAssertTrue(didCreateSpace)
   }

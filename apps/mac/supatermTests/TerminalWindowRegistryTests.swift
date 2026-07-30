@@ -1,6 +1,7 @@
 import AppKit
 import Clocks
 import ComposableArchitecture
+import Sharing
 import SupatermSupport
 import SupatermTerminalCore
 import SupatermUpdateFeature
@@ -12,8 +13,214 @@ import Testing
 @MainActor
 struct TerminalWindowRegistryTests {
   @Test
-  func commandAvailabilityReflectsSelectedTabInActiveWindow() throws {
+  func openingSpaceWithoutWindowCreatesOneForThatSpace() {
+    withDependencies {
+      $0.defaultFileStorage = .inMemory
+    } operation: {
+      let spaces = [TerminalSpaceItem(name: "A"), TerminalSpaceItem(name: "B")]
+      @Shared(.terminalSpaceCatalog) var catalog = TerminalSpaceCatalog.default
+      $catalog.withLock {
+        $0 = TerminalSpaceCatalog(defaultSelectedSpaceID: spaces[0].id, spaces: spaces)
+      }
+      let registry = TerminalWindowRegistry()
+      var createdSpaceIDs: [TerminalSpaceID] = []
+      registry.onCreateWindow = { spaceID, _ in createdSpaceIDs.append(spaceID) }
+
+      #expect(registry.openSpace(spaces[1].id))
+      #expect(createdSpaceIDs == [spaces[1].id])
+      #expect(catalog.defaultSelectedSpaceID == spaces[1].id)
+    }
+  }
+
+  @Test
+  func openingSpaceUsesItsMostRecentWindow() {
+    withDependencies {
+      $0.defaultFileStorage = .inMemory
+    } operation: {
+      let space = TerminalSpaceItem(name: "A")
+      @Shared(.terminalSpaceCatalog) var catalog = TerminalSpaceCatalog.default
+      $catalog.withLock {
+        $0 = TerminalSpaceCatalog(defaultSelectedSpaceID: space.id, spaces: [space])
+      }
+      let registry = TerminalWindowRegistry()
+      let first = registerWindow(in: registry, spaceID: space.id)
+      let second = registerWindow(in: registry, spaceID: space.id)
+      let firstID = first.id
+      let secondID = second.id
+      registry.markWindowFocused(firstID)
+      var createdSpaceIDs: [TerminalSpaceID] = []
+      registry.onCreateWindow = { spaceID, _ in createdSpaceIDs.append(spaceID) }
+
+      #expect(registry.openSpace(space.id))
+      #expect(createdSpaceIDs.isEmpty)
+      #expect(registry.activeEntries().last?.windowControllerID == firstID)
+      #expect(registry.activeEntries().first?.windowControllerID == secondID)
+      withExtendedLifetime([first.window, second.window]) {}
+    }
+  }
+
+  @Test
+  func focusingWindowPersistsItsSpaceAndTracksLastSpace() throws {
     try withDependencies {
+      $0.defaultFileStorage = .inMemory
+    } operation: {
+      initializeGhosttyForTests()
+      let spaces = [TerminalSpaceItem(name: "A"), TerminalSpaceItem(name: "B")]
+      @Shared(.terminalSpaceCatalog) var catalog = TerminalSpaceCatalog.default
+      $catalog.withLock {
+        $0 = TerminalSpaceCatalog(defaultSelectedSpaceID: spaces[0].id, spaces: spaces)
+      }
+      let registry = TerminalWindowRegistry()
+      let first = registerWindow(in: registry, spaceID: spaces[0].id, createsInitialTab: true)
+      let second = registerWindow(in: registry, spaceID: spaces[1].id, createsInitialTab: true)
+
+      registry.markWindowFocused(second.id)
+
+      #expect(catalog.defaultSelectedSpaceID == spaces[1].id)
+
+      let lastSpace = try registry.lastSpaceResult(from: spaces[1].id)
+
+      #expect(lastSpace.target.spaceID == spaces[0].id.rawValue)
+      #expect(catalog.defaultSelectedSpaceID == spaces[0].id)
+      withExtendedLifetime([first.window, second.window]) {}
+    }
+  }
+
+  @Test
+  func creatingSpaceTrimsNamePersistsItAndCreatesWindow() throws {
+    try withDependencies {
+      $0.defaultFileStorage = .inMemory
+    } operation: {
+      let initialSpace = TerminalSpaceItem(name: "A")
+      @Shared(.terminalSpaceCatalog) var catalog = TerminalSpaceCatalog.default
+      $catalog.withLock {
+        $0 = TerminalSpaceCatalog(
+          defaultSelectedSpaceID: initialSpace.id,
+          spaces: [initialSpace]
+        )
+      }
+      let registry = TerminalWindowRegistry()
+      var createdWindows: [(TerminalSpaceID, Bool)] = []
+      registry.onCreateWindow = { createdWindows.append(($0, $1)) }
+
+      let spaceID = try registry.createSpace(named: "  Build  ")
+
+      #expect(catalog.spaces.map(\.name) == ["A", "Build"])
+      #expect(catalog.defaultSelectedSpaceID == spaceID)
+      #expect(createdWindows.map(\.0) == [spaceID])
+      #expect(createdWindows.map(\.1) == [true])
+      #expect(throws: TerminalControlError.self) {
+        try registry.createSpace(named: "build")
+      }
+    }
+  }
+
+  @Test
+  func creatingUnfocusedSpaceKeepsCurrentSpaceSelected() throws {
+    try withDependencies {
+      $0.defaultFileStorage = .inMemory
+    } operation: {
+      let initialSpace = TerminalSpaceItem(name: "A")
+      @Shared(.terminalSpaceCatalog) var catalog = TerminalSpaceCatalog.default
+      $catalog.withLock {
+        $0 = TerminalSpaceCatalog(
+          defaultSelectedSpaceID: initialSpace.id,
+          spaces: [initialSpace]
+        )
+      }
+      let registry = TerminalWindowRegistry()
+      var createdWindows: [(TerminalSpaceID, Bool)] = []
+      registry.onCreateWindow = { createdWindows.append(($0, $1)) }
+
+      let spaceID = try registry.createSpace(named: "Build", focus: false)
+
+      #expect(catalog.defaultSelectedSpaceID == initialSpace.id)
+      #expect(createdWindows.map(\.0) == [spaceID])
+      #expect(createdWindows.map(\.1) == [false])
+    }
+  }
+
+  @Test
+  func deletingSpaceClosesAllItsWindowsAndKeepsOtherSpaces() throws {
+    try withDependencies {
+      $0.defaultFileStorage = .inMemory
+    } operation: {
+      let spaces = [TerminalSpaceItem(name: "A"), TerminalSpaceItem(name: "B")]
+      @Shared(.terminalSpaceCatalog) var catalog = TerminalSpaceCatalog.default
+      $catalog.withLock {
+        $0 = TerminalSpaceCatalog(defaultSelectedSpaceID: spaces[0].id, spaces: spaces)
+      }
+      let registry = TerminalWindowRegistry()
+      var closedWindowIDs: [UUID] = []
+      let first = registerWindow(
+        in: registry,
+        spaceID: spaces[0].id,
+        onClose: { closedWindowIDs.append($0) }
+      )
+      let second = registerWindow(
+        in: registry,
+        spaceID: spaces[0].id,
+        onClose: { closedWindowIDs.append($0) }
+      )
+      let third = registerWindow(in: registry, spaceID: spaces[1].id)
+
+      try registry.deleteSpace(spaces[0].id)
+
+      #expect(Set(closedWindowIDs) == [first.id, second.id])
+      #expect(catalog.spaces.map(\.id) == [spaces[1].id])
+      #expect(catalog.defaultSelectedSpaceID == spaces[1].id)
+      #expect(throws: TerminalControlError.self) {
+        try registry.deleteSpace(spaces[1].id)
+      }
+      withExtendedLifetime([first.window, second.window, third.window]) {}
+    }
+  }
+
+  @Test
+  func deletingSelectedSpaceOpensItsReplacement() throws {
+    try withDependencies {
+      $0.defaultFileStorage = .inMemory
+    } operation: {
+      let spaces = [TerminalSpaceItem(name: "A"), TerminalSpaceItem(name: "B")]
+      @Shared(.terminalSpaceCatalog) var catalog = TerminalSpaceCatalog.default
+      $catalog.withLock {
+        $0 = TerminalSpaceCatalog(defaultSelectedSpaceID: spaces[0].id, spaces: spaces)
+      }
+      let registry = TerminalWindowRegistry()
+      let first = registerWindow(in: registry, spaceID: spaces[0].id)
+      var createdWindows: [(TerminalSpaceID, Bool)] = []
+      registry.onCreateWindow = { createdWindows.append(($0, $1)) }
+
+      try registry.deleteSpace(spaces[0].id)
+
+      #expect(createdWindows.map(\.0) == [spaces[1].id])
+      #expect(createdWindows.map(\.1) == [true])
+      #expect(catalog.defaultSelectedSpaceID == spaces[1].id)
+      withExtendedLifetime(first.window) {}
+    }
+  }
+
+  @Test
+  func menuContextUsesGlobalSpaceCount() {
+    withDependencies {
+      $0.defaultFileStorage = .inMemory
+    } operation: {
+      let spaces = [TerminalSpaceItem(name: "A"), TerminalSpaceItem(name: "B")]
+      @Shared(.terminalSpaceCatalog) var catalog = TerminalSpaceCatalog.default
+      $catalog.withLock {
+        $0 = TerminalSpaceCatalog(defaultSelectedSpaceID: spaces[0].id, spaces: spaces)
+      }
+      let registry = TerminalWindowRegistry()
+      let window = registerWindow(in: registry, spaceID: spaces[0].id)
+
+      #expect(registry.menuContext().spaceCount == 2)
+      withExtendedLifetime(window.window) {}
+    }
+  }
+
+  @Test
+  func commandAvailabilityReflectsSelectedTabInActiveWindow() {
+    withDependencies {
       $0.defaultFileStorage = .inMemory
     } operation: {
       let registry = TerminalWindowRegistry()
@@ -23,7 +230,7 @@ struct TerminalWindowRegistryTests {
       }
       let windowControllerID = UUID()
 
-      let tabManager = try #require(host.spaceManager.activeTabManager)
+      let tabManager = host.spaceManager.tabManager
       let tabID = tabManager.createTab(title: "Terminal 1")
       tabManager.selectTab(tabID)
 
@@ -684,10 +891,11 @@ struct TerminalWindowRegistryTests {
       let snapshot = registry.restorationSnapshot()
 
       #expect(snapshot.windows.count == 2)
+      #expect(snapshot.windows.map(\.spaceID) == [firstHost.selectedSpaceID, secondHost.selectedSpaceID])
       #expect(snapshot.windows[0].frame == TerminalWindowFrame(firstFrame))
-      #expect(snapshot.windows[0].spaces.first?.tabs.count == 1)
+      #expect(snapshot.windows[0].tabs.count == 1)
       #expect(snapshot.windows[1].frame == TerminalWindowFrame(secondFrame))
-      #expect(snapshot.windows[1].spaces.first?.tabs.count == 2)
+      #expect(snapshot.windows[1].tabs.count == 2)
     }
   }
   @Test
@@ -705,7 +913,7 @@ struct TerminalWindowRegistryTests {
       }
       let windowControllerID = UUID()
 
-      let tabManager = try #require(host.spaceManager.activeTabManager)
+      let tabManager = host.spaceManager.tabManager
       let tabID = tabManager.createTab(title: "Terminal 1")
       tabManager.selectTab(tabID)
 
@@ -770,7 +978,7 @@ struct TerminalWindowRegistryTests {
         $0.terminalClient.send = { recorder.record($0) }
       }
       let windowControllerID = UUID()
-      let tabManager = try #require(host.spaceManager.activeTabManager)
+      let tabManager = host.spaceManager.tabManager
       let tabID = tabManager.createTab(title: "Terminal 1")
       let groupID = try #require(
         tabManager.createGroup(title: "Group", containing: [tabID])
@@ -1192,6 +1400,33 @@ struct TerminalWindowRegistryTests {
       Issue.record("Expected no windows plan")
     }
   }
+}
+
+@MainActor
+private func registerWindow(
+  in registry: TerminalWindowRegistry,
+  spaceID: TerminalSpaceID,
+  createsInitialTab: Bool = false,
+  onClose: @escaping (UUID) -> Void = { _ in }
+) -> (id: UUID, window: NSWindow) {
+  let id = UUID()
+  let host = TerminalHostState(managesTerminalSurfaces: createsInitialTab, spaceID: spaceID)
+  if createsInitialTab {
+    host.handleCommand(.ensureInitialTab(focusing: false, startupCommand: nil))
+  }
+  let store = Store(initialState: AppFeature.State()) {
+    AppFeature()
+  }
+  registry.register(
+    keyboardShortcutForAction: { _ in nil },
+    windowControllerID: id,
+    store: store,
+    terminal: host,
+    requestConfirmedWindowClose: { onClose(id) }
+  )
+  let window = makeWindow()
+  registry.updateWindow(window, for: id)
+  return (id, window)
 }
 
 @MainActor

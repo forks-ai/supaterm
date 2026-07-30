@@ -7,8 +7,12 @@ struct SessionPersistenceStateTests {
   private let liveCatalog = TerminalSessionCatalog(
     windows: [
       TerminalWindowSession(
-        selectedSpaceID: TerminalSpaceID(),
-        spaces: []
+        spaceID: TerminalSpaceID(),
+        selectedTabID: nil,
+        nodes: [],
+        groups: [],
+        collapsedGroupIDs: [],
+        tabs: []
       )
     ]
   )

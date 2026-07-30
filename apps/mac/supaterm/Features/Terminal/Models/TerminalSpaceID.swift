@@ -28,22 +28,9 @@ nonisolated struct TerminalSpaceItem: Identifiable, Equatable, Codable, Sendable
   }
 }
 
-nonisolated struct PersistedTerminalSpace: Equatable, Codable, Sendable {
-  let id: TerminalSpaceID
-  var name: String
-
-  init(
-    id: TerminalSpaceID = TerminalSpaceID(),
-    name: String
-  ) {
-    self.id = id
-    self.name = name
-  }
-}
-
 nonisolated struct TerminalSpaceCatalog: Equatable, Codable, Sendable {
   var defaultSelectedSpaceID: TerminalSpaceID
-  var spaces: [PersistedTerminalSpace]
+  var spaces: [TerminalSpaceItem]
 
   static let `default` = Self.makeDefault()
 
@@ -61,10 +48,10 @@ nonisolated struct TerminalSpaceCatalog: Equatable, Codable, Sendable {
   static func sanitized(_ catalog: Self?) -> Self {
     guard let catalog else { return .default }
 
-    let spaces = catalog.spaces.compactMap { space -> PersistedTerminalSpace? in
+    let spaces = catalog.spaces.compactMap { space -> TerminalSpaceItem? in
       let trimmedName = space.name.trimmingCharacters(in: .whitespacesAndNewlines)
       guard !trimmedName.isEmpty else { return nil }
-      return PersistedTerminalSpace(
+      return TerminalSpaceItem(
         id: space.id,
         name: trimmedName
       )
@@ -89,7 +76,7 @@ nonisolated struct TerminalSpaceCatalog: Equatable, Codable, Sendable {
   }
 
   private static func makeDefault() -> Self {
-    let space = PersistedTerminalSpace(
+    let space = TerminalSpaceItem(
       id: TerminalSpaceID(rawValue: UUID(uuidString: "00000000-0000-0000-0000-000000000001")!),
       name: "1"
     )

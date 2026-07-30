@@ -7,6 +7,10 @@ import SupatermCLIShared
 import SwiftUI
 
 extension TerminalHostState {
+  var availableSpaces: [TerminalSpaceItem] {
+    TerminalSpaceCatalog.sanitized(spaceCatalog).spaces
+  }
+
   var spaces: [TerminalSpaceItem] {
     spaceManager.spaces
   }
