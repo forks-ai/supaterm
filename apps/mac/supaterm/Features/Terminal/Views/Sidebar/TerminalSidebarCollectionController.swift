@@ -33,6 +33,8 @@ final class TerminalSidebarListController: NSViewController, NSCollectionViewDel
     let entryID: TerminalSidebarEntryID
     let eventNumber: Int
     let origin: CGPoint
+    let selectedTabIDs: [TerminalTabID]
+    let defersSelection: Bool
   }
 
   private struct DragSourceGeometry {
@@ -473,25 +475,37 @@ final class TerminalSidebarListController: NSViewController, NSCollectionViewDel
 
   private func rowMouseDown(entryID: TerminalSidebarEntryID, event: NSEvent) -> Bool {
     guard activeDrag == nil else { return false }
-    if case .tab(let tabID) = entryID {
-      selectTab(tabID, modifiers: event.modifierFlags)
-    }
     let consumesClick = if case .tab = entryID { true } else { false }
-    guard case .idle = updatePhase else { return consumesClick }
-    guard let payload = appliedOutline.dragPayload(for: entryID) else { return consumesClick }
+    guard case .idle = updatePhase else {
+      selectPressedTab(entryID, modifiers: event.modifierFlags)
+      return consumesClick
+    }
+    guard let payload = appliedOutline.dragPayload(for: entryID) else {
+      selectPressedTab(entryID, modifiers: event.modifierFlags)
+      return consumesClick
+    }
     if case .group(let groupID) = payload.source, renameState.groupID == groupID {
       return consumesClick
     }
     guard
       let indexPath = dataSource.indexPath(for: entryID),
       let attributes = collectionLayout.layoutAttributesForItem(at: indexPath)
-    else { return consumesClick }
+    else {
+      selectPressedTab(entryID, modifiers: event.modifierFlags)
+      return consumesClick
+    }
     let location = collectionView.convert(event.locationInWindow, from: nil)
-    guard attributes.frame.contains(location) else { return consumesClick }
+    guard attributes.frame.contains(location) else {
+      selectPressedTab(entryID, modifiers: event.modifierFlags)
+      return consumesClick
+    }
+    let selection = tabPressSelection(entryID: entryID, modifiers: event.modifierFlags)
     pendingDrag = PendingDrag(
       entryID: entryID,
       eventNumber: event.eventNumber,
-      origin: location
+      origin: location,
+      selectedTabIDs: selection.selectedTabIDs,
+      defersSelection: selection.defersSelection
     )
     switch entryID {
     case .group:
@@ -516,26 +530,33 @@ final class TerminalSidebarListController: NSViewController, NSCollectionViewDel
       return false
     case .rejected:
       self.pendingDrag = nil
+      resolveDeferredSelection(pendingDrag)
       return false
     case .begin:
       self.pendingDrag = nil
-      return beginDragging(
+      let beganDragging = beginDragging(
         entryID: entryID,
         event: event,
-        pointer: location
+        pointer: location,
+        selectedTabIDs: pendingDrag.selectedTabIDs
       )
+      if !beganDragging {
+        resolveDeferredSelection(pendingDrag)
+      }
+      return beganDragging
     }
   }
 
   private func rowMouseUp(entryID: TerminalSidebarEntryID, event _: NSEvent) -> Bool {
     let consumes = activeDrag != nil && pendingDrag?.entryID == nil
-    guard pendingDrag?.entryID == entryID else { return consumes }
-    pendingDrag = nil
+    guard let pendingDrag, pendingDrag.entryID == entryID else { return consumes }
+    self.pendingDrag = nil
     switch entryID {
     case .group(let groupID):
       context?.actions.toggleGroupCollapsed(groupID)
       return true
     case .tab:
+      resolveDeferredSelection(pendingDrag)
       return true
     case .pinDivider, .newTab:
       return consumes
@@ -550,6 +571,48 @@ final class TerminalSidebarListController: NSViewController, NSCollectionViewDel
       return
     }
     applyModifiedSelection(tabID: tabID, modifiers: modifiers)
+  }
+
+  private func selectPressedTab(
+    _ entryID: TerminalSidebarEntryID,
+    modifiers: NSEvent.ModifierFlags
+  ) {
+    guard case .tab(let tabID) = entryID else { return }
+    selectTab(tabID, modifiers: modifiers)
+  }
+
+  private func tabPressSelection(
+    entryID: TerminalSidebarEntryID,
+    modifiers: NSEvent.ModifierFlags
+  ) -> (selectedTabIDs: [TerminalTabID], defersSelection: Bool) {
+    guard case .tab(let tabID) = entryID else { return ([], false) }
+    let selectedTabIDs = tabSelectionState.orderedTabIDs(
+      primaryTabID: selectedTabID,
+      outline: appliedOutline
+    )
+    switch TerminalSidebarTabPressDecision.resolve(
+      tabID: tabID,
+      modifiers: modifiers,
+      selectedTabIDs: selectedTabIDs
+    ) {
+    case .applySelection:
+      selectTab(tabID, modifiers: modifiers)
+      return (
+        tabSelectionState.contextualTabIDs(
+          for: tabID,
+          primaryTabID: selectedTabID,
+          outline: appliedOutline
+        ),
+        false
+      )
+    case .deferSelection(let selectedTabIDs):
+      return (selectedTabIDs, true)
+    }
+  }
+
+  private func resolveDeferredSelection(_ pendingDrag: PendingDrag) {
+    guard pendingDrag.defersSelection, case .tab(let tabID) = pendingDrag.entryID else { return }
+    selectTab(tabID, modifiers: [])
   }
 
   private func applyModifiedSelection(
@@ -576,10 +639,13 @@ final class TerminalSidebarListController: NSViewController, NSCollectionViewDel
   private func beginDragging(
     entryID: TerminalSidebarEntryID,
     event: NSEvent,
-    pointer: CGPoint
+    pointer: CGPoint,
+    selectedTabIDs: [TerminalTabID]
   ) -> Bool {
     guard case .idle = updatePhase else { return false }
-    guard let selectedTabIDs = selectedTabIDsForDrag(entryID) else { return false }
+    if case .group = entryID {
+      tabSelectionState.clear()
+    }
     guard
       let payload = appliedOutline.dragPayload(
         for: entryID,
@@ -630,22 +696,6 @@ final class TerminalSidebarListController: NSViewController, NSCollectionViewDel
     )
     beginNativeDraggingSession(payload: payload, frame: geometry.frame, event: event)
     return true
-  }
-
-  private func selectedTabIDsForDrag(_ entryID: TerminalSidebarEntryID) -> [TerminalTabID]? {
-    switch entryID {
-    case .tab(let tabID):
-      return tabSelectionState.contextualTabIDs(
-        for: tabID,
-        primaryTabID: selectedTabID,
-        outline: appliedOutline
-      )
-    case .group:
-      tabSelectionState.clear()
-      return []
-    case .pinDivider, .newTab:
-      return nil
-    }
   }
 
   private func dragSourceGeometry(

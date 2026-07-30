@@ -23,6 +23,24 @@ enum TerminalSidebarDragActivation {
   }
 }
 
+enum TerminalSidebarTabPressDecision: Equatable {
+  case applySelection
+  case deferSelection([TerminalTabID])
+
+  static func resolve(
+    tabID: TerminalTabID,
+    modifiers: NSEvent.ModifierFlags,
+    selectedTabIDs: [TerminalTabID]
+  ) -> Self {
+    guard
+      modifiers.isDisjoint(with: [.command, .shift]),
+      selectedTabIDs.count > 1,
+      selectedTabIDs.contains(tabID)
+    else { return .applySelection }
+    return .deferSelection(selectedTabIDs)
+  }
+}
+
 struct TerminalSidebarHapticTargetTracker {
   private(set) var lastPath: TerminalSidebarSemanticPath?
 

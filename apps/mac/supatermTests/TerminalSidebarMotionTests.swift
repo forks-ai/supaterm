@@ -6,6 +6,34 @@ import Testing
 
 struct TerminalSidebarMotionTests {
   @Test
+  func pressingASelectedTabKeepsTheBatchUntilTheGestureResolves() {
+    let first = TerminalTabID()
+    let second = TerminalTabID()
+
+    #expect(
+      TerminalSidebarTabPressDecision.resolve(
+        tabID: second,
+        modifiers: [],
+        selectedTabIDs: [first, second]
+      ) == .deferSelection([first, second])
+    )
+    #expect(
+      TerminalSidebarTabPressDecision.resolve(
+        tabID: second,
+        modifiers: .command,
+        selectedTabIDs: [first, second]
+      ) == .applySelection
+    )
+    #expect(
+      TerminalSidebarTabPressDecision.resolve(
+        tabID: TerminalTabID(),
+        modifiers: [],
+        selectedTabIDs: [first, second]
+      ) == .applySelection
+    )
+  }
+
+  @Test
   func activationRequiresSameEventAndThreshold() {
     #expect(
       TerminalSidebarDragActivation.decision(
