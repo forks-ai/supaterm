@@ -9,7 +9,7 @@ import Testing
 @MainActor
 struct TerminalSidebarPointerTests {
   @Test
-  func clickingTabRowTracksMouseUpAndSelectsTab() async throws {
+  func tabRowRoutesPlainAndModifiedClicksThroughCollectionController() async throws {
     let host = TerminalHostState(managesTerminalSurfaces: false)
     let manager = try #require(host.spaceManager.activeTabManager)
     let firstTabID = manager.createTab(title: "First")
@@ -31,12 +31,18 @@ struct TerminalSidebarPointerTests {
       topologyRevision: 1,
       spaceID: TerminalSidebarTestFixture.primarySpaceID
     )
+    let selectionState = TerminalSidebarTabSelectionState()
     let collectionView = TerminalSidebarCollectionView(
       frame: NSRect(x: 0, y: 0, width: 240, height: 100)
     )
-    collectionView.onRowMouseDown = { entryID, _ in
+    collectionView.onRowMouseDown = { entryID, event in
       guard entryID == .tab(firstTabID) else { return false }
-      _ = store.send(.tabSelected(firstTabID))
+      if event.modifierFlags.contains(.command) {
+        selectionState.toggle(firstTabID, primaryTabID: secondTabID)
+      } else {
+        selectionState.clear()
+        _ = store.send(.tabSelected(firstTabID))
+      }
       return true
     }
     collectionView.onRowMouseUp = { entryID, _ in
@@ -52,7 +58,7 @@ struct TerminalSidebarPointerTests {
           palette: Palette(colorScheme: .dark),
           renameState: TerminalSidebarRenameState(),
           groupHeaderHoverState: TerminalSidebarGroupHoverState(),
-          tabSelectionState: TerminalSidebarTabSelectionState(),
+          tabSelectionState: selectionState,
           outline: outline,
           fixedHoveredGroupID: nil,
           actions: rowActions
@@ -82,14 +88,26 @@ struct TerminalSidebarPointerTests {
       NSPoint(x: hostedView.bounds.midX, y: hostedView.bounds.midY),
       to: nil
     )
+    let commandMouseDown = try #require(
+      mouseEvent(.leftMouseDown, at: location, in: window, modifiers: .command)
+    )
+    let commandMouseUp = try #require(
+      mouseEvent(.leftMouseUp, at: location, in: window, modifiers: .command)
+    )
+
+    NSApp.sendEvent(commandMouseDown)
+    NSApp.sendEvent(commandMouseUp)
+    for _ in 0..<5 { await Task.yield() }
+    #expect(recorder.commands.isEmpty)
+    #expect(
+      selectionState.orderedTabIDs(primaryTabID: secondTabID, outline: outline)
+        == [firstTabID, secondTabID]
+    )
+
     let mouseDown = try #require(mouseEvent(.leftMouseDown, at: location, in: window))
     let mouseUp = try #require(mouseEvent(.leftMouseUp, at: location, in: window))
-
-    #expect(collectionView.handleRowMouseEvent(mouseDown) == nil)
-    for _ in 0..<5 { await Task.yield() }
-    #expect(recorder.commands == [.selectTab(firstTabID)])
-
-    #expect(collectionView.handleRowMouseEvent(mouseUp) == nil)
+    NSApp.sendEvent(mouseDown)
+    NSApp.sendEvent(mouseUp)
     for _ in 0..<5 { await Task.yield() }
     #expect(recorder.commands == [.selectTab(firstTabID)])
   }
@@ -127,12 +145,13 @@ struct TerminalSidebarPointerTests {
   private func mouseEvent(
     _ type: NSEvent.EventType,
     at location: NSPoint,
-    in window: NSWindow
+    in window: NSWindow,
+    modifiers: NSEvent.ModifierFlags = []
   ) -> NSEvent? {
     NSEvent.mouseEvent(
       with: type,
       location: location,
-      modifierFlags: [],
+      modifierFlags: modifiers,
       timestamp: ProcessInfo.processInfo.systemUptime,
       windowNumber: window.windowNumber,
       context: nil,

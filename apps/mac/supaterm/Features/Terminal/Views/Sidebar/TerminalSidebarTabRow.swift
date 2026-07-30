@@ -161,72 +161,74 @@ struct TerminalSidebarTabRow: View {
   }
 
   var body: some View {
-    Button(action: select) {
-      HStack(spacing: 8) {
-        let summary = TerminalSidebarTabSummaryView(
-          tab: tab,
-          palette: palette,
-          isSelected: isPrimarySelected,
-          isPinned: groupID == nil && rootIsPinned,
-          notificationPreviewText: notificationPresentation?.previewText,
-          paneWorkingDirectories: paneWorkingDirectories,
-          unreadCount: unreadCount,
-          badgeActivities: agentPresentation.badgeActivities,
-          badgeActivity: agentPresentation.badgeActivity,
-          badgeActivityIsFocused: agentPresentation.badgeActivityIsFocused,
-          hasTerminalBell: hasTerminalBell,
-          terminalProgress: terminalProgress,
-          showsAgentMarks: showsAgentMarks,
-          showsAgentSpinner: showsAgentSpinner,
-          shortcutHint: shortcutHint,
-          showsShortcutHint: showsShortcutHint,
-          isRowHovering: isHovering
-        )
-        .lineLimit(8)
-        if let helpText = TerminalSidebarTabSummaryView.helpText(
-          paneWorkingDirectories: paneWorkingDirectories
-        ) {
-          summary.help(helpText)
-        } else {
-          summary
-        }
-
-        let closeButtonPresentation = Self.closeButtonPresentation(
-          isHovering: isHovering,
-          showsShortcutHint: showsShortcutHint
-        )
-        if closeButtonPresentation != .hidden {
-          Button(action: close) {
-            Image(systemName: "xmark")
-              .font(.system(size: 12, weight: .heavy))
-              .foregroundStyle(isPrimarySelected ? palette.selectedText : palette.sidebarTabTitle)
-              .frame(width: 24, height: 24)
-              .accessibilityHidden(true)
-              .background(
-                isCloseHovering
-                  ? (isPrimarySelected ? palette.selectedPillFill : palette.unselectedFill)
-                  : .clear,
-                in: RoundedRectangle(cornerRadius: 6, style: .continuous)
-              )
-          }
-          .buttonStyle(.plain)
-          .onHover { isCloseHovering = $0 }
-        }
-      }
-      .padding(.horizontal, TerminalSidebarLayout.rowHorizontalPadding)
-      .padding(.vertical, TerminalSidebarLayout.tabRowVerticalPadding)
-      .frame(minHeight: TerminalSidebarLayout.tabRowMinHeight)
-      .frame(maxWidth: .infinity)
-    }
-    .buttonStyle(
-      SelectableRowButtonStyle(
+    HStack(spacing: 8) {
+      let summary = TerminalSidebarTabSummaryView(
+        tab: tab,
         palette: palette,
         isSelected: isPrimarySelected,
+        isPinned: groupID == nil && rootIsPinned,
+        notificationPreviewText: notificationPresentation?.previewText,
+        paneWorkingDirectories: paneWorkingDirectories,
+        unreadCount: unreadCount,
+        badgeActivities: agentPresentation.badgeActivities,
+        badgeActivity: agentPresentation.badgeActivity,
+        badgeActivityIsFocused: agentPresentation.badgeActivityIsFocused,
+        hasTerminalBell: hasTerminalBell,
+        terminalProgress: terminalProgress,
+        showsAgentMarks: showsAgentMarks,
+        showsAgentSpinner: showsAgentSpinner,
+        shortcutHint: shortcutHint,
+        showsShortcutHint: showsShortcutHint,
+        isRowHovering: isHovering
+      )
+      .lineLimit(8)
+      if let helpText = TerminalSidebarTabSummaryView.helpText(
+        paneWorkingDirectories: paneWorkingDirectories
+      ) {
+        summary.help(helpText)
+      } else {
+        summary
+      }
+
+      let closeButtonPresentation = Self.closeButtonPresentation(
         isHovering: isHovering,
+        showsShortcutHint: showsShortcutHint
+      )
+      if closeButtonPresentation != .hidden {
+        Button(action: close) {
+          Image(systemName: "xmark")
+            .font(.system(size: 12, weight: .heavy))
+            .foregroundStyle(isPrimarySelected ? palette.selectedText : palette.sidebarTabTitle)
+            .frame(width: 24, height: 24)
+            .accessibilityHidden(true)
+            .background(
+              isCloseHovering
+                ? (isPrimarySelected ? palette.selectedPillFill : palette.unselectedFill)
+                : .clear,
+              in: RoundedRectangle(cornerRadius: 6, style: .continuous)
+            )
+        }
+        .buttonStyle(.plain)
+        .onHover { isCloseHovering = $0 }
+      }
+    }
+    .padding(.horizontal, TerminalSidebarLayout.rowHorizontalPadding)
+    .padding(.vertical, TerminalSidebarLayout.tabRowVerticalPadding)
+    .frame(minHeight: TerminalSidebarLayout.tabRowMinHeight)
+    .frame(maxWidth: .infinity)
+    .background(
+      rowAppearance.fill(
+        isSelected: isPrimarySelected,
+        isPressed: false,
+        isHovering: isHovering
+      )
+    )
+    .modifier(
+      SelectableRowChrome(
+        isSelected: isPrimarySelected,
         cornerRadius: TerminalSidebarLayout.tabRowCornerRadius,
-        appearance: .sidebar(
-          restFill: selectionStyle == .secondary ? palette.sidebarItemHoverFill : .clear
-        ),
+        appearance: rowAppearance,
+        showsSelectionEdge: true,
         showsSelectionShadow: false
       )
     )
@@ -358,8 +360,16 @@ struct TerminalSidebarTabRow: View {
         }
       }
     }
+    .accessibilityAddTraits(.isButton)
     .accessibilityAddTraits(isSelected ? .isSelected : [])
+    .accessibilityAction { select() }
     .accessibilityIdentifier(accessibilityIdentifier)
+  }
+
+  private var rowAppearance: SelectableRowButtonStyle.ResolvedAppearance {
+    SelectableRowButtonStyle.Appearance.sidebar(
+      restFill: selectionStyle == .secondary ? palette.sidebarItemHoverFill : .clear
+    ).resolve(palette: palette)
   }
 
   private var animatedPresentation: AnimatedPresentation {
