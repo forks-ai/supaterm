@@ -46,15 +46,16 @@ struct TerminalAgentMonitorStoreTests {
         context: nil
       )
     )
-    await flushEffects()
     continuation.yield(started)
-    await flushEffects()
-
-    #expect(events.snapshots.map(\.status) == [.started("turn-1")])
-
     continuation.yield(codexAssistantMessage("Inspecting state"))
-    await flushEffects()
+    #expect(
+      await waitUntil {
+        events.snapshots.last?.detail == "Inspecting state"
+          || events.snapshots.count > 2
+      }
+    )
 
+    #expect(events.snapshots.map(\.status) == [.started("turn-1"), .started("turn-1")])
     #expect(events.snapshots.map(\.detail) == [nil, "Inspecting state"])
   }
 
