@@ -4,12 +4,22 @@ import SwiftUI
 
 @MainActor
 final class TerminalSidebarSelectionGlowView: NSView {
+  private static let contentTopFade: CGFloat = 24
+
   private let shadowLayer = CAShapeLayer()
   private let shadowMaskLayer = CAShapeLayer()
+  private let contentTopFadeLayer = CAGradientLayer()
 
   override init(frame frameRect: NSRect) {
     super.init(frame: frameRect)
     wantsLayer = true
+    contentTopFadeLayer.colors = [NSColor.clear.cgColor, NSColor.white.cgColor]
+    contentTopFadeLayer.actions = [
+      "startPoint": NSNull(),
+      "endPoint": NSNull(),
+      "bounds": NSNull(),
+      "position": NSNull(),
+    ]
     shadowLayer.fillColor = NSColor.white.cgColor
     shadowLayer.shadowOpacity = 1
     shadowLayer.shadowOffset = CGSize(
@@ -49,6 +59,22 @@ final class TerminalSidebarSelectionGlowView: NSView {
     shadowLayer.shadowPath = shapePath
     shadowMaskLayer.frame = bounds
     shadowMaskLayer.path = maskPath
+    layoutContentTopFade()
+  }
+
+  private func layoutContentTopFade() {
+    guard bounds.height > 0, frame.minY < Self.contentTopFade else {
+      layer?.mask = nil
+      return
+    }
+    contentTopFadeLayer.frame = bounds
+    contentTopFadeLayer.startPoint = CGPoint(x: 0.5, y: unitY(contentY: 0))
+    contentTopFadeLayer.endPoint = CGPoint(x: 0.5, y: unitY(contentY: Self.contentTopFade))
+    layer?.mask = contentTopFadeLayer
+  }
+
+  private func unitY(contentY: CGFloat) -> CGFloat {
+    (bounds.height - (contentY - frame.minY)) / bounds.height
   }
 
   func update(itemFrame: CGRect, color: Color, alpha: CGFloat, isDark: Bool) {

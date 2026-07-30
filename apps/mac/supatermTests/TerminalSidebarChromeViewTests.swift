@@ -48,6 +48,38 @@ struct TerminalSidebarChromeViewTests {
     #expect(below > above)
   }
 
+  @MainActor
+  @Test
+  func selectionGlowFadesOutAtTheContentTop() throws {
+    let itemFrame = CGRect(
+      x: 20,
+      y: TerminalSidebarLayoutPlan.initialY,
+      width: 200,
+      height: 40
+    )
+    let container = NSCollectionView(frame: CGRect(x: 0, y: 0, width: 240, height: 160))
+    let window = NSWindow(
+      contentRect: container.frame,
+      styleMask: .borderless,
+      backing: .buffered,
+      defer: false
+    )
+    window.contentView = container
+    let glow = TerminalSidebarSelectionGlowView()
+    container.addSubview(glow)
+    glow.update(itemFrame: itemFrame, color: .black, alpha: 1, isDark: false)
+    container.layoutSubtreeIfNeeded()
+
+    let raster = try #require(SelectionGlowRaster(view: container))
+    let rowInk = (0..<Int(itemFrame.minY)).map { raster.ink(rows: $0..<($0 + 1)) }
+    let topInk = rowInk.prefix(3).reduce(0, +)
+    let rowEdgeInk = rowInk.suffix(3).reduce(0, +)
+
+    #expect(rowEdgeInk > 50)
+    #expect(topInk < rowEdgeInk / 10)
+    #expect(zip(rowInk, rowInk.dropFirst()).allSatisfy { $0 < $1 })
+  }
+
   @Test
   func unreadCountTakesPrecedenceOverAgentActivity() {
     #expect(
