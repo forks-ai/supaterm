@@ -25,7 +25,7 @@ struct TerminalSidebarLayoutTests {
   }
 
   @Test
-  func topEntriesKeepTheirInkInsideTheDocument() throws {
+  func topEntriesKeepAFixedGapBelowTheDocumentTop() throws {
     let root = TerminalTabID()
     let child = TerminalTabID()
     let groupID = TerminalTabGroupID()
@@ -53,8 +53,8 @@ struct TerminalSidebarLayoutTests {
     let rootFrame = try #require(rootFirstPlan.items.first { $0.id == .tab(root) }?.frame)
     let groupFrame = try #require(groupFirstPlan.groups.first?.frame)
 
-    #expect(TerminalSidebarSelectionGlowView.visualFrame(for: rootFrame).minY >= 0)
-    #expect(groupFrame.minY == SelectableRowShadowMetrics.visualOutset)
+    #expect(rootFrame.minY == 12)
+    #expect(groupFrame.minY == 10)
   }
 
   @Test

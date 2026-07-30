@@ -24,7 +24,7 @@ public struct Palette {
   public let onDangerFillValue: ThemeColor
   private let detailBackgroundValue: ThemeColor
 
-  private var isDark: Bool { colorScheme == .dark }
+  public var isDark: Bool { colorScheme == .dark }
   private var surfaceSeed: ThemeColor { referencePalette.neutral.light }
   private var sidebarItemInk: ThemeColor { isDark ? ThemeColor(hex: 0xFAFBFF) : ThemeColor(hex: 0x0E0F10) }
   private var sidebarSelectedFillValue: ThemeColor { isDark ? ThemeColor(hex: 0x141414) : .white }

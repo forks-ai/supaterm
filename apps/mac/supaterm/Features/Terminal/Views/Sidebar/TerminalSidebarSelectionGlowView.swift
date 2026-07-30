@@ -11,9 +11,11 @@ final class TerminalSidebarSelectionGlowView: NSView {
     super.init(frame: frameRect)
     wantsLayer = true
     shadowLayer.fillColor = NSColor.white.cgColor
-    shadowLayer.shadowOffset = .zero
     shadowLayer.shadowOpacity = 1
-    shadowLayer.shadowRadius = SelectableRowShadowMetrics.radius
+    shadowLayer.shadowOffset = CGSize(
+      width: SelectableRowShadowMetrics.offset.width,
+      height: -SelectableRowShadowMetrics.offset.height
+    )
     shadowMaskLayer.fillColor = NSColor.white.cgColor
     shadowMaskLayer.fillRule = .evenOdd
     shadowLayer.mask = shadowMaskLayer
@@ -49,8 +51,9 @@ final class TerminalSidebarSelectionGlowView: NSView {
     shadowMaskLayer.path = maskPath
   }
 
-  func update(itemFrame: CGRect, color: Color, alpha: CGFloat) {
+  func update(itemFrame: CGRect, color: Color, alpha: CGFloat, isDark: Bool) {
     shadowLayer.shadowColor = NSColor(color).cgColor
+    shadowLayer.shadowRadius = SelectableRowShadowMetrics.radius(isDark: isDark)
     frame = Self.visualFrame(for: itemFrame)
     alphaValue = alpha
     isHidden = false

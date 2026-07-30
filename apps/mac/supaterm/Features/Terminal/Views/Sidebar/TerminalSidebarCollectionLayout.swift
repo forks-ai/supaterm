@@ -37,7 +37,7 @@ struct TerminalSidebarLayoutPlan: Equatable {
   static let dividerHeight: CGFloat = 9
   static let rootBoundaryTargetHeight: CGFloat = 7
   static let initialY: CGFloat =
-    SelectableRowShadowMetrics.visualOutset + TerminalSidebarLayout.groupSurfaceOverflow
+    Self.rootSpacing + TerminalSidebarLayout.groupSurfaceOverflow
   static let bottomPadding: CGFloat = 120
 
   let items: [Item]

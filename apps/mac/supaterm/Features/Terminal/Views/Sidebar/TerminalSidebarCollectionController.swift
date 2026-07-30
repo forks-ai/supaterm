@@ -1162,7 +1162,8 @@ final class TerminalSidebarListController: NSViewController, NSCollectionViewDel
     selectionGlowView.update(
       itemFrame: item.frame,
       color: context.palette.sidebarSelectedShadow,
-      alpha: item.alpha
+      alpha: item.alpha,
+      isDark: context.palette.isDark
     )
   }
 

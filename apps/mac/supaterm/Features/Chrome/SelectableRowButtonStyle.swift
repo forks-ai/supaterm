@@ -105,11 +105,15 @@ struct SelectableRowButtonStyle: ButtonStyle {
 }
 
 enum SelectableRowShadowMetrics {
-  static let radius: CGFloat = 5
-  static let visualOutset = radius * 2
+  static let visualOutset: CGFloat = 30
+  static let offset = CGSize(width: 0, height: 0.5)
+
+  static func radius(isDark: Bool) -> CGFloat { isDark ? 15 : 12.5 }
 }
 
 struct SelectableRowChrome: ViewModifier {
+  @Environment(\.colorScheme) private var colorScheme
+
   let isSelected: Bool
   let cornerRadius: CGFloat
   let appearance: SelectableRowButtonStyle.ResolvedAppearance
@@ -140,7 +144,8 @@ struct SelectableRowChrome: ViewModifier {
       .overlay { selectionEdge(shape: shape, isVisible: hasEdge) }
       .shadow(
         color: hasShadow ? appearance.selectedShadow : .clear,
-        radius: hasShadow ? SelectableRowShadowMetrics.radius : 0
+        radius: hasShadow ? SelectableRowShadowMetrics.radius(isDark: colorScheme == .dark) : 0,
+        y: SelectableRowShadowMetrics.offset.height
       )
       .contentShape(shape)
   }

@@ -1,3 +1,4 @@
+import AppKit
 import Foundation
 import GhosttyKit
 import SupaTheme
@@ -19,6 +20,32 @@ struct TerminalSidebarChromeViewTests {
         dy: SelectableRowShadowMetrics.visualOutset
       ) == itemFrame
     )
+  }
+
+  @MainActor
+  @Test
+  func selectionGlowHangsBelowTheSelectedRow() throws {
+    let itemFrame = CGRect(x: 20, y: 60, width: 200, height: 40)
+    let container = NSCollectionView(frame: CGRect(x: 0, y: 0, width: 240, height: 160))
+    let window = NSWindow(
+      contentRect: container.frame,
+      styleMask: .borderless,
+      backing: .buffered,
+      defer: false
+    )
+    window.contentView = container
+    let glow = TerminalSidebarSelectionGlowView()
+    container.addSubview(glow)
+    glow.update(itemFrame: itemFrame, color: .black, alpha: 1, isDark: false)
+    container.layoutSubtreeIfNeeded()
+
+    let raster = try #require(SelectionGlowRaster(view: container))
+    let band = 8
+    let above = raster.ink(rows: (Int(itemFrame.minY) - band)..<Int(itemFrame.minY))
+    let below = raster.ink(rows: Int(itemFrame.maxY)..<(Int(itemFrame.maxY) + band))
+
+    #expect(above > 0)
+    #expect(below > above)
   }
 
   @Test
@@ -571,5 +598,40 @@ struct TerminalSidebarChromeViewTests {
   @Test
   func missingFocusedPaneStateProducesNoProgressRing() {
     #expect(TerminalHostState.sidebarTerminalProgress(state: nil) == nil)
+  }
+}
+
+private struct SelectionGlowRaster {
+  private let raster: NSBitmapImageRep
+
+  @MainActor
+  init?(view: NSView) {
+    guard
+      let context = CGContext(
+        data: nil,
+        width: Int(view.bounds.width),
+        height: Int(view.bounds.height),
+        bitsPerComponent: 8,
+        bytesPerRow: 0,
+        space: CGColorSpaceCreateDeviceRGB(),
+        bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue
+      )
+    else { return nil }
+    context.translateBy(x: 0, y: view.bounds.height)
+    context.scaleBy(x: 1, y: -1)
+    view.displayIgnoringOpacity(
+      view.bounds,
+      in: NSGraphicsContext(cgContext: context, flipped: true)
+    )
+    guard let image = context.makeImage() else { return nil }
+    raster = NSBitmapImageRep(cgImage: image)
+  }
+
+  func ink(rows: Range<Int>) -> CGFloat {
+    rows.reduce(0) { total, y in
+      (0..<raster.pixelsWide).reduce(total) { running, x in
+        running + (raster.colorAt(x: x, y: y)?.alphaComponent ?? 0)
+      }
+    }
   }
 }
