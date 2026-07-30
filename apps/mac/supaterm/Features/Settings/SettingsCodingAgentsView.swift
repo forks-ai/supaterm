@@ -40,15 +40,6 @@ struct SettingsCodingAgentsView: View {
         .accessibilityIdentifier("settings.coding-agents.show-panel")
 
         SettingsToggleRow(
-          title: "Show coding agents icons",
-          subtitle: "Display icons in tab status accessories.",
-          isOn: Binding(
-            get: { store.codingAgentsShowIcons },
-            set: { _ = store.send(.codingAgentsShowIconsChanged($0)) }
-          )
-        )
-
-        SettingsToggleRow(
           title: "Show agent spinner",
           subtitle: "Display a spinner while agents are running.",
           isOn: Binding(

@@ -37,7 +37,6 @@ struct SettingsFeatureTests {
           appearanceMode: .dark,
           analyticsEnabled: false,
           codingAgentsShowPanel: false,
-          codingAgentsShowIcons: false,
           codingAgentsShowSpinner: false,
           crashReportsEnabled: true,
           glowingPaneRingEnabled: false,
@@ -63,7 +62,6 @@ struct SettingsFeatureTests {
         $0.appearanceMode = .dark
         $0.analyticsEnabled = false
         $0.codingAgentsShowPanel = false
-        $0.codingAgentsShowIcons = false
         $0.codingAgentsShowSpinner = false
         $0.crashReportsEnabled = true
         $0.glowingPaneRingEnabled = false

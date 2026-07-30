@@ -116,7 +116,6 @@ public struct SettingsFeature {
     @Presents var alert: AlertState<Alert>?
     var claudeIntegration = SettingsAgentIntegrationState()
     var codingAgentsShowPanel = SupatermSettings.default.codingAgentsShowPanel
-    var codingAgentsShowIcons = SupatermSettings.default.codingAgentsShowIcons
     var codingAgentsShowSpinner = SupatermSettings.default.codingAgentsShowSpinner
     var codexIntegration = SettingsAgentIntegrationState()
     var piIntegration = SettingsAgentIntegrationState()
@@ -147,7 +146,6 @@ public struct SettingsFeature {
     case analyticsEnabledChanged(Bool)
     case checkForUpdatesButtonTapped
     case codingAgentsShowPanelChanged(Bool)
-    case codingAgentsShowIconsChanged(Bool)
     case codingAgentsShowSpinnerChanged(Bool)
     case crashReportsEnabledChanged(Bool)
     case glowingPaneRingEnabledChanged(Bool)
@@ -319,10 +317,6 @@ public struct SettingsFeature {
         state.codingAgentsShowPanel = isEnabled
         return persist(state)
 
-      case .codingAgentsShowIconsChanged(let isEnabled):
-        state.codingAgentsShowIcons = isEnabled
-        return persist(state)
-
       case .codingAgentsShowSpinnerChanged(let isEnabled):
         state.codingAgentsShowSpinner = isEnabled
         return persist(state)
@@ -396,7 +390,6 @@ public struct SettingsFeature {
     state.appearanceMode = supatermSettings.appearanceMode
     state.analyticsEnabled = supatermSettings.analyticsEnabled
     state.codingAgentsShowPanel = supatermSettings.codingAgentsShowPanel
-    state.codingAgentsShowIcons = supatermSettings.codingAgentsShowIcons
     state.codingAgentsShowSpinner = supatermSettings.codingAgentsShowSpinner
     state.crashReportsEnabled = supatermSettings.crashReportsEnabled
     state.glowingPaneRingEnabled = supatermSettings.glowingPaneRingEnabled
@@ -420,7 +413,6 @@ public struct SettingsFeature {
       appearanceMode: state.appearanceMode,
       analyticsEnabled: state.analyticsEnabled,
       codingAgentsShowPanel: state.codingAgentsShowPanel,
-      codingAgentsShowIcons: state.codingAgentsShowIcons,
       codingAgentsShowSpinner: state.codingAgentsShowSpinner,
       crashReportsEnabled: state.crashReportsEnabled,
       glowingPaneRingEnabled: state.glowingPaneRingEnabled,

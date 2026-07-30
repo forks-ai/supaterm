@@ -242,88 +242,14 @@ struct TerminalSidebarChromeViewTests {
   }
 
   @Test
-  func agentBadgeActivitiesUseAgentKindAssetMapping() {
-    let activities: [TerminalHostState.AgentActivity] = [
-      TerminalHostState.AgentActivity(kind: .pi, phase: .idle),
-      .codex(.running),
-      .claude(.running),
-    ]
-
-    #expect(
-      activities.map(\.kind.markImageName) == ["pi-mark", "codex-mark", "claude-code-mark"]
-    )
+  func tabRowsReserveOneTrailingAccessorySlot() {
+    #expect(TerminalSidebarLayout.tabTrailingAccessorySize == 24)
   }
 
   @Test
-  func agentBadgeGroupShowsThreeVisibleActivitiesThenOverflow() {
-    let activities: [TerminalHostState.AgentActivity] = [
-      .claude(.running),
-      .codex(.running),
-      TerminalHostState.AgentActivity(kind: .pi, phase: .running),
-      .claude(.needsInput),
-    ]
-
-    #expect(TerminalAgentBadgeGroupView.visibleActivities(activities).count == 3)
-    #expect(TerminalAgentBadgeGroupView.overflowCount(for: activities) == 1)
-  }
-
-  @Test
-  func agentBadgeGroupOverlapsBadgesWithinBadgeSize() {
-    #expect(TerminalAgentBadgeGroupView.badgeOverlap > 0)
-    #expect(TerminalAgentBadgeGroupView.badgeOverlap < TerminalAgentBadgeGroupView.badgeSize)
-  }
-
-  @Test
-  func agentBadgeMarksUseTemplateRendering() {
-    #expect(TerminalAgentBadgeGroupView.markRenderingMode == .template)
-  }
-
-  @Test
-  func trailingAgentBadgesShowWhenEnabled() {
-    let activities: [TerminalHostState.AgentActivity] = [
-      .claude(.running),
-      .codex(.running),
-    ]
-
-    #expect(
-      TerminalSidebarTabSummaryView.trailingAgentBadgeActivities(
-        activities,
-        showsAgentMarks: true,
-        showsShortcutHint: false
-      ) == activities
-    )
-  }
-
-  @Test
-  func trailingAgentBadgesHideWhenDisabled() {
-    let activities: [TerminalHostState.AgentActivity] = [
-      .claude(.running),
-      .codex(.running),
-    ]
-
-    #expect(
-      TerminalSidebarTabSummaryView.trailingAgentBadgeActivities(
-        activities,
-        showsAgentMarks: false,
-        showsShortcutHint: false
-      ).isEmpty
-    )
-  }
-
-  @Test
-  func trailingAgentBadgesHideDuringShortcutHints() {
-    let activities: [TerminalHostState.AgentActivity] = [
-      .claude(.running),
-      .codex(.running),
-    ]
-
-    #expect(
-      TerminalSidebarTabSummaryView.trailingAgentBadgeActivities(
-        activities,
-        showsAgentMarks: true,
-        showsShortcutHint: true
-      ).isEmpty
-    )
+  func unreadCountFitsTheTrailingAccessorySlot() {
+    #expect(TerminalSidebarTabSummaryView.unreadCountText(12) == "12")
+    #expect(TerminalSidebarTabSummaryView.unreadCountText(100) == "99+")
   }
 
   @Test

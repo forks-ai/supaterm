@@ -48,23 +48,19 @@ struct TerminalSidebarTabRow: View {
   }
 
   private struct AnimatedPresentation: Equatable {
-    let badgeActivities: [TerminalHostState.AgentActivity]
-    let badgeActivity: TerminalHostState.AgentActivity?
+    let statusActivity: TerminalHostState.AgentActivity?
     let hasTerminalBell: Bool
     let notificationPreviewText: String?
     let paneWorkingDirectories: [String]
-    let showsAgentMarks: Bool
     let showsAgentSpinner: Bool
     let terminalProgress: TerminalSidebarTerminalProgress?
     let unreadCount: Int
 
     static func == (lhs: Self, rhs: Self) -> Bool {
-      lhs.badgeActivities == rhs.badgeActivities
-        && lhs.badgeActivity == rhs.badgeActivity
+      lhs.statusActivity == rhs.statusActivity
         && lhs.hasTerminalBell == rhs.hasTerminalBell
         && lhs.notificationPreviewText == rhs.notificationPreviewText
         && lhs.paneWorkingDirectories == rhs.paneWorkingDirectories
-        && lhs.showsAgentMarks == rhs.showsAgentMarks
         && lhs.showsAgentSpinner == rhs.showsAgentSpinner
         && lhs.terminalProgress == rhs.terminalProgress
         && lhs.unreadCount == rhs.unreadCount
@@ -85,7 +81,6 @@ struct TerminalSidebarTabRow: View {
   let terminalProgress: TerminalSidebarTerminalProgress?
   let hasTerminalBell: Bool
   let palette: Palette
-  let showsAgentMarks: Bool
   let showsAgentSpinner: Bool
   let shortcutHint: String?
   let showsShortcutHint: Bool
@@ -161,55 +156,32 @@ struct TerminalSidebarTabRow: View {
   }
 
   var body: some View {
-    HStack(spacing: 8) {
-      let summary = TerminalSidebarTabSummaryView(
-        tab: tab,
-        palette: palette,
-        isSelected: isPrimarySelected,
-        isPinned: groupID == nil && rootIsPinned,
-        notificationPreviewText: notificationPresentation?.previewText,
-        paneWorkingDirectories: paneWorkingDirectories,
-        unreadCount: unreadCount,
-        badgeActivities: agentPresentation.badgeActivities,
-        badgeActivity: agentPresentation.badgeActivity,
-        badgeActivityIsFocused: agentPresentation.badgeActivityIsFocused,
-        hasTerminalBell: hasTerminalBell,
-        terminalProgress: terminalProgress,
-        showsAgentMarks: showsAgentMarks,
-        showsAgentSpinner: showsAgentSpinner,
-        shortcutHint: shortcutHint,
-        showsShortcutHint: showsShortcutHint,
-        isRowHovering: isHovering
-      )
-      .lineLimit(8)
+    let summary = TerminalSidebarTabSummaryView(
+      tab: tab,
+      palette: palette,
+      isSelected: isPrimarySelected,
+      isPinned: groupID == nil && rootIsPinned,
+      notificationPreviewText: notificationPresentation?.previewText,
+      paneWorkingDirectories: paneWorkingDirectories,
+      unreadCount: unreadCount,
+      statusActivity: agentPresentation.statusActivity,
+      statusActivityIsFocused: agentPresentation.statusActivityIsFocused,
+      hasTerminalBell: hasTerminalBell,
+      terminalProgress: terminalProgress,
+      showsAgentSpinner: showsAgentSpinner,
+      shortcutHint: shortcutHint,
+      showsShortcutHint: showsShortcutHint,
+      isRowHovering: isHovering
+    )
+    .lineLimit(8)
+
+    Group {
       if let helpText = TerminalSidebarTabSummaryView.helpText(
         paneWorkingDirectories: paneWorkingDirectories
       ) {
         summary.help(helpText)
       } else {
         summary
-      }
-
-      let closeButtonPresentation = Self.closeButtonPresentation(
-        isHovering: isHovering,
-        showsShortcutHint: showsShortcutHint
-      )
-      if closeButtonPresentation != .hidden {
-        Button(action: close) {
-          Image(systemName: "xmark")
-            .font(.system(size: 12, weight: .heavy))
-            .foregroundStyle(isPrimarySelected ? palette.selectedText : palette.sidebarTabTitle)
-            .frame(width: 24, height: 24)
-            .accessibilityHidden(true)
-            .background(
-              isCloseHovering
-                ? (isPrimarySelected ? palette.selectedPillFill : palette.unselectedFill)
-                : .clear,
-              in: RoundedRectangle(cornerRadius: 6, style: .continuous)
-            )
-        }
-        .buttonStyle(.plain)
-        .onHover { isCloseHovering = $0 }
       }
     }
     .padding(.horizontal, TerminalSidebarLayout.rowHorizontalPadding)
@@ -240,8 +212,40 @@ struct TerminalSidebarTabRow: View {
     .overlay(
       TerminalSidebarMiddleClickActionView(action: close)
     )
+    .overlay(alignment: .trailing) {
+      let closeButtonPresentation = Self.closeButtonPresentation(
+        isHovering: isHovering,
+        showsShortcutHint: showsShortcutHint
+      )
+      if closeButtonPresentation != .hidden {
+        Button(action: close) {
+          Image(systemName: "xmark")
+            .font(.system(size: 12, weight: .heavy))
+            .foregroundStyle(isPrimarySelected ? palette.selectedText : palette.sidebarTabTitle)
+            .frame(
+              width: TerminalSidebarLayout.tabTrailingAccessorySize,
+              height: TerminalSidebarLayout.tabTrailingAccessorySize
+            )
+            .accessibilityHidden(true)
+            .background(
+              isCloseHovering
+                ? (isPrimarySelected ? palette.selectedPillFill : palette.unselectedFill)
+                : .clear,
+              in: RoundedRectangle(cornerRadius: 6, style: .continuous)
+            )
+        }
+        .buttonStyle(.plain)
+        .help("Close")
+        .accessibilityLabel("Close")
+        .padding(.trailing, TerminalSidebarLayout.rowHorizontalPadding)
+        .onHover { isCloseHovering = $0 }
+      }
+    }
     .onHover { isHovering in
       self.isHovering = isHovering
+      if !isHovering {
+        isCloseHovering = false
+      }
     }
     .contextMenu {
       let contextualTabIDs = selectionState.contextualTabIDs(
@@ -363,6 +367,7 @@ struct TerminalSidebarTabRow: View {
     .accessibilityAddTraits(.isButton)
     .accessibilityAddTraits(isSelected ? .isSelected : [])
     .accessibilityAction { select() }
+    .accessibilityAction(named: "Close") { close() }
     .accessibilityIdentifier(accessibilityIdentifier)
   }
 
@@ -374,12 +379,10 @@ struct TerminalSidebarTabRow: View {
 
   private var animatedPresentation: AnimatedPresentation {
     AnimatedPresentation(
-      badgeActivities: agentPresentation.badgeActivities,
-      badgeActivity: agentPresentation.badgeActivity,
+      statusActivity: agentPresentation.statusActivity,
       hasTerminalBell: hasTerminalBell,
       notificationPreviewText: notificationPresentation?.previewText,
       paneWorkingDirectories: paneWorkingDirectories,
-      showsAgentMarks: showsAgentMarks,
       showsAgentSpinner: showsAgentSpinner,
       terminalProgress: terminalProgress,
       unreadCount: unreadCount

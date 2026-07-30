@@ -163,7 +163,6 @@ struct TerminalSidebarChromeView: View {
       unreadCount: terminal.unreadNotificationCount(for: tab.id),
       terminalProgress: terminal.sidebarTerminalProgress(for: tab.id),
       hasTerminalBell: terminal.tabHasBell(for: tab.id),
-      showsAgentMarks: supatermSettings.codingAgentsShowIcons,
       showsAgentSpinner: supatermSettings.codingAgentsShowSpinner,
       shortcutHint: shortcutHints[tab.id],
       showsShortcutHint: commandHoldObserver.isPressed

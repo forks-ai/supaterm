@@ -82,6 +82,9 @@ struct SupatermSettingsValidationTests {
       mode = "dark"
       extra = "ignored"
 
+      [coding_agents]
+      show_icons = false
+
       [obsolete]
       enabled = true
 
@@ -101,6 +104,7 @@ struct SupatermSettingsValidationTests {
     #expect(
       result.warnings == [
         "Unknown config key `appearance.extra`.",
+        "Unknown config key `coding_agents.show_icons`.",
         "Unknown config key `obsolete`.",
         "Unknown config key `terminal.confirm_quit`.",
       ]

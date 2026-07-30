@@ -46,7 +46,6 @@ struct SupatermSettingsTests {
     #expect(prefs.appearanceMode == .dark)
     #expect(prefs.analyticsEnabled)
     #expect(prefs.codingAgentsShowPanel)
-    #expect(prefs.codingAgentsShowIcons)
     #expect(prefs.codingAgentsShowSpinner)
     #expect(prefs.crashReportsEnabled)
     #expect(prefs.glowingPaneRingEnabled)
@@ -76,7 +75,6 @@ struct SupatermSettingsTests {
     #expect(prefs.appearanceMode == .dark)
     #expect(prefs.analyticsEnabled)
     #expect(prefs.codingAgentsShowPanel)
-    #expect(prefs.codingAgentsShowIcons)
     #expect(prefs.codingAgentsShowSpinner)
     #expect(prefs.crashReportsEnabled)
     #expect(prefs.glowingPaneRingEnabled)
@@ -122,7 +120,6 @@ struct SupatermSettingsTests {
         appearanceMode: .dark,
         analyticsEnabled: true,
         codingAgentsShowPanel: false,
-        codingAgentsShowIcons: false,
         codingAgentsShowSpinner: false,
         crashReportsEnabled: true,
         updateChannel: .stable
@@ -134,7 +131,6 @@ struct SupatermSettingsTests {
       string
         == """
         [coding_agents]
-        show_icons = false
         show_panel = false
         show_spinner = false
         """
@@ -270,7 +266,6 @@ struct SupatermSettingsTests {
         appearanceMode: .dark,
         analyticsEnabled: false,
         codingAgentsShowPanel: false,
-        codingAgentsShowIcons: false,
         codingAgentsShowSpinner: false,
         crashReportsEnabled: false,
         glowingPaneRingEnabled: false,
@@ -289,7 +284,6 @@ struct SupatermSettingsTests {
           appearanceMode: .dark,
           analyticsEnabled: false,
           codingAgentsShowPanel: false,
-          codingAgentsShowIcons: false,
           codingAgentsShowSpinner: false,
           crashReportsEnabled: false,
           glowingPaneRingEnabled: false,
@@ -316,7 +310,6 @@ struct SupatermSettingsTests {
     #expect(prefs.appearanceMode == .light)
     #expect(prefs.analyticsEnabled)
     #expect(prefs.codingAgentsShowPanel)
-    #expect(prefs.codingAgentsShowIcons)
     #expect(prefs.codingAgentsShowSpinner)
     #expect(prefs.crashReportsEnabled)
     #expect(prefs.glowingPaneRingEnabled)

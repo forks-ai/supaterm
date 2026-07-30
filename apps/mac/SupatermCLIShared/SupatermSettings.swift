@@ -4,7 +4,6 @@ public struct SupatermSettings: Codable, Equatable, Sendable {
   public var appearanceMode: AppearanceMode
   public var analyticsEnabled: Bool
   public var codingAgentsShowPanel: Bool
-  public var codingAgentsShowIcons: Bool
   public var codingAgentsShowSpinner: Bool
   public var crashReportsEnabled: Bool
   public var glowingPaneRingEnabled: Bool
@@ -19,7 +18,6 @@ public struct SupatermSettings: Codable, Equatable, Sendable {
     appearanceMode: AppearanceMode,
     analyticsEnabled: Bool,
     codingAgentsShowPanel: Bool = true,
-    codingAgentsShowIcons: Bool = true,
     codingAgentsShowSpinner: Bool = true,
     crashReportsEnabled: Bool,
     glowingPaneRingEnabled: Bool = true,
@@ -33,7 +31,6 @@ public struct SupatermSettings: Codable, Equatable, Sendable {
     self.appearanceMode = appearanceMode
     self.analyticsEnabled = analyticsEnabled
     self.codingAgentsShowPanel = codingAgentsShowPanel
-    self.codingAgentsShowIcons = codingAgentsShowIcons
     self.codingAgentsShowSpinner = codingAgentsShowSpinner
     self.crashReportsEnabled = crashReportsEnabled
     self.glowingPaneRingEnabled = glowingPaneRingEnabled
@@ -49,7 +46,6 @@ public struct SupatermSettings: Codable, Equatable, Sendable {
     appearanceMode: .dark,
     analyticsEnabled: true,
     codingAgentsShowPanel: true,
-    codingAgentsShowIcons: true,
     codingAgentsShowSpinner: true,
     crashReportsEnabled: true,
     glowingPaneRingEnabled: true,
@@ -102,7 +98,6 @@ public struct SupatermSettings: Codable, Equatable, Sendable {
       appearanceMode: appearance?.mode ?? defaults.appearanceMode,
       analyticsEnabled: privacy?.analyticsEnabled ?? defaults.analyticsEnabled,
       codingAgentsShowPanel: codingAgents?.showPanel ?? defaults.codingAgentsShowPanel,
-      codingAgentsShowIcons: codingAgents?.showIcons ?? defaults.codingAgentsShowIcons,
       codingAgentsShowSpinner: codingAgents?.showSpinner ?? defaults.codingAgentsShowSpinner,
       crashReportsEnabled: privacy?.crashReportsEnabled ?? defaults.crashReportsEnabled,
       glowingPaneRingEnabled: notifications?.glowingPaneRing ?? defaults.glowingPaneRingEnabled,
@@ -123,13 +118,11 @@ public struct SupatermSettings: Codable, Equatable, Sendable {
       try container.encode(PersistedAppearance(mode: appearanceMode), forKey: .appearance)
     }
     if codingAgentsShowPanel != defaults.codingAgentsShowPanel
-      || codingAgentsShowIcons != defaults.codingAgentsShowIcons
       || codingAgentsShowSpinner != defaults.codingAgentsShowSpinner
     {
       try container.encode(
         PersistedCodingAgents(
           showPanel: codingAgentsShowPanel,
-          showIcons: codingAgentsShowIcons,
           showSpinner: codingAgentsShowSpinner
         ),
         forKey: .codingAgents
@@ -199,7 +192,6 @@ extension SupatermSettings {
 
   enum CodingAgentKeys: String, CodingKey {
     case showPanel = "show_panel"
-    case showIcons = "show_icons"
     case showSpinner = "show_spinner"
   }
 
@@ -251,12 +243,10 @@ extension SupatermSettings {
 
   struct PersistedCodingAgents: Codable, Equatable, Sendable {
     let showPanel: Bool
-    let showIcons: Bool
     let showSpinner: Bool
 
-    init(showPanel: Bool, showIcons: Bool, showSpinner: Bool) {
+    init(showPanel: Bool, showSpinner: Bool) {
       self.showPanel = showPanel
-      self.showIcons = showIcons
       self.showSpinner = showSpinner
     }
 
@@ -265,9 +255,6 @@ extension SupatermSettings {
       showPanel =
         try container.decodeIfPresent(Bool.self, forKey: .showPanel)
         ?? SupatermSettings.default.codingAgentsShowPanel
-      showIcons =
-        try container.decodeIfPresent(Bool.self, forKey: .showIcons)
-        ?? SupatermSettings.default.codingAgentsShowIcons
       showSpinner =
         try container.decodeIfPresent(Bool.self, forKey: .showSpinner)
         ?? SupatermSettings.default.codingAgentsShowSpinner
@@ -277,9 +264,6 @@ extension SupatermSettings {
       var container = encoder.container(keyedBy: CodingAgentKeys.self)
       if showPanel != SupatermSettings.default.codingAgentsShowPanel {
         try container.encode(showPanel, forKey: .showPanel)
-      }
-      if showIcons != SupatermSettings.default.codingAgentsShowIcons {
-        try container.encode(showIcons, forKey: .showIcons)
       }
       if showSpinner != SupatermSettings.default.codingAgentsShowSpinner {
         try container.encode(showSpinner, forKey: .showSpinner)
@@ -441,7 +425,6 @@ struct LegacySupatermSettingsFile: Decodable, Equatable, Sendable {
   var appearanceMode: AppearanceMode
   var analyticsEnabled: Bool
   var codingAgentsShowPanel: Bool
-  var codingAgentsShowIcons: Bool
   var codingAgentsShowSpinner: Bool
   var crashReportsEnabled: Bool
   var glowingPaneRingEnabled: Bool
@@ -457,7 +440,6 @@ struct LegacySupatermSettingsFile: Decodable, Equatable, Sendable {
     self.analyticsEnabled =
       try container.decodeIfPresent(Bool.self, forKey: .analyticsEnabled) ?? defaults.analyticsEnabled
     self.codingAgentsShowPanel = defaults.codingAgentsShowPanel
-    self.codingAgentsShowIcons = defaults.codingAgentsShowIcons
     self.codingAgentsShowSpinner = defaults.codingAgentsShowSpinner
     self.crashReportsEnabled =
       try container.decodeIfPresent(Bool.self, forKey: .crashReportsEnabled) ?? defaults.crashReportsEnabled
@@ -478,7 +460,6 @@ struct LegacySupatermSettingsFile: Decodable, Equatable, Sendable {
       appearanceMode: appearanceMode,
       analyticsEnabled: analyticsEnabled,
       codingAgentsShowPanel: codingAgentsShowPanel,
-      codingAgentsShowIcons: codingAgentsShowIcons,
       codingAgentsShowSpinner: codingAgentsShowSpinner,
       crashReportsEnabled: crashReportsEnabled,
       glowingPaneRingEnabled: glowingPaneRingEnabled,

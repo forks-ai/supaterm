@@ -166,8 +166,7 @@ extension SnapshotCatalog {
             title: "Socket cleanup",
             notificationPreviewText: "Applying patch while keeping the socket route stable",
             paneWorkingDirectories: [SnapshotFixtureValues.workspace("apps/mac")],
-            badgeActivities: [.codex(.running)],
-            badgeActivity: .codex(.running)
+            statusActivity: .codex(.running)
           )
         )
       )
@@ -186,33 +185,7 @@ extension SnapshotCatalog {
             title: "Release note pass",
             notificationPreviewText: "Approval needed before publishing the release note",
             paneWorkingDirectories: [SnapshotFixtureValues.workspace("apps/supaterm.com")],
-            badgeActivities: [.codex(.needsInput)],
-            badgeActivity: .codex(.needsInput)
-          )
-        )
-      )
-    },
-    scenario(
-      "multi-agent-badges",
-      group: "Sidebar Rows",
-      title: "Multiple agent badges",
-      size: CGSize(width: 320, height: 92)
-    ) { appearance in
-      AnyView(
-        SidebarRowSnapshotFixture(
-          appearance: appearance,
-          item: SidebarRowSnapshotItem(
-            id: "10000000-0000-0000-0000-000000000006",
-            title: "Parallel fixes",
-            notificationPreviewText: "Three panes are reporting active work",
-            paneWorkingDirectories: [SnapshotFixtureValues.workspace()],
-            badgeActivities: [
-              .codex(.running),
-              TerminalHostState.AgentActivity(kind: .pi, phase: .running),
-              .codex(.needsInput),
-              TerminalHostState.AgentActivity(kind: .pi, phase: .idle),
-            ],
-            badgeActivity: .codex(.running)
+            statusActivity: .codex(.needsInput)
           )
         )
       )
@@ -708,8 +681,7 @@ private struct SidebarRowSnapshotItem {
   var notificationPreviewText: String?
   var paneWorkingDirectories: [String] = []
   var unreadCount = 0
-  var badgeActivities: [TerminalHostState.AgentActivity] = []
-  var badgeActivity: TerminalHostState.AgentActivity?
+  var statusActivity: TerminalHostState.AgentActivity?
   var hasTerminalBell = false
   var terminalProgress: TerminalSidebarTerminalProgress?
   var shortcutHint: String?
@@ -741,12 +713,10 @@ private struct SidebarRowSnapshotFixture: View {
       notificationPreviewText: item.notificationPreviewText,
       paneWorkingDirectories: item.paneWorkingDirectories,
       unreadCount: item.unreadCount,
-      badgeActivities: item.badgeActivities,
-      badgeActivity: item.badgeActivity,
-      badgeActivityIsFocused: false,
+      statusActivity: item.statusActivity,
+      statusActivityIsFocused: false,
       hasTerminalBell: item.hasTerminalBell,
       terminalProgress: item.terminalProgress,
-      showsAgentMarks: true,
       showsAgentSpinner: true,
       shortcutHint: item.shortcutHint,
       showsShortcutHint: item.showsShortcutHint,

@@ -17,12 +17,10 @@ struct TerminalSidebarTabSummaryView: View {
   let notificationPreviewText: String?
   let paneWorkingDirectories: [String]
   let unreadCount: Int
-  let badgeActivities: [TerminalHostState.AgentActivity]
-  let badgeActivity: TerminalHostState.AgentActivity?
-  let badgeActivityIsFocused: Bool
+  let statusActivity: TerminalHostState.AgentActivity?
+  let statusActivityIsFocused: Bool
   let hasTerminalBell: Bool
   let terminalProgress: TerminalSidebarTerminalProgress?
-  let showsAgentMarks: Bool
   let showsAgentSpinner: Bool
   let shortcutHint: String?
   let showsShortcutHint: Bool
@@ -85,12 +83,8 @@ struct TerminalSidebarTabSummaryView: View {
     title.contains("/") ? .middle : .tail
   }
 
-  static func trailingAgentBadgeActivities(
-    _ activities: [TerminalHostState.AgentActivity],
-    showsAgentMarks: Bool,
-    showsShortcutHint: Bool
-  ) -> [TerminalHostState.AgentActivity] {
-    showsAgentMarks && !showsShortcutHint ? activities : []
+  static func unreadCountText(_ unreadCount: Int) -> String {
+    unreadCount > 99 ? "99+" : unreadCount.formatted()
   }
 
   static func helpText(
@@ -108,17 +102,12 @@ struct TerminalSidebarTabSummaryView: View {
       statusAccessory: Self.statusAccessory(
         isPinned: isPinned,
         unreadCount: unreadCount,
-        agentActivity: badgeActivity,
-        agentActivityIsFocused: badgeActivityIsFocused,
+        agentActivity: statusActivity,
+        agentActivityIsFocused: statusActivityIsFocused,
         terminalProgress: terminalProgress,
         hasTerminalBell: hasTerminalBell,
         showsAgentSpinner: showsAgentSpinner
       )
-    )
-    let trailingAgentBadgeActivities = Self.trailingAgentBadgeActivities(
-      badgeActivities,
-      showsAgentMarks: showsAgentMarks,
-      showsShortcutHint: showsShortcutHint
     )
 
     HStack(alignment: .center, spacing: 6) {
@@ -154,7 +143,7 @@ struct TerminalSidebarTabSummaryView: View {
       }
       .frame(maxWidth: .infinity, alignment: .leading)
 
-      HStack(spacing: 6) {
+      ZStack {
         if let shortcutHint = rowAccessories.shortcutHint {
           Text(shortcutHint)
             .font(.system(size: 11, weight: .semibold))
@@ -165,19 +154,14 @@ struct TerminalSidebarTabSummaryView: View {
             )
         }
 
-        if !trailingAgentBadgeActivities.isEmpty {
-          TerminalAgentBadgeGroupView(
-            activities: trailingAgentBadgeActivities,
-            isSelected: isSelected,
-            palette: palette
-          )
-        }
-
         if let statusAccessory = rowAccessories.statusAccessory {
           statusAccessoryView(statusAccessory)
         }
       }
-      .fixedSize(horizontal: true, vertical: false)
+      .frame(
+        width: TerminalSidebarLayout.tabTrailingAccessorySize,
+        height: TerminalSidebarLayout.tabTrailingAccessorySize
+      )
     }
     .frame(maxWidth: .infinity, alignment: .leading)
   }
@@ -194,10 +178,10 @@ struct TerminalSidebarTabSummaryView: View {
   ) -> some View {
     switch statusAccessory {
     case .unreadCount(let unreadCount):
-      Text(unreadCount.formatted())
+      Text(Self.unreadCountText(unreadCount))
         .font(.system(size: 9, weight: .bold))
         .foregroundStyle(isSelected ? palette.selectedText : Color.white)
-        .padding(.horizontal, unreadCount > 9 ? 6 : 5)
+        .padding(.horizontal, unreadCount > 9 ? 4 : 5)
         .frame(minWidth: 16, minHeight: 16)
         .background(
           isSelected ? palette.selectedText.opacity(0.16) : palette.accent,

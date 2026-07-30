@@ -229,9 +229,8 @@ final class TerminalHostState {
   }
 
   struct TabAgentPresentation: Equatable, Sendable {
-    let badgeActivities: [AgentActivity]
-    let badgeActivity: AgentActivity?
-    let badgeActivityIsFocused: Bool
+    let statusActivity: AgentActivity?
+    let statusActivityIsFocused: Bool
     let detailActivity: AgentActivity?
     let hoverMarkdown: String?
   }
@@ -1339,7 +1338,7 @@ final class TerminalHostState {
   }
 
   func hasActiveAgentAttention(for tabID: TerminalTabID) -> Bool {
-    switch tabAgentPresentation(for: tabID).badgeActivity?.phase {
+    switch tabAgentPresentation(for: tabID).statusActivity?.phase {
     case .some(.needsInput), .some(.running):
       return true
     case .some(.idle), .none:

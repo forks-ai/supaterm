@@ -11,9 +11,8 @@ extension TerminalHostState {
   func tabAgentPresentation(for tabID: TerminalTabID) -> TabAgentPresentation {
     guard let tree = trees[tabID] else {
       return TabAgentPresentation(
-        badgeActivities: [],
-        badgeActivity: nil,
-        badgeActivityIsFocused: false,
+        statusActivity: nil,
+        statusActivityIsFocused: false,
         detailActivity: nil,
         hoverMarkdown: nil
       )
@@ -23,8 +22,7 @@ extension TerminalHostState {
     let instances = tree.leaves().flatMap { surface in
       agentStateInstances(for: surface.id)
     }
-    let badgeActivities = instances.map(\.activity)
-    let badgeInstance = instances.filter(\.presentation.hasActivity).max { lhs, rhs in
+    let statusInstance = instances.filter(\.presentation.hasActivity).max { lhs, rhs in
       let lhsPriority = Self.agentActivityPriority(lhs.activity.phase)
       let rhsPriority = Self.agentActivityPriority(rhs.activity.phase)
       if lhsPriority != rhsPriority {
@@ -49,8 +47,8 @@ extension TerminalHostState {
       Self.codexHoverMarkdown($0.presentation.hoverMessages)
     }
 
-    let badgeActivityIsFocused =
-      badgeInstance.map { instance in
+    let statusActivityIsFocused =
+      statusInstance.map { instance in
         Self.surfaceActivity(
           isSelectedTab: tabID == spaceManager.selectedTabID,
           windowIsVisible: windowActivity.isVisible,
@@ -61,16 +59,15 @@ extension TerminalHostState {
       } ?? false
 
     return TabAgentPresentation(
-      badgeActivities: badgeActivities,
-      badgeActivity: badgeInstance?.activity,
-      badgeActivityIsFocused: badgeActivityIsFocused,
+      statusActivity: statusInstance?.activity,
+      statusActivityIsFocused: statusActivityIsFocused,
       detailActivity: detailActivity,
       hoverMarkdown: hoverMarkdown
     )
   }
 
   func agentActivity(for tabID: TerminalTabID) -> AgentActivity? {
-    tabAgentPresentation(for: tabID).badgeActivity
+    tabAgentPresentation(for: tabID).statusActivity
   }
 
   func codexHoverMarkdown(for tabID: TerminalTabID) -> String? {

@@ -26,7 +26,6 @@ public enum SupatermSettingsKey: String, CaseIterable, Codable, Equatable, Senda
   case notificationsSystemNotifications = "notifications.system_notifications"
   case notificationsGlowingPaneRing = "notifications.glowing_pane_ring"
   case codingAgentsShowPanel = "coding_agents.show_panel"
-  case codingAgentsShowIcons = "coding_agents.show_icons"
   case codingAgentsShowSpinner = "coding_agents.show_spinner"
   case privacyAnalyticsEnabled = "privacy.analytics_enabled"
   case privacyCrashReportsEnabled = "privacy.crash_reports_enabled"
@@ -50,7 +49,6 @@ public enum SupatermSettingsKey: String, CaseIterable, Codable, Equatable, Senda
       .notificationsSystemNotifications,
       .notificationsGlowingPaneRing,
       .codingAgentsShowPanel,
-      .codingAgentsShowIcons,
       .codingAgentsShowSpinner,
       .privacyAnalyticsEnabled,
       .privacyCrashReportsEnabled,
@@ -70,7 +68,6 @@ public enum SupatermSettingsKey: String, CaseIterable, Codable, Equatable, Senda
       .notificationsSystemNotifications,
       .notificationsGlowingPaneRing,
       .codingAgentsShowPanel,
-      .codingAgentsShowIcons,
       .codingAgentsShowSpinner,
       .privacyAnalyticsEnabled,
       .privacyCrashReportsEnabled,
@@ -93,8 +90,6 @@ public enum SupatermSettingsKey: String, CaseIterable, Codable, Equatable, Senda
       return string(settings.glowingPaneRingEnabled)
     case .codingAgentsShowPanel:
       return string(settings.codingAgentsShowPanel)
-    case .codingAgentsShowIcons:
-      return string(settings.codingAgentsShowIcons)
     case .codingAgentsShowSpinner:
       return string(settings.codingAgentsShowSpinner)
     case .privacyAnalyticsEnabled:
@@ -126,8 +121,6 @@ public enum SupatermSettingsKey: String, CaseIterable, Codable, Equatable, Senda
       settings.glowingPaneRingEnabled = try parsedBool(rawValue)
     case .codingAgentsShowPanel:
       settings.codingAgentsShowPanel = try parsedBool(rawValue)
-    case .codingAgentsShowIcons:
-      settings.codingAgentsShowIcons = try parsedBool(rawValue)
     case .codingAgentsShowSpinner:
       settings.codingAgentsShowSpinner = try parsedBool(rawValue)
     case .privacyAnalyticsEnabled:
@@ -155,8 +148,6 @@ public enum SupatermSettingsKey: String, CaseIterable, Codable, Equatable, Senda
       settings.glowingPaneRingEnabled = SupatermSettings.default.glowingPaneRingEnabled
     case .codingAgentsShowPanel:
       settings.codingAgentsShowPanel = SupatermSettings.default.codingAgentsShowPanel
-    case .codingAgentsShowIcons:
-      settings.codingAgentsShowIcons = SupatermSettings.default.codingAgentsShowIcons
     case .codingAgentsShowSpinner:
       settings.codingAgentsShowSpinner = SupatermSettings.default.codingAgentsShowSpinner
     case .privacyAnalyticsEnabled:

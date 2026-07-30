@@ -461,7 +461,7 @@ struct TerminalHostStateNotificationTests {
   }
 
   @Test
-  func tabBadgeUsesHighestPriorityPaneWhileDetailAndHoverStayFocused() throws {
+  func tabStatusUsesHighestPriorityPaneWhileDetailAndHoverStayFocused() throws {
     initializeGhosttyForTests()
 
     let host = TerminalHostState()
@@ -493,11 +493,11 @@ struct TerminalHostStateNotificationTests {
     #expect(host.agentActivity(for: tabID) == .claude(.needsInput))
     #expect(host.showsAgentActivityDetail(for: tabID))
     #expect(host.codexHoverMarkdown(for: tabID) == "Focused hover")
-    #expect(!host.tabAgentPresentation(for: tabID).badgeActivityIsFocused)
+    #expect(!host.tabAgentPresentation(for: tabID).statusActivityIsFocused)
   }
 
   @Test
-  func tabAgentPresentationMarksFocusedBadgeActivity() throws {
+  func tabAgentPresentationMarksFocusedStatusActivity() throws {
     initializeGhosttyForTests()
 
     let host = TerminalHostState()
@@ -510,40 +510,12 @@ struct TerminalHostStateNotificationTests {
     #expect(host.setTestAgentActivity(.codex(.needsInput), for: surface.id))
 
     let presentation = host.tabAgentPresentation(for: tabID)
-    #expect(presentation.badgeActivity == .codex(.needsInput))
-    #expect(presentation.badgeActivityIsFocused)
+    #expect(presentation.statusActivity == .codex(.needsInput))
+    #expect(presentation.statusActivityIsFocused)
   }
 
   @Test
-  func tabAgentPresentationStacksMultipleAgentBadges() throws {
-    initializeGhosttyForTests()
-
-    let host = TerminalHostState()
-    host.windowActivity = WindowActivityState(isKeyWindow: true, isVisible: true)
-    host.handleCommand(.ensureInitialTab(focusing: false, startupCommand: nil))
-
-    let tabID = try #require(host.selectedTabID)
-    let firstSurface = try #require(host.selectedSurfaceView)
-    let secondPane = try host.createPane(
-      TerminalCreatePaneRequest(
-        startupCommand: nil,
-        direction: .right,
-        focus: false,
-        equalize: true,
-        target: .pane(firstSurface.id)
-      )
-    )
-
-    #expect(host.setTestAgentActivity(.claude(.running), for: firstSurface.id))
-    #expect(host.setTestAgentActivity(.codex(.running), for: secondPane.paneID))
-
-    #expect(
-      host.tabAgentPresentation(for: tabID).badgeActivities == [.claude(.running), .codex(.running)]
-    )
-  }
-
-  @Test
-  func tabAgentPresentationDoesNotMarkBackgroundTabBadgeActivityFocused() throws {
+  func tabAgentPresentationDoesNotMarkBackgroundTabStatusActivityFocused() throws {
     initializeGhosttyForTests()
 
     let host = TerminalHostState()
@@ -558,8 +530,8 @@ struct TerminalHostStateNotificationTests {
     host.handleCommand(.createTab(inheritingFromSurfaceID: nil))
 
     let presentation = host.tabAgentPresentation(for: firstTabID)
-    #expect(presentation.badgeActivity == .codex(.needsInput))
-    #expect(!presentation.badgeActivityIsFocused)
+    #expect(presentation.statusActivity == .codex(.needsInput))
+    #expect(!presentation.statusActivityIsFocused)
   }
 
   @Test
@@ -596,7 +568,7 @@ struct TerminalHostStateNotificationTests {
   }
 
   @Test
-  func closingBadgeOwningPaneFallsBackToRemainingPaneActivity() throws {
+  func closingStatusOwningPaneFallsBackToRemainingPaneActivity() throws {
     initializeGhosttyForTests()
 
     let host = TerminalHostState()
