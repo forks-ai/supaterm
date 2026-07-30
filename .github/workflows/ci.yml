@@ -55,6 +55,16 @@ jobs:
       - uses: ./.github/actions/setup-macos
       - run: make mac-test
 
+  ghostty_test:
+    name: ghostty-test
+    runs-on: macos-26
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          submodules: recursive
+      - uses: ./.github/actions/setup-macos
+      - run: make mac-test-ghostty
+
   mac_test_e2e:
     name: mac-test-e2e
     runs-on: macos-26
@@ -118,6 +128,7 @@ jobs:
       - swiftlint
       - mac_scan_dead_code
       - mac_test
+      - ghostty_test
       - mac_test_e2e
       - mac_test_ui_build
       - mac_test_ui
@@ -126,6 +137,7 @@ jobs:
       SWIFTLINT: ${{ needs.swiftlint.result }}
       DEAD_CODE: ${{ needs.mac_scan_dead_code.result }}
       UNIT: ${{ needs.mac_test.result }}
+      GHOSTTY: ${{ needs.ghostty_test.result }}
       E2E: ${{ needs.mac_test_e2e.result }}
       UI_BUILD: ${{ needs.mac_test_ui_build.result }}
       UI: ${{ needs.mac_test_ui.result }}
@@ -134,6 +146,7 @@ jobs:
           test "$SWIFTLINT" = success
           test "$DEAD_CODE" = success
           test "$UNIT" = success
+          test "$GHOSTTY" = success
           test "$E2E" = success
           test "$UI_BUILD" = success
           test "$UI" = success

@@ -7,6 +7,21 @@ import Testing
 @MainActor
 struct TerminalHostStateCommandPaletteTests {
   @Test
+  func commandPaletteIncludesQuickSelectWithDefaultShortcut() throws {
+    let runtime = try makeGhosttyRuntime("")
+    let host = TerminalHostState(runtime: runtime, managesTerminalSurfaces: false)
+
+    let command = try #require(
+      host.commandPaletteGhosttyCommands().first(where: { $0.action == "quick_select" })
+    )
+    let shortcuts = host.commandPaletteGhosttyShortcutDisplayByAction()
+
+    #expect(command.title == "Quick Select")
+    #expect(command.description == "Select visible text with keyboard hints.")
+    #expect(shortcuts["quick_select"] == "⇧⌃Space")
+  }
+
+  @Test
   func commandPaletteGhosttyShortcutDisplaysResolveForSupportedCommands() throws {
     let runtime = try makeGhosttyRuntime(
       """
