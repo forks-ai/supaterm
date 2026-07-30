@@ -24,17 +24,18 @@ The sidebar shows spaces, root tabs, colored groups, pinned work, unread activit
 
 ## Essential shortcuts
 
-| Action             | Shortcut           |
-| ------------------ | ------------------ |
-| Command palette    | `Command-Shift-P`  |
-| New tab            | `Command-T`        |
-| Split right        | `Command-D`        |
-| Split down         | `Command-Shift-D`  |
-| Find in terminal   | `Command-F`        |
-| Toggle sidebar     | `Command-S`        |
-| Toggle agent panel | `Command-I`        |
-| Close pane         | `Command-W`        |
-| Close tab          | `Command-Option-W` |
+| Action             | Shortcut              |
+| ------------------ | --------------------- |
+| Command palette    | `Command-Shift-P`     |
+| New tab            | `Command-T`           |
+| Split right        | `Command-D`           |
+| Split down         | `Command-Shift-D`     |
+| Find in terminal   | `Command-F`           |
+| Quick Select       | `Control-Shift-Space` |
+| Toggle sidebar     | `Command-S`           |
+| Toggle agent panel | `Command-I`           |
+| Close pane         | `Command-W`           |
+| Close tab          | `Command-Option-W`    |
 
 Open the command palette when you do not remember a shortcut. It searches Supaterm actions, Ghostty actions, spaces, tabs, and panes.
 
