@@ -17,7 +17,6 @@ xcframework_path="${ghostty_build_root}/GhosttyKit.xcframework"
 generated_xcframework_path="${ghostty_dir}/macos/GhosttyKit.xcframework"
 ghostty_resources_path="${ghostty_build_root}/share/ghostty"
 ghostty_terminfo_path="${ghostty_build_root}/share/terminfo"
-ghostty_patches_dir="${srcroot}/patches"
 
 print_fingerprint() {
   (
@@ -28,11 +27,6 @@ print_fingerprint() {
       git ls-files --others --exclude-standard | LC_ALL=C sort | shasum -a 256
       shasum -a 256 "${script_path}" | awk '{print $1}'
       shasum -a 256 "${srcroot}/../../mise.toml" | awk '{print $1}'
-      if [ -d "${ghostty_patches_dir}" ]; then
-        find "${ghostty_patches_dir}" -type f -name '*.patch' -print | LC_ALL=C sort | while IFS= read -r patch; do
-          shasum -a 256 "${patch}"
-        done
-      fi
     } | shasum -a 256 | awk '{print $1}'
   )
 }
@@ -63,39 +57,10 @@ ensure_ghostty_checkout() {
   fi
 }
 
-apply_ghostty_patches() {
-  [ -d "${ghostty_patches_dir}" ] || return 0
-  local patch
-  for patch in "${ghostty_patches_dir}"/*.patch; do
-    [ -e "${patch}" ] || continue
-    if git -C "${ghostty_dir}" apply --reverse --check "${patch}" 2>/dev/null; then
-      continue
-    fi
-    if ! git -C "${ghostty_dir}" apply --check "${patch}" 2>/dev/null; then
-      echo "error: ${patch} does not apply cleanly to ${ghostty_submodule_path}." >&2
-      echo "       Refresh the patch after updating Ghostty, or clean a dirty submodule and retry." >&2
-      exit 1
-    fi
-    git -C "${ghostty_dir}" apply "${patch}"
-  done
-}
-
-revert_ghostty_patches() {
-  [ -d "${ghostty_patches_dir}" ] || return 0
-  local patch
-  for patch in "${ghostty_patches_dir}"/*.patch; do
-    [ -e "${patch}" ] || continue
-    if git -C "${ghostty_dir}" apply --reverse --check "${patch}" 2>/dev/null; then
-      git -C "${ghostty_dir}" apply --reverse "${patch}" 2>/dev/null || true
-    fi
-  done
-}
-
 cleanup_ghostty_build() {
   local status=$?
   trap - EXIT INT TERM
   rm -rf "${generated_xcframework_path}" || true
-  revert_ghostty_patches || true
   exit "${status}"
 }
 
@@ -104,7 +69,6 @@ ensure_ghostty_checkout
 trap cleanup_ghostty_build EXIT
 trap 'exit 130' INT
 trap 'exit 143' TERM
-apply_ghostty_patches
 
 if [ "${1:-}" = "--print-fingerprint" ]; then
   print_fingerprint

@@ -5,7 +5,6 @@ let ghosttyFingerprintPath: Path = ".build/ghostty/fingerprint"
 let ghosttyResourcesPath: Path = ".build/ghostty/share/ghostty"
 let ghosttyTerminfoPath: Path = ".build/ghostty/share/terminfo"
 let ghosttyBuildScriptPath: Path = "scripts/build-ghostty.sh"
-let ghosttyCommandWrapperPatchPath: Path = "patches/ghostty-command-wrapper.patch"
 let zmxBinaryPath: Path = ".build/zmx/bin/zmx"
 let zmxBuildScriptPath: Path = "scripts/build-zmx.sh"
 let zmxFingerprintPath: Path = ".build/zmx/fingerprint"
@@ -117,7 +116,6 @@ let project = Project(
       inputs: [
         .file("../../mise.toml"),
         .file(ghosttyBuildScriptPath),
-        .file(ghosttyCommandWrapperPatchPath),
         .script(ghosttyFingerprintInputScript),
       ],
       output: .xcframework(path: ghosttyXCFrameworkPath, linking: .static)
@@ -280,7 +278,8 @@ let project = Project(
         "NSCameraUsageDescription": "A program running within Supaterm would like to use the camera.",
         "NSContactsUsageDescription": "A program running within Supaterm would like to access your Contacts.",
         "NSLocalNetworkUsageDescription": "A program running within Supaterm would like to access the local network.",
-        "NSLocationUsageDescription": "A program running within Supaterm would like to access your location information.",
+        "NSLocationUsageDescription":
+          "A program running within Supaterm would like to access your location information.",
         "NSLocationTemporaryUsageDescriptionDictionary": [
           "TemporaryLocationAccess": "A program running within Supaterm would like to use your location temporarily."
         ],
@@ -314,7 +313,8 @@ let project = Project(
             ],
           ],
         ],
-        "NSSpeechRecognitionUsageDescription": "A program running within Supaterm would like to use speech recognition.",
+        "NSSpeechRecognitionUsageDescription":
+          "A program running within Supaterm would like to use speech recognition.",
         "NSSystemAdministrationUsageDescription": "A program running within Supaterm requires elevated privileges.",
         "PostHogProjectToken": "$(POSTHOG_API_KEY)",
         "PostHogHost": "$(POSTHOG_HOST)",
@@ -568,7 +568,10 @@ let project = Project(
         base: [
           "TEST_HOST": "",
           "BUNDLE_LOADER": "$(BUILT_PRODUCTS_DIR)/supaterm.app/Contents/MacOS/supaterm.debug.dylib",
-          "LD_RUNPATH_SEARCH_PATHS": "$(inherited) @loader_path/../Frameworks @executable_path/../Frameworks @loader_path/../../../supaterm.app/Contents/MacOS",
+          "LD_RUNPATH_SEARCH_PATHS": """
+          $(inherited) @loader_path/../Frameworks @executable_path/../Frameworks \
+          @loader_path/../../../supaterm.app/Contents/MacOS
+          """,
         ],
         defaultSettings: .essential
       )
@@ -678,7 +681,10 @@ let project = Project(
         base: [
           "TEST_HOST": "$(BUILT_PRODUCTS_DIR)/supatermSnapshotCatalog.app/Contents/MacOS/supatermSnapshotCatalog",
           "BUNDLE_LOADER": "$(TEST_HOST)",
-          "LD_RUNPATH_SEARCH_PATHS": "$(inherited) @loader_path/../Frameworks @executable_path/../Frameworks @loader_path/../../../supatermSnapshotCatalog.app/Contents/MacOS",
+          "LD_RUNPATH_SEARCH_PATHS": """
+          $(inherited) @loader_path/../Frameworks @executable_path/../Frameworks \
+          @loader_path/../../../supatermSnapshotCatalog.app/Contents/MacOS
+          """,
         ],
         defaultSettings: .essential
       )
