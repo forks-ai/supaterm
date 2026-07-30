@@ -89,6 +89,45 @@ struct TerminalSidebarLayoutTests {
   }
 
   @Test
+  func spaceSwitcherAlignsWithTrafficLightCenters() {
+    let trafficLightCenter =
+      WindowTrafficLightMetrics.edgePadding + WindowTrafficLightMetrics.buttonSize / 2
+    let switcherCenter =
+      TerminalWindowHeaderMetrics.switcherTopPadding
+      + TerminalWindowHeaderMetrics.switcherHeight / 2
+
+    #expect(switcherCenter == trafficLightCenter)
+  }
+
+  @Test
+  func spaceSwitcherUsesEffectiveSpaceShortcuts() {
+    let bindings = (0..<4).map {
+      TerminalSpaceSwitcherPresentation.shortcutBinding(
+        forSpaceAt: $0,
+        overrides: [:]
+      )?.display
+    }
+
+    #expect(bindings == ["⌃1", "⌃2", "⌃3", "⌃4"])
+  }
+
+  @Test
+  func spaceSwitcherOmitsDisabledAndOutOfRangeShortcuts() {
+    #expect(
+      TerminalSpaceSwitcherPresentation.shortcutBinding(
+        forSpaceAt: 0,
+        overrides: [.selectSpace(1): .disabled]
+      ) == nil
+    )
+    #expect(
+      TerminalSpaceSwitcherPresentation.shortcutBinding(
+        forSpaceAt: 10,
+        overrides: [:]
+      ) == nil
+    )
+  }
+
+  @Test
   func spaceSwitcherDisablesDeletingOnlySpace() throws {
     let space = TerminalSpaceItem(id: TerminalSpaceID(), name: "Only")
 

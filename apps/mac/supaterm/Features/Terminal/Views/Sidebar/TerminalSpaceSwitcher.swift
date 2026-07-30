@@ -1,5 +1,7 @@
 import ComposableArchitecture
+import Sharing
 import SupaTheme
+import SupatermCLIShared
 import SwiftUI
 
 struct TerminalSpaceSwitcherPresentation: Equatable {
@@ -13,6 +15,26 @@ struct TerminalSpaceSwitcherPresentation: Equatable {
     self.selectedSpace = selectedSpace
     self.canDelete = spaces.count > 1
   }
+
+  static func shortcutBinding(
+    forSpaceAt index: Int,
+    overrides: [SupatermShortcutID: SupatermShortcutOverride]
+  ) -> SupatermShortcutBinding? {
+    let slot = index + 1
+    guard (1...10).contains(slot) else { return nil }
+    return SupatermShortcuts.binding(for: .selectSpace(slot), overrides: overrides)
+  }
+}
+
+enum TerminalWindowHeaderMetrics {
+  static let spacing: CGFloat = 10
+  static let switcherHeight: CGFloat = 28
+
+  static var switcherTopPadding: CGFloat {
+    WindowTrafficLightMetrics.edgePadding
+      + WindowTrafficLightMetrics.buttonSize / 2
+      - switcherHeight / 2
+  }
 }
 
 struct TerminalWindowHeader: View {
@@ -21,7 +43,7 @@ struct TerminalWindowHeader: View {
   let terminal: TerminalHostState
 
   var body: some View {
-    HStack(alignment: .top, spacing: 10) {
+    HStack(alignment: .top, spacing: TerminalWindowHeaderMetrics.spacing) {
       WindowTrafficLights()
       TerminalSpaceSwitcher(
         store: store,
@@ -29,7 +51,7 @@ struct TerminalWindowHeader: View {
         spaces: terminal.availableSpaces,
         selectedSpaceID: terminal.selectedSpaceID
       )
-      .padding(.top, 10)
+      .padding(.top, TerminalWindowHeaderMetrics.switcherTopPadding)
     }
     .fixedSize()
   }
@@ -41,13 +63,17 @@ struct TerminalSpaceSwitcher: View {
   let spaces: [TerminalSpaceItem]
   let selectedSpaceID: TerminalSpaceID?
 
+  @Environment(\.accessibilityReduceMotion) private var reduceMotion
+  @Shared(.supatermSettings) private var supatermSettings = .default
+  @State private var isHovered = false
+
   var body: some View {
     if let presentation = TerminalSpaceSwitcherPresentation(
       spaces: spaces,
       selectedSpaceID: selectedSpaceID
     ) {
       Menu {
-        ForEach(spaces) { space in
+        ForEach(Array(spaces.enumerated()), id: \.element.id) { index, space in
           Button {
             _ = store.send(.selectSpaceButtonTapped(space.id))
           } label: {
@@ -57,6 +83,12 @@ struct TerminalSpaceSwitcher: View {
               Text(space.name)
             }
           }
+          .supatermKeyboardShortcut(
+            TerminalSpaceSwitcherPresentation.shortcutBinding(
+              forSpaceAt: index,
+              overrides: supatermSettings.shortcutOverrides
+            )?.keyboardShortcut
+          )
         }
 
         Divider()
@@ -80,38 +112,60 @@ struct TerminalSpaceSwitcher: View {
         }
         .disabled(!presentation.canDelete)
       } label: {
-        HStack(spacing: 6) {
-          Text(
-            TerminalSidebarLayout.spaceMonogram(
-              for: presentation.selectedSpace.name,
-              fallbackIndex: spaces.firstIndex(of: presentation.selectedSpace) ?? 0
-            )
-          )
-          .font(.system(size: 11, weight: .semibold, design: .rounded))
-          .frame(width: 20, height: 20)
-          .background(palette.secondaryText.opacity(0.14), in: .circle)
-
-          Text(presentation.selectedSpace.name)
-            .font(.system(size: 12, weight: .medium))
-            .lineLimit(1)
-
-          Image(systemName: "chevron.down")
-            .font(.system(size: 8, weight: .semibold))
-            .foregroundStyle(palette.secondaryText)
-            .accessibilityHidden(true)
-        }
-        .foregroundStyle(palette.primaryText)
-        .padding(.horizontal, 8)
-        .frame(height: 28)
-        .background(palette.secondaryText.opacity(0.1), in: .rect(cornerRadius: 7))
+        TerminalSpaceSwitcherLabel(
+          palette: palette,
+          monogram: TerminalSidebarLayout.spaceMonogram(
+            for: presentation.selectedSpace.name,
+            fallbackIndex: spaces.firstIndex(of: presentation.selectedSpace) ?? 0
+          ),
+          name: presentation.selectedSpace.name,
+          isHovered: isHovered
+        )
       }
       .menuStyle(.button)
       .buttonStyle(.plain)
       .menuIndicator(.hidden)
       .fixedSize()
+      .onHover { hovering in
+        TerminalMotion.animate(.easeInOut(duration: 0.1), reduceMotion: reduceMotion) {
+          isHovered = hovering
+        }
+      }
       .accessibilityLabel("Space \(presentation.selectedSpace.name)")
       .accessibilityIdentifier("titlebar.space-switcher")
       .help("Switch Space")
     }
+  }
+}
+
+struct TerminalSpaceSwitcherLabel: View {
+  let palette: Palette
+  let monogram: String
+  let name: String
+  let isHovered: Bool
+
+  var body: some View {
+    HStack(spacing: 6) {
+      Text(monogram)
+        .font(.system(size: 11, weight: .semibold, design: .rounded))
+        .frame(width: 20, height: 20)
+        .background(palette.secondaryText.opacity(0.14), in: .circle)
+
+      Text(name)
+        .font(.system(size: 12, weight: .medium))
+        .lineLimit(1)
+
+      Image(systemName: "chevron.down")
+        .font(.system(size: 8, weight: .semibold))
+        .foregroundStyle(palette.secondaryText)
+        .accessibilityHidden(true)
+    }
+    .foregroundStyle(palette.primaryText)
+    .padding(.horizontal, 8)
+    .frame(height: TerminalWindowHeaderMetrics.switcherHeight)
+    .background(
+      isHovered ? palette.secondaryText.opacity(0.1) : .clear,
+      in: .rect(cornerRadius: 7)
+    )
   }
 }

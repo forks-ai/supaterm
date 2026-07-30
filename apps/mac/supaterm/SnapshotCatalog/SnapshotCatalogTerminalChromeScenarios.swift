@@ -9,7 +9,15 @@ extension SnapshotCatalog {
       title: "Window Space switcher",
       size: CGSize(width: 360, height: 64)
     ) { appearance in
-      AnyView(TerminalSpaceSwitcherSnapshotFixture(appearance: appearance))
+      AnyView(TerminalWindowHeaderSnapshotFixture(appearance: appearance))
+    },
+    scenario(
+      "space-switcher-hover",
+      group: "Terminal Chrome",
+      title: "Window Space switcher hover",
+      size: CGSize(width: 240, height: 48)
+    ) { appearance in
+      AnyView(SpaceSwitcherHoverSnapshotFixture(appearance: appearance))
     },
     scenario(
       "detail-pane",
@@ -23,7 +31,7 @@ extension SnapshotCatalog {
 }
 
 @MainActor
-private struct TerminalSpaceSwitcherSnapshotFixture: View {
+private struct TerminalWindowHeaderSnapshotFixture: View {
   let appearance: SnapshotAppearance
 
   private var palette: Palette {
@@ -31,13 +39,32 @@ private struct TerminalSpaceSwitcherSnapshotFixture: View {
   }
 
   var body: some View {
-    TerminalSpaceSwitcher(
+    TerminalWindowHeader(
       store: SidebarChromeSnapshotContext.windowStore(),
       palette: palette,
-      spaces: SidebarChromeSnapshotContext.terminal.availableSpaces,
-      selectedSpaceID: SidebarChromeSnapshotContext.terminal.selectedSpaceID
+      terminal: SidebarChromeSnapshotContext.terminal
     )
-    .padding(.top, 10)
+    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+    .background(palette.windowBackgroundTint)
+    .environment(\.colorScheme, appearance.colorScheme)
+  }
+}
+
+private struct SpaceSwitcherHoverSnapshotFixture: View {
+  let appearance: SnapshotAppearance
+
+  private var palette: Palette {
+    Palette(colorScheme: appearance.colorScheme)
+  }
+
+  var body: some View {
+    TerminalSpaceSwitcherLabel(
+      palette: palette,
+      monogram: "S",
+      name: "supaterm",
+      isHovered: true
+    )
+    .padding(10)
     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
     .background(palette.windowBackgroundTint)
     .environment(\.colorScheme, appearance.colorScheme)
