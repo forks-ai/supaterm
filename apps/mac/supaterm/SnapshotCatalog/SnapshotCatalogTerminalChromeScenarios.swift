@@ -60,7 +60,6 @@ private struct SpaceSwitcherHoverSnapshotFixture: View {
   var body: some View {
     TerminalSpaceSwitcherLabel(
       palette: palette,
-      monogram: "S",
       name: "supaterm",
       isHovered: true
     )

@@ -114,10 +114,6 @@ struct TerminalSpaceSwitcher: View {
       } label: {
         TerminalSpaceSwitcherLabel(
           palette: palette,
-          monogram: TerminalSidebarLayout.spaceMonogram(
-            for: presentation.selectedSpace.name,
-            fallbackIndex: spaces.firstIndex(of: presentation.selectedSpace) ?? 0
-          ),
           name: presentation.selectedSpace.name,
           isHovered: isHovered
         )
@@ -140,32 +136,19 @@ struct TerminalSpaceSwitcher: View {
 
 struct TerminalSpaceSwitcherLabel: View {
   let palette: Palette
-  let monogram: String
   let name: String
   let isHovered: Bool
 
   var body: some View {
-    HStack(spacing: 6) {
-      Text(monogram)
-        .font(.system(size: 11, weight: .semibold, design: .rounded))
-        .frame(width: 20, height: 20)
-        .background(palette.secondaryText.opacity(0.14), in: .circle)
-
-      Text(name)
-        .font(.system(size: 12, weight: .medium))
-        .lineLimit(1)
-
-      Image(systemName: "chevron.down")
-        .font(.system(size: 8, weight: .semibold))
-        .foregroundStyle(palette.secondaryText)
-        .accessibilityHidden(true)
-    }
-    .foregroundStyle(palette.primaryText)
-    .padding(.horizontal, 8)
-    .frame(height: TerminalWindowHeaderMetrics.switcherHeight)
-    .background(
-      isHovered ? palette.secondaryText.opacity(0.1) : .clear,
-      in: .rect(cornerRadius: 7)
-    )
+    Text(name)
+      .font(.system(size: 12, weight: .medium))
+      .lineLimit(1)
+      .foregroundStyle(palette.primaryText)
+      .padding(.horizontal, 8)
+      .frame(height: TerminalWindowHeaderMetrics.switcherHeight)
+      .background(
+        isHovered ? palette.secondaryText.opacity(0.1) : .clear,
+        in: .rect(cornerRadius: 7)
+      )
   }
 }
