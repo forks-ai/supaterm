@@ -60,7 +60,10 @@ struct TerminalSplitView: View {
         .frame(maxHeight: .infinity)
         .offset(x: visualSidebarCollapsed ? -(currentSidebarWidth + 12) : 0)
         .frame(width: visibleSidebarWidth, alignment: .leading)
-        .clipped()
+        .mask(alignment: .leading) {
+          Rectangle()
+            .padding(.trailing, -TerminalChromeMetrics.paneInset)
+        }
         .allowsHitTesting(!visualSidebarCollapsed)
 
         if let selectedTabID = terminal.selectedTabID {

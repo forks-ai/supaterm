@@ -364,25 +364,16 @@ struct TerminalSidebarLayoutPlanTests {
     let childFrame = try #require(plan.items.first { $0.id == .tab(child) }?.frame)
 
     #expect(rootFrame.minX == TerminalSidebarLayout.visibleHorizontalInset)
-    #expect(
-      width + TerminalChromeMetrics.paneInset - rootFrame.maxX
-        == TerminalSidebarLayout.visibleHorizontalInset
-    )
+    #expect(width - rootFrame.maxX == TerminalSidebarLayout.visibleHorizontalInset)
     #expect(groupFrame.minX == TerminalSidebarLayout.visibleHorizontalInset)
-    #expect(
-      width + TerminalChromeMetrics.paneInset - groupFrame.maxX
-        == TerminalSidebarLayout.visibleHorizontalInset
-    )
+    #expect(width - groupFrame.maxX == TerminalSidebarLayout.visibleHorizontalInset)
     #expect(
       childFrame.minX - groupFrame.minX == TerminalSidebarLayout.groupedTabHorizontalInset
     )
     #expect(
       groupFrame.maxX - childFrame.maxX == TerminalSidebarLayout.groupedTabHorizontalInset
     )
-    #expect(
-      childFrame.minX
-        == width + TerminalChromeMetrics.paneInset - childFrame.maxX
-    )
+    #expect(childFrame.minX == width - childFrame.maxX)
   }
 
   @Test

@@ -61,6 +61,7 @@ struct TerminalSidebarChromeView: View {
       .padding(.trailing, TerminalSidebarLayout.cardHorizontalInsets.trailing)
     }
     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+    .padding(.trailing, -TerminalChromeMetrics.paneInset)
   }
 
   private var tabList: some View {

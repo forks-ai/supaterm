@@ -37,7 +37,7 @@ enum TerminalSidebarLayout {
   static var cardHorizontalInsets: HorizontalInsets {
     HorizontalInsets(
       leading: visibleHorizontalInset,
-      trailing: visibleHorizontalInset - TerminalChromeMetrics.paneInset
+      trailing: visibleHorizontalInset
     )
   }
   static var groupedTabHorizontalInsets: HorizontalInsets {
