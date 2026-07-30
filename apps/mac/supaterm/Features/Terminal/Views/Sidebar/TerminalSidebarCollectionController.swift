@@ -343,9 +343,11 @@ final class TerminalSidebarListController: NSViewController, NSCollectionViewDel
   }
 
   private func consumePendingUpdate() {
-    guard case .idle = updatePhase, activeDrag == nil, let pendingUpdate else { return }
-    self.pendingUpdate = nil
-    process(pendingUpdate)
+    Task { @MainActor [weak self] in
+      guard let self, case .idle = updatePhase, activeDrag == nil, let pendingUpdate else { return }
+      self.pendingUpdate = nil
+      process(pendingUpdate)
+    }
   }
 
   private func handleActiveDragUpdate(_ update: Update) {
