@@ -409,7 +409,7 @@ struct SPCommandTests {
   }
 
   @Test
-  func onboardRendererShowsWelcomeShortcutsAndSetupCommands() {
+  func onboardRendererShowsLogoWelcomeShortcutsAndSetupCommands() {
     let rendered = SPOnboardingRenderer.render(
       SupatermOnboardingSnapshot(
         items: [
@@ -434,6 +434,17 @@ struct SPCommandTests {
     #expect(
       rendered
         == """
+               ##
+             ####
+            #####
+           ##########
+         ############
+        ############
+            ######
+            #####
+            ###
+            ##
+
         Welcome to Supaterm!
 
         Common Shortcuts
