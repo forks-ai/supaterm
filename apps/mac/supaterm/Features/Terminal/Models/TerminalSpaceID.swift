@@ -78,7 +78,7 @@ nonisolated struct TerminalSpaceCatalog: Equatable, Codable, Sendable {
   private static func makeDefault() -> Self {
     let space = TerminalSpaceItem(
       id: TerminalSpaceID(rawValue: UUID(uuidString: "00000000-0000-0000-0000-000000000001")!),
-      name: "1"
+      name: "Space 1"
     )
     return Self(
       defaultSelectedSpaceID: space.id,
