@@ -17,7 +17,7 @@ type FeatureSection = {
   video?: string;
 };
 
-const homebrewInstallCommand = "brew install Supaterm";
+const homebrewInstallCommand = "brew install supaterm";
 const skillsCommand = "npx skills add supabitapp/supaterm-skills";
 
 function CommandCopyBox({
