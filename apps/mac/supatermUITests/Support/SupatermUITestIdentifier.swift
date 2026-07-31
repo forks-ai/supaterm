@@ -12,6 +12,7 @@ enum SupatermUITestIdentifier {
     static let dialogConfirm = "dialog.confirm"
     static let dialogCancel = "dialog.cancel"
     static let dialogSpaceName = "dialog.space-name"
+    static let dialogSpaceColorPrefix = "dialog.space-color-"
     static let dialogQuit = "dialog.quit"
     static let searchField = "terminal.search.field"
     static let searchMatchCount = "terminal.search.match-count"

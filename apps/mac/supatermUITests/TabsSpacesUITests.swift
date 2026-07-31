@@ -105,6 +105,12 @@ final class TabsSpacesUITests: SupatermUITestCase {
     nameField.typeKey("a", modifierFlags: .command)
     nameField.typeText("Renamed UI Space")
 
+    let greenSwatch = app.buttons[
+      SupatermUITestIdentifier.Accessibility.dialogSpaceColorPrefix + "green"
+    ]
+    XCTAssertTrue(greenSwatch.waitForExistence(timeout: 10))
+    greenSwatch.click()
+
     let confirm = app.buttons[
       SupatermUITestIdentifier.Accessibility.dialogConfirm
     ]
