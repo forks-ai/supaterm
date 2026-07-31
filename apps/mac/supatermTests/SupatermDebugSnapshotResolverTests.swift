@@ -45,6 +45,7 @@ struct SupatermDebugSnapshotResolverTests {
       index: 1,
       id: spaceID,
       name: "A",
+      color: .neutral,
       isSelected: true,
       rootItems: [
         .tab(SupatermAppDebugSnapshot.RootTab(isPinned: false, tab: tab))
@@ -104,6 +105,7 @@ struct SupatermDebugSnapshotResolverTests {
       index: 1,
       id: spaceID,
       name: "A",
+      color: .neutral,
       isSelected: true,
       rootItems: [
         .group(

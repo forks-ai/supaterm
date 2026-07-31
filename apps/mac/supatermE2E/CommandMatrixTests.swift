@@ -221,6 +221,7 @@ extension SupatermE2ESuite {
         let extra = try app.send(
           .createSpace(
             SupatermCreateSpaceRequest(
+              color: nil,
               focus: true,
               name: "extra-\(space.token)",
               windowAnchorPaneID: space.tab.paneID
@@ -239,6 +240,46 @@ extension SupatermE2ESuite {
           let spaces = try app.debugSnapshot().windows.flatMap(\.spaces)
           return !spaces.contains { $0.id == extra.target.spaceID }
         }
+      }
+    }
+
+    @Test(.timeLimit(.minutes(5)))
+    func spaceColorPersistsThroughCreateAndSet() async throws {
+      try await withTestSpace { app, space in
+        let colored = try app.send(
+          .createSpace(
+            SupatermCreateSpaceRequest(
+              color: .green,
+              focus: true,
+              name: "colored-\(space.token)",
+              windowAnchorPaneID: space.tab.paneID
+            )
+          ),
+          as: SupatermCreateSpaceResult.self
+        )
+        try await app.waitUntil("the colored space is visible") {
+          try app.debugSnapshot().windows.flatMap(\.spaces)
+            .first { $0.id == colored.target.spaceID }?.color == .green
+        }
+
+        _ = try app.send(
+          .setSpaceColor(
+            SupatermSetSpaceColorRequest(
+              color: .purple,
+              target: SupatermSpaceTargetRequest(spaceID: colored.target.spaceID)
+            )
+          ),
+          as: SupatermSpaceTarget.self
+        )
+        try await app.waitUntil("the space color is updated") {
+          try app.debugSnapshot().windows.flatMap(\.spaces)
+            .first { $0.id == colored.target.spaceID }?.color == .purple
+        }
+
+        _ = try app.send(
+          .closeSpace(SupatermSpaceTargetRequest(spaceID: colored.target.spaceID)),
+          as: SupatermCloseSpaceResult.self
+        )
       }
     }
 

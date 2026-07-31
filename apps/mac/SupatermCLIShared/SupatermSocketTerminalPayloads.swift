@@ -342,15 +342,18 @@ public struct SupatermRenameTabRequest: Equatable, Sendable, Codable {
 }
 
 public struct SupatermCreateSpaceRequest: Equatable, Sendable, Codable {
+  public let color: SupatermThemeColor?
   public let focus: Bool
   public let name: String
   public let windowAnchorPaneID: UUID
 
   public init(
+    color: SupatermThemeColor?,
     focus: Bool,
     name: String,
     windowAnchorPaneID: UUID
   ) {
+    self.color = color
     self.focus = focus
     self.name = name.trimmingCharacters(in: .whitespacesAndNewlines)
     self.windowAnchorPaneID = windowAnchorPaneID
@@ -367,6 +370,19 @@ public struct SupatermRenameSpaceRequest: Equatable, Sendable, Codable {
   ) {
     self.target = target
     self.name = name
+  }
+}
+
+public struct SupatermSetSpaceColorRequest: Equatable, Sendable, Codable {
+  public let color: SupatermThemeColor
+  public let target: SupatermSpaceTargetRequest
+
+  public init(
+    color: SupatermThemeColor,
+    target: SupatermSpaceTargetRequest
+  ) {
+    self.color = color
+    self.target = target
   }
 }
 

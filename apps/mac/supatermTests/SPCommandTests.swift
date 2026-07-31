@@ -498,6 +498,7 @@ struct SPCommandTests {
               index: 1,
               id: UUID(uuidString: "A6E57B1B-0A61-4F72-BD52-B26DC5D3C497")!,
               name: "A",
+              color: .neutral,
               isSelected: true,
               rootItems: [
                 .tab(
@@ -548,7 +549,7 @@ struct SPCommandTests {
       SPTreeRenderer.render(snapshot)
         == """
         window 1 [key]
-        └─ space 1 "A" [selected]
+        └─ space 1 "A" [neutral, selected]
            └─ tab 1 "fish" [selected]
               └─ pane 1 "build" [focused]
         """
@@ -556,7 +557,7 @@ struct SPCommandTests {
     #expect(
       SPTreeRenderer.renderPlain(snapshot)
         == """
-        1\tspace\tA\tselected
+        1\tspace\tA\tneutral,selected
         1/1\ttab\tfish\tselected
         1/1/1\tpane\tbuild\tfocused
         """

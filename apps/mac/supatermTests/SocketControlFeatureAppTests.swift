@@ -30,6 +30,7 @@ struct SocketControlFeatureAppTests {
       index: 1,
       id: UUID(uuidString: "A6E57B1B-0A61-4F72-BD52-B26DC5D3C497")!,
       name: "A",
+      color: .neutral,
       isSelected: true,
       rootItems: [.tab(SupatermTreeSnapshot.RootTab(isPinned: false, tab: tab))]
     )

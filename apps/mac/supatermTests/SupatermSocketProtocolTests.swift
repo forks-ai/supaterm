@@ -615,6 +615,7 @@ struct SupatermSocketProtocolTests {
       index: 1,
       id: UUID(uuidString: "A6E57B1B-0A61-4F72-BD52-B26DC5D3C497")!,
       name: "A",
+      color: .green,
       isSelected: true,
       rootItems: [
         .group(
@@ -650,6 +651,7 @@ struct SupatermSocketProtocolTests {
     )
     let windows = try #require(json["windows"] as? [[String: Any]])
     let spaces = try #require(windows.first?["spaces"] as? [[String: Any]])
+    #expect(spaces.first?["color"] as? String == "green")
     let rootItems = try #require(spaces.first?["rootItems"] as? [[String: Any]])
     let group = try #require(rootItems.first)
     #expect(group["kind"] as? String == "group")
@@ -721,6 +723,7 @@ struct SupatermSocketProtocolTests {
       index: 1,
       id: UUID(uuidString: "3006D18B-D5B7-47E5-9632-5BFD80C1FF21")!,
       name: "A",
+      color: .neutral,
       isSelected: true,
       rootItems: [.tab(SupatermAppDebugSnapshot.RootTab(isPinned: false, tab: tab))]
     )
@@ -1064,6 +1067,7 @@ struct SupatermSocketProtocolTests {
     let mainVerticalTabID = UUID(uuidString: "FBAE38E2-56FA-424C-91B0-4DE814DE39D2")!
     let createSpaceRequest = try SupatermSocketRequest.createSpace(
       SupatermCreateSpaceRequest(
+        color: nil,
         focus: false,
         name: "Build",
         windowAnchorPaneID: windowAnchorPaneID
@@ -1087,6 +1091,7 @@ struct SupatermSocketProtocolTests {
     #expect(
       try createSpaceRequest.decodeParams(SupatermCreateSpaceRequest.self)
         == SupatermCreateSpaceRequest(
+          color: nil,
           focus: false,
           name: "Build",
           windowAnchorPaneID: windowAnchorPaneID

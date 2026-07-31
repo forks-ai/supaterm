@@ -265,6 +265,7 @@ private func targetResolverFirstWindowSpaces(
       index: 1,
       id: firstSpaceID,
       name: "A",
+      color: .neutral,
       isSelected: false,
       rootItems: [
         .group(
@@ -283,6 +284,7 @@ private func targetResolverFirstWindowSpaces(
       index: 2,
       id: UUID(uuidString: "AFD1C31C-60A4-4AC8-8D59-418AD05473EB")!,
       name: "B",
+      color: .neutral,
       isSelected: false,
       rootItems: [.tab(SupatermTreeSnapshot.RootTab(isPinned: false, tab: secondTab))]
     ),
@@ -314,6 +316,7 @@ private func targetResolverSecondWindowSpace(
     index: 1,
     id: id,
     name: "C",
+    color: .neutral,
     isSelected: true,
     rootItems: [
       .tab(SupatermTreeSnapshot.RootTab(isPinned: false, tab: firstTab)),

@@ -205,6 +205,7 @@ private final class SPTmuxTransportStub: SPTmuxTransport {
         index: spaceIndex,
         id: spaceID,
         name: spaceName,
+        color: .neutral,
         isSelected: true,
         rootItems: [.tab(SupatermAppDebugSnapshot.RootTab(isPinned: false, tab: debugTab))]
       )

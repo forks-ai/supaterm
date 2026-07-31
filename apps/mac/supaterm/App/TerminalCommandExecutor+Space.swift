@@ -1,4 +1,5 @@
 import Foundation
+import SupaTheme
 import SupatermCLIShared
 import SupatermTerminalCore
 
@@ -11,7 +12,11 @@ extension TerminalCommandExecutor {
     else {
       throw TerminalControlError.contextPaneNotFound
     }
-    return try registry.createSpaceResult(named: request.name, focus: request.focus)
+    return try registry.createSpaceResult(
+      named: request.name,
+      color: request.color.map(ThemeTint.init(socketColor:)),
+      focus: request.focus
+    )
   }
 
   func selectSpace(_ target: TerminalSpaceTarget) throws -> SupatermSelectSpaceResult {
@@ -26,6 +31,13 @@ extension TerminalCommandExecutor {
     try registry.renameSpaceResult(
       TerminalSpaceID(rawValue: request.target.spaceID),
       to: request.name
+    )
+  }
+
+  func setSpaceColor(_ request: TerminalSetSpaceColorRequest) throws -> SupatermSpaceTarget {
+    try registry.setSpaceColorResult(
+      TerminalSpaceID(rawValue: request.target.spaceID),
+      to: ThemeTint(socketColor: request.color)
     )
   }
 

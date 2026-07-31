@@ -48,6 +48,7 @@ struct TerminalCommandExecutorTests {
 
       let unfocused = try commandExecutor.createSpace(
         TerminalCreateSpaceRequest(
+          color: nil,
           focus: false,
           name: "Background",
           windowAnchorPaneID: initialWindow.paneID
@@ -64,6 +65,7 @@ struct TerminalCommandExecutorTests {
 
       let focused = try commandExecutor.createSpace(
         TerminalCreateSpaceRequest(
+          color: nil,
           focus: true,
           name: "Foreground",
           windowAnchorPaneID: initialWindow.paneID

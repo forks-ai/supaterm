@@ -2,6 +2,7 @@ import AppKit
 import Clocks
 import ComposableArchitecture
 import Sharing
+import SupaTheme
 import SupatermSupport
 import SupatermTerminalCore
 import SupatermUpdateFeature
@@ -111,6 +112,34 @@ struct TerminalWindowRegistryTests {
       #expect(createdWindows.map(\.1) == [true])
       #expect(throws: TerminalControlError.self) {
         try registry.createSpace(named: "build")
+      }
+    }
+  }
+
+  @Test
+  func createSpacePersistsColorAndSetSpaceColorUpdatesIt() throws {
+    try withDependencies {
+      $0.defaultFileStorage = .inMemory
+    } operation: {
+      let initialSpace = TerminalSpaceItem(name: "A")
+      @Shared(.terminalSpaceCatalog) var catalog = TerminalSpaceCatalog.default
+      $catalog.withLock {
+        $0 = TerminalSpaceCatalog(
+          defaultSelectedSpaceID: initialSpace.id,
+          spaces: [initialSpace]
+        )
+      }
+      let registry = TerminalWindowRegistry()
+      registry.onCreateWindow = { _, _ in }
+
+      let spaceID = try registry.createSpace(named: "Build", color: .green)
+      #expect(catalog.spaces.map(\.color) == [.neutral, .green])
+
+      try registry.setSpaceColor(spaceID, to: .purple)
+      #expect(catalog.spaces.map(\.color) == [.neutral, .purple])
+
+      #expect(throws: TerminalControlError.self) {
+        try registry.setSpaceColor(TerminalSpaceID(), to: .blue)
       }
     }
   }

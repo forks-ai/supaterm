@@ -297,9 +297,14 @@ final class TerminalWindowRegistry {
 
   func createSpaceResult(
     named name: String,
+    color: ThemeTint?,
     focus: Bool
   ) throws -> SupatermCreateSpaceResult {
-    let spaceID = try createSpace(named: name, focus: focus)
+    let spaceID = try createSpace(
+      named: name,
+      color: color ?? ThemeTint.chromatic.randomElement() ?? .blue,
+      focus: focus
+    )
     guard let location = mostRecentWindowLocation(for: spaceID) else {
       throw TerminalControlError.lastSpaceNotFound
     }
@@ -347,6 +352,30 @@ final class TerminalWindowRegistry {
     return spaceTarget(
       spaceID: spaceID,
       name: name.trimmingCharacters(in: .whitespacesAndNewlines),
+      windowIndex: location.windowIndex
+    )
+  }
+
+  func setSpaceColorResult(
+    _ spaceID: TerminalSpaceID,
+    to color: ThemeTint
+  ) throws -> SupatermSpaceTarget {
+    try setSpaceColor(spaceID, to: color)
+    let name = TerminalSpaceCatalog.sanitized(spaceCatalog)
+      .spaces.first(where: { $0.id == spaceID })?.name ?? ""
+    guard let location = mostRecentWindowLocation(for: spaceID) else {
+      guard openSpace(spaceID), let openedLocation = mostRecentWindowLocation(for: spaceID) else {
+        throw TerminalControlError.contextPaneNotFound
+      }
+      return spaceTarget(
+        spaceID: spaceID,
+        name: name,
+        windowIndex: openedLocation.windowIndex
+      )
+    }
+    return spaceTarget(
+      spaceID: spaceID,
+      name: name,
       windowIndex: location.windowIndex
     )
   }

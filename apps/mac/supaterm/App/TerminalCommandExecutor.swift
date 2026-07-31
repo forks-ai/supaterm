@@ -152,6 +152,8 @@ final class TerminalCommandExecutor {
       return .closeSpace(try closeSpace(target))
     case .renameSpace(let renameSpaceRequest):
       return .renameSpace(try renameSpace(renameSpaceRequest))
+    case .setSpaceColor(let setSpaceColorRequest):
+      return .setSpaceColor(try setSpaceColor(setSpaceColorRequest))
     case .nextSpace(let navigationRequest):
       return .nextSpace(try nextSpace(navigationRequest))
     case .previousSpace(let navigationRequest):

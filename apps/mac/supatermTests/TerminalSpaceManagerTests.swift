@@ -1,4 +1,5 @@
 import Foundation
+import SupaTheme
 import Testing
 
 @testable import supaterm
@@ -24,11 +25,12 @@ struct TerminalSpaceManagerTests {
     let tabID = manager.tabManager.createTab(title: "Terminal 1")
     let updatedCatalog = TerminalSpaceCatalog(
       defaultSelectedSpaceID: space.id,
-      spaces: [TerminalSpaceItem(id: space.id, name: "Renamed")]
+      spaces: [TerminalSpaceItem(id: space.id, name: "Renamed", color: .blue)]
     )
     manager.applyCatalog(updatedCatalog)
 
     #expect(manager.spaces.map(\.name) == ["Renamed"])
+    #expect(manager.spaces.map(\.color) == [.blue])
     #expect(manager.selectedSpaceID == space.id)
     #expect(manager.tabs.map(\.id) == [tabID].compactMap { $0 })
   }

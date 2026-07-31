@@ -44,6 +44,7 @@ public enum SupatermSocketMethod {
   public static let terminalSelectSpace = "terminal.select_space"
   public static let terminalSelectTab = "terminal.select_tab"
   public static let terminalSetPaneSize = "terminal.set_pane_size"
+  public static let terminalSetSpaceColor = "terminal.set_space_color"
   public static let terminalSetTabGroupColor = "terminal.set_tab_group_color"
   public static let terminalCollapseTabGroup = "terminal.collapse_tab_group"
   public static let terminalExpandTabGroup = "terminal.expand_tab_group"
@@ -148,14 +149,14 @@ public struct SupatermSocketRequest: Equatable, Sendable, Codable {
   }
 
   public static func debug(
-    _ payload: SupatermDebugRequest = .init(),
+    _ payload: SupatermDebugRequest = SupatermDebugRequest(),
     id: String = UUID().uuidString
   ) throws -> Self {
     try make(SupatermSocketMethod.appDebug, payload, id: id)
   }
 
   public static func settingsList(
-    _ payload: SupatermSettingsListRequest = .init(),
+    _ payload: SupatermSettingsListRequest = SupatermSettingsListRequest(),
     id: String = UUID().uuidString
   ) throws -> Self {
     try make(SupatermSocketMethod.appSettingsList, payload, id: id)
@@ -392,6 +393,13 @@ public struct SupatermSocketRequest: Equatable, Sendable, Codable {
     try make(SupatermSocketMethod.terminalRenameTabGroup, payload, id: id)
   }
 
+  public static func setSpaceColor(
+    _ payload: SupatermSetSpaceColorRequest,
+    id: String = UUID().uuidString
+  ) throws -> Self {
+    try make(SupatermSocketMethod.terminalSetSpaceColor, payload, id: id)
+  }
+
   public static func setTabGroupColor(
     _ payload: SupatermSetTabGroupColorRequest,
     id: String = UUID().uuidString
@@ -528,7 +536,7 @@ public struct SupatermSocketResponse: Equatable, Sendable, Codable {
     code: String,
     message: String
   ) -> Self {
-    Self(id: id, ok: false, error: .init(code: code, message: message))
+    Self(id: id, ok: false, error: ErrorPayload(code: code, message: message))
   }
 
   public func decodeResult<T: Decodable>(_ type: T.Type = T.self) throws -> T {

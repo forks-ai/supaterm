@@ -97,6 +97,7 @@ public struct SocketRequestExecutor: Sendable {
     case selectSpace(TerminalSpaceTarget)
     case closeSpace(TerminalSpaceTarget)
     case renameSpace(TerminalRenameSpaceRequest)
+    case setSpaceColor(TerminalSetSpaceColorRequest)
     case nextSpace(TerminalSpaceNavigationRequest)
     case previousSpace(TerminalSpaceNavigationRequest)
     case lastSpace(TerminalSpaceNavigationRequest)
@@ -107,6 +108,7 @@ public struct SocketRequestExecutor: Sendable {
     case selectSpace(SupatermSelectSpaceResult)
     case closeSpace(SupatermCloseSpaceResult)
     case renameSpace(SupatermSpaceTarget)
+    case setSpaceColor(SupatermSpaceTarget)
     case nextSpace(SupatermSelectSpaceResult)
     case previousSpace(SupatermSelectSpaceResult)
     case lastSpace(SupatermSelectSpaceResult)
@@ -272,6 +274,8 @@ extension SocketRequestExecutor: DependencyKey {
       case .closeSpace:
         throw TerminalControlError.contextPaneNotFound
       case .renameSpace:
+        throw TerminalControlError.contextPaneNotFound
+      case .setSpaceColor:
         throw TerminalControlError.contextPaneNotFound
       case .nextSpace:
         throw TerminalControlError.lastSpaceNotFound

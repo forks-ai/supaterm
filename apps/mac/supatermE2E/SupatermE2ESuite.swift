@@ -59,6 +59,7 @@ private func makeTestSpace(_ app: SupatermE2EApp) throws -> TestSpace {
   let created = try app.send(
     .createSpace(
       SupatermCreateSpaceRequest(
+        color: nil,
         focus: true,
         name: "e2e-\(token)",
         windowAnchorPaneID: windowAnchorPaneID

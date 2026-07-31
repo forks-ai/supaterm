@@ -33,6 +33,7 @@ public struct TerminalWindowsClient: Sendable {
   public var renameTab: @MainActor @Sendable (TerminalRenameTabRequest) async throws -> SupatermRenameTabResult
   public var resizePane: @MainActor @Sendable (TerminalResizePaneRequest) async throws -> SupatermResizePaneResult
   public var setPaneSize: @MainActor @Sendable (TerminalSetPaneSizeRequest) async throws -> SupatermSetPaneSizeResult
+  public var setSpaceColor: @MainActor @Sendable (TerminalSetSpaceColorRequest) async throws -> SupatermSpaceTarget
   public var selectSpace: @MainActor @Sendable (TerminalSpaceTarget) async throws -> SupatermSelectSpaceResult
   public var selectTab: @MainActor @Sendable (TerminalTabTarget) async throws -> SupatermSelectTabResult
   public var sendKey: @MainActor @Sendable (TerminalSendKeyRequest) async throws -> SupatermSendKeyResult
@@ -107,6 +108,10 @@ public struct TerminalWindowsClient: Sendable {
       @escaping @MainActor @Sendable (
         TerminalResizePaneRequest
       ) async throws -> SupatermResizePaneResult,
+    setSpaceColor:
+      @escaping @MainActor @Sendable (
+        TerminalSetSpaceColorRequest
+      ) async throws -> SupatermSpaceTarget,
     setPaneSize:
       @escaping @MainActor @Sendable (
         TerminalSetPaneSizeRequest
@@ -161,6 +166,7 @@ public struct TerminalWindowsClient: Sendable {
     self.renameTab = renameTab
     self.resizePane = resizePane
     self.setPaneSize = setPaneSize
+    self.setSpaceColor = setSpaceColor
     self.selectSpace = selectSpace
     self.selectTab = selectTab
     self.sendKey = sendKey
@@ -246,6 +252,9 @@ extension TerminalWindowsClient: DependencyKey {
     },
     resizePane: { _ in
       throw TerminalControlError.resizeFailed
+    },
+    setSpaceColor: { _ in
+      throw TerminalControlError.contextPaneNotFound
     },
     setPaneSize: { _ in
       throw TerminalControlError.resizeFailed
@@ -345,6 +354,9 @@ extension TerminalWindowsClient: DependencyKey {
     },
     resizePane: { _ in
       throw TerminalControlError.resizeFailed
+    },
+    setSpaceColor: { _ in
+      throw TerminalControlError.contextPaneNotFound
     },
     setPaneSize: { _ in
       throw TerminalControlError.resizeFailed

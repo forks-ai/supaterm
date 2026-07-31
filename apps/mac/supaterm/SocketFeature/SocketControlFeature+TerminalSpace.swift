@@ -7,12 +7,29 @@ extension SocketControlFeature {
     for request: SupatermSocketRequest,
     socketRequestExecutor: SocketRequestExecutor
   ) async throws -> SupatermSocketResponse? {
+    if let response = try await terminalSpaceMutationResponseResult(
+      for: request,
+      socketRequestExecutor: socketRequestExecutor
+    ) {
+      return response
+    }
+    return try await terminalSpaceNavigationResponseResult(
+      for: request,
+      socketRequestExecutor: socketRequestExecutor
+    )
+  }
+
+  func terminalSpaceMutationResponseResult(
+    for request: SupatermSocketRequest,
+    socketRequestExecutor: SocketRequestExecutor
+  ) async throws -> SupatermSocketResponse? {
     switch request.method {
     case SupatermSocketMethod.terminalCreateSpace:
       let payload = try request.decodeParams(SupatermCreateSpaceRequest.self)
       let execution = try await socketRequestExecutor.executeTerminalSpace(
         .createSpace(
           TerminalCreateSpaceRequest(
+            color: payload.color,
             focus: payload.focus,
             name: payload.name,
             windowAnchorPaneID: payload.windowAnchorPaneID
@@ -24,12 +41,17 @@ extension SocketControlFeature {
       }
       return try .ok(id: request.id, encodableResult: result)
 
-    case SupatermSocketMethod.terminalSelectSpace:
-      let payload = try request.decodeParams(SupatermSpaceTargetRequest.self)
+    case SupatermSocketMethod.terminalSetSpaceColor:
+      let payload = try request.decodeParams(SupatermSetSpaceColorRequest.self)
       let execution = try await socketRequestExecutor.executeTerminalSpace(
-        .selectSpace(createSpaceTarget(from: payload))
+        .setSpaceColor(
+          TerminalSetSpaceColorRequest(
+            color: payload.color,
+            target: createSpaceTarget(from: payload.target)
+          )
+        )
       )
-      guard case .selectSpace(let result) = execution else {
+      guard case .setSpaceColor(let result) = execution else {
         throw SocketExecutorError.unexpectedResult
       }
       return try .ok(id: request.id, encodableResult: result)
@@ -55,6 +77,26 @@ extension SocketControlFeature {
         )
       )
       guard case .renameSpace(let result) = execution else {
+        throw SocketExecutorError.unexpectedResult
+      }
+      return try .ok(id: request.id, encodableResult: result)
+
+    default:
+      return nil
+    }
+  }
+
+  func terminalSpaceNavigationResponseResult(
+    for request: SupatermSocketRequest,
+    socketRequestExecutor: SocketRequestExecutor
+  ) async throws -> SupatermSocketResponse? {
+    switch request.method {
+    case SupatermSocketMethod.terminalSelectSpace:
+      let payload = try request.decodeParams(SupatermSpaceTargetRequest.self)
+      let execution = try await socketRequestExecutor.executeTerminalSpace(
+        .selectSpace(createSpaceTarget(from: payload))
+      )
+      guard case .selectSpace(let result) = execution else {
         throw SocketExecutorError.unexpectedResult
       }
       return try .ok(id: request.id, encodableResult: result)

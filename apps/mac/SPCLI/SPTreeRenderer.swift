@@ -11,6 +11,7 @@ private struct SPTreeSnapshot {
   struct Space {
     let index: Int
     let name: String
+    let color: SupatermThemeColor
     let isSelected: Bool
     let rootItems: [RootItem]
   }
@@ -74,8 +75,8 @@ enum SPTreeRenderer {
     snapshot.windows.flatMap { window in
       window.spaces.flatMap { space in
         let spaceSelector = "\(space.index)"
-        let spaceFlags = space.isSelected ? "\tselected" : ""
-        let spaceLine = "\(spaceSelector)\tspace\t\(space.name)\(spaceFlags)"
+        let spaceFlags = [space.color.rawValue] + (space.isSelected ? ["selected"] : [])
+        let spaceLine = "\(spaceSelector)\tspace\t\(space.name)\t\(spaceFlags.joined(separator: ","))"
 
         let rootLines = space.rootItems.flatMap { item -> [String] in
           switch item {
@@ -128,6 +129,7 @@ enum SPTreeRenderer {
             return SPTreeSnapshot.Space(
               index: space.index,
               name: space.name,
+              color: space.color,
               isSelected: space.isSelected,
               rootItems: space.rootItems.map { item in
                 switch item {
@@ -228,13 +230,9 @@ enum SPTreeRenderer {
   }
 
   private static func spaceLine(_ space: SPTreeSnapshot.Space) -> String {
-    var labels: [String] = []
+    var labels = [space.color.rawValue]
     if space.isSelected {
       labels.append("selected")
-    }
-
-    if labels.isEmpty {
-      return "space \(space.index) \"\(space.name)\""
     }
     return "space \(space.index) \"\(space.name)\" [\(labels.joined(separator: ", "))]"
   }

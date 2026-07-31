@@ -37,6 +37,7 @@ extension TerminalHostState {
           index: spaceOffset + 1,
           id: space.id.rawValue,
           name: space.name,
+          color: space.color.socketColor,
           isSelected: space.id == selectedSpaceID,
           rootItems: spaceManager.rootItems(in: space.id).map {
             treeRootItemSnapshot($0, spaceID: space.id)
@@ -57,6 +58,7 @@ extension TerminalHostState {
           index: spaceOffset + 1,
           id: space.id.rawValue,
           name: space.name,
+          color: space.color.socketColor,
           isSelected: space.id == selectedSpaceID,
           rootItems: spaceManager.rootItems(in: space.id).map {
             debugRootItemSnapshot($0, spaceID: space.id)

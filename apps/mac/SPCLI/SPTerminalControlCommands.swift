@@ -13,6 +13,7 @@ extension SP {
         SpaceFocus.self,
         SpaceDestroy.self,
         SpaceRename.self,
+        SpaceColor.self,
         SpaceNext.self,
         SpacePrev.self,
         SpaceLast.self,
@@ -84,6 +85,9 @@ extension SP {
     @Flag(name: .long, help: "Focus the new space after creating it.")
     var focus = false
 
+    @Option(name: .long, help: "Color for the new space; random when omitted.", transform: parseThemeColor)
+    var color: SupatermThemeColor?
+
     @Argument(help: "Name for the new space.")
     var name: String
 
@@ -104,7 +108,8 @@ extension SP {
 
       let response = try client.send(
         .createSpace(
-          .init(
+          SupatermCreateSpaceRequest(
+            color: color,
             focus: focus,
             name: trimmedName,
             windowAnchorPaneID: try resolvePublicWindowAnchorPaneID(
@@ -253,13 +258,53 @@ extension SP {
     }
 
     private func requestPayload(client: SPSocketClient) throws -> SupatermRenameSpaceRequest {
-      .init(
+      SupatermRenameSpaceRequest(
         target: try resolvePublicSpaceTarget(
           space,
           context: SupatermCLIContext.current,
           snapshot: try treeSnapshot(client)
         ),
         name: name
+      )
+    }
+  }
+
+  struct SpaceColor: ParsableCommand {
+    static let configuration = CommandConfiguration(
+      commandName: "color",
+      abstract: "Set a space's color.",
+      discussion: SPHelp.spaceColorDiscussion
+    )
+
+    @Argument(help: "Space color.", transform: parseThemeColor)
+    var color: SupatermThemeColor
+
+    @Argument(help: "Optional space target.")
+    var space: SPSpaceReference?
+
+    @OptionGroup
+    var options: SPCommandOptions
+
+    mutating func run() throws {
+      let color = color
+      let space = space
+      try runControlCommand(
+        options: options,
+        request: { client in
+          try .setSpaceColor(
+            SupatermSetSpaceColorRequest(
+              color: color,
+              target: try resolvePublicSpaceTarget(
+                space,
+                context: SupatermCLIContext.current,
+                snapshot: try treeSnapshot(client)
+              )
+            )
+          )
+        },
+        as: SupatermSpaceTarget.self,
+        plain: { plainSpaceSelector(spaceIndex: $0.spaceIndex) },
+        human: { render($0) }
       )
     }
   }
@@ -538,20 +583,20 @@ extension SP {
         guard stdinHasPipedInput() else {
           throw ValidationError("Provide text or pipe stdin.")
         }
-        return .init(target: nil, text: readStandardInput())
+        return SendTextInput(target: nil, text: readStandardInput())
       case 1:
         if let pane = tryParsePaneReference(arguments[0]) {
           guard stdinHasPipedInput() else {
             throw ValidationError("Pipe stdin when only a pane target is provided.")
           }
-          return .init(target: pane, text: readStandardInput())
+          return SendTextInput(target: pane, text: readStandardInput())
         }
-        return .init(target: nil, text: try resolveText(arguments[0]))
+        return SendTextInput(target: nil, text: try resolveText(arguments[0]))
       case 2:
         guard let pane = tryParsePaneReference(arguments[0]) else {
           throw ValidationError("The first argument must be a pane target.")
         }
-        return .init(target: pane, text: try resolveText(arguments[1]))
+        return SendTextInput(target: pane, text: try resolveText(arguments[1]))
       default:
         throw ValidationError("Expected at most a pane target and one text argument.")
       }
@@ -569,7 +614,7 @@ extension SP {
       resolvedInput: SendTextInput
     ) throws -> SupatermSendTextRequest {
       let text = newline ? resolvedInput.text + "\n" : resolvedInput.text
-      return .init(
+      return SupatermSendTextRequest(
         mode: submit ? .submit : .type,
         target: try resolvePublicPaneTarget(
           resolvedInput.target,
@@ -623,7 +668,7 @@ extension SP {
     }
 
     private func requestPayload(client: SPSocketClient) throws -> SupatermCapturePaneRequest {
-      .init(
+      SupatermCapturePaneRequest(
         lines: lines,
         scope: scope,
         target: try resolvePublicPaneTarget(
@@ -659,7 +704,7 @@ extension SP {
     }
 
     private func requestPayload(client: SPSocketClient) throws -> SupatermPaneHealthRequest {
-      .init(
+      SupatermPaneHealthRequest(
         target: try resolvePublicPaneTarget(
           pane,
           context: SupatermCLIContext.current,
@@ -723,7 +768,7 @@ extension SP {
     }
 
     private func requestPayload(client: SPSocketClient) throws -> SupatermPaneHealthRequest {
-      .init(
+      SupatermPaneHealthRequest(
         target: try resolvePublicPaneTarget(
           pane,
           context: SupatermCLIContext.current,
@@ -740,28 +785,8 @@ extension SP {
       discussion: SPHelp.resizePaneDiscussion
     )
 
-    enum DirectionArgument: String, CaseIterable, ExpressibleByArgument {
-      case down
-      case left
-      case right
-      case up
-
-      var resolved: SupatermResizePaneDirection {
-        switch self {
-        case .down:
-          return .down
-        case .left:
-          return .left
-        case .right:
-          return .right
-        case .up:
-          return .up
-        }
-      }
-    }
-
     @Argument(help: "Direction to resize toward.")
-    var direction: DirectionArgument
+    var direction: SPResizePaneDirectionArgument
 
     @Argument(help: "Amount in cells to resize.")
     var amount: UInt16
@@ -789,7 +814,7 @@ extension SP {
     }
 
     private func requestPayload(client: SPSocketClient) throws -> SupatermResizePaneRequest {
-      .init(
+      SupatermResizePaneRequest(
         amount: amount,
         direction: direction.resolved,
         target: try resolvePublicPaneTarget(
@@ -837,7 +862,7 @@ extension SP {
     }
 
     private func requestPayload(client: SPSocketClient) throws -> SupatermRenameTabRequest {
-      .init(
+      SupatermRenameTabRequest(
         target: try resolvePublicTabTarget(
           tab,
           context: SupatermCLIContext.current,
@@ -909,14 +934,8 @@ extension SP {
       discussion: SPHelp.paneLayoutDiscussion
     )
 
-    enum Mode: String, CaseIterable, ExpressibleByArgument {
-      case equalize
-      case tile
-      case mainVertical = "main-vertical"
-    }
-
     @Argument(help: "Layout mode to apply.")
-    var mode: Mode
+    var mode: SPPaneLayoutMode
 
     @Argument(help: "Optional tab target.")
     var tab: SPTabReference?
@@ -953,6 +972,32 @@ extension SP {
       }
     }
   }
+}
+
+enum SPResizePaneDirectionArgument: String, CaseIterable, ExpressibleByArgument {
+  case down
+  case left
+  case right
+  case up
+
+  var resolved: SupatermResizePaneDirection {
+    switch self {
+    case .down:
+      return .down
+    case .left:
+      return .left
+    case .right:
+      return .right
+    case .up:
+      return .up
+    }
+  }
+}
+
+enum SPPaneLayoutMode: String, CaseIterable, ExpressibleByArgument {
+  case equalize
+  case tile
+  case mainVertical = "main-vertical"
 }
 
 private enum SPSpaceNavigationKind {
@@ -1011,7 +1056,8 @@ private func tryParsePaneReference(_ argument: String) -> SPPaneReference? {
 }
 
 private func readStandardInput() -> String {
-  String(decoding: FileHandle.standardInput.readDataToEndOfFile(), as: UTF8.self)
+  let data = FileHandle.standardInput.readDataToEndOfFile()
+  return String(bytes: data, encoding: .utf8) ?? ""
 }
 
 private func runSpaceNavigation(
@@ -1140,9 +1186,11 @@ private func paneHealthSummary(_ result: SupatermPaneHealthResult) -> String {
 }
 
 private func render(_ result: SupatermSelectSpaceResult) -> String {
-  "window \(result.target.windowIndex) space \(result.target.spaceIndex) tab \(result.tabIndex) pane \(result.paneIndex)"
+  "window \(result.target.windowIndex) space \(result.target.spaceIndex) "
+    + "tab \(result.tabIndex) pane \(result.paneIndex)"
 }
 
 private func render(_ result: SupatermSelectTabResult) -> String {
-  "window \(result.target.windowIndex) space \(result.target.spaceIndex) tab \(result.target.tabIndex) pane \(result.paneIndex)"
+  "window \(result.target.windowIndex) space \(result.target.spaceIndex) "
+    + "tab \(result.target.tabIndex) pane \(result.paneIndex)"
 }

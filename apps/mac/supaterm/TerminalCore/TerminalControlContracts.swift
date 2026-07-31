@@ -369,18 +369,34 @@ public struct TerminalTabNavigationRequest: Equatable, Sendable {
 }
 
 public struct TerminalCreateSpaceRequest: Equatable, Sendable {
+  public let color: SupatermThemeColor?
   public let focus: Bool
   public let name: String
   public let windowAnchorPaneID: UUID
 
   public init(
+    color: SupatermThemeColor?,
     focus: Bool,
     name: String,
     windowAnchorPaneID: UUID
   ) {
+    self.color = color
     self.focus = focus
     self.name = name
     self.windowAnchorPaneID = windowAnchorPaneID
+  }
+}
+
+public struct TerminalSetSpaceColorRequest: Equatable, Sendable {
+  public let color: SupatermThemeColor
+  public let target: TerminalSpaceTarget
+
+  public init(
+    color: SupatermThemeColor,
+    target: TerminalSpaceTarget
+  ) {
+    self.color = color
+    self.target = target
   }
 }
 

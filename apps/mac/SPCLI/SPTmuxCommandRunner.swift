@@ -28,100 +28,145 @@ struct SPTmuxCommandRunner {
       ]
     )
 
-    switch command {
-    case "new-session", "new":
-      try runNewSession(rawArguments)
-
-    case "new-window", "neww":
-      try runNewWindow(rawArguments)
-
-    case "split-window", "splitw":
-      try runSplitWindow(rawArguments)
-
-    case "select-window", "selectw":
-      try runSelectWindow(rawArguments)
-
-    case "select-pane", "selectp":
-      try runSelectPane(rawArguments)
-
-    case "kill-window", "killw":
-      try runKillWindow(rawArguments)
-
-    case "kill-pane", "killp":
-      try runKillPane(rawArguments)
-
-    case "send-keys", "send":
-      try runSendKeys(rawArguments)
-
-    case "capture-pane", "capturep":
-      try runCapturePane(rawArguments)
-
-    case "display-message", "display", "displayp":
-      try runDisplayMessage(rawArguments)
-
-    case "list-windows", "lsw":
-      try runListWindows(rawArguments)
-
-    case "list-panes", "lsp":
-      try runListPanes(rawArguments)
-
-    case "rename-window", "renamew":
-      try runRenameWindow(rawArguments)
-
-    case "resize-pane", "resizep":
-      try runResizePane(rawArguments)
-
-    case "wait-for":
-      try runWaitFor(rawArguments)
-
-    case "last-pane":
-      try runLastPane(rawArguments)
-
-    case "show-buffer", "showb":
-      try runShowBuffer(rawArguments)
-
-    case "save-buffer", "saveb":
-      try runSaveBuffer(rawArguments)
-
-    case "set-buffer":
-      try runSetBuffer(rawArguments)
-
-    case "list-buffers":
-      try runListBuffers(rawArguments)
-
-    case "paste-buffer":
-      try runPasteBuffer(rawArguments)
-
-    case "has-session", "has":
-      _ = try topology().resolveSpace(raw: parsedTargetValue(rawArguments))
-
-    case "last-window":
-      try runLastWindow(rawArguments)
-
-    case "next-window":
-      try runNextWindow(rawArguments)
-
-    case "previous-window":
-      try runPreviousWindow(rawArguments)
-
-    case "set-hook":
-      try runSetHook(rawArguments)
-
-    case "select-layout":
-      try runSelectLayout(rawArguments)
-
-    case "set-option", "set", "set-window-option", "setw", "source-file", "refresh-client",
-      "attach-session", "detach-client":
-      return
-
-    default:
+    guard
+      try runSessionCommand(command, rawArguments)
+        || runWindowCommand(command, rawArguments)
+        || runPaneCommand(command, rawArguments)
+        || runBufferCommand(command, rawArguments)
+        || runClientCommand(command, rawArguments)
+    else {
       throw ValidationError("Unsupported tmux compatibility command: \(command)")
     }
   }
 
+  private func runSessionCommand(_ command: String, _ arguments: [String]) throws -> Bool {
+    switch command {
+    case "new-session", "new":
+      try runNewSession(arguments)
+
+    case "has-session", "has":
+      _ = try topology().resolveSpace(raw: parsedTargetValue(arguments))
+
+    default:
+      return false
+    }
+    return true
+  }
+
+  private func runWindowCommand(_ command: String, _ arguments: [String]) throws -> Bool {
+    switch command {
+    case "new-window", "neww":
+      try runNewWindow(arguments)
+
+    case "select-window", "selectw":
+      try runSelectWindow(arguments)
+
+    case "kill-window", "killw":
+      try runKillWindow(arguments)
+
+    case "rename-window", "renamew":
+      try runRenameWindow(arguments)
+
+    case "list-windows", "lsw":
+      try runListWindows(arguments)
+
+    case "last-window":
+      try runLastWindow(arguments)
+
+    case "next-window":
+      try runNextWindow(arguments)
+
+    case "previous-window":
+      try runPreviousWindow(arguments)
+
+    default:
+      return false
+    }
+    return true
+  }
+
+  private func runPaneCommand(_ command: String, _ arguments: [String]) throws -> Bool {
+    switch command {
+    case "split-window", "splitw":
+      try runSplitWindow(arguments)
+
+    case "select-pane", "selectp":
+      try runSelectPane(arguments)
+
+    case "kill-pane", "killp":
+      try runKillPane(arguments)
+
+    case "send-keys", "send":
+      try runSendKeys(arguments)
+
+    case "capture-pane", "capturep":
+      try runCapturePane(arguments)
+
+    case "list-panes", "lsp":
+      try runListPanes(arguments)
+
+    case "resize-pane", "resizep":
+      try runResizePane(arguments)
+
+    case "last-pane":
+      try runLastPane(arguments)
+
+    case "select-layout":
+      try runSelectLayout(arguments)
+
+    default:
+      return false
+    }
+    return true
+  }
+
+  private func runBufferCommand(_ command: String, _ arguments: [String]) throws -> Bool {
+    switch command {
+    case "show-buffer", "showb":
+      try runShowBuffer(arguments)
+
+    case "save-buffer", "saveb":
+      try runSaveBuffer(arguments)
+
+    case "set-buffer":
+      try runSetBuffer(arguments)
+
+    case "list-buffers":
+      try runListBuffers(arguments)
+
+    case "paste-buffer":
+      try runPasteBuffer(arguments)
+
+    default:
+      return false
+    }
+    return true
+  }
+
+  private func runClientCommand(_ command: String, _ arguments: [String]) throws -> Bool {
+    switch command {
+    case "display-message", "display", "displayp":
+      try runDisplayMessage(arguments)
+
+    case "wait-for":
+      try runWaitFor(arguments)
+
+    case "set-hook":
+      try runSetHook(arguments)
+
+    case "set-option", "set", "set-window-option", "setw", "source-file", "refresh-client",
+      "attach-session", "detach-client":
+      break
+
+    default:
+      return false
+    }
+    return true
+  }
+
   func focusedContext() throws -> SPRunLauncher.FocusedContext {
     let current = try topology().current
-    return .init(
+    return SPRunLauncher.FocusedContext(
       spaceID: current.space.id,
       tabID: current.tab.id,
       paneID: current.pane.id
@@ -145,7 +190,8 @@ struct SPTmuxCommandRunner {
     }
     let created = try send(
       .createSpace(
-        .init(
+        SupatermCreateSpaceRequest(
+          color: nil,
           focus: false,
           name: name,
           windowAnchorPaneID: topology().current.pane.id
@@ -164,14 +210,14 @@ struct SPTmuxCommandRunner {
       )
       traceSendText(
         event: "new_session_send_text",
-        target: .init(paneID: created.paneID),
+        target: SupatermPaneTargetRequest(paneID: created.paneID),
         text: wrappedText,
         sourceText: text
       )
       _ = try send(
         .sendText(
-          .init(
-            target: .init(paneID: created.paneID),
+          SupatermSendTextRequest(
+            target: SupatermPaneTargetRequest(paneID: created.paneID),
             text: wrappedText
           )
         ),
@@ -202,7 +248,7 @@ struct SPTmuxCommandRunner {
     let command = tmuxShellCommandText(commandTokens: parsed.positional, cwd: parsed.value("-c"))
     let created = try send(
       .newTab(
-        .init(
+        SupatermNewTabRequest(
           startupCommand: nil,
           cwd: try resolvedWorkingDirectory(parsed.value("-c")),
           focus: false,
@@ -215,8 +261,8 @@ struct SPTmuxCommandRunner {
     if let title = trimmedNonEmpty(parsed.value("-n")) {
       _ = try send(
         .renameTab(
-          .init(
-            target: .init(tabID: created.tabID),
+          SupatermRenameTabRequest(
+            target: SupatermTabTargetRequest(tabID: created.tabID),
             title: title
           )
         ),
@@ -234,14 +280,14 @@ struct SPTmuxCommandRunner {
       )
       traceSendText(
         event: "new_window_send_text",
-        target: .init(paneID: created.paneID),
+        target: SupatermPaneTargetRequest(paneID: created.paneID),
         text: wrappedText,
         sourceText: command
       )
       _ = try send(
         .sendText(
-          .init(
-            target: .init(paneID: created.paneID),
+          SupatermSendTextRequest(
+            target: SupatermPaneTargetRequest(paneID: created.paneID),
             text: wrappedText
           )
         ),
@@ -279,7 +325,7 @@ struct SPTmuxCommandRunner {
 
     let created = try send(
       .newPane(
-        .init(
+        SupatermNewPaneRequest(
           startupCommand: nil,
           direction: direction,
           focus: false,
@@ -293,7 +339,7 @@ struct SPTmuxCommandRunner {
     if let sizeRequest = try tmuxSetPaneSizeRequest(
       rawAmount: parsed.value("-l"),
       axis: tmuxPaneAxis(for: direction),
-      target: .init(paneID: created.paneID)
+      target: SupatermPaneTargetRequest(paneID: created.paneID)
     ) {
       _ = try send(
         .setPaneSize(sizeRequest),
@@ -311,14 +357,14 @@ struct SPTmuxCommandRunner {
       )
       traceSendText(
         event: "split_window_send_text",
-        target: .init(paneID: created.paneID),
+        target: SupatermPaneTargetRequest(paneID: created.paneID),
         text: wrappedText,
         sourceText: command
       )
       _ = try send(
         .sendText(
-          .init(
-            target: .init(paneID: created.paneID),
+          SupatermSendTextRequest(
+            target: SupatermPaneTargetRequest(paneID: created.paneID),
             text: wrappedText
           )
         ),
@@ -406,7 +452,7 @@ struct SPTmuxCommandRunner {
     )
     _ = try send(
       .sendText(
-        .init(
+        SupatermSendTextRequest(
           target: target,
           text: text
         )
@@ -430,7 +476,7 @@ struct SPTmuxCommandRunner {
     }()
     let result = try send(
       .capturePane(
-        .init(
+        SupatermCapturePaneRequest(
           lines: lines,
           scope: .scrollback,
           target: targetPane.targetRequest
@@ -501,7 +547,7 @@ struct SPTmuxCommandRunner {
     let targetTab = try topology().resolveTab(raw: parsed.value("-t"))
     _ = try send(
       .renameTab(
-        .init(
+        SupatermRenameTabRequest(
           target: targetTab.targetRequest,
           title: title
         )
@@ -545,7 +591,7 @@ struct SPTmuxCommandRunner {
     let amount = min(UInt16.max, UInt16(max(1, Int(rawAmount) ?? 5)))
     _ = try send(
       .resizePane(
-        .init(
+        SupatermResizePaneRequest(
           amount: amount,
           direction: direction,
           target: target
@@ -598,7 +644,7 @@ struct SPTmuxCommandRunner {
     guard let amount = Double(amountString), amount > 0 else {
       throw ValidationError("Invalid pane size: \(rawAmount).")
     }
-    return .init(amount: amount, axis: axis, target: target, unit: unit)
+    return SupatermSetPaneSizeRequest(amount: amount, axis: axis, target: target, unit: unit)
   }
 
   private func runWaitFor(_ arguments: [String]) throws {
@@ -713,7 +759,7 @@ struct SPTmuxCommandRunner {
     let targetPane = try topology().resolvePane(raw: parsed.value("-t"))
     _ = try send(
       .sendText(
-        .init(
+        SupatermSendTextRequest(
           target: targetPane.targetRequest,
           text: buffer
         )
@@ -727,7 +773,7 @@ struct SPTmuxCommandRunner {
     let targetSpace = try topology().resolveSpace(raw: parsed.value("-t"))
     _ = try send(
       .lastTab(
-        .init(spaceID: targetSpace.space.id)
+        SupatermTabNavigationRequest(spaceID: targetSpace.space.id)
       ),
       as: SupatermSelectTabResult.self
     )
@@ -738,7 +784,7 @@ struct SPTmuxCommandRunner {
     let targetSpace = try topology().resolveSpace(raw: parsed.value("-t"))
     _ = try send(
       .nextTab(
-        .init(spaceID: targetSpace.space.id)
+        SupatermTabNavigationRequest(spaceID: targetSpace.space.id)
       ),
       as: SupatermSelectTabResult.self
     )
@@ -749,7 +795,7 @@ struct SPTmuxCommandRunner {
     let targetSpace = try topology().resolveSpace(raw: parsed.value("-t"))
     _ = try send(
       .previousTab(
-        .init(spaceID: targetSpace.space.id)
+        SupatermTabNavigationRequest(spaceID: targetSpace.space.id)
       ),
       as: SupatermSelectTabResult.self
     )
@@ -799,10 +845,10 @@ struct SPTmuxCommandRunner {
 
   private func topology() throws -> SPTmuxTopology {
     let snapshot = try send(
-      .debug(.init(context: context)),
+      .debug(SupatermDebugRequest(context: context)),
       as: SupatermAppDebugSnapshot.self
     )
-    return try .init(snapshot: snapshot, contextPaneID: context?.surfaceID)
+    return try SPTmuxTopology(snapshot: snapshot, contextPaneID: context?.surfaceID)
   }
 
   private func formatContext(for pane: SPTmuxTopology.PaneLocation) -> [String: String] {

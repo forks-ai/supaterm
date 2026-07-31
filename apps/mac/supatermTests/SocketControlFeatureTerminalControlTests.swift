@@ -500,6 +500,7 @@ struct SocketControlFeatureTerminalControlTests {
       handle: handle,
       payload: try .createSpace(
         SupatermCreateSpaceRequest(
+          color: nil,
           focus: true,
           name: "Build",
           windowAnchorPaneID: controlPaneID
@@ -531,6 +532,7 @@ struct SocketControlFeatureTerminalControlTests {
         #expect(
           request
             == TerminalCreateSpaceRequest(
+              color: nil,
               focus: true,
               name: "Build",
               windowAnchorPaneID: controlPaneID
@@ -555,6 +557,7 @@ struct SocketControlFeatureTerminalControlTests {
       handle: handle,
       payload: try .createSpace(
         SupatermCreateSpaceRequest(
+          color: nil,
           focus: false,
           name: "Build",
           windowAnchorPaneID: controlPaneID
@@ -577,6 +580,79 @@ struct SocketControlFeatureTerminalControlTests {
     let response = try #require(await recorder.snapshot().first?.response)
     #expect(response.error?.code == "invalid_request")
     #expect(response.error?.message == "Space name is already in use.")
+  }
+  @Test
+  func setSpaceColorRequestRepliesWithTarget() async throws {
+    let recorder = SocketReplyRecorder()
+    let handle = UUID(uuidString: "4C0E17D2-95E7-4A6B-8E52-6B0A2E51D274")!
+    let request = SocketControlClient.Request(
+      handle: handle,
+      payload: try .setSpaceColor(
+        SupatermSetSpaceColorRequest(
+          color: .green,
+          target: SupatermSpaceTargetRequest(spaceID: controlSpaceID)
+        ),
+        id: "set-space-color-1"
+      )
+    )
+    let result = SupatermSpaceTarget(
+      windowIndex: 1,
+      spaceIndex: 2,
+      spaceID: controlSpaceID,
+      name: "Build"
+    )
+
+    let store = makeStore {
+      $0.socketControlClient.reply = { handle, response in
+        await recorder.record(handle: handle, response: response)
+      }
+      $0.terminalWindowsClient.setSpaceColor = { request in
+        #expect(
+          request
+            == TerminalSetSpaceColorRequest(
+              color: .green,
+              target: TerminalSpaceTarget(spaceID: controlSpaceID)
+            )
+        )
+        return result
+      }
+    }
+
+    await store.send(.requestReceived(request))
+
+    let records = await recorder.snapshot()
+    #expect(records.count == 1)
+    #expect(records.first?.handle == handle)
+    #expect(try records.first?.response.decodeResult(SupatermSpaceTarget.self) == result)
+  }
+  @Test
+  func setSpaceColorRequestRejectsUnknownSpace() async throws {
+    let recorder = SocketReplyRecorder()
+    let handle = UUID(uuidString: "0D0B7A38-30E2-49AF-95AC-2B4F5FE7D611")!
+    let request = SocketControlClient.Request(
+      handle: handle,
+      payload: try .setSpaceColor(
+        SupatermSetSpaceColorRequest(
+          color: .purple,
+          target: SupatermSpaceTargetRequest(spaceID: controlSpaceID)
+        ),
+        id: "set-space-color-unknown"
+      )
+    )
+
+    let store = makeStore {
+      $0.socketControlClient.reply = { handle, response in
+        await recorder.record(handle: handle, response: response)
+      }
+      $0.terminalWindowsClient.setSpaceColor = { _ in
+        throw TerminalControlError.contextPaneNotFound
+      }
+    }
+
+    await store.send(.requestReceived(request))
+
+    let response = try #require(await recorder.snapshot().first?.response)
+    #expect(response.error != nil)
   }
   @Test
   func closeSpaceRequestRejectsOnlyRemainingSpace() async throws {

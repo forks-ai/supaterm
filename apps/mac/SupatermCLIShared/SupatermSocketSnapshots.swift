@@ -240,6 +240,7 @@ public struct SupatermAppDebugSnapshot: Equatable, Sendable, Codable {
     public let index: Int
     public let id: UUID
     public let name: String
+    public let color: SupatermThemeColor
     public let isSelected: Bool
     public let rootItems: [RootItem]
 
@@ -247,12 +248,14 @@ public struct SupatermAppDebugSnapshot: Equatable, Sendable, Codable {
       index: Int,
       id: UUID,
       name: String,
+      color: SupatermThemeColor,
       isSelected: Bool,
       rootItems: [RootItem]
     ) {
       self.index = index
       self.id = id
       self.name = name
+      self.color = color
       self.isSelected = isSelected
       self.rootItems = rootItems
     }
@@ -399,6 +402,7 @@ public struct SupatermTreeSnapshot: Equatable, Sendable, Codable {
     public let index: Int
     public let id: UUID
     public let name: String
+    public let color: SupatermThemeColor
     public let isSelected: Bool
     public let rootItems: [RootItem]
 
@@ -406,12 +410,14 @@ public struct SupatermTreeSnapshot: Equatable, Sendable, Codable {
       index: Int,
       id: UUID,
       name: String,
+      color: SupatermThemeColor,
       isSelected: Bool,
       rootItems: [RootItem]
     ) {
       self.index = index
       self.id = id
       self.name = name
+      self.color = color
       self.isSelected = isSelected
       self.rootItems = rootItems
     }

@@ -448,6 +448,7 @@ private func makeSpace(_ app: SupatermE2EApp, name: String) throws -> SupatermCr
   return try app.send(
     .createSpace(
       SupatermCreateSpaceRequest(
+        color: nil,
         focus: true,
         name: name,
         windowAnchorPaneID: paneID

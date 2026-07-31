@@ -364,6 +364,9 @@ enum SPHelp {
       sp config validate --json
     """
 
+  private static let receiveAgentHookExample =
+    #"printf '{"hook_event_name":"Notification","message":"Claude needs your attention"}'"#
+
   static let receiveAgentHookDiscussion = """
     Reads one agent hook event JSON object from stdin and forwards it to Supaterm.
 
@@ -377,7 +380,7 @@ enum SPHelp {
       sp agent install-hooks
       sp agent install-hook claude
       sp agent remove-hook claude
-      printf '{"hook_event_name":"Notification","message":"Claude needs your attention"}' | sp agent receive-agent-hook --agent claude
+      \(receiveAgentHookExample) | sp agent receive-agent-hook --agent claude
       \(SupatermClaudeHookSettings.command)
     """
 
@@ -505,6 +508,7 @@ enum SPHelp {
       sp space new --focus Work
       sp space focus 1
       sp space rename Work 1
+      sp space color green 1
       sp space destroy -y 1
       sp space next
     """
@@ -533,6 +537,7 @@ enum SPHelp {
     Example:
       sp space new Work
       sp space new --focus Build
+      sp space new --color green Work
     """
 
   static let spaceFocusDiscussion = """
@@ -554,6 +559,13 @@ enum SPHelp {
       sp space rename Work
       sp space rename Logs 1
       sp space rename Build <space-uuid>
+    """
+
+  static let spaceColorDiscussion = """
+    Example:
+      sp space color green
+      sp space color purple 1
+      sp space color neutral <space-uuid>
     """
 
   static let spaceNavigationDiscussion = """

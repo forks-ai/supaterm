@@ -179,6 +179,8 @@ extension SocketRequestExecutor {
       return .closeSpace(try await terminalWindowsClient.closeSpace(target))
     case .renameSpace(let renameSpaceRequest):
       return .renameSpace(try await terminalWindowsClient.renameSpace(renameSpaceRequest))
+    case .setSpaceColor(let setSpaceColorRequest):
+      return .setSpaceColor(try await terminalWindowsClient.setSpaceColor(setSpaceColorRequest))
     case .nextSpace(let navigationRequest):
       return .nextSpace(try await terminalWindowsClient.nextSpace(navigationRequest))
     case .previousSpace(let navigationRequest):
