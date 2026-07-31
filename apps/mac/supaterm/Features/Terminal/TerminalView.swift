@@ -108,13 +108,6 @@ struct TerminalView: View {
           _ = store.send(.windowActivityChanged(activity))
         }
       )
-      .overlay(alignment: .topLeading) {
-        TerminalWindowHeader(
-          store: store,
-          palette: palette,
-          terminal: terminal
-        )
-      }
       .ignoresSafeArea()
       .task(id: resolvedWindowActivity) {
         let activity = resolvedWindowActivity

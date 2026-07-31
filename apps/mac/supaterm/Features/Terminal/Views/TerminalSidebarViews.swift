@@ -115,6 +115,13 @@ struct TerminalSidebarView: View {
       fixedHoveredGroupID: nil,
       dismissReleaseAnnouncement: dismissReleaseAnnouncement
     )
+    .overlay(alignment: .topLeading) {
+      TerminalWindowHeader(
+        store: store,
+        palette: palette,
+        terminal: terminal
+      )
+    }
     .padding(.bottom, sidebarBottomPadding)
     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
   }
