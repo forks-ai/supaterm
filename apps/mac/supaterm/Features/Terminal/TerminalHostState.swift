@@ -334,9 +334,7 @@ final class TerminalHostState {
     }
     self.managesTerminalSurfaces = managesTerminalSurfaces
     self.runtime = managesTerminalSurfaces ? (runtime ?? GhosttyRuntime()) : runtime
-    self.spaceManager = TerminalSpaceManager(
-      space: TerminalSpaceItem(id: persistedSpace.id, name: persistedSpace.name)
-    )
+    self.spaceManager = TerminalSpaceManager(space: persistedSpace)
     self.zmxClient = zmxClient
     self.zmxSessionsEnabled = zmxSessionsEnabled
 

@@ -39,6 +39,23 @@ struct TerminalHostStateSpaceOwnershipTests {
   }
 
   @Test
+  func hostAdoptsThePersistedSpaceColor() {
+    withDependencies {
+      $0.defaultFileStorage = .inMemory
+    } operation: {
+      let space = TerminalSpaceItem(name: "A", color: .green)
+      @Shared(.terminalSpaceCatalog) var catalog = TerminalSpaceCatalog.default
+      $catalog.withLock {
+        $0 = TerminalSpaceCatalog(defaultSelectedSpaceID: space.id, spaces: [space])
+      }
+
+      let host = TerminalHostState(managesTerminalSurfaces: false, spaceID: space.id)
+
+      #expect(host.spaceManager.space.color == .green)
+    }
+  }
+
+  @Test
   func spaceCommandsLeaveOwnershipToTheWindowRegistry() {
     withDependencies {
       $0.defaultFileStorage = .inMemory
