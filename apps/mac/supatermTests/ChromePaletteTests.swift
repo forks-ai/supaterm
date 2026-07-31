@@ -89,6 +89,43 @@ struct ChromePaletteTests {
     expectSameColor(Palette(colorScheme: .dark).secondaryText, Color.white.opacity(0.58), "darkSecondaryText")
   }
 
+  @Test func chromaticTintsWashChromeSurfacesOnly() {
+    for colorScheme in [ColorScheme.light, ColorScheme.dark] {
+      let neutral = Palette(colorScheme: colorScheme)
+      for tint in ThemeTint.allCases where tint != .neutral {
+        let palette = Palette(colorScheme: colorScheme, tint: tint)
+        #expect(palette.backgroundTopValue != neutral.backgroundTopValue, "\(tint.rawValue)")
+        #expect(palette.backgroundBottomValue != neutral.backgroundBottomValue, "\(tint.rawValue)")
+        expectSameThemeColor(
+          palette.agentPanelBackgroundValue,
+          neutral.agentPanelBackgroundValue,
+          "agentPanelBackground-\(tint.rawValue)"
+        )
+      }
+    }
+  }
+
+  @Test func tintedSemanticTokensMeetContrastOnChromeSurfaces() {
+    for colorScheme in [ColorScheme.light, ColorScheme.dark] {
+      for tint in ThemeTint.allCases {
+        let palette = Palette(colorScheme: colorScheme, tint: tint)
+        for background in [
+          palette.agentPanelBackgroundValue,
+          palette.backgroundTopValue,
+          palette.backgroundBottomValue,
+        ] {
+          expectContrast(palette.accentValue, background, minimum: 4.5, token: "accent-\(tint.rawValue)")
+          expectContrast(palette.warningValue, background, minimum: 4.5, token: "warning-\(tint.rawValue)")
+          expectContrast(palette.successValue, background, minimum: 4.5, token: "success-\(tint.rawValue)")
+          expectContrast(palette.dangerValue, background, minimum: 4.5, token: "danger-\(tint.rawValue)")
+          expectContrast(palette.mergedValue, background, minimum: 4.5, token: "merged-\(tint.rawValue)")
+          expectContrast(palette.queuedValue, background, minimum: 4.5, token: "queued-\(tint.rawValue)")
+        }
+        expectContrast(palette.onAccentValue, palette.accentValue, minimum: 4.5, token: "onAccent-\(tint.rawValue)")
+      }
+    }
+  }
+
   @Test func semanticTokensMeetContrastOnChromeSurfaces() {
     for palette in [Palette(colorScheme: .light), Palette(colorScheme: .dark)] {
       for background in [

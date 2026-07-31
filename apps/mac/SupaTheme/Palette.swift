@@ -143,15 +143,20 @@ public struct Palette {
 
   public init(
     colorScheme: ColorScheme,
-    referencePalette: ReferencePalette = .default
+    referencePalette: ReferencePalette = .default,
+    tint: ThemeTint = .neutral
   ) {
     self.colorScheme = colorScheme
     self.referencePalette = referencePalette
 
     let surfaceSeed = referencePalette.neutral.light
     let isDark = colorScheme == .dark
-    let backgroundTopValue = isDark ? ThemeColor(hex: 0x1F1F1F) : ThemeColor(hex: 0xE4E4E4)
-    let backgroundBottomValue = isDark ? ThemeColor(hex: 0x161616) : ThemeColor(hex: 0xEDEDED)
+    let tintColor = tint.tone(in: referencePalette).color(for: colorScheme)
+    let tintWash = tint == .neutral ? 0 : (isDark ? 0.12 : 0.2)
+    let backgroundTopValue = (isDark ? ThemeColor(hex: 0x1F1F1F) : ThemeColor(hex: 0xE4E4E4))
+      .mixed(with: tintColor, by: tintWash)
+    let backgroundBottomValue = (isDark ? ThemeColor(hex: 0x161616) : ThemeColor(hex: 0xEDEDED))
+      .mixed(with: tintColor, by: tintWash)
     let detailBackgroundValue = surfaceSeed.mixed(with: isDark ? .black : .white, by: 0.85)
     let agentPanelBackgroundValue = surfaceSeed.mixed(with: isDark ? .black : .white, by: isDark ? 0.82 : 0.85)
     let semanticBackgrounds = [
@@ -159,7 +164,8 @@ public struct Palette {
       backgroundBottomValue,
       agentPanelBackgroundValue,
     ]
-    let accentValue = Self.semantic(referencePalette.blue.color(for: colorScheme), backgrounds: semanticBackgrounds)
+    let accentAnchor = tint == .neutral ? referencePalette.blue.color(for: colorScheme) : tintColor
+    let accentValue = Self.semantic(accentAnchor, backgrounds: semanticBackgrounds)
     let warningValue = Self.semantic(referencePalette.gold.color(for: colorScheme), backgrounds: semanticBackgrounds)
     let successValue = Self.semantic(referencePalette.green.color(for: colorScheme), backgrounds: semanticBackgrounds)
     let dangerValue = Self.semantic(referencePalette.rose.color(for: colorScheme), backgrounds: semanticBackgrounds)
