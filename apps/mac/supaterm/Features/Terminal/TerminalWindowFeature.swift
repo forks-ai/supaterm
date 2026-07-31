@@ -50,7 +50,7 @@ struct TerminalSpaceEditorState: Equatable, Identifiable {
     case .create:
       return "Create Space"
     case .rename:
-      return "Rename Space"
+      return "Edit Space"
     }
   }
 

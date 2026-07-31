@@ -590,8 +590,8 @@ extension SnapshotCatalog {
         DialogSnapshotFixture(appearance: appearance) { palette in
           SpaceEditorOverlay(
             palette: palette,
-            title: "Rename Space",
-            confirmTitle: "Rename",
+            title: "Edit Space",
+            confirmTitle: "Save",
             name: .constant("Release work"),
             color: .constant(.blue),
             isSaveEnabled: true,

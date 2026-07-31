@@ -1,3 +1,4 @@
+import AppKit
 import ComposableArchitecture
 import Sharing
 import SupaTheme
@@ -74,13 +75,17 @@ struct TerminalSpaceSwitcher: View {
     ) {
       Menu {
         ForEach(Array(spaces.enumerated()), id: \.element.id) { index, space in
-          Button {
-            _ = store.send(.selectSpaceButtonTapped(space.id))
-          } label: {
-            if space.id == selectedSpaceID {
-              Label(space.name, systemImage: "checkmark")
-            } else {
+          Toggle(
+            isOn: Binding(
+              get: { space.id == selectedSpaceID },
+              set: { _ in _ = store.send(.selectSpaceButtonTapped(space.id)) }
+            )
+          ) {
+            Label {
               Text(space.name)
+            } icon: {
+              Image(nsImage: colorDot(for: space.color))
+                .accessibilityHidden(true)
             }
           }
           .supatermKeyboardShortcut(
@@ -102,7 +107,7 @@ struct TerminalSpaceSwitcher: View {
         Button {
           _ = store.send(.spaceRenameRequested(presentation.selectedSpace))
         } label: {
-          Label("Rename Space", systemImage: "textformat")
+          Label("Edit Space", systemImage: "textformat")
         }
 
         Button(role: .destructive) {
@@ -115,7 +120,6 @@ struct TerminalSpaceSwitcher: View {
         TerminalSpaceSwitcherLabel(
           palette: palette,
           name: presentation.selectedSpace.name,
-          color: presentation.selectedSpace.color,
           isHovered: isHovered
         )
       }
@@ -133,31 +137,34 @@ struct TerminalSpaceSwitcher: View {
       .help("Switch Space")
     }
   }
+
+  private func colorDot(for color: ThemeTint) -> NSImage {
+    let nsColor = color.sidebarNSColor(palette: palette)
+    let image = NSImage(size: NSSize(width: 10, height: 10), flipped: false) { rect in
+      nsColor.setFill()
+      NSBezierPath(ovalIn: rect).fill()
+      return true
+    }
+    image.isTemplate = false
+    return image
+  }
 }
 
 struct TerminalSpaceSwitcherLabel: View {
   let palette: Palette
   let name: String
-  let color: ThemeTint
   let isHovered: Bool
 
   var body: some View {
-    HStack(spacing: 6) {
-      if color != .neutral {
-        Circle()
-          .fill(color.sidebarColor(palette: palette))
-          .frame(width: 8, height: 8)
-      }
-      Text(name)
-        .font(.system(size: 12, weight: .medium))
-        .lineLimit(1)
-        .foregroundStyle(palette.primaryText)
-    }
-    .padding(.horizontal, 8)
-    .frame(height: TerminalWindowHeaderMetrics.switcherHeight)
-    .background(
-      isHovered ? palette.secondaryText.opacity(0.1) : .clear,
-      in: .rect(cornerRadius: 7)
-    )
+    Text(name)
+      .font(.system(size: 12, weight: .medium))
+      .lineLimit(1)
+      .foregroundStyle(palette.primaryText)
+      .padding(.horizontal, 8)
+      .frame(height: TerminalWindowHeaderMetrics.switcherHeight)
+      .background(
+        isHovered ? palette.secondaryText.opacity(0.1) : .clear,
+        in: .rect(cornerRadius: 7)
+      )
   }
 }

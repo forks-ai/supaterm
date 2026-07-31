@@ -1,5 +1,3 @@
-import SupaTheme
-
 #if SUPATERM_DEMO
   import Foundation
   import Sharing

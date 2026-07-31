@@ -93,7 +93,7 @@ final class TabsSpacesUITests: SupatermUITestCase {
     XCTAssertTrue(didFocusCreatedSpace)
 
     createdSpace.click()
-    let renameSpace = app.menuItems["Rename Space"]
+    let renameSpace = app.menuItems["Edit Space"]
     XCTAssertTrue(renameSpace.waitForExistence(timeout: 10))
     renameSpace.click()
 

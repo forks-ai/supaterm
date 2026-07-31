@@ -61,7 +61,6 @@ private struct SpaceSwitcherHoverSnapshotFixture: View {
     TerminalSpaceSwitcherLabel(
       palette: palette,
       name: "supaterm",
-      color: .green,
       isHovered: true
     )
     .padding(10)

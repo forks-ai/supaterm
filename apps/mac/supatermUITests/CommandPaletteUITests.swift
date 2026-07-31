@@ -84,7 +84,7 @@ final class CommandPaletteUITests: SupatermUITestCase {
     }
     XCTAssertTrue(didShowSpaceRows)
     XCTAssertTrue(firstRow.label.contains("Create Space"))
-    XCTAssertTrue(secondRow.label.contains("Rename Space"))
+    XCTAssertTrue(secondRow.label.contains("Edit Space"))
 
     let didSelectFirstRow = await wait(for: firstRow) { $0.isSelected }
     XCTAssertTrue(didSelectFirstRow)

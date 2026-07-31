@@ -320,7 +320,7 @@ enum TerminalCommandPalettePresentation {
 
     return TerminalCommandPaletteRow(
       id: "supaterm:rename-space:\(selectedSpace.id.rawValue.uuidString)",
-      title: "Rename Space",
+      title: "Edit Space",
       subtitle: selectedSpace.name,
       description: nil,
       leadingIcon: nil,
