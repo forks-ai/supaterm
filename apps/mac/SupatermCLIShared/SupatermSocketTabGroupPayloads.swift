@@ -1,16 +1,5 @@
 import Foundation
 
-public enum SupatermTabGroupColor: String, CaseIterable, Equatable, Sendable, Codable {
-  case neutral
-  case red
-  case orange
-  case yellow
-  case green
-  case blue
-  case pink
-  case purple
-}
-
 public enum SupatermTabGroupDestination: Equatable, Sendable, Codable {
   case group(UUID)
   case root(isPinned: Bool)
@@ -50,13 +39,13 @@ public enum SupatermTabGroupDestination: Equatable, Sendable, Codable {
 }
 
 public struct SupatermCreateTabGroupRequest: Equatable, Sendable, Codable {
-  public let color: SupatermTabGroupColor
+  public let color: SupatermThemeColor
   public let isPinned: Bool
   public let target: SupatermSpaceTargetRequest
   public let title: String
 
   public init(
-    color: SupatermTabGroupColor,
+    color: SupatermThemeColor,
     isPinned: Bool,
     target: SupatermSpaceTargetRequest,
     title: String
@@ -90,11 +79,11 @@ public struct SupatermRenameTabGroupRequest: Equatable, Sendable, Codable {
 }
 
 public struct SupatermSetTabGroupColorRequest: Equatable, Sendable, Codable {
-  public let color: SupatermTabGroupColor
+  public let color: SupatermThemeColor
   public let target: SupatermTabGroupTargetRequest
 
   public init(
-    color: SupatermTabGroupColor,
+    color: SupatermThemeColor,
     target: SupatermTabGroupTargetRequest
   ) {
     self.color = color

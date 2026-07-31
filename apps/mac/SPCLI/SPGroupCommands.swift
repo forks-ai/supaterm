@@ -37,8 +37,8 @@ extension SP {
     @Argument(help: "Title for the new group.")
     var title: String
 
-    @Option(name: .long, help: "Color for the new group.", transform: parseGroupColor)
-    var color: SupatermTabGroupColor = .neutral
+    @Option(name: .long, help: "Color for the new group.", transform: parseThemeColor)
+    var color: SupatermThemeColor = .neutral
 
     @Flag(name: .long, help: "Pin the new group.")
     var pin = false
@@ -60,7 +60,7 @@ extension SP {
         request: { client in
           let snapshot = try treeSnapshot(client)
           return try .createTabGroup(
-            .init(
+            SupatermCreateTabGroupRequest(
               color: color,
               isPinned: pin,
               target: try resolvePublicSpaceTarget(
@@ -100,7 +100,7 @@ extension SP {
       try runGroupMutation(
         group,
         options: options,
-        request: { try .renameTabGroup(.init(title: title, target: $0)) }
+        request: { try .renameTabGroup(SupatermRenameTabGroupRequest(title: title, target: $0)) }
       )
     }
   }
@@ -112,8 +112,8 @@ extension SP {
       discussion: SPHelp.groupColorDiscussion
     )
 
-    @Argument(help: "Group color.", transform: parseGroupColor)
-    var color: SupatermTabGroupColor
+    @Argument(help: "Group color.", transform: parseThemeColor)
+    var color: SupatermThemeColor
 
     @Argument(help: "Optional group title or UUID.")
     var group: SPGroupReference?
@@ -126,7 +126,7 @@ extension SP {
       try runGroupMutation(
         group,
         options: options,
-        request: { try .setTabGroupColor(.init(color: color, target: $0)) }
+        request: { try .setTabGroupColor(SupatermSetTabGroupColorRequest(color: color, target: $0)) }
       )
     }
   }
@@ -227,7 +227,7 @@ extension SP {
       try runGroupMutation(
         group,
         options: options,
-        request: { try .moveTabGroup(.init(index: index, target: $0)) }
+        request: { try .moveTabGroup(SupatermMoveTabGroupRequest(index: index, target: $0)) }
       )
     }
   }
@@ -291,8 +291,10 @@ extension SP {
         result,
         options: options.output,
         plain: plainGroupSelector(result.removedGroupID),
-        human:
-          "window \(result.windowIndex) space \(result.spaceIndex) removed group \(result.removedGroupID.uuidString.lowercased())"
+        human: """
+          window \(result.windowIndex) space \(result.spaceIndex) \
+          removed group \(result.removedGroupID.uuidString.lowercased())
+          """
       )
     }
   }
@@ -366,11 +368,11 @@ extension SP {
   }
 }
 
-func parseGroupColor(_ argument: String) throws -> SupatermTabGroupColor {
+func parseThemeColor(_ argument: String) throws -> SupatermThemeColor {
   let value = argument.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
-  guard let color = SupatermTabGroupColor(rawValue: value) else {
+  guard let color = SupatermThemeColor(rawValue: value) else {
     throw ValidationError(
-      "Group color must be one of: \(SupatermTabGroupColor.allCases.map(\.rawValue).joined(separator: ", "))."
+      "Color must be one of: \(SupatermThemeColor.allCases.map(\.rawValue).joined(separator: ", "))."
     )
   }
   return color
@@ -435,5 +437,8 @@ private func plainGroupSelector(_ groupID: UUID) -> String {
 }
 
 private func renderGroupMutation(_ result: SupatermTabGroupMutationResult) -> String {
-  "window \(result.windowIndex) space \(result.spaceIndex) group \(result.group.id.uuidString.lowercased()) \(result.group.title)"
+  """
+  window \(result.windowIndex) space \(result.spaceIndex) \
+  group \(result.group.id.uuidString.lowercased()) \(result.group.title)
+  """
 }

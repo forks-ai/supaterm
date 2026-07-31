@@ -107,13 +107,13 @@ public struct TerminalPaneTarget: Equatable, Sendable {
 }
 
 public struct TerminalCreateTabGroupRequest: Equatable, Sendable {
-  public let color: SupatermTabGroupColor
+  public let color: SupatermThemeColor
   public let isPinned: Bool
   public let target: TerminalSpaceTarget
   public let title: String
 
   public init(
-    color: SupatermTabGroupColor,
+    color: SupatermThemeColor,
     isPinned: Bool,
     target: TerminalSpaceTarget,
     title: String
@@ -139,11 +139,11 @@ public struct TerminalRenameTabGroupRequest: Equatable, Sendable {
 }
 
 public struct TerminalSetTabGroupColorRequest: Equatable, Sendable {
-  public let color: SupatermTabGroupColor
+  public let color: SupatermThemeColor
   public let groupID: UUID
 
   public init(
-    color: SupatermTabGroupColor,
+    color: SupatermThemeColor,
     groupID: UUID
   ) {
     self.color = color

@@ -11,7 +11,7 @@ public struct SupatermDebugRequest: Equatable, Sendable, Codable {
 public struct SupatermSnapshotGroup<Tab: Equatable & Sendable & Codable>:
   Equatable, Sendable, Codable
 {
-  public let color: SupatermTabGroupColor
+  public let color: SupatermThemeColor
   public let id: UUID
   public let isCollapsed: Bool
   public let isPinned: Bool
@@ -19,7 +19,7 @@ public struct SupatermSnapshotGroup<Tab: Equatable & Sendable & Codable>:
   public let tabs: [Tab]
 
   public init(
-    color: SupatermTabGroupColor,
+    color: SupatermThemeColor,
     id: UUID,
     isCollapsed: Bool,
     isPinned: Bool,
@@ -84,7 +84,7 @@ public enum SupatermSnapshotRootItem<Tab: Equatable & Sendable & Codable>:
     case .group:
       self = .group(
         SupatermSnapshotGroup(
-          color: try container.decode(SupatermTabGroupColor.self, forKey: .color),
+          color: try container.decode(SupatermThemeColor.self, forKey: .color),
           id: try container.decode(UUID.self, forKey: .id),
           isCollapsed: try container.decode(Bool.self, forKey: .isCollapsed),
           isPinned: try container.decode(Bool.self, forKey: .isPinned),

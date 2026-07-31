@@ -1,52 +1,52 @@
 import Foundation
 import SupatermCLIShared
 
-enum SPTreeRenderer {
-  private struct Snapshot {
-    struct Window {
-      let index: Int
-      let isKey: Bool
-      let spaces: [Space]
-    }
-
-    struct Space {
-      let index: Int
-      let name: String
-      let isSelected: Bool
-      let rootItems: [RootItem]
-    }
-
-    enum RootItem {
-      case group(Group)
-      case tab(Tab)
-    }
-
-    struct Group {
-      let id: UUID
-      let title: String
-      let color: SupatermTabGroupColor
-      let isPinned: Bool
-      let isCollapsed: Bool
-      let tabs: [Tab]
-    }
-
-    struct Tab {
-      let index: Int
-      let title: String
-      let isSelected: Bool
-      let isPinned: Bool?
-      let panes: [Pane]
-    }
-
-    struct Pane {
-      let index: Int
-      let displayTitle: String?
-      let isFocused: Bool
-    }
-
-    let windows: [Window]
+private struct SPTreeSnapshot {
+  struct Window {
+    let index: Int
+    let isKey: Bool
+    let spaces: [Space]
   }
 
+  struct Space {
+    let index: Int
+    let name: String
+    let isSelected: Bool
+    let rootItems: [RootItem]
+  }
+
+  enum RootItem {
+    case group(Group)
+    case tab(Tab)
+  }
+
+  struct Group {
+    let id: UUID
+    let title: String
+    let color: SupatermThemeColor
+    let isPinned: Bool
+    let isCollapsed: Bool
+    let tabs: [Tab]
+  }
+
+  struct Tab {
+    let index: Int
+    let title: String
+    let isSelected: Bool
+    let isPinned: Bool?
+    let panes: [Pane]
+  }
+
+  struct Pane {
+    let index: Int
+    let displayTitle: String?
+    let isFocused: Bool
+  }
+
+  let windows: [Window]
+}
+
+enum SPTreeRenderer {
   static func render(_ snapshot: SupatermAppDebugSnapshot) -> String {
     render(projectedSnapshot(from: snapshot))
   }
@@ -55,7 +55,7 @@ enum SPTreeRenderer {
     renderPlain(projectedSnapshot(from: snapshot))
   }
 
-  private static func render(_ snapshot: Snapshot) -> String {
+  private static func render(_ snapshot: SPTreeSnapshot) -> String {
     var lines: [String] = []
 
     for (windowOffset, window) in snapshot.windows.enumerated() {
@@ -70,7 +70,7 @@ enum SPTreeRenderer {
     return lines.joined(separator: "\n")
   }
 
-  private static func renderPlain(_ snapshot: Snapshot) -> String {
+  private static func renderPlain(_ snapshot: SPTreeSnapshot) -> String {
     snapshot.windows.flatMap { window in
       window.spaces.flatMap { space in
         let spaceSelector = "\(space.index)"
@@ -100,7 +100,7 @@ enum SPTreeRenderer {
     .joined(separator: "\n")
   }
 
-  private static func plainTabLines(_ tab: Snapshot.Tab, spaceIndex: Int) -> [String] {
+  private static func plainTabLines(_ tab: SPTreeSnapshot.Tab, spaceIndex: Int) -> [String] {
     let tabSelector = "\(spaceIndex)/\(tab.index)"
     let tabFlags = [
       tab.isSelected ? "selected" : nil,
@@ -117,15 +117,15 @@ enum SPTreeRenderer {
     return [tabLine] + paneLines
   }
 
-  private static func projectedSnapshot(from snapshot: SupatermAppDebugSnapshot) -> Snapshot {
-    .init(
+  private static func projectedSnapshot(from snapshot: SupatermAppDebugSnapshot) -> SPTreeSnapshot {
+    SPTreeSnapshot(
       windows: snapshot.windows.map { window in
-        .init(
+        SPTreeSnapshot.Window(
           index: window.index,
           isKey: window.isKey,
           spaces: window.spaces.map { space in
             var tabIndex = 0
-            return .init(
+            return SPTreeSnapshot.Space(
               index: space.index,
               name: space.name,
               isSelected: space.isSelected,
@@ -133,7 +133,7 @@ enum SPTreeRenderer {
                 switch item {
                 case .group(let group):
                   return .group(
-                    .init(
+                    SPTreeSnapshot.Group(
                       id: group.id,
                       title: group.title,
                       color: group.color,
@@ -159,7 +159,7 @@ enum SPTreeRenderer {
     )
   }
 
-  private static func renderSpaces(_ spaces: [Snapshot.Space]) -> [String] {
+  private static func renderSpaces(_ spaces: [SPTreeSnapshot.Space]) -> [String] {
     spaces.enumerated().flatMap { spaceOffset, space in
       let isLastSpace = spaceOffset == spaces.count - 1
       let spaceBranch = isLastSpace ? "└─ " : "├─ "
@@ -172,7 +172,7 @@ enum SPTreeRenderer {
   }
 
   private static func renderRootItems(
-    _ items: [Snapshot.RootItem],
+    _ items: [SPTreeSnapshot.RootItem],
     prefix: String
   ) -> [String] {
     items.enumerated().flatMap { offset, item in
@@ -190,7 +190,7 @@ enum SPTreeRenderer {
   }
 
   private static func renderTabs(
-    _ tabs: [Snapshot.Tab],
+    _ tabs: [SPTreeSnapshot.Tab],
     prefix: String
   ) -> [String] {
     tabs.enumerated().flatMap { tabOffset, tab in
@@ -203,7 +203,7 @@ enum SPTreeRenderer {
   }
 
   private static func renderTab(
-    _ tab: Snapshot.Tab,
+    _ tab: SPTreeSnapshot.Tab,
     branch: String,
     childPrefix: String,
     prefix: String
@@ -215,7 +215,7 @@ enum SPTreeRenderer {
       }
   }
 
-  private static func windowLine(_ window: Snapshot.Window) -> String {
+  private static func windowLine(_ window: SPTreeSnapshot.Window) -> String {
     var labels: [String] = []
     if window.isKey {
       labels.append("key")
@@ -227,7 +227,7 @@ enum SPTreeRenderer {
     return "window \(window.index) [\(labels.joined(separator: ", "))]"
   }
 
-  private static func spaceLine(_ space: Snapshot.Space) -> String {
+  private static func spaceLine(_ space: SPTreeSnapshot.Space) -> String {
     var labels: [String] = []
     if space.isSelected {
       labels.append("selected")
@@ -239,7 +239,7 @@ enum SPTreeRenderer {
     return "space \(space.index) \"\(space.name)\" [\(labels.joined(separator: ", "))]"
   }
 
-  private static func tabLine(_ tab: Snapshot.Tab) -> String {
+  private static func tabLine(_ tab: SPTreeSnapshot.Tab) -> String {
     var labels: [String] = []
     if tab.isSelected {
       labels.append("selected")
@@ -254,7 +254,7 @@ enum SPTreeRenderer {
     return "tab \(tab.index) \"\(tab.title)\" [\(labels.joined(separator: ", "))]"
   }
 
-  private static func groupLine(_ group: Snapshot.Group) -> String {
+  private static func groupLine(_ group: SPTreeSnapshot.Group) -> String {
     var labels = [group.color.rawValue]
     if group.isPinned {
       labels.append("pinned")
@@ -270,14 +270,14 @@ enum SPTreeRenderer {
     _ tab: SupatermAppDebugSnapshot.Tab,
     index: Int,
     isPinned: Bool?
-  ) -> Snapshot.Tab {
-    .init(
+  ) -> SPTreeSnapshot.Tab {
+    SPTreeSnapshot.Tab(
       index: index,
       title: tab.title,
       isSelected: tab.isSelected,
       isPinned: isPinned,
       panes: tab.panes.map { pane in
-        .init(
+        SPTreeSnapshot.Pane(
           index: pane.index,
           displayTitle: pane.displayTitle,
           isFocused: pane.isFocused
@@ -286,7 +286,7 @@ enum SPTreeRenderer {
     )
   }
 
-  private static func paneLine(_ pane: Snapshot.Pane) -> String {
+  private static func paneLine(_ pane: SPTreeSnapshot.Pane) -> String {
     var labels: [String] = []
     if pane.isFocused {
       labels.append("focused")
@@ -299,7 +299,7 @@ enum SPTreeRenderer {
     return "pane \(pane.index)\(title) [\(labels.joined(separator: ", "))]"
   }
 
-  private static func plainPaneLine(_ pane: Snapshot.Pane, selector: String) -> String {
+  private static func plainPaneLine(_ pane: SPTreeSnapshot.Pane, selector: String) -> String {
     var columns = [selector, "pane"]
     if let displayTitle = pane.displayTitle {
       columns.append(displayTitle)
@@ -394,89 +394,7 @@ enum SPDebugRenderer {
       ))
 
     if let app = report.app {
-      lines.append("")
-      lines.append(
-        contentsOf: section(
-          "App",
-          [
-            "version: \(app.build.version.isEmpty ? "unknown" : app.build.version)",
-            "build: \(app.build.buildNumber.isEmpty ? "unknown" : app.build.buildNumber)",
-            "development build: \(yesNo(app.build.isDevelopmentBuild))",
-            "stub update checks: \(yesNo(app.build.usesStubUpdateChecks))",
-          ]
-        ))
-
-      lines.append("")
-      lines.append(
-        contentsOf: section(
-          "Windows",
-          [
-            "window count: \(app.summary.windowCount)",
-            "space count: \(app.summary.spaceCount)",
-            "tab count: \(app.summary.tabCount)",
-            "pane count: \(app.summary.paneCount)",
-            "key window: \(app.summary.keyWindowIndex.map(String.init) ?? "none")",
-          ]
-        ))
-
-      lines.append("")
-      lines.append(contentsOf: currentTargetSection(app))
-
-      if let currentTab = currentTab(in: app) {
-        lines.append("")
-        lines.append(
-          contentsOf: section(
-            "Current Tab",
-            [
-              "title: \(currentTab.title)",
-              "selected: \(yesNo(currentTab.isSelected))",
-              "dirty: \(yesNo(currentTab.isDirty))",
-              "title locked: \(yesNo(currentTab.isTitleLocked))",
-              "running: \(yesNo(currentTab.hasRunningActivity))",
-              "bell: \(yesNo(currentTab.hasBell))",
-              "read only: \(yesNo(currentTab.hasReadOnly))",
-              "secure input: \(yesNo(currentTab.hasSecureInput))",
-            ]
-          ))
-      }
-
-      if let currentPane = currentPane(in: app) {
-        lines.append("")
-        lines.append(
-          contentsOf: section(
-            "Current Pane",
-            [
-              "title: \(currentPane.displayTitle)",
-              "pwd: \(currentPane.pwd ?? "none")",
-              "focused: \(yesNo(currentPane.isFocused))",
-              "read only: \(yesNo(currentPane.isReadOnly))",
-              "secure input: \(yesNo(currentPane.hasSecureInput))",
-              "bell count: \(currentPane.bellCount)",
-              "running: \(yesNo(currentPane.isRunning))",
-              "progress: \(progressDescription(currentPane))",
-              "close confirmation: \(yesNo(currentPane.needsCloseConfirmation))",
-              "last command exit: \(value(currentPane.lastCommandExitCode))",
-              "last command duration ms: \(value(currentPane.lastCommandDurationMs))",
-              "last child exit: \(value(currentPane.lastChildExitCode))",
-              "last child exit time ms: \(value(currentPane.lastChildExitTimeMs))",
-            ]
-          ))
-      }
-
-      lines.append("")
-      lines.append(
-        contentsOf: section(
-          "Update",
-          [
-            "can check for updates: \(yesNo(app.update.canCheckForUpdates))",
-            "phase: \(app.update.phase)",
-            "detail: \(app.update.detail.isEmpty ? "none" : app.update.detail)",
-          ]
-        ))
-
-      lines.append("")
-      lines.append("Topology")
-      lines.append(SPTreeRenderer.render(app))
+      lines.append(contentsOf: appLines(app))
     }
 
     let allProblems = report.problems + (report.app?.problems ?? [])
@@ -487,6 +405,93 @@ enum SPDebugRenderer {
     }
 
     return lines.joined(separator: "\n")
+  }
+
+  private static func appLines(_ app: SupatermAppDebugSnapshot) -> [String] {
+    var lines = [""]
+    lines.append(
+      contentsOf: section(
+        "App",
+        [
+          "version: \(app.build.version.isEmpty ? "unknown" : app.build.version)",
+          "build: \(app.build.buildNumber.isEmpty ? "unknown" : app.build.buildNumber)",
+          "development build: \(yesNo(app.build.isDevelopmentBuild))",
+          "stub update checks: \(yesNo(app.build.usesStubUpdateChecks))",
+        ]
+      ))
+
+    lines.append("")
+    lines.append(
+      contentsOf: section(
+        "Windows",
+        [
+          "window count: \(app.summary.windowCount)",
+          "space count: \(app.summary.spaceCount)",
+          "tab count: \(app.summary.tabCount)",
+          "pane count: \(app.summary.paneCount)",
+          "key window: \(app.summary.keyWindowIndex.map(String.init) ?? "none")",
+        ]
+      ))
+
+    lines.append("")
+    lines.append(contentsOf: currentTargetSection(app))
+
+    if let currentTab = currentTab(in: app) {
+      lines.append("")
+      lines.append(
+        contentsOf: section(
+          "Current Tab",
+          [
+            "title: \(currentTab.title)",
+            "selected: \(yesNo(currentTab.isSelected))",
+            "dirty: \(yesNo(currentTab.isDirty))",
+            "title locked: \(yesNo(currentTab.isTitleLocked))",
+            "running: \(yesNo(currentTab.hasRunningActivity))",
+            "bell: \(yesNo(currentTab.hasBell))",
+            "read only: \(yesNo(currentTab.hasReadOnly))",
+            "secure input: \(yesNo(currentTab.hasSecureInput))",
+          ]
+        ))
+    }
+
+    if let currentPane = currentPane(in: app) {
+      lines.append("")
+      lines.append(
+        contentsOf: section(
+          "Current Pane",
+          [
+            "title: \(currentPane.displayTitle)",
+            "pwd: \(currentPane.pwd ?? "none")",
+            "focused: \(yesNo(currentPane.isFocused))",
+            "read only: \(yesNo(currentPane.isReadOnly))",
+            "secure input: \(yesNo(currentPane.hasSecureInput))",
+            "bell count: \(currentPane.bellCount)",
+            "running: \(yesNo(currentPane.isRunning))",
+            "progress: \(progressDescription(currentPane))",
+            "close confirmation: \(yesNo(currentPane.needsCloseConfirmation))",
+            "last command exit: \(value(currentPane.lastCommandExitCode))",
+            "last command duration ms: \(value(currentPane.lastCommandDurationMs))",
+            "last child exit: \(value(currentPane.lastChildExitCode))",
+            "last child exit time ms: \(value(currentPane.lastChildExitTimeMs))",
+          ]
+        ))
+    }
+
+    lines.append("")
+    lines.append(
+      contentsOf: section(
+        "Update",
+        [
+          "can check for updates: \(yesNo(app.update.canCheckForUpdates))",
+          "phase: \(app.update.phase)",
+          "detail: \(app.update.detail.isEmpty ? "none" : app.update.detail)",
+        ]
+      ))
+
+    lines.append("")
+    lines.append("Topology")
+    lines.append(SPTreeRenderer.render(app))
+    return lines
   }
 
   private static func currentTargetSection(_ app: SupatermAppDebugSnapshot) -> [String] {

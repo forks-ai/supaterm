@@ -2,11 +2,11 @@ import SupaTheme
 import SupatermCLIShared
 
 extension ThemeTint {
-  init(socketColor: SupatermTabGroupColor) {
+  init(socketColor: SupatermThemeColor) {
     self = Self.convert(socketColor)
   }
 
-  var socketColor: SupatermTabGroupColor {
+  var socketColor: SupatermThemeColor {
     Self.convert(self)
   }
 
