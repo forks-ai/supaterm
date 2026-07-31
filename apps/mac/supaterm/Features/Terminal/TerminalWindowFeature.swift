@@ -216,6 +216,7 @@ struct TerminalWindowFeature {
   @Dependency(TerminalCommandPaletteClient.self) var terminalCommandPaletteClient
   @Dependency(TerminalClient.self) var terminalClient
   @Dependency(WindowCloseClient.self) var windowCloseClient
+  @Dependency(\.withRandomNumberGenerator) var withRandomNumberGenerator
 
   var body: some Reducer<State, Action> {
     Reduce { state, action in
@@ -538,7 +539,9 @@ struct TerminalWindowFeature {
         state.spaceEditor = TerminalSpaceEditorState(
           mode: .create,
           draftName: "",
-          draftColor: .neutral
+          draftColor: withRandomNumberGenerator { generator in
+            ThemeTint.chromatic.randomElement(using: &generator) ?? .blue
+          }
         )
         return .none
 

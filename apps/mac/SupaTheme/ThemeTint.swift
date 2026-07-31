@@ -8,6 +8,10 @@ public enum ThemeTint: String, CaseIterable, Codable, Sendable {
   case pink
   case purple
 
+  public static var chromatic: [ThemeTint] {
+    allCases.filter { $0 != .neutral }
+  }
+
   public func tone(in palette: ReferencePalette) -> ReferenceTone {
     switch self {
     case .neutral: palette.neutral

@@ -264,13 +264,14 @@ struct TerminalWindowFeatureTests {
         analyticsRecorder.record(event)
       }
       $0.terminalClient.send = { recorder.record($0) }
+      $0.withRandomNumberGenerator = WithRandomNumberGenerator(CountingRandomNumberGenerator())
     }
 
     await store.send(.spaceCreateButtonTapped) {
       $0.spaceEditor = TerminalSpaceEditorState(
         mode: .create,
         draftName: "",
-        draftColor: .neutral
+        draftColor: .red
       )
     }
 
@@ -934,13 +935,14 @@ struct TerminalWindowFeatureTests {
         analyticsRecorder.record(event)
       }
       $0.terminalClient.send = { recorder.record($0) }
+      $0.withRandomNumberGenerator = WithRandomNumberGenerator(CountingRandomNumberGenerator())
     }
 
     await store.send(.spaceCreateButtonTapped) {
       $0.spaceEditor = TerminalSpaceEditorState(
         mode: .create,
         draftName: "",
-        draftColor: .neutral
+        draftColor: .red
       )
     }
     await store.send(.spaceEditorTextChanged("Build")) {
@@ -1435,5 +1437,14 @@ private actor TerminalDesktopNotificationRecorder {
 
   func snapshot() -> [DesktopNotificationRequest] {
     requests
+  }
+}
+
+private nonisolated struct CountingRandomNumberGenerator: RandomNumberGenerator {
+  var state: UInt64 = 0
+
+  mutating func next() -> UInt64 {
+    state &+= 1
+    return state
   }
 }
