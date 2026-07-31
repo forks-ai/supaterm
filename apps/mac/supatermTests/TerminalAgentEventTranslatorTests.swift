@@ -408,6 +408,73 @@ struct TerminalAgentEventTranslatorTests {
   }
 
   @Test
+  func claudeWorkflowSubagentStartReadsSpawnPrompt() throws {
+    let transcript = try ClaudeProgressFixtures.makeTranscript()
+    defer { try? FileManager.default.removeItem(at: transcript.deletingLastPathComponent()) }
+    try ClaudeProgressFixtures.writeWorkflowSubagentSpawn(
+      agentID: "child-1",
+      runID: "wf_0c5cf178-0c1",
+      prompt: "Recover the color palettes Dia ships\nfor Profile custom colors.",
+      forTranscriptAt: transcript
+    )
+    let request = SupatermAgentHookRequest(
+      agent: .claude,
+      event: SupatermAgentHookEvent(
+        agentType: "workflow-subagent",
+        hookEventName: .subagentStart,
+        sessionID: "session-1",
+        transcriptPath: transcript.path,
+        agentID: "child-1"
+      )
+    )
+
+    #expect(
+      TerminalAgentEventTranslator.events(for: request).map(\.action) == [
+        .subagentStarted(
+          nickname: nil,
+          role: "workflow-subagent",
+          task: "Recover the color palettes Dia ships for Profile custom colors."
+        )
+      ]
+    )
+  }
+
+  @Test
+  func claudeWorkflowSubagentPromptTaskIsTruncated() throws {
+    let transcript = try ClaudeProgressFixtures.makeTranscript()
+    defer { try? FileManager.default.removeItem(at: transcript.deletingLastPathComponent()) }
+    let prompt = String(repeating: "audit every pane ", count: 20)
+    try ClaudeProgressFixtures.writeWorkflowSubagentSpawn(
+      agentID: "child-1",
+      runID: "wf_0c5cf178-0c1",
+      prompt: [["type": "text", "text": prompt]],
+      forTranscriptAt: transcript
+    )
+    let request = SupatermAgentHookRequest(
+      agent: .claude,
+      event: SupatermAgentHookEvent(
+        agentType: "workflow-subagent",
+        hookEventName: .preToolUse,
+        sessionID: "session-1",
+        toolName: "Bash",
+        transcriptPath: transcript.path,
+        agentID: "child-1"
+      )
+    )
+
+    let actions = TerminalAgentEventTranslator.events(for: request).map(\.action)
+
+    #expect(
+      actions == [
+        .subagentDescribed(
+          nickname: nil,
+          task: String(prompt.trimmingCharacters(in: .whitespaces).prefix(140)) + "…"
+        )
+      ]
+    )
+  }
+
+  @Test
   func claudeTeammateStopIdlesChildInsteadOfRemovingIt() throws {
     let transcript = try ClaudeProgressFixtures.makeTranscript()
     defer { try? FileManager.default.removeItem(at: transcript.deletingLastPathComponent()) }

@@ -168,6 +168,35 @@ enum ClaudeProgressFixtures {
     try data.write(to: directoryURL.appendingPathComponent("agent-\(agentID).meta.json"))
   }
 
+  static func writeWorkflowSubagentSpawn(
+    agentID: String,
+    runID: String,
+    prompt: Any,
+    forTranscriptAt transcriptURL: URL
+  ) throws {
+    let directoryURL =
+      transcriptURL
+      .deletingPathExtension()
+      .appendingPathComponent("subagents")
+      .appendingPathComponent("workflows")
+      .appendingPathComponent(runID)
+    try FileManager.default.createDirectory(at: directoryURL, withIntermediateDirectories: true)
+    let metadata = try JSONSerialization.data(
+      withJSONObject: ["agentType": "workflow-subagent", "spawnDepth": 1],
+      options: [.sortedKeys]
+    )
+    try metadata.write(to: directoryURL.appendingPathComponent("agent-\(agentID).meta.json"))
+    let spawn: [String: Any] = [
+      "type": "user",
+      "agentId": agentID,
+      "message": ["role": "user", "content": prompt],
+    ]
+    let transcript = try JSONSerialization.data(withJSONObject: spawn, options: [.sortedKeys])
+    try (transcript + Data([0x0A])).write(
+      to: directoryURL.appendingPathComponent("agent-\(agentID).jsonl")
+    )
+  }
+
   static func appendTaskReminder(
     _ tasks: [[String: Any]],
     to transcriptURL: URL
