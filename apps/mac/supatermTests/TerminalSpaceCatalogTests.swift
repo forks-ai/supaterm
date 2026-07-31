@@ -1,10 +1,44 @@
 import Foundation
+import SupaTheme
 import SupatermCLIShared
 import Testing
 
 @testable import supaterm
 
 struct TerminalSpaceCatalogTests {
+  @Test
+  func spacesJSONWithoutColorDecodesAsNeutral() throws {
+    let json = Data(
+      """
+      {"defaultSelectedSpaceID":{"rawValue":"00000000-0000-0000-0000-000000000001"},"spaces":\
+      [{"id":{"rawValue":"00000000-0000-0000-0000-000000000001"},"name":"Space 1"}]}
+      """.utf8
+    )
+    let catalog = try JSONDecoder().decode(TerminalSpaceCatalog.self, from: json)
+    #expect(catalog.spaces.map(\.color) == [.neutral])
+  }
+
+  @Test
+  func spaceColorRoundTripsThroughJSON() throws {
+    let space = TerminalSpaceItem(name: "Work", color: .green)
+    let data = try TerminalSpaceCatalog.fileStorageEncoder().encode(
+      TerminalSpaceCatalog(defaultSelectedSpaceID: space.id, spaces: [space])
+    )
+    let decoded = try JSONDecoder().decode(TerminalSpaceCatalog.self, from: data)
+    #expect(decoded.spaces.map(\.color) == [.green])
+  }
+
+  @Test
+  func sanitizedPreservesSpaceColor() {
+    let space = TerminalSpaceItem(name: "  Work  ", color: .purple)
+
+    let catalog = TerminalSpaceCatalog.sanitized(
+      TerminalSpaceCatalog(defaultSelectedSpaceID: space.id, spaces: [space])
+    )
+
+    #expect(catalog.spaces.map(\.color) == [.purple])
+  }
+
   @Test
   func defaultURLUsesConfigDirectoryUnderProvidedHomeDirectory() {
     let homeDirectory = "/tmp/SupatermTests/Home"

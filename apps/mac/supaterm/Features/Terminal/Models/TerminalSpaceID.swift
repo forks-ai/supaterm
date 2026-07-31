@@ -1,4 +1,5 @@
 import Foundation
+import SupaTheme
 import SupatermCLIShared
 
 nonisolated struct TerminalSpaceID: Hashable, Identifiable, Codable, Sendable {
@@ -18,13 +19,23 @@ nonisolated struct TerminalSpaceID: Hashable, Identifiable, Codable, Sendable {
 nonisolated struct TerminalSpaceItem: Identifiable, Equatable, Codable, Sendable {
   let id: TerminalSpaceID
   var name: String
+  var color: ThemeTint
 
   init(
     id: TerminalSpaceID = TerminalSpaceID(),
-    name: String
+    name: String,
+    color: ThemeTint = .neutral
   ) {
     self.id = id
     self.name = name
+    self.color = color
+  }
+
+  init(from decoder: Decoder) throws {
+    let container = try decoder.container(keyedBy: CodingKeys.self)
+    id = try container.decode(TerminalSpaceID.self, forKey: .id)
+    name = try container.decode(String.self, forKey: .name)
+    color = try container.decodeIfPresent(ThemeTint.self, forKey: .color) ?? .neutral
   }
 }
 
@@ -53,7 +64,8 @@ nonisolated struct TerminalSpaceCatalog: Equatable, Codable, Sendable {
       guard !trimmedName.isEmpty else { return nil }
       return TerminalSpaceItem(
         id: space.id,
-        name: trimmedName
+        name: trimmedName,
+        color: space.color
       )
     }
     guard !spaces.isEmpty else { return .default }

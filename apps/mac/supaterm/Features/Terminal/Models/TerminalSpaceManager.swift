@@ -39,6 +39,7 @@ final class TerminalSpaceManager {
     let resolvedCatalog = Self.sanitizedCatalog(catalog)
     if let persistedSpace = resolvedCatalog.spaces.first(where: { $0.id == space.id }) {
       space.name = persistedSpace.name
+      space.color = persistedSpace.color
     }
   }
 
