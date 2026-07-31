@@ -1,6 +1,7 @@
 import ComposableArchitecture
 import Foundation
 import Sharing
+import SupaTheme
 import SupatermSupport
 import SupatermTerminalCore
 import SupatermUpdateFeature
@@ -268,7 +269,8 @@ struct TerminalWindowFeatureTests {
     await store.send(.spaceCreateButtonTapped) {
       $0.spaceEditor = TerminalSpaceEditorState(
         mode: .create,
-        draftName: ""
+        draftName: "",
+        draftColor: .neutral
       )
     }
 
@@ -937,18 +939,22 @@ struct TerminalWindowFeatureTests {
     await store.send(.spaceCreateButtonTapped) {
       $0.spaceEditor = TerminalSpaceEditorState(
         mode: .create,
-        draftName: ""
+        draftName: "",
+        draftColor: .neutral
       )
     }
     await store.send(.spaceEditorTextChanged("Build")) {
       $0.spaceEditor?.draftName = "Build"
+    }
+    await store.send(.spaceEditorColorSelected(.green)) {
+      $0.spaceEditor?.draftColor = .green
     }
     await store.send(.spaceEditorSaveButtonTapped) {
       $0.spaceEditor = nil
     }
 
     #expect(analyticsRecorder.recorded() == ["space_created"])
-    #expect(recorder.commands == [.createSpace(name: "Build")])
+    #expect(recorder.commands == [.createSpace(name: "Build", color: .green)])
   }
 
   @Test
@@ -959,7 +965,8 @@ struct TerminalWindowFeatureTests {
       initialState: TerminalWindowFeature.State(
         spaceEditor: TerminalSpaceEditorState(
           mode: .create,
-          draftName: "Build"
+          draftName: "Build",
+          draftColor: .neutral
         )
       )
     ) {
@@ -1222,7 +1229,8 @@ struct TerminalWindowFeatureTests {
     await store.send(.spaceRenameRequested(space)) {
       $0.spaceEditor = TerminalSpaceEditorState(
         mode: .rename(space),
-        draftName: "A"
+        draftName: "A",
+        draftColor: .neutral
       )
     }
     await store.send(.spaceEditorTextChanged("Shell")) {

@@ -25,6 +25,7 @@ enum TerminalSpaceEditorMode: Equatable {
 struct TerminalSpaceEditorState: Equatable, Identifiable {
   let mode: TerminalSpaceEditorMode
   var draftName: String
+  var draftColor: ThemeTint
 
   var id: String {
     switch mode {
@@ -192,6 +193,7 @@ struct TerminalWindowFeature {
     case spaceDeleteConfirmButtonTapped
     case spaceDeleteRequested(TerminalSpaceItem)
     case spaceEditorCancelButtonTapped
+    case spaceEditorColorSelected(ThemeTint)
     case spaceRenameRequested(TerminalSpaceItem)
     case spaceEditorSaveButtonTapped
     case spaceEditorTextChanged(String)
@@ -535,7 +537,8 @@ struct TerminalWindowFeature {
       case .spaceCreateButtonTapped:
         state.spaceEditor = TerminalSpaceEditorState(
           mode: .create,
-          draftName: ""
+          draftName: "",
+          draftColor: .neutral
         )
         return .none
 
@@ -547,10 +550,15 @@ struct TerminalWindowFeature {
         state.spaceEditor = nil
         return .none
 
+      case .spaceEditorColorSelected(let color):
+        state.spaceEditor?.draftColor = color
+        return .none
+
       case .spaceRenameRequested(let space):
         state.spaceEditor = TerminalSpaceEditorState(
           mode: .rename(space),
-          draftName: space.name
+          draftName: space.name,
+          draftColor: space.color
         )
         return .none
 
@@ -560,9 +568,11 @@ struct TerminalWindowFeature {
         switch spaceEditor.mode {
         case .create:
           analyticsClient.capture("space_created")
-          return sendCommand(.createSpace(name: spaceEditor.draftName))
+          return sendCommand(.createSpace(name: spaceEditor.draftName, color: spaceEditor.draftColor))
         case .rename(let space):
-          return sendCommand(.renameSpace(space.id, spaceEditor.draftName))
+          let rename = sendCommand(.renameSpace(space.id, spaceEditor.draftName))
+          guard spaceEditor.draftColor != space.color else { return rename }
+          return .merge(rename, sendCommand(.setSpaceColor(space.id, spaceEditor.draftColor)))
         }
 
       case .spaceEditorTextChanged(let text):

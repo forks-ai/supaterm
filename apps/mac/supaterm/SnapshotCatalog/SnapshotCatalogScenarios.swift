@@ -593,6 +593,7 @@ extension SnapshotCatalog {
             title: "Rename Space",
             confirmTitle: "Rename",
             name: .constant("Release work"),
+            color: .constant(.blue),
             isSaveEnabled: true,
             onSave: {},
             onCancel: {}
@@ -613,6 +614,7 @@ extension SnapshotCatalog {
             title: "Create Space",
             confirmTitle: "Create",
             name: .constant(""),
+            color: .constant(.neutral),
             isSaveEnabled: false,
             onSave: {},
             onCancel: {}

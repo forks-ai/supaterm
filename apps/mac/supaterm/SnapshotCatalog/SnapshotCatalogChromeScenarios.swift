@@ -28,7 +28,43 @@ extension SnapshotCatalog {
     ) { appearance in
       AnyView(GroupSurfaceSnapshotFixture(appearance: appearance))
     },
+    scenario(
+      "tinted-backgrounds",
+      group: "Chrome",
+      title: "Tinted backgrounds",
+      size: CGSize(width: 1020, height: 400)
+    ) { appearance in
+      AnyView(TintedChromeBackgroundSnapshotFixture(appearance: appearance))
+    },
   ]
+}
+
+private struct TintedChromeBackgroundSnapshotFixture: View {
+  let appearance: SnapshotAppearance
+
+  var body: some View {
+    let neutral = Palette(colorScheme: appearance.colorScheme)
+    ZStack {
+      neutral.detailBackground
+      LazyVGrid(
+        columns: Array(repeating: GridItem(.flexible(), spacing: 12), count: 4), spacing: 14
+      ) {
+        ForEach(ThemeTint.allCases.filter { $0 != .neutral }, id: \.self) { tint in
+          VStack(spacing: 5) {
+            ChromeBackgroundView(
+              palette: Palette(colorScheme: appearance.colorScheme, tint: tint)
+            )
+            .frame(height: 150)
+            .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+            Text(tint.displayName)
+              .font(.system(size: 10, weight: .medium))
+              .foregroundStyle(neutral.secondaryText)
+          }
+        }
+      }
+      .padding(20)
+    }
+  }
 }
 
 private struct ChromeBackgroundSnapshotFixture: View {

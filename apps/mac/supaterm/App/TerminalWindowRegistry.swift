@@ -2,6 +2,7 @@ import AppKit
 import ComposableArchitecture
 import Foundation
 import Sharing
+import SupaTheme
 import SupatermCLIShared
 import SupatermTerminalCore
 import SupatermUpdateFeature
@@ -190,6 +191,7 @@ final class TerminalWindowRegistry {
   @discardableResult
   func createSpace(
     named name: String,
+    color: ThemeTint = .neutral,
     focus: Bool = true
   ) throws -> TerminalSpaceID {
     guard let name = normalizedSpaceName(name) else {
@@ -206,7 +208,7 @@ final class TerminalWindowRegistry {
     if focus {
       previousSpaceID = catalog.defaultSelectedSpaceID
     }
-    let space = TerminalSpaceItem(name: name)
+    let space = TerminalSpaceItem(name: name, color: color)
     catalog.spaces.append(space)
     if focus {
       catalog.defaultSelectedSpaceID = space.id
@@ -232,6 +234,15 @@ final class TerminalWindowRegistry {
       throw TerminalControlError.spaceNameUnavailable
     }
     catalog.spaces[index].name = name
+    replaceSpaceCatalog(catalog)
+  }
+
+  func setSpaceColor(_ spaceID: TerminalSpaceID, to color: ThemeTint) throws {
+    var catalog = TerminalSpaceCatalog.sanitized(spaceCatalog)
+    guard let index = catalog.spaces.firstIndex(where: { $0.id == spaceID }) else {
+      throw TerminalControlError.contextPaneNotFound
+    }
+    catalog.spaces[index].color = color
     replaceSpaceCatalog(catalog)
   }
 
@@ -843,8 +854,8 @@ final class TerminalWindowRegistry {
     let sourceSpaceID = entries.first(where: { $0.windowControllerID == windowControllerID })?
       .terminal.selectedSpaceID
     switch action {
-    case .create(let name):
-      _ = try? createSpace(named: name)
+    case .create(let name, let color):
+      _ = try? createSpace(named: name, color: color)
     case .delete(let spaceID):
       try? deleteSpace(spaceID)
     case .next:
@@ -861,6 +872,8 @@ final class TerminalWindowRegistry {
       _ = openSpace(spaceID)
     case .selectSlot(let slot):
       requestSelectSpaceInKeyWindow(slot)
+    case .setColor(let spaceID, let color):
+      try? setSpaceColor(spaceID, to: color)
     }
   }
 

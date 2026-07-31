@@ -152,7 +152,7 @@ public struct Palette {
     let surfaceSeed = referencePalette.neutral.light
     let isDark = colorScheme == .dark
     let tintColor = tint.tone(in: referencePalette).color(for: colorScheme)
-    let tintWash = tint == .neutral ? 0 : (isDark ? 0.12 : 0.2)
+    let tintWash = tint == .neutral ? 0 : (isDark ? 0.17 : 0.3)
     let backgroundTopValue = (isDark ? ThemeColor(hex: 0x1F1F1F) : ThemeColor(hex: 0xE4E4E4))
       .mixed(with: tintColor, by: tintWash)
     let backgroundBottomValue = (isDark ? ThemeColor(hex: 0x161616) : ThemeColor(hex: 0xEDEDED))

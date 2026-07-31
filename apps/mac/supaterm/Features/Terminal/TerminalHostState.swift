@@ -3,6 +3,7 @@ import Foundation
 import GhosttyKit
 import Observation
 import Sharing
+import SupaTheme
 import SupatermCLIShared
 import SupatermSupport
 import SupatermTerminalCore
@@ -46,13 +47,14 @@ nonisolated struct TerminalClosePerformLogContext: Sendable {
 @Observable
 final class TerminalHostState {
   enum SpaceAction: Equatable {
-    case create(String)
+    case create(String, ThemeTint)
     case delete(TerminalSpaceID)
     case next
     case previous
     case rename(TerminalSpaceID, String)
     case select(TerminalSpaceID)
     case selectSlot(Int)
+    case setColor(TerminalSpaceID, ThemeTint)
   }
 
   struct NewTabSelectionInput: Equatable {
@@ -410,7 +412,8 @@ final class TerminalHostState {
       .performBindingActionOnFocusedSurface,
       .performSplitOperation,
       .previousTab,
-      .renameSpace:
+      .renameSpace,
+      .setSpaceColor:
       handleInteractionCommand(command)
     case .nextSpace,
       .previousSpace,
@@ -475,8 +478,8 @@ final class TerminalHostState {
         startupCommand: startupCommand,
         workingDirectoryPath: workingDirectoryPath
       )
-    case .createSpace(let name):
-      onSpaceAction(.create(name))
+    case .createSpace(let name, let color):
+      onSpaceAction(.create(name, color))
     default:
       return
     }
@@ -498,6 +501,8 @@ final class TerminalHostState {
       previousTab()
     case .renameSpace(let spaceID, let name):
       onSpaceAction(.rename(spaceID, name))
+    case .setSpaceColor(let spaceID, let color):
+      onSpaceAction(.setColor(spaceID, color))
     default:
       return
     }

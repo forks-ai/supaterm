@@ -1,5 +1,6 @@
 import ComposableArchitecture
 import Sharing
+import SupaTheme
 import Testing
 
 @testable import supaterm
@@ -47,20 +48,22 @@ struct TerminalHostStateSpaceOwnershipTests {
       var actions: [TerminalHostState.SpaceAction] = []
       host.onSpaceAction = { actions.append($0) }
 
-      host.handleCommand(.createSpace(name: "Build"))
+      host.handleCommand(.createSpace(name: "Build", color: .blue))
       host.handleCommand(.selectSpace(otherSpaceID))
       host.handleCommand(.renameSpace(otherSpaceID, "Shell"))
       host.handleCommand(.nextSpace)
       host.handleCommand(.previousSpace)
+      host.handleCommand(.setSpaceColor(otherSpaceID, .purple))
       host.handleCommand(.deleteSpace(otherSpaceID))
 
       #expect(
         actions == [
-          .create("Build"),
+          .create("Build", .blue),
           .select(otherSpaceID),
           .rename(otherSpaceID, "Shell"),
           .next,
           .previous,
+          .setColor(otherSpaceID, .purple),
           .delete(otherSpaceID),
         ]
       )

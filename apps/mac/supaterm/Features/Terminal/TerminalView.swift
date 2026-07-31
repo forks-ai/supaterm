@@ -30,7 +30,7 @@ struct TerminalView: View {
   }
 
   private var palette: Palette {
-    Palette(colorScheme: chromeColorScheme)
+    Palette(colorScheme: chromeColorScheme, tint: terminal.spaceManager.space.color)
   }
 
   private var pendingCloseBinding: Binding<Bool> {
@@ -59,6 +59,13 @@ struct TerminalView: View {
     Binding(
       get: { store.spaceEditor?.draftName ?? "" },
       set: { _ = store.send(.spaceEditorTextChanged($0)) }
+    )
+  }
+
+  private var spaceEditorColorBinding: Binding<ThemeTint> {
+    Binding(
+      get: { store.spaceEditor?.draftColor ?? .neutral },
+      set: { _ = store.send(.spaceEditorColorSelected($0)) }
     )
   }
 
@@ -166,6 +173,7 @@ struct TerminalView: View {
             title: spaceEditor.title,
             confirmTitle: spaceEditor.confirmTitle,
             name: spaceEditorTextBinding,
+            color: spaceEditorColorBinding,
             isSaveEnabled: spaceEditorIsValid,
             onSave: {
               guard spaceEditorIsValid else { return }

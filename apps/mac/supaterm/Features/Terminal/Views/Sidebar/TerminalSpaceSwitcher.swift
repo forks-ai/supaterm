@@ -115,6 +115,7 @@ struct TerminalSpaceSwitcher: View {
         TerminalSpaceSwitcherLabel(
           palette: palette,
           name: presentation.selectedSpace.name,
+          color: presentation.selectedSpace.color,
           isHovered: isHovered
         )
       }
@@ -137,18 +138,26 @@ struct TerminalSpaceSwitcher: View {
 struct TerminalSpaceSwitcherLabel: View {
   let palette: Palette
   let name: String
+  let color: ThemeTint
   let isHovered: Bool
 
   var body: some View {
-    Text(name)
-      .font(.system(size: 12, weight: .medium))
-      .lineLimit(1)
-      .foregroundStyle(palette.primaryText)
-      .padding(.horizontal, 8)
-      .frame(height: TerminalWindowHeaderMetrics.switcherHeight)
-      .background(
-        isHovered ? palette.secondaryText.opacity(0.1) : .clear,
-        in: .rect(cornerRadius: 7)
-      )
+    HStack(spacing: 6) {
+      if color != .neutral {
+        Circle()
+          .fill(color.sidebarColor(palette: palette))
+          .frame(width: 8, height: 8)
+      }
+      Text(name)
+        .font(.system(size: 12, weight: .medium))
+        .lineLimit(1)
+        .foregroundStyle(palette.primaryText)
+    }
+    .padding(.horizontal, 8)
+    .frame(height: TerminalWindowHeaderMetrics.switcherHeight)
+    .background(
+      isHovered ? palette.secondaryText.opacity(0.1) : .clear,
+      in: .rect(cornerRadius: 7)
+    )
   }
 }

@@ -295,6 +295,7 @@ struct SpaceEditorOverlay: View {
   let title: String
   let confirmTitle: String
   @Binding var name: String
+  @Binding var color: ThemeTint
   let isSaveEnabled: Bool
   let onSave: () -> Void
   let onCancel: () -> Void
@@ -324,6 +325,17 @@ struct SpaceEditorOverlay: View {
             guard isSaveEnabled else { return }
             onSave()
           }
+
+        HStack(spacing: 10) {
+          ForEach(ThemeTint.allCases, id: \.self) { tint in
+            SpaceColorSwatch(
+              palette: palette,
+              tint: tint,
+              isSelected: tint == color,
+              action: { color = tint }
+            )
+          }
+        }
 
         HStack {
           DialogActionButton(
@@ -366,5 +378,34 @@ struct SpaceEditorOverlay: View {
       await Task.yield()
       NSApp.sendAction(#selector(NSText.selectAll(_:)), to: nil, from: nil)
     }
+  }
+}
+
+private struct SpaceColorSwatch: View {
+  let palette: Palette
+  let tint: ThemeTint
+  let isSelected: Bool
+  let action: () -> Void
+
+  var body: some View {
+    Button(action: action) {
+      Circle()
+        .fill(tint.sidebarColor(palette: palette))
+        .frame(width: 18, height: 18)
+        .overlay {
+          Circle()
+            .strokeBorder(palette.selectedPillStroke, lineWidth: 1)
+        }
+        .padding(3)
+        .overlay {
+          if isSelected {
+            Circle()
+              .strokeBorder(palette.selectedText, lineWidth: 1.5)
+          }
+        }
+    }
+    .buttonStyle(.plain)
+    .accessibilityLabel(tint.displayName)
+    .accessibilityIdentifier("dialog.space-color-\(tint.rawValue)")
   }
 }
