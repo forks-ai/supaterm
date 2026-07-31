@@ -1,5 +1,6 @@
 import AppKit
 import CoreGraphics
+import SupaTheme
 import Testing
 
 @testable import supaterm
