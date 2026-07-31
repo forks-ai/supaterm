@@ -1,6 +1,7 @@
+import SupaTheme
 import SupatermCLIShared
 
-extension TerminalTabGroupColor {
+extension ThemeTint {
   init(socketColor: SupatermTabGroupColor) {
     self = Self.convert(socketColor)
   }
@@ -17,7 +18,7 @@ extension TerminalTabGroupColor {
     Destination.RawValue == String
   {
     guard let destination = Destination(rawValue: source.rawValue) else {
-      preconditionFailure("Unsupported tab group color: \(source.rawValue)")
+      preconditionFailure("Unsupported theme color: \(source.rawValue)")
     }
     return destination
   }

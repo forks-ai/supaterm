@@ -1,4 +1,5 @@
 import Foundation
+import SupaTheme
 import SupatermCLIShared
 import SupatermTerminalCore
 
@@ -24,7 +25,7 @@ extension TerminalHostState {
       guard
         let creation = manager.createGroup(
           title: request.title,
-          color: TerminalTabGroupColor(socketColor: request.color),
+          color: ThemeTint(socketColor: request.color),
           containing: []
         )
       else {
@@ -84,7 +85,7 @@ extension TerminalHostState {
       let resolved = try resolvedControlGroup(request.groupID)
       _ = setGroupColor(
         resolved.group.id,
-        color: TerminalTabGroupColor(socketColor: request.color)
+        color: ThemeTint(socketColor: request.color)
       )
       return .group(try groupMutationResult(for: resolved.group.id))
 

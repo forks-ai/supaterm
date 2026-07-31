@@ -65,7 +65,7 @@ struct TerminalSidebarGroupSurfaceTests {
 
   @Test
   func coloredGroupsStrengthenOnInteraction() {
-    for color in TerminalTabGroupColor.allCases where color != .neutral {
+    for color in ThemeTint.allCases where color != .neutral {
       let resting = TerminalSidebarGroupSurfaceStyle.resolve(color: color, state: .resting)
       let hovered = TerminalSidebarGroupSurfaceStyle.resolve(color: color, state: .hovered)
       let dropTarget = TerminalSidebarGroupSurfaceStyle.resolve(color: color, state: .dropTarget)
@@ -103,7 +103,7 @@ struct TerminalSidebarGroupSurfaceTests {
   func everyGroupColorKeepsItsBaseTintAcrossSchemes() {
     for scheme in [ColorScheme.light, .dark] {
       let palette = Palette(colorScheme: scheme)
-      for color in TerminalTabGroupColor.allCases {
+      for color in ThemeTint.allCases {
         let resolved = color.sidebarNSColor(palette: palette)
         #expect(resolved.alphaComponent == 1)
       }

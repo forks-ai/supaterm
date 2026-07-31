@@ -1,4 +1,5 @@
 import AppKit
+import SupaTheme
 
 struct TerminalSidebarDropTargetMap: Equatable {
   let targets: [TerminalSidebarSemanticTarget]
@@ -26,7 +27,7 @@ struct TerminalSidebarLayoutPlan: Equatable {
 
   struct Group: Equatable {
     let id: TerminalTabGroupID
-    let color: TerminalTabGroupColor
+    let color: ThemeTint
     let frame: CGRect
     let alpha: CGFloat
   }

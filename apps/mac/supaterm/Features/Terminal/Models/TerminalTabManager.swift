@@ -1,5 +1,6 @@
 import Foundation
 import Observation
+import SupaTheme
 
 @MainActor
 @Observable
@@ -109,7 +110,7 @@ final class TerminalTabManager {
   @discardableResult
   func createGroup(
     title: String,
-    color: TerminalTabGroupColor = .neutral,
+    color: ThemeTint = .neutral,
     containing tabIDs: [TerminalTabID]
   ) -> TerminalTabGroupCreationResult? {
     let normalizedTitle = title.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -166,7 +167,7 @@ final class TerminalTabManager {
   }
 
   @discardableResult
-  func setGroupColor(_ id: TerminalTabGroupID, color: TerminalTabGroupColor) -> Bool {
+  func setGroupColor(_ id: TerminalTabGroupID, color: ThemeTint) -> Bool {
     guard var group = storage.groupsByID[id] else { return false }
     group.color = color
     storage.groupsByID[id] = group

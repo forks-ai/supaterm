@@ -8,7 +8,7 @@ import SupatermCLIShared
 import SupatermSupport
 import SwiftUI
 
-extension TerminalTabGroupColor {
+extension ThemeTint {
   var displayName: String {
     rawValue.capitalized
   }
@@ -22,18 +22,7 @@ extension TerminalTabGroupColor {
   }
 
   private func sidebarThemeColor(palette: Palette) -> ThemeColor {
-    let tone: ReferenceTone
-    switch self {
-    case .neutral: tone = palette.referencePalette.neutral
-    case .red: tone = palette.referencePalette.rose
-    case .orange: tone = palette.referencePalette.clay
-    case .yellow: tone = palette.referencePalette.gold
-    case .green: tone = palette.referencePalette.green
-    case .blue: tone = palette.referencePalette.blue
-    case .pink: tone = palette.referencePalette.blush
-    case .purple: tone = palette.referencePalette.violet
-    }
-    return tone.color(for: palette.colorScheme)
+    tone(in: palette.referencePalette).color(for: palette.colorScheme)
   }
 }
 
@@ -51,7 +40,7 @@ extension NSColor {
 struct TerminalSidebarGroupRowPresentation: Equatable {
   let id: TerminalTabGroupID
   let title: String
-  let color: TerminalTabGroupColor
+  let color: ThemeTint
   let isPinned: Bool
   let isCollapsed: Bool
   let tabCount: Int
@@ -79,7 +68,7 @@ struct TerminalSidebarGroupSurfaceStyle: Equatable {
   let showsStroke: Bool
 
   static func resolve(
-    color: TerminalTabGroupColor,
+    color: ThemeTint,
     state: TerminalSidebarGroupSurfaceState
   ) -> Self {
     if color == .neutral {
@@ -294,7 +283,7 @@ struct TerminalSidebarRowActions {
   let toggleGroupCollapsed: (TerminalTabGroupID) -> Void
   let createTabInGroup: (TerminalTabGroupID) -> Void
   let renameGroup: (TerminalTabGroupID, String) -> Bool
-  let setGroupColor: (TerminalTabGroupID, TerminalTabGroupColor) -> Void
+  let setGroupColor: (TerminalTabGroupID, ThemeTint) -> Void
   let toggleGroupPinned: (TerminalTabGroupID) -> Void
   let ungroup: (TerminalTabGroupID) -> Void
   let closeGroup: (TerminalTabGroupID) -> Void
@@ -538,7 +527,7 @@ private struct TerminalSidebarGroupHeader: View {
         renameState.begin(groupID: presentation.id, title: presentation.title)
       }
       Menu("Color", systemImage: "paintpalette") {
-        ForEach(TerminalTabGroupColor.allCases, id: \.self) { color in
+        ForEach(ThemeTint.allCases, id: \.self) { color in
           Button {
             actions.setGroupColor(presentation.id, color)
           } label: {
@@ -614,7 +603,7 @@ final class TerminalSidebarGroupBackgroundView: NSView {
   override func hitTest(_ point: NSPoint) -> NSView? { nil }
 
   func update(
-    color: TerminalTabGroupColor,
+    color: ThemeTint,
     palette: Palette,
     surfaceState: TerminalSidebarGroupSurfaceState,
     alpha: CGFloat,

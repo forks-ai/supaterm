@@ -2,6 +2,7 @@ import ComposableArchitecture
 import CoreGraphics
 import Foundation
 import Sharing
+import SupaTheme
 import SupatermCLIShared
 import SupatermSupport
 import SupatermTerminalCore
@@ -166,7 +167,7 @@ struct TerminalWindowFeature {
     case agentPanelURLTapped(URL)
     case agentPanelVisibilityToggled(UUID)
     case navigateSearchMenuItemSelected(GhosttySearchDirection)
-    case createGroupRequested(title: String, color: TerminalTabGroupColor, tabIDs: [TerminalTabID])
+    case createGroupRequested(title: String, color: ThemeTint, tabIDs: [TerminalTabID])
     case newTabButtonTapped(inheritingFromSurfaceID: UUID?)
     case newTabInGroupRequested(TerminalTabGroupID, inheritingFromSurfaceID: UUID?)
     case nextSpaceRequested
@@ -181,7 +182,7 @@ struct TerminalWindowFeature {
     case selectSpaceButtonTapped(TerminalSpaceID)
     case selectSpaceMenuItemSelected(Int)
     case sidebarTabSplitRequested(surfaceID: UUID, direction: SupatermPaneDirection)
-    case setGroupColorRequested(TerminalTabGroupID, TerminalTabGroupColor)
+    case setGroupColorRequested(TerminalTabGroupID, ThemeTint)
     case sidebarFractionChanged(CGFloat)
     case splitOperationRequested(tabID: TerminalTabID, operation: TerminalSplitTreeView.Operation)
     case tabSelected(TerminalTabID)

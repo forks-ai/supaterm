@@ -1,4 +1,5 @@
 import Foundation
+import SupaTheme
 
 extension TerminalHostState {
   func suggestedGroupTitle(containing tabIDs: [TerminalTabID]) -> String? {
@@ -33,7 +34,7 @@ extension TerminalHostState {
   @discardableResult
   func createGroup(
     title: String,
-    color: TerminalTabGroupColor = .neutral,
+    color: ThemeTint = .neutral,
     containing tabIDs: [TerminalTabID]
   ) -> TerminalTabGroupCreationResult? {
     let spaceID: TerminalSpaceID?
@@ -73,7 +74,7 @@ extension TerminalHostState {
   }
 
   @discardableResult
-  func setGroupColor(_ id: TerminalTabGroupID, color: TerminalTabGroupColor) -> Bool {
+  func setGroupColor(_ id: TerminalTabGroupID, color: ThemeTint) -> Bool {
     guard
       let space = spaceManager.space(for: id),
       spaceManager.tabManager(for: space.id)?.setGroupColor(id, color: color) == true

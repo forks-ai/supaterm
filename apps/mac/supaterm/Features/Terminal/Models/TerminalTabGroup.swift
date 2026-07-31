@@ -1,4 +1,5 @@
 import Foundation
+import SupaTheme
 
 nonisolated struct TerminalTabGroupID: Hashable, Identifiable, Codable, Sendable {
   let rawValue: UUID
@@ -24,17 +25,6 @@ nonisolated struct TerminalTabGroupID: Hashable, Identifiable, Codable, Sendable
   var id: UUID { rawValue }
 }
 
-nonisolated enum TerminalTabGroupColor: String, CaseIterable, Codable, Sendable {
-  case neutral
-  case red
-  case orange
-  case yellow
-  case green
-  case blue
-  case pink
-  case purple
-}
-
 nonisolated enum TerminalTabGroupLifetime: Equatable, Sendable {
   case durable
   case automatic
@@ -43,7 +33,7 @@ nonisolated enum TerminalTabGroupLifetime: Equatable, Sendable {
 nonisolated struct TerminalTabGroup: Identifiable, Equatable, Sendable {
   let id: TerminalTabGroupID
   var title: String
-  var color: TerminalTabGroupColor
+  var color: ThemeTint
   let lifetime: TerminalTabGroupLifetime
 }
 
@@ -55,7 +45,7 @@ nonisolated struct TerminalUngroupedTabItem: Equatable, Sendable {
 nonisolated struct TerminalTabGroupItem: Identifiable, Equatable, Sendable {
   let id: TerminalTabGroupID
   var title: String
-  var color: TerminalTabGroupColor
+  var color: ThemeTint
   var isPinned: Bool
   var tabs: [TerminalTabItem]
   var lifetime: TerminalTabGroupLifetime
@@ -63,7 +53,7 @@ nonisolated struct TerminalTabGroupItem: Identifiable, Equatable, Sendable {
   init(
     id: TerminalTabGroupID = TerminalTabGroupID(),
     title: String,
-    color: TerminalTabGroupColor,
+    color: ThemeTint,
     isPinned: Bool,
     tabs: [TerminalTabItem],
     lifetime: TerminalTabGroupLifetime = .durable

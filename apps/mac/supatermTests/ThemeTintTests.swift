@@ -1,12 +1,13 @@
+import SupaTheme
 import SupatermCLIShared
 import Testing
 
 @testable import supaterm
 
-struct TerminalTabGroupColorTests {
+struct ThemeTintTests {
   @Test
   func terminalColorsMatchSocketColors() {
-    for color in TerminalTabGroupColor.allCases {
+    for color in ThemeTint.allCases {
       #expect(color.socketColor.rawValue == color.rawValue)
     }
   }
@@ -14,7 +15,7 @@ struct TerminalTabGroupColorTests {
   @Test
   func socketColorsMatchTerminalColors() {
     for color in SupatermTabGroupColor.allCases {
-      #expect(TerminalTabGroupColor(socketColor: color).rawValue == color.rawValue)
+      #expect(ThemeTint(socketColor: color).rawValue == color.rawValue)
     }
   }
 }

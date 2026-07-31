@@ -1,5 +1,6 @@
 import CoreGraphics
 import Foundation
+import SupaTheme
 import SupatermCLIShared
 
 nonisolated struct TerminalSessionCatalog: Equatable, Codable, Sendable {
@@ -476,7 +477,7 @@ nonisolated enum TerminalTabNodeSessionParent: Equatable, Codable, Sendable {
 nonisolated struct TerminalTabGroupSession: Equatable, Codable, Sendable {
   var id: TerminalTabGroupID
   var title: String
-  var color: TerminalTabGroupColor
+  var color: ThemeTint
   var lifetime: TerminalTabGroupLifetime
 
   func pruned() -> TerminalTabGroupSession {

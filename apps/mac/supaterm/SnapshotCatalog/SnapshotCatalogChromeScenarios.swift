@@ -150,7 +150,7 @@ private struct GroupSurfaceSnapshotFixture: View {
     ZStack {
       palette.detailBackground
       VStack(spacing: 14) {
-        ForEach([TerminalTabGroupColor.neutral, .blue], id: \.self) { color in
+        ForEach([ThemeTint.neutral, .blue], id: \.self) { color in
           HStack(spacing: 12) {
             ForEach(
               [
@@ -185,7 +185,7 @@ private struct GroupSurfaceSnapshotFixture: View {
 }
 
 private struct GroupSurfaceRepresentable: NSViewRepresentable {
-  let color: TerminalTabGroupColor
+  let color: ThemeTint
   let palette: Palette
   let state: TerminalSidebarGroupSurfaceState
 

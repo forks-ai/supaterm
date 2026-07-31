@@ -1,5 +1,6 @@
 import ComposableArchitecture
 import Foundation
+import SupaTheme
 import SupatermCLIShared
 import SupatermTerminalCore
 
@@ -34,7 +35,7 @@ struct TerminalClient: Sendable {
     case closeTab(TerminalTabID)
     case closeTabs([TerminalTabID])
     case closeGroup(TerminalTabGroupID)
-    case createGroup(title: String, color: TerminalTabGroupColor, tabIDs: [TerminalTabID])
+    case createGroup(title: String, color: ThemeTint, tabIDs: [TerminalTabID])
     case createSpace(name: String)
     case createTab(inheritingFromSurfaceID: UUID?)
     case createTabInGroup(TerminalTabGroupID, inheritingFromSurfaceID: UUID?)
@@ -63,7 +64,7 @@ struct TerminalClient: Sendable {
     case selectSpaceSlot(Int)
     case selectSpace(TerminalSpaceID)
     case renameGroup(TerminalTabGroupID, String)
-    case setGroupColor(TerminalTabGroupID, TerminalTabGroupColor)
+    case setGroupColor(TerminalTabGroupID, ThemeTint)
     case toggleGroupCollapsed(TerminalTabGroupID)
     case togglePinned(TerminalTabID)
     case togglePinnedRootItem(TerminalTabRootItemID)

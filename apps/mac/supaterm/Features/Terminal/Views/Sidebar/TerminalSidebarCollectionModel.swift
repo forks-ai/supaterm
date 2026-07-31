@@ -1,5 +1,6 @@
 import CoreGraphics
 import Foundation
+import SupaTheme
 
 enum TerminalSidebarEntryID: Hashable {
   case tab(TerminalTabID)
@@ -12,7 +13,7 @@ enum TerminalSidebarRootContent: Equatable {
   case tab(TerminalTabID)
   case group(
     TerminalTabGroupID,
-    TerminalTabGroupColor,
+    ThemeTint,
     TerminalTabGroupLifetime,
     [TerminalTabID]
   )
@@ -183,7 +184,7 @@ struct TerminalSidebarOutline: Equatable {
 struct TerminalSidebarEntry: Equatable {
   enum Kind: Equatable {
     case tab(TerminalTabID, parentGroupID: TerminalTabGroupID?, rootIsPinned: Bool)
-    case group(TerminalTabGroupID, color: TerminalTabGroupColor, isPinned: Bool, isCollapsed: Bool)
+    case group(TerminalTabGroupID, color: ThemeTint, isPinned: Bool, isCollapsed: Bool)
     case pinDivider
     case newTab
   }

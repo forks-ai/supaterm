@@ -1,3 +1,5 @@
+import SupaTheme
+
 #if SUPATERM_DEMO
   import Foundation
   import Sharing
@@ -52,7 +54,7 @@
     private struct GroupSeed {
       let id: TerminalTabGroupID
       let title: String
-      let color: TerminalTabGroupColor
+      let color: ThemeTint
       let tabs: [TabSeed]
     }
 
