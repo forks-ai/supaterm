@@ -127,8 +127,8 @@ struct TerminalCommandExecutorTests {
   }
 
   @Test
-  func treeSnapshotReportsEveryWindowDisplayedSpace() throws {
-    try withDependencies {
+  func treeSnapshotReportsEveryWindowDisplayedSpace() {
+    withDependencies {
       $0.defaultFileStorage = .inMemory
     } operation: {
       initializeGhosttyForTests()
