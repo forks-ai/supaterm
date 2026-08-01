@@ -24,14 +24,11 @@ struct SpacePageDotsView: View {
   let position: Double?
 
   var body: some View {
-    HStack(spacing: 0) {
-      ViewThatFits(in: .horizontal) {
-        dots(slot: SpacePageDotMetrics.slot)
-        dots(slot: SpacePageDotMetrics.diameter)
-      }
-      .frame(maxWidth: .infinity)
-      newSpaceButton
+    ViewThatFits(in: .horizontal) {
+      dots(slot: SpacePageDotMetrics.slot)
+      dots(slot: SpacePageDotMetrics.diameter)
     }
+    .frame(maxWidth: .infinity)
   }
 
   private var selectionPosition: Double {
@@ -76,21 +73,6 @@ struct SpacePageDotsView: View {
       }
       .disabled(terminal.spaces.count == 1)
     }
-  }
-
-  private var newSpaceButton: some View {
-    Button {
-      _ = store.send(.spaceCreateButtonTapped)
-    } label: {
-      Image(systemName: "plus")
-        .font(.system(size: 11, weight: .semibold))
-        .foregroundStyle(palette.primaryText.opacity(SpacePageDotMetrics.restOpacity))
-    }
-    .buttonStyle(TerminalSidebarButtonStyle(palette: palette, layout: .icon))
-    .controlSize(.mini)
-    .help("New Space")
-    .accessibilityLabel("New Space")
-    .accessibilityIdentifier(TerminalSidebarAccessibilityIdentifier.newSpace)
   }
 
   private func select(_ space: TerminalSpaceItem, at index: Int) {
