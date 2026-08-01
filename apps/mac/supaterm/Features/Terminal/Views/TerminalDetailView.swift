@@ -46,7 +46,6 @@ struct TerminalDetailView: View {
           _ = store.send(.bindingMenuItemSelected(.toggleSplitZoom))
         }
       )
-      .background(palette.detailBackground)
       TerminalDetailSurface(
         store: store,
         dimmingColor: terminal.unfocusedSplitDimmingColor,
@@ -291,6 +290,7 @@ private struct TerminalSurfacePaneView: View {
       }
     }
     .frame(maxWidth: .infinity, maxHeight: .infinity)
+    .background(palette.detailBackground)
   }
 
   private var agentPanelPresentations: [UUID: PaneAgentPanelPresentation] {

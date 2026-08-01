@@ -1429,6 +1429,7 @@ private final class TerminalSplitHostingView: NSHostingView<AnyView> {
 }
 
 final class TerminalSplitAXContainerView: NSView {
+  private let backgroundView = NSView()
   private(set) var backgroundColor: NSColor
   private var hostingView: TerminalSplitHostingView?
   private var visibleNode: SplitTree<GhosttySurfaceView>.Node?
@@ -1445,6 +1446,16 @@ final class TerminalSplitAXContainerView: NSView {
   init(backgroundColor: NSColor) {
     self.backgroundColor = backgroundColor
     super.init(frame: .zero)
+    backgroundView.wantsLayer = true
+    backgroundView.layer?.backgroundColor = backgroundColor.cgColor
+    backgroundView.translatesAutoresizingMaskIntoConstraints = false
+    addSubview(backgroundView)
+    NSLayoutConstraint.activate([
+      backgroundView.leadingAnchor.constraint(equalTo: leadingAnchor),
+      backgroundView.trailingAnchor.constraint(equalTo: trailingAnchor),
+      backgroundView.topAnchor.constraint(equalTo: topAnchor),
+      backgroundView.bottomAnchor.constraint(equalTo: bottomAnchor),
+    ])
   }
 
   @available(*, unavailable)
@@ -1461,12 +1472,14 @@ final class TerminalSplitAXContainerView: NSView {
   ) {
     if self.backgroundColor != backgroundColor {
       self.backgroundColor = backgroundColor
-      needsDisplay = true
+      backgroundView.layer?.backgroundColor = backgroundColor.cgColor
     }
     if let hostingView {
       hostingView.rootView = rootView
     } else {
       let hostingView = TerminalSplitHostingView(rootView: rootView)
+      hostingView.wantsLayer = true
+      hostingView.layer?.zPosition = 1
       hostingView.translatesAutoresizingMaskIntoConstraints = false
       addSubview(hostingView)
       NSLayoutConstraint.activate([
@@ -1492,11 +1505,6 @@ final class TerminalSplitAXContainerView: NSView {
 
     refreshAccessibilityDividers(postLayoutChanged: newPaneIDs != lastPaneIDs)
     lastPaneIDs = newPaneIDs
-  }
-
-  override func draw(_ dirtyRect: NSRect) {
-    backgroundColor.setFill()
-    dirtyRect.fill()
   }
 
   override func layout() {

@@ -38,7 +38,7 @@ struct TerminalSplitTreeViewTests {
     )
 
     #expect(container.backgroundColor == updatedColor)
-    #expect(container.subviews.count == 1)
+    #expect(container.subviews.count == 2)
   }
 
   @Test
