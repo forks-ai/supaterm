@@ -253,7 +253,7 @@ struct SupatermMenuControllerTests {
         keyboardShortcutForAction: { action in
           switch action {
           case "open_config":
-            KeyboardShortcut("p", modifiers: [.command, .shift])
+            KeyboardShortcut("P", modifiers: [.command])
           default:
             nil
           }
@@ -275,6 +275,11 @@ struct SupatermMenuControllerTests {
 
       controller.install()
       controller.refresh()
+
+      let appMenu = try #require(app.mainMenu?.items.first?.submenu)
+      let settingsItem = try #require(appMenu.items.first(where: { $0.title == "Settings..." }))
+      #expect(settingsItem.keyEquivalent == "p")
+      #expect(settingsItem.keyEquivalentModifierMask == [.command, .shift])
 
       let event = try #require(
         NSEvent.keyEvent(

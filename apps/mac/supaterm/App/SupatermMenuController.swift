@@ -12,8 +12,9 @@ final class SupatermMenuController: NSObject {
     let modifierMask: NSEvent.ModifierFlags
 
     init(shortcut: KeyboardShortcut) {
-      self.keyEquivalent = shortcut.key.character.description.lowercased()
-      self.modifierMask = NSEvent.ModifierFlags(swiftUIFlags: shortcut.modifiers)
+      let normalizedShortcut = shortcut.normalizedForAppKit
+      self.keyEquivalent = normalizedShortcut.key.character.description
+      self.modifierMask = NSEvent.ModifierFlags(swiftUIFlags: normalizedShortcut.modifiers)
         .intersection(.deviceIndependentFlagsMask)
     }
 
@@ -1455,8 +1456,9 @@ enum SupatermMenuShortcut {
       return
     }
 
-    item.keyEquivalent = shortcut.key.character.description
-    item.keyEquivalentModifierMask = NSEvent.ModifierFlags(swiftUIFlags: shortcut.modifiers)
+    let normalizedShortcut = shortcut.normalizedForAppKit
+    item.keyEquivalent = normalizedShortcut.key.character.description
+    item.keyEquivalentModifierMask = NSEvent.ModifierFlags(swiftUIFlags: normalizedShortcut.modifiers)
   }
 }
 
