@@ -186,7 +186,7 @@ jobs:
       - uses: ./.github/actions/setup-macos
         with:
           cache-native-builds: false
-      - run: mise exec -- tuist test --without-building --result-bundle-path "$RUNNER_TEMP/supatermUITests.xcresult" -- -destination "platform=macOS"
+      - run: mise exec -- tuist test --without-building --inspect-mode local --result-bundle-path "$RUNNER_TEMP/supatermUITests.xcresult" -- -destination "platform=macOS"
         working-directory: apps/mac
       - if: failure()
         uses: actions/upload-artifact@v4
