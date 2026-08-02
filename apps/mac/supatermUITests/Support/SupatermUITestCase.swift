@@ -22,9 +22,11 @@ class SupatermUITestCase: XCTestCase {
     let token = UUID().uuidString
     let stateHome = FileManager.default.temporaryDirectory
       .appendingPathComponent("supaterm-ui-\(token)", isDirectory: true)
+    let runtimeHome = URL(fileURLWithPath: "/tmp/supaterm-ui-\(token.prefix(8))", isDirectory: true)
     let home = stateHome.appendingPathComponent("home", isDirectory: true)
     let zmx = stateHome.appendingPathComponent("zmx", isDirectory: true)
     try FileManager.default.createDirectory(at: home, withIntermediateDirectories: true)
+    try FileManager.default.createDirectory(at: runtimeHome, withIntermediateDirectories: true)
     try FileManager.default.createDirectory(at: zmx, withIntermediateDirectories: true)
     try Data("0".utf8).write(to: stateHome.appendingPathComponent("launch-state.json"))
     try Data(#"{"acknowledgedVersion":"999999999.0.0"}"#.utf8).write(
@@ -39,6 +41,7 @@ class SupatermUITestCase: XCTestCase {
         "SUPATERM_INSTANCE_NAME": "ui-\(token)",
         "SUPATERM_STATE_HOME": stateHome.path,
         "SUPATERM_VERBOSE_LOGGING": "1",
+        "XDG_RUNTIME_DIR": runtimeHome.path,
         "ZMX_DIR": zmx.path,
       ]
       app.launch()
@@ -52,6 +55,7 @@ class SupatermUITestCase: XCTestCase {
         app.terminate()
       }
       try? FileManager.default.removeItem(at: stateHome)
+      try? FileManager.default.removeItem(at: runtimeHome)
     }
   }
 
@@ -138,6 +142,7 @@ class SupatermUITestCase: XCTestCase {
     let error = Pipe()
     process.executableURL = executable
     process.arguments = arguments + ["--instance", instanceName, "--quiet"]
+    process.environment = app.launchEnvironment
     process.standardInput = FileHandle.nullDevice
     process.standardOutput = output
     process.standardError = error
