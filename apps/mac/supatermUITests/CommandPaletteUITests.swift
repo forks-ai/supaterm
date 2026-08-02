@@ -2,16 +2,16 @@ import XCTest
 
 final class CommandPaletteUITests: SupatermUITestCase {
   @MainActor
-  func testShortcutFocusesInputAndEscapeRestoresTerminalFocus() async throws {
+  func testShortcutFocusesInputAndEscapeRestoresTerminalFocus() throws {
     let terminal = try readyTerminal()
     terminal.click()
     let terminalValue = try XCTUnwrap(terminal.value as? String)
 
-    let input = try await openPalette()
+    let input = try openPalette()
     let query = "toggle side"
     app.typeText(query)
 
-    let didFocusInput = await wait(for: input) {
+    let didFocusInput = wait(for: input) {
       $0.value as? String == query
     }
     XCTAssertTrue(didFocusInput)
@@ -19,32 +19,32 @@ final class CommandPaletteUITests: SupatermUITestCase {
 
     app.typeKey(.escape, modifierFlags: [])
 
-    let didDismiss = await wait(for: input) { !$0.exists }
+    let didDismiss = wait(for: input) { !$0.exists }
     XCTAssertTrue(didDismiss)
 
     let focusedTerminal = app.textViews.matching(keyboardFocusPredicate).firstMatch
-    let didRestoreTerminalFocus = await wait(for: focusedTerminal) { $0.exists }
+    let didRestoreTerminalFocus = wait(for: focusedTerminal) { $0.exists }
     XCTAssertTrue(didRestoreTerminalFocus)
 
     let terminalInput = "palette focus restored"
     app.typeText(terminalInput)
 
-    let didTypeInTerminal = await wait(for: terminal) {
+    let didTypeInTerminal = wait(for: terminal) {
       $0.value as? String == terminalValue + terminalInput
     }
     XCTAssertTrue(didTypeInTerminal)
   }
 
   @MainActor
-  func testTypingPartialQueryFiltersRowsAndHandlesEmptyResults() async throws {
+  func testTypingPartialQueryFiltersRowsAndHandlesEmptyResults() throws {
     let terminal = try readyTerminal()
     terminal.click()
-    let input = try await openPalette()
+    let input = try openPalette()
     let rows = paletteRows
 
     input.typeText("tOgGlE sIdE")
 
-    let didFilter = await wait(for: rows.firstMatch) {
+    let didFilter = wait(for: rows.firstMatch) {
       $0.exists && rows.count == 1
     }
     XCTAssertTrue(didFilter)
@@ -54,7 +54,7 @@ final class CommandPaletteUITests: SupatermUITestCase {
     app.typeText("zzzzzzzzzz")
 
     let noMatches = app.staticTexts["No matches"]
-    let didShowEmptyState = await wait(for: noMatches) {
+    let didShowEmptyState = wait(for: noMatches) {
       $0.exists && !rows.firstMatch.exists
     }
     XCTAssertTrue(didShowEmptyState)
@@ -62,72 +62,72 @@ final class CommandPaletteUITests: SupatermUITestCase {
     app.typeKey(.downArrow, modifierFlags: [])
     app.typeKey(.return, modifierFlags: [])
 
-    let didKeepEmptyPaletteOpen = await wait(for: focusedPaletteInput) {
+    let didKeepEmptyPaletteOpen = wait(for: focusedPaletteInput) {
       $0.exists && input.value as? String == "zzzzzzzzzz"
     }
     XCTAssertTrue(didKeepEmptyPaletteOpen)
   }
 
   @MainActor
-  func testArrowKeysMoveSelectionBetweenRows() async throws {
+  func testArrowKeysMoveSelectionBetweenRows() throws {
     let terminal = try readyTerminal()
     terminal.click()
-    let input = try await openPalette()
+    let input = try openPalette()
     let rows = paletteRows
 
     input.typeText("Space")
 
     let firstRow = rows.element(boundBy: 0)
     let secondRow = rows.element(boundBy: 1)
-    let didShowSpaceRows = await wait(for: secondRow) {
+    let didShowSpaceRows = wait(for: secondRow) {
       $0.exists && rows.count == 2
     }
     XCTAssertTrue(didShowSpaceRows)
     XCTAssertTrue(firstRow.label.contains("Create Space"))
     XCTAssertTrue(secondRow.label.contains("Edit Space"))
 
-    let didSelectFirstRow = await wait(for: firstRow) { $0.isSelected }
+    let didSelectFirstRow = wait(for: firstRow) { $0.isSelected }
     XCTAssertTrue(didSelectFirstRow)
     XCTAssertFalse(secondRow.isSelected)
 
     app.typeKey(.downArrow, modifierFlags: [])
 
-    let didSelectSecondRow = await wait(for: secondRow) {
+    let didSelectSecondRow = wait(for: secondRow) {
       $0.isSelected && !firstRow.isSelected
     }
     XCTAssertTrue(didSelectSecondRow)
 
     app.typeKey(.upArrow, modifierFlags: [])
 
-    let didReturnToFirstRow = await wait(for: firstRow) {
+    let didReturnToFirstRow = wait(for: firstRow) {
       $0.isSelected && !secondRow.isSelected
     }
     XCTAssertTrue(didReturnToFirstRow)
   }
 
   @MainActor
-  func testToggleSidebarCommandHidesAndRestoresSidebar() async throws {
+  func testToggleSidebarCommandHidesAndRestoresSidebar() throws {
     let terminal = try readyTerminal()
     terminal.click()
     let sidebarRow = sidebarTabRows.firstMatch
 
-    try await executePaletteCommand("Toggle Sidebar")
+    try executePaletteCommand("Toggle Sidebar")
 
-    let didHideSidebar = await wait(for: sidebarRow) { !$0.isHittable }
+    let didHideSidebar = wait(for: sidebarRow) { !$0.isHittable }
     XCTAssertTrue(didHideSidebar)
 
-    try await executePaletteCommand("Toggle Sidebar")
+    try executePaletteCommand("Toggle Sidebar")
 
-    let didRestoreSidebar = await wait(for: sidebarRow) { $0.isHittable }
+    let didRestoreSidebar = wait(for: sidebarRow) { $0.isHittable }
     XCTAssertTrue(didRestoreSidebar)
   }
 
   @MainActor
-  func testCreateSpaceCommandDisplaysNewSpaceInTheSameWindow() async throws {
+  func testCreateSpaceCommandDisplaysNewSpaceInTheSameWindow() throws {
     let terminal = try readyTerminal()
     terminal.click()
 
-    try await executePaletteCommand("Create Space")
+    try executePaletteCommand("Create Space")
 
     let nameField = app.textFields[
       SupatermUITestIdentifier.Accessibility.dialogSpaceName
@@ -141,22 +141,22 @@ final class CommandPaletteUITests: SupatermUITestCase {
     let confirmButton = app.buttons[
       SupatermUITestIdentifier.Accessibility.dialogConfirm
     ]
-    let didEnableConfirm = await wait(for: confirmButton) {
+    let didEnableConfirm = wait(for: confirmButton) {
       $0.exists && $0.isEnabled
     }
     XCTAssertTrue(didEnableConfirm)
     confirmButton.click()
 
-    let didDisplayCreatedSpace = await waitForDisplayedSpace(named: spaceName)
+    let didDisplayCreatedSpace = waitForDisplayedSpace(named: spaceName)
     XCTAssertTrue(didDisplayCreatedSpace)
 
-    let didAddSpaceDot = await waitForSidebarElementCount(spaceDots, equals: 2)
+    let didAddSpaceDot = waitForSidebarElementCount(spaceDots, equals: 2)
     XCTAssertTrue(didAddSpaceDot)
     XCTAssertEqual(app.windows.count, 1)
   }
 
   @MainActor
-  func testPinTabCommandMovesCurrentTabToPinnedSection() async throws {
+  func testPinTabCommandMovesCurrentTabToPinnedSection() throws {
     let terminal = try readyTerminal()
     terminal.click()
 
@@ -164,9 +164,9 @@ final class CommandPaletteUITests: SupatermUITestCase {
     XCTAssertEqual(rows.count, 1)
     XCTAssertFalse(rows.firstMatch.label.contains("Pinned"))
 
-    try await executePaletteCommand("Pin Tab")
+    try executePaletteCommand("Pin Tab")
 
-    let didMoveTab = await wait(for: rows.firstMatch) {
+    let didMoveTab = wait(for: rows.firstMatch) {
       $0.exists && $0.label.contains("Pinned") && rows.count == 1
     }
     XCTAssertTrue(didMoveTab)
@@ -203,14 +203,14 @@ final class CommandPaletteUITests: SupatermUITestCase {
   }
 
   @MainActor
-  private func openPalette() async throws -> XCUIElement {
+  private func openPalette() throws -> XCUIElement {
     app.typeKey("p", modifierFlags: [.command, .shift])
 
     let input = app.textFields[
       SupatermUITestIdentifier.Accessibility.paletteInput
     ]
     let existingInput = try require(input, "Command palette input did not appear")
-    let didFocus = await wait(for: focusedPaletteInput) { $0.exists }
+    let didFocus = wait(for: focusedPaletteInput) { $0.exists }
     return try XCTUnwrap(
       didFocus ? existingInput : nil,
       "Command palette input did not receive keyboard focus"
@@ -218,12 +218,12 @@ final class CommandPaletteUITests: SupatermUITestCase {
   }
 
   @MainActor
-  private func executePaletteCommand(_ title: String) async throws {
-    let input = try await openPalette()
+  private func executePaletteCommand(_ title: String) throws {
+    let input = try openPalette()
     input.typeText(title)
 
     let rows = paletteRows
-    let didFilterToCommand = await wait(for: rows.firstMatch) {
+    let didFilterToCommand = wait(for: rows.firstMatch) {
       $0.exists && rows.count == 1
     }
     XCTAssertTrue(didFilterToCommand)
@@ -231,7 +231,7 @@ final class CommandPaletteUITests: SupatermUITestCase {
 
     app.typeKey(.return, modifierFlags: [])
 
-    let didDismiss = await wait(for: input) { !$0.exists }
+    let didDismiss = wait(for: input) { !$0.exists }
     XCTAssertTrue(didDismiss)
   }
 }

@@ -3,7 +3,7 @@ import XCTest
 
 final class SearchPasteUITests: SupatermUITestCase {
   @MainActor
-  func testUserCanPasteIntoSearchAfterReactivatingApp() async throws {
+  func testUserCanPasteIntoSearchAfterReactivatingApp() throws {
     preservePasteboards()
 
     let terminal = mainTerminal
@@ -34,7 +34,7 @@ final class SearchPasteUITests: SupatermUITestCase {
     XCTAssertTrue(focusedSearchField.waitForExistence(timeout: 10))
 
     app.typeKey("v", modifierFlags: .command)
-    let didPaste = await wait(for: searchField) { $0.value as? String == pastedText }
+    let didPaste = wait(for: searchField) { $0.value as? String == pastedText }
     XCTAssertTrue(didPaste)
     XCTAssertEqual(terminal.value as? String, terminalText)
 
@@ -54,7 +54,7 @@ final class SearchPasteUITests: SupatermUITestCase {
 
     let terminalInput = "terminal focus restored"
     focusedTerminal.typeText(terminalInput)
-    let didTypeInTerminal = await wait(for: terminal) {
+    let didTypeInTerminal = wait(for: terminal) {
       $0.value as? String == terminalText + terminalInput
     }
     XCTAssertTrue(didTypeInTerminal)

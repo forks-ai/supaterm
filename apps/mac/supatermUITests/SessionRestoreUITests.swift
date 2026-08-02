@@ -5,33 +5,33 @@ final class SessionRestoreUITests: SupatermUITestCase {
   private static let sessionCatalogVersion = 9
 
   @MainActor
-  func testSelectedPinnedTabStaysSelectedAfterRelaunch() async throws {
+  func testSelectedPinnedTabStaysSelectedAfterRelaunch() throws {
     _ = mainWindow
-    let didShowInitialTab = await waitForCount(tabRows, equals: 1, timeout: .seconds(30))
+    let didShowInitialTab = waitForCount(tabRows, equals: 1, timeout: 30)
     XCTAssertTrue(didShowInitialTab)
 
     let pinnedRow = tabRows.element(boundBy: 0)
     let regularRow = tabRows.element(boundBy: 1)
 
     try clickSidebarContextMenuItem("Pin Tab", on: tabRows.firstMatch)
-    let didPinInitialTab = await wait(for: pinnedRow, timeout: .seconds(30)) { row in
+    let didPinInitialTab = wait(for: pinnedRow, timeout: 30) { row in
       row.exists && self.tabRows.count == 1
     }
     XCTAssertTrue(didPinInitialTab)
 
     try clickMenuItem(.newTab)
-    let didCreateSecondTab = await wait(for: regularRow, timeout: .seconds(30)) { row in
+    let didCreateSecondTab = wait(for: regularRow, timeout: 30) { row in
       row.exists && row.isSelected
     }
     XCTAssertTrue(didCreateSecondTab)
     try clickSidebarContextMenuItem("Unpin Tab", on: regularRow)
 
     pinnedRow.click()
-    let didSelectPinnedTab = await wait(for: pinnedRow) { $0.isSelected }
+    let didSelectPinnedTab = wait(for: pinnedRow) { $0.isSelected }
     XCTAssertTrue(didSelectPinnedTab)
     XCTAssertFalse(regularRow.isSelected)
 
-    let didSavePinnedSelection = await waitForSessionCatalog(at: sessionFileURL) { catalog in
+    let didSavePinnedSelection = waitForSessionCatalog(at: sessionFileURL) { catalog in
       guard
         catalog["version"] as? Int == Self.sessionCatalogVersion,
         let window = self.sessionWindow(in: catalog),
@@ -51,11 +51,11 @@ final class SessionRestoreUITests: SupatermUITestCase {
     app.launch()
     app.activate()
     XCTAssertTrue(app.windows.firstMatch.waitForExistence(timeout: 30))
-    let didRestoreTabs = await wait(for: pinnedRow, timeout: .seconds(30)) { row in
+    let didRestoreTabs = wait(for: pinnedRow, timeout: 30) { row in
       row.exists && regularRow.exists
     }
     XCTAssertTrue(didRestoreTabs)
-    let didRestorePinnedSelection = await wait(for: pinnedRow, timeout: .seconds(30)) {
+    let didRestorePinnedSelection = wait(for: pinnedRow, timeout: 30) {
       $0.isSelected
     }
     XCTAssertTrue(didRestorePinnedSelection)
@@ -65,36 +65,36 @@ final class SessionRestoreUITests: SupatermUITestCase {
   }
 
   @MainActor
-  func testManualTabAndTerminalTitlesSurviveQuitAndRelaunch() async throws {
+  func testManualTabAndTerminalTitlesSurviveQuitAndRelaunch() throws {
     let terminal = mainTerminal
     XCTAssertTrue(terminal.waitForExistence(timeout: 30))
     terminal.click()
-    let didShowInitialTab = await waitForCount(tabRows, equals: 1, timeout: .seconds(30))
+    let didShowInitialTab = waitForCount(tabRows, equals: 1, timeout: 30)
     XCTAssertTrue(didShowInitialTab)
 
     let paneTitle = "pane-\(UUID().uuidString)"
-    try await changeTitle(
+    try changeTitle(
       to: paneTitle,
       with: .changeTerminalTitle,
       heading: "Change Terminal Title"
     )
-    let didShowPaneTitle = await waitForTabTitle(paneTitle)
+    let didShowPaneTitle = waitForTabTitle(paneTitle)
     XCTAssertTrue(didShowPaneTitle)
 
     app.typeKey("t", modifierFlags: .command)
-    let didCreateSecondTab = await waitForCount(tabRows, equals: 2, timeout: .seconds(30))
+    let didCreateSecondTab = waitForCount(tabRows, equals: 2, timeout: 30)
     XCTAssertTrue(didCreateSecondTab)
 
     let tabTitle = "tab-\(UUID().uuidString)"
-    try await changeTitle(
+    try changeTitle(
       to: tabTitle,
       with: .changeTabTitle,
       heading: "Change Tab Title"
     )
-    let didShowTabTitle = await waitForTabTitle(tabTitle)
+    let didShowTabTitle = waitForTabTitle(tabTitle)
     XCTAssertTrue(didShowTabTitle)
 
-    let didSaveTitles = await waitForFile(at: sessionFileURL) { data in
+    let didSaveTitles = waitForFile(at: sessionFileURL) { data in
       guard let contents = String(data: data, encoding: .utf8) else { return false }
       return contents.contains(paneTitle) && contents.contains(tabTitle)
     }
@@ -105,30 +105,30 @@ final class SessionRestoreUITests: SupatermUITestCase {
     app.launch()
     app.activate()
     XCTAssertTrue(app.windows.firstMatch.waitForExistence(timeout: 30))
-    let didRestoreTabCount = await waitForCount(tabRows, equals: 2, timeout: .seconds(30))
+    let didRestoreTabCount = waitForCount(tabRows, equals: 2, timeout: 30)
     XCTAssertTrue(didRestoreTabCount)
-    let didRestorePaneTitle = await waitForTabTitle(paneTitle)
+    let didRestorePaneTitle = waitForTabTitle(paneTitle)
     XCTAssertTrue(didRestorePaneTitle)
-    let didRestoreTabTitle = await waitForTabTitle(tabTitle)
+    let didRestoreTabTitle = waitForTabTitle(tabTitle)
     XCTAssertTrue(didRestoreTabTitle)
 
     quit(app, returnModifiers: .shift)
   }
 
   @MainActor
-  func testLayoutAndSessionsSurviveQuitAndRelaunch() async throws {
+  func testLayoutAndSessionsSurviveQuitAndRelaunch() throws {
     let terminal = mainTerminal
     terminal.click()
 
     app.typeKey("d", modifierFlags: .command)
-    try await waitForPaneCount(app, 2)
+    try waitForPaneCount(app, 2)
     app.typeKey("d", modifierFlags: [.command, .shift])
-    try await waitForPaneCount(app, 3)
+    try waitForPaneCount(app, 3)
 
     app.typeKey("t", modifierFlags: .command)
-    try await waitForPaneCount(app, 1)
+    try waitForPaneCount(app, 1)
     app.typeKey("d", modifierFlags: .command)
-    try await waitForPaneCount(app, 2)
+    try waitForPaneCount(app, 2)
 
     let token = UUID().uuidString
     let marker = "restore-\(token)"
@@ -137,9 +137,9 @@ final class SessionRestoreUITests: SupatermUITestCase {
       .firstMatch
     XCTAssertTrue(focusedTerminal.waitForExistence(timeout: 10))
     app.typeText("echo \"re\"store-\(token)\n")
-    try await waitForPaneValue(app, containing: marker)
+    try waitForPaneValue(app, containing: marker)
 
-    let savedLayout = try await waitForSessionLayout(at: sessionFileURL) { layout in
+    let savedLayout = try waitForSessionLayout(at: sessionFileURL) { layout in
       layout.selectedTabIndex == 1
         && layout.tabs.count == 2
         && layout.tabs[0].leafIDs.count == 3
@@ -151,9 +151,9 @@ final class SessionRestoreUITests: SupatermUITestCase {
     app.launch()
     app.activate()
     XCTAssertTrue(app.windows.firstMatch.waitForExistence(timeout: 30))
-    try await waitForPaneCount(app, 2)
-    try await waitForPaneValue(app, containing: marker)
-    try await waitForSessionLayout(at: sessionFileURL) { $0 == savedLayout }
+    try waitForPaneCount(app, 2)
+    try waitForPaneValue(app, containing: marker)
+    try waitForSessionLayout(at: sessionFileURL) { $0 == savedLayout }
 
     quit(app, returnModifiers: .shift)
   }
@@ -173,9 +173,9 @@ final class SessionRestoreUITests: SupatermUITestCase {
   private func waitForPaneCount(
     _ app: XCUIApplication,
     _ expected: Int,
-    timeout: Duration = .seconds(30)
-  ) async throws {
-    let didReachCount = await wait(timeout: timeout, pollInterval: .milliseconds(200)) {
+    timeout: TimeInterval = 30
+  ) throws {
+    let didReachCount = wait(timeout: timeout) {
       app.textViews.count == expected
     }
     if !didReachCount {
@@ -187,9 +187,9 @@ final class SessionRestoreUITests: SupatermUITestCase {
   private func waitForPaneValue(
     _ app: XCUIApplication,
     containing marker: String,
-    timeout: Duration = .seconds(30)
-  ) async throws {
-    let didFindPane = await wait(timeout: timeout, pollInterval: .milliseconds(200)) {
+    timeout: TimeInterval = 30
+  ) throws {
+    let didFindPane = wait(timeout: timeout) {
       let values = app.textViews.allElementsBoundByIndex.compactMap { $0.value as? String }
       return values.contains(where: { $0.contains(marker) })
     }
@@ -208,7 +208,7 @@ final class SessionRestoreUITests: SupatermUITestCase {
     to title: String,
     with menuItem: SupatermUITestIdentifier.MenuItemIdentifier,
     heading: String
-  ) async throws {
+  ) throws {
     try clickMenuItem(menuItem)
 
     let headingElement = app.staticTexts[heading]
@@ -221,7 +221,7 @@ final class SessionRestoreUITests: SupatermUITestCase {
     field.typeText(title)
     sheet.buttons["OK"].click()
 
-    let didDismissSheet = await wait(for: headingElement) { !$0.exists }
+    let didDismissSheet = wait(for: headingElement) { !$0.exists }
     XCTAssertTrue(didDismissSheet)
   }
 
@@ -229,16 +229,16 @@ final class SessionRestoreUITests: SupatermUITestCase {
   private func waitForCount(
     _ query: XCUIElementQuery,
     equals expectedCount: Int,
-    timeout: Duration = .seconds(10)
-  ) async -> Bool {
-    await wait(timeout: timeout) {
+    timeout: TimeInterval = 10
+  ) -> Bool {
+    wait(timeout: timeout) {
       query.count == expectedCount
     }
   }
 
   @MainActor
-  private func waitForTabTitle(_ title: String) async -> Bool {
-    await wait(for: tabRows.firstMatch, timeout: .seconds(30)) { _ in
+  private func waitForTabTitle(_ title: String) -> Bool {
+    wait(for: tabRows.firstMatch, timeout: 30) { _ in
       self.tabRows.allElementsBoundByIndex.contains { $0.label.contains(title) }
     }
   }
@@ -246,10 +246,10 @@ final class SessionRestoreUITests: SupatermUITestCase {
   @MainActor
   private func waitForFile(
     at url: URL,
-    timeout: Duration = .seconds(30),
-    matching predicate: (Data) -> Bool
-  ) async -> Bool {
-    await wait(timeout: timeout) {
+    timeout: TimeInterval = 30,
+    matching predicate: @escaping (Data) -> Bool
+  ) -> Bool {
+    wait(timeout: timeout) {
       if let data = try? Data(contentsOf: url), predicate(data) {
         return true
       }
@@ -260,9 +260,9 @@ final class SessionRestoreUITests: SupatermUITestCase {
   @MainActor
   private func waitForSessionCatalog(
     at url: URL,
-    matching predicate: ([String: Any]) -> Bool
-  ) async -> Bool {
-    await waitForFile(at: url) { data in
+    matching predicate: @escaping ([String: Any]) -> Bool
+  ) -> Bool {
+    waitForFile(at: url) { data in
       guard
         let catalog = try? JSONSerialization.jsonObject(with: data) as? [String: Any]
       else { return false }
@@ -274,10 +274,10 @@ final class SessionRestoreUITests: SupatermUITestCase {
   @MainActor
   private func waitForSessionLayout(
     at url: URL,
-    timeout: Duration = .seconds(30),
-    matching predicate: (SessionLayout) -> Bool
-  ) async throws -> SessionLayout {
-    _ = await wait(timeout: timeout, pollInterval: .milliseconds(200)) {
+    timeout: TimeInterval = 30,
+    matching predicate: @escaping (SessionLayout) -> Bool
+  ) throws -> SessionLayout {
+    _ = wait(timeout: timeout) {
       guard let layout = self.sessionLayout(at: url) else { return false }
       return predicate(layout)
     }

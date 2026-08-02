@@ -2,7 +2,7 @@ import XCTest
 
 final class MenusFirstRunUITests: SupatermUITestCase {
   @MainActor
-  func testPinMenuFollowsSelectedTabState() async throws {
+  func testPinMenuFollowsSelectedTabState() throws {
     _ = mainWindow
 
     let tabRow = sidebarTabRows.firstMatch
@@ -18,7 +18,7 @@ final class MenusFirstRunUITests: SupatermUITestCase {
     XCTAssertFalse(app.menuItems["Unpin Tab"].exists)
     pin.click()
 
-    let didMoveToPinnedSection = await wait(for: tabRow) { row in
+    let didMoveToPinnedSection = wait(for: tabRow) { row in
       row.exists && row.label.contains("Pinned")
     }
     XCTAssertTrue(didMoveToPinnedSection)
@@ -31,7 +31,7 @@ final class MenusFirstRunUITests: SupatermUITestCase {
   }
 
   @MainActor
-  func testSecondSpaceMenuItemBecomesEnabledAfterCreatingSpace() async throws {
+  func testSecondSpaceMenuItemBecomesEnabledAfterCreatingSpace() throws {
     _ = mainWindow
 
     try openMenu("Spaces")
@@ -47,37 +47,37 @@ final class MenusFirstRunUITests: SupatermUITestCase {
     terminal.click()
     app.typeText("sp space new Second\n")
 
-    let didCreateSecondSpace = await waitForDisplayedSpace(
+    let didCreateSecondSpace = waitForDisplayedSpace(
       named: "Second",
-      timeout: .seconds(30)
+      timeout: 30
     )
     XCTAssertTrue(didCreateSecondSpace)
 
     try openMenu("Spaces")
-    let didEnableSecondSpace = await wait(for: secondSpace) {
+    let didEnableSecondSpace = wait(for: secondSpace) {
       $0.exists && $0.isEnabled
     }
     XCTAssertTrue(didEnableSecondSpace)
   }
 
   @MainActor
-  func testOnlyFirstLaunchRunsOnboarding() async throws {
+  func testOnlyFirstLaunchRunsOnboarding() throws {
     try relaunch(removing: ["launch-state.json", "session.json"])
 
     _ = mainWindow
 
     let firstTerminal = app.textViews.firstMatch
     XCTAssertTrue(firstTerminal.waitForExistence(timeout: 30))
-    let didRenderOnboarding = await wait(
+    let didRenderOnboarding = wait(
       for: firstTerminal,
-      timeout: .seconds(30)
+      timeout: 30
     ) { terminal in
       (terminal.value as? String)?.contains("Welcome to Supaterm!") == true
     }
     XCTAssertTrue(didRenderOnboarding)
 
     let launchState = stateHome.appendingPathComponent("launch-state.json")
-    let didPersistLaunchState = await waitForFile(at: launchState)
+    let didPersistLaunchState = waitForFile(at: launchState)
     XCTAssertTrue(didPersistLaunchState)
 
     try relaunch(removing: ["session.json"])
@@ -87,9 +87,9 @@ final class MenusFirstRunUITests: SupatermUITestCase {
     secondTerminal.click()
     app.typeText("/usr/bin/printf 'second-launch-%s\\n' ready\n")
 
-    let didStartShell = await wait(
+    let didStartShell = wait(
       for: secondTerminal,
-      timeout: .seconds(30)
+      timeout: 30
     ) { terminal in
       (terminal.value as? String)?.contains("second-launch-ready") == true
     }
@@ -112,9 +112,9 @@ final class MenusFirstRunUITests: SupatermUITestCase {
   @MainActor
   private func waitForFile(
     at url: URL,
-    timeout: Duration = .seconds(10)
-  ) async -> Bool {
-    await wait(timeout: timeout) {
+    timeout: TimeInterval = 10
+  ) -> Bool {
+    wait(timeout: timeout) {
       FileManager.default.fileExists(atPath: url.path)
     }
   }

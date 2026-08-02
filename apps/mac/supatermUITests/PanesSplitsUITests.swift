@@ -17,12 +17,12 @@ final class PanesSplitsUITests: SupatermUITestCase {
   }
 
   @MainActor
-  func testSplitRightCreatesTwoVisiblePanes() async throws {
-    _ = try await requireVisiblePanes(count: 1)
+  func testSplitRightCreatesTwoVisiblePanes() throws {
+    _ = try requireVisiblePanes(count: 1)
 
     try clickMenuItem(.splitRight)
 
-    let panes = try await requireVisiblePanes(count: 2)
+    let panes = try requireVisiblePanes(count: 2)
     XCTAssertGreaterThan(
       abs(panes[0].frame.midX - panes[1].frame.midX),
       abs(panes[0].frame.midY - panes[1].frame.midY)
@@ -30,12 +30,12 @@ final class PanesSplitsUITests: SupatermUITestCase {
   }
 
   @MainActor
-  func testSplitDownCreatesTwoVisiblePanes() async throws {
-    _ = try await requireVisiblePanes(count: 1)
+  func testSplitDownCreatesTwoVisiblePanes() throws {
+    _ = try requireVisiblePanes(count: 1)
 
     try clickMenuItem(.splitDown)
 
-    let panes = try await requireVisiblePanes(count: 2)
+    let panes = try requireVisiblePanes(count: 2)
     XCTAssertGreaterThan(
       abs(panes[0].frame.midY - panes[1].frame.midY),
       abs(panes[0].frame.midX - panes[1].frame.midX)
@@ -43,23 +43,23 @@ final class PanesSplitsUITests: SupatermUITestCase {
   }
 
   @MainActor
-  func testDirectionalFocusNavigationMovesFocusBetweenPanes() async throws {
-    _ = try await requireVisiblePanes(count: 1)
+  func testDirectionalFocusNavigationMovesFocusBetweenPanes() throws {
+    _ = try requireVisiblePanes(count: 1)
     try clickMenuItem(.splitRight)
-    let panes = try await requireVisiblePanes(count: 2)
+    let panes = try requireVisiblePanes(count: 2)
     let leftPane = try XCTUnwrap(panes.min { $0.frame.midX < $1.frame.midX })
     let rightPane = try XCTUnwrap(panes.max { $0.frame.midX < $1.frame.midX })
 
     try clickMenuItem(.selectSplitLeft)
-    try await requireFocus(on: leftPane)
+    try requireFocus(on: leftPane)
 
     try clickMenuItem(.selectSplitRight)
-    try await requireFocus(on: rightPane)
+    try requireFocus(on: rightPane)
   }
 
   @MainActor
-  func testSplitWhileSearchOpenFocusesNewPane() async throws {
-    let originalPane = try await requireVisiblePanes(count: 1)[0]
+  func testSplitWhileSearchOpenFocusesNewPane() throws {
+    let originalPane = try requireVisiblePanes(count: 1)[0]
     originalPane.click()
     let originalIdentifier = originalPane.identifier
 
@@ -70,20 +70,20 @@ final class PanesSplitsUITests: SupatermUITestCase {
     XCTAssertEqual(searchField.value as? String, "SPLITFOCUSNEEDLE")
 
     try clickMenuItem(.splitRight)
-    let panes = try await requireVisiblePanes(count: 2)
+    let panes = try requireVisiblePanes(count: 2)
     let newPane = try XCTUnwrap(panes.first { $0.identifier != originalIdentifier })
 
     let remountedSearchField = app.textFields[
       SupatermUITestIdentifier.Accessibility.searchField
     ]
     XCTAssertTrue(remountedSearchField.waitForExistence(timeout: 10))
-    try await requireFocus(on: newPane)
+    try requireFocus(on: newPane)
 
     app.typeText(
       "printf '\\x53\\x50\\x4C\\x49\\x54\\x46\\x4F\\x43\\x55\\x53\\x4D\\x41\\x52\\x4B\\x45\\x52\\n'"
     )
     app.typeKey(.return, modifierFlags: [])
-    let markerPrinted = await wait(for: newPane, timeout: .seconds(30)) {
+    let markerPrinted = wait(for: newPane, timeout: 30) {
       ($0.value as? String)?.contains("SPLITFOCUSMARKER") == true
     }
     XCTAssertTrue(markerPrinted)
@@ -91,65 +91,65 @@ final class PanesSplitsUITests: SupatermUITestCase {
   }
 
   @MainActor
-  func testTopBarTitleFollowsFocusedPane() async throws {
-    let leftPane = try await requireVisiblePanes(count: 1)[0]
+  func testTopBarTitleFollowsFocusedPane() throws {
+    let leftPane = try requireVisiblePanes(count: 1)[0]
     leftPane.click()
-    try await requireFocus(on: leftPane)
+    try requireFocus(on: leftPane)
 
     let leftTitle = "pane-title-L-\(UUID().uuidString.prefix(8))"
     leftPane.typeText("printf '\\033]0;\(leftTitle)\\007'; sleep 600\n")
-    let didSetLeftTitle = await wait(for: leftPane, timeout: .seconds(30)) {
+    let didSetLeftTitle = wait(for: leftPane, timeout: 30) {
       $0.label == leftTitle
     }
     XCTAssertTrue(didSetLeftTitle)
 
     let sidebarTabRow = sidebarTabRows.firstMatch
     try clickMenuItem(.toggleSidebar)
-    let didHideSidebar = await wait(for: sidebarTabRow) { !$0.isHittable }
+    let didHideSidebar = wait(for: sidebarTabRow) { !$0.isHittable }
     XCTAssertTrue(didHideSidebar)
 
     let leftTopBarTitle = app.staticTexts[leftTitle]
-    let didShowLeftTitle = await wait(for: leftTopBarTitle) {
+    let didShowLeftTitle = wait(for: leftTopBarTitle) {
       $0.exists && $0.isHittable
     }
     XCTAssertTrue(didShowLeftTitle)
 
     try clickMenuItem(.splitRight)
-    let panes = try await requireVisiblePanes(count: 2)
+    let panes = try requireVisiblePanes(count: 2)
     let rightPane = try XCTUnwrap(panes.max { $0.frame.midX < $1.frame.midX })
-    try await requireFocus(on: rightPane)
+    try requireFocus(on: rightPane)
 
     let rightTitle = "pane-title-R-\(UUID().uuidString.prefix(8))"
     rightPane.typeText("printf '\\033]0;\(rightTitle)\\007'; sleep 600\n")
-    let didSetRightTitle = await wait(for: rightPane, timeout: .seconds(30)) {
+    let didSetRightTitle = wait(for: rightPane, timeout: 30) {
       $0.label == rightTitle
     }
     XCTAssertTrue(didSetRightTitle)
 
     let rightTopBarTitle = app.staticTexts[rightTitle]
-    let didShowRightTitle = await wait(for: rightTopBarTitle) {
+    let didShowRightTitle = wait(for: rightTopBarTitle) {
       $0.exists && $0.isHittable
     }
     XCTAssertTrue(didShowRightTitle)
-    let didHideLeftTitle = await wait(for: leftTopBarTitle) { !$0.exists }
+    let didHideLeftTitle = wait(for: leftTopBarTitle) { !$0.exists }
     XCTAssertTrue(didHideLeftTitle)
 
     try clickMenuItem(.selectSplitLeft)
-    try await requireFocus(on: leftPane)
-    let didRestoreLeftTitle = await wait(for: leftTopBarTitle) {
+    try requireFocus(on: leftPane)
+    let didRestoreLeftTitle = wait(for: leftTopBarTitle) {
       $0.exists && $0.isHittable
     }
     XCTAssertTrue(didRestoreLeftTitle)
-    let didHideRightTitle = await wait(for: rightTopBarTitle) { !$0.exists }
+    let didHideRightTitle = wait(for: rightTopBarTitle) { !$0.exists }
     XCTAssertTrue(didHideRightTitle)
 
     try clickMenuItem(.selectSplitRight)
-    try await requireFocus(on: rightPane)
-    let didRestoreRightTitle = await wait(for: rightTopBarTitle) {
+    try requireFocus(on: rightPane)
+    let didRestoreRightTitle = wait(for: rightTopBarTitle) {
       $0.exists && $0.isHittable
     }
     XCTAssertTrue(didRestoreRightTitle)
-    let didRemoveLeftTitle = await wait(for: leftTopBarTitle) { !$0.exists }
+    let didRemoveLeftTitle = wait(for: leftTopBarTitle) { !$0.exists }
     XCTAssertTrue(didRemoveLeftTitle)
 
     leftPane.click()
@@ -159,11 +159,11 @@ final class PanesSplitsUITests: SupatermUITestCase {
   }
 
   @MainActor
-  func testTopBarRendersSplitButtonOverTerminalBackground() async throws {
-    let pane = try await requireVisiblePanes(count: 1)[0]
+  func testTopBarRendersSplitButtonOverTerminalBackground() throws {
+    let pane = try requireVisiblePanes(count: 1)[0]
 
     let splitRightButton = app.buttons["Split right"]
-    let didShowSplitRightButton = await wait(for: splitRightButton) {
+    let didShowSplitRightButton = wait(for: splitRightButton) {
       $0.exists && $0.isHittable
     }
     XCTAssertTrue(didShowSplitRightButton)
@@ -175,7 +175,7 @@ final class PanesSplitsUITests: SupatermUITestCase {
   }
 
   @MainActor
-  func testCollapsingSidebarHidesItsHeaderFromDetailPane() async throws {
+  func testCollapsingSidebarHidesItsHeaderFromDetailPane() throws {
     _ = mainWindow
     let spaceSwitcher = element(SupatermUITestIdentifier.Accessibility.titlebarSpaceSwitcher)
     let windowControls = [
@@ -184,7 +184,7 @@ final class PanesSplitsUITests: SupatermUITestCase {
       app.buttons["Enter full screen"],
     ]
 
-    let didShowSidebarHeader = await wait(timeout: .seconds(30)) {
+    let didShowSidebarHeader = wait(timeout: 30) {
       spaceSwitcher.exists
         && spaceSwitcher.isHittable
         && windowControls.allSatisfy { $0.exists && $0.isHittable }
@@ -194,7 +194,7 @@ final class PanesSplitsUITests: SupatermUITestCase {
     try clickMenuItem(.toggleSidebar)
 
     let showSidebar = app.buttons["Show sidebar"]
-    let didHideSidebarHeader = await wait {
+    let didHideSidebarHeader = wait {
       showSidebar.exists
         && showSidebar.isHittable
         && !spaceSwitcher.isHittable
@@ -204,18 +204,18 @@ final class PanesSplitsUITests: SupatermUITestCase {
   }
 
   @MainActor
-  func testExitingShellClosesPaneWithoutConfirmation() async throws {
-    _ = try await requireVisiblePanes(count: 1)
+  func testExitingShellClosesPaneWithoutConfirmation() throws {
+    _ = try requireVisiblePanes(count: 1)
     let originalIdentifier = terminalPanes.element(boundBy: 0).identifier
 
     try clickMenuItem(.splitRight)
-    let panes = try await requireVisiblePanes(count: 2)
+    let panes = try requireVisiblePanes(count: 2)
     let newPane = try XCTUnwrap(panes.first { $0.identifier != originalIdentifier })
     newPane.click()
-    try await requireFocus(on: newPane)
+    try requireFocus(on: newPane)
 
     newPane.typeText("exit\n")
-    let didClosePane = await wait(for: mainWindow, timeout: .seconds(30)) { _ in
+    let didClosePane = wait(for: mainWindow, timeout: 30) { _ in
       self.terminalPanes.count == 1
         && self.terminalPanes.element(boundBy: 0).identifier == originalIdentifier
     }
@@ -230,54 +230,54 @@ final class PanesSplitsUITests: SupatermUITestCase {
     )
 
     let survivor = terminalPanes.element(boundBy: 0)
-    try await requireFocus(on: survivor)
+    try requireFocus(on: survivor)
 
     let token = UUID().uuidString.prefix(8)
     app.typeText("echo exit-\"close\"-\(token)\n")
-    let survivorReceivedInput = await wait(for: survivor, timeout: .seconds(30)) {
+    let survivorReceivedInput = wait(for: survivor, timeout: 30) {
       ($0.value as? String)?.contains("exit-close-\(token)") == true
     }
     XCTAssertTrue(survivorReceivedInput)
   }
 
   @MainActor
-  func testToggleSplitZoomFocusesTargetPane() async throws {
-    _ = try await requireVisiblePanes(count: 1)
+  func testToggleSplitZoomFocusesTargetPane() throws {
+    _ = try requireVisiblePanes(count: 1)
     try clickMenuItem(.splitRight)
-    let panes = try await requireVisiblePanes(count: 2)
+    let panes = try requireVisiblePanes(count: 2)
     let leftPane = try XCTUnwrap(panes.min { $0.frame.midX < $1.frame.midX })
     let paneIdentifiers = Set(panes.map(\.identifier))
 
     try clickMenuItem(.selectSplitLeft)
-    try await requireFocus(on: leftPane)
+    try requireFocus(on: leftPane)
 
     try clickMenuItem(.zoomSplit)
-    let zoomedPanes = try await requireVisiblePanes(count: 1)
+    let zoomedPanes = try requireVisiblePanes(count: 1)
     XCTAssertEqual(zoomedPanes[0].identifier, leftPane.identifier)
-    try await requireFocus(on: leftPane)
+    try requireFocus(on: leftPane)
 
     try clickMenuItem(.zoomSplit)
-    let restoredPanes = try await requireVisiblePanes(count: 2)
+    let restoredPanes = try requireVisiblePanes(count: 2)
     XCTAssertEqual(Set(restoredPanes.map(\.identifier)), paneIdentifiers)
-    try await requireFocus(on: leftPane)
+    try requireFocus(on: leftPane)
   }
 
   @MainActor
-  func testCommandWClosesFocusedPaneNotWindow() async throws {
+  func testCommandWClosesFocusedPaneNotWindow() throws {
     try relaunchWithoutCloseConfirmation()
 
-    _ = try await requireVisiblePanes(count: 1)
+    _ = try requireVisiblePanes(count: 1)
     try clickMenuItem(.splitRight)
-    let panes = try await requireVisiblePanes(count: 2)
+    let panes = try requireVisiblePanes(count: 2)
     let leftPane = try XCTUnwrap(panes.min { $0.frame.midX < $1.frame.midX })
     let rightPane = try XCTUnwrap(panes.max { $0.frame.midX < $1.frame.midX })
     let leftPaneIdentifier = leftPane.identifier
 
     rightPane.click()
-    try await requireFocus(on: rightPane)
+    try requireFocus(on: rightPane)
     app.typeKey("w", modifierFlags: .command)
 
-    let survivors = try await requireVisiblePanes(count: 1)
+    let survivors = try requireVisiblePanes(count: 1)
     XCTAssertEqual(survivors[0].identifier, leftPaneIdentifier)
     XCTAssertEqual(mainWindow.sheets.count, 0)
     XCTAssertEqual(app.windows.count, 1)
@@ -285,67 +285,67 @@ final class PanesSplitsUITests: SupatermUITestCase {
   }
 
   @MainActor
-  func testContextMenuClosesClickedPaneWhenSessionPersistenceIsDisabled() async throws {
-    try await assertContextMenuClosesClickedPane(zmxSessionsEnabled: false)
+  func testContextMenuClosesClickedPaneWhenSessionPersistenceIsDisabled() throws {
+    try assertContextMenuClosesClickedPane(zmxSessionsEnabled: false)
   }
 
   @MainActor
-  func testContextMenuClosesClickedPaneWhenSessionPersistenceIsEnabled() async throws {
-    try await assertContextMenuClosesClickedPane(zmxSessionsEnabled: true)
+  func testContextMenuClosesClickedPaneWhenSessionPersistenceIsEnabled() throws {
+    try assertContextMenuClosesClickedPane(zmxSessionsEnabled: true)
   }
 
   @MainActor
-  private func assertContextMenuClosesClickedPane(zmxSessionsEnabled: Bool) async throws {
+  private func assertContextMenuClosesClickedPane(zmxSessionsEnabled: Bool) throws {
     try relaunchWithoutCloseConfirmation(zmxSessionsEnabled: zmxSessionsEnabled)
-    _ = try await requireVisiblePanes(count: 1)
+    _ = try requireVisiblePanes(count: 1)
     try clickMenuItem(.splitRight)
-    let panes = try await requireVisiblePanes(count: 2)
+    let panes = try requireVisiblePanes(count: 2)
     let leftPane = try XCTUnwrap(panes.min { $0.frame.midX < $1.frame.midX })
     let rightPane = try XCTUnwrap(panes.max { $0.frame.midX < $1.frame.midX })
 
     rightPane.click()
-    try await requireFocus(on: rightPane)
+    try requireFocus(on: rightPane)
     let marker = "close-pane-ready-\(UUID().uuidString.prefix(8))"
     rightPane.typeText("echo \(marker)\n")
-    let shellIsReady = await wait(for: rightPane, timeout: .seconds(30)) {
+    let shellIsReady = wait(for: rightPane, timeout: 30) {
       ($0.value as? String)?.contains(marker) == true
     }
     XCTAssertTrue(shellIsReady)
 
     leftPane.click()
-    try await requireFocus(on: leftPane)
+    try requireFocus(on: leftPane)
     rightPane.rightClick()
     let closePane = app.menuItems["Close Pane"].firstMatch
     try require(closePane)
     closePane.click()
 
-    let survivors = try await requireVisiblePanes(count: 1)
+    let survivors = try requireVisiblePanes(count: 1)
     XCTAssertEqual(survivors[0].identifier, leftPane.identifier)
   }
 
   @MainActor
-  func testZoomSplitHidesAndRestoresOtherPane() async throws {
-    _ = try await requireVisiblePanes(count: 1)
+  func testZoomSplitHidesAndRestoresOtherPane() throws {
+    _ = try requireVisiblePanes(count: 1)
     try clickMenuItem(.splitRight)
-    let panes = try await requireVisiblePanes(count: 2)
+    let panes = try requireVisiblePanes(count: 2)
     let paneIdentifiers = Set(panes.map(\.identifier))
 
     try clickMenuItem(.zoomSplit)
 
-    let zoomedPanes = try await requireVisiblePanes(count: 1)
+    let zoomedPanes = try requireVisiblePanes(count: 1)
     XCTAssertTrue(paneIdentifiers.contains(zoomedPanes[0].identifier))
 
     try clickMenuItem(.zoomSplit)
 
-    let restoredPanes = try await requireVisiblePanes(count: 2)
+    let restoredPanes = try requireVisiblePanes(count: 2)
     XCTAssertEqual(Set(restoredPanes.map(\.identifier)), paneIdentifiers)
   }
 
   @MainActor
-  func testResizeAndEqualizeChangeLayoutWithoutLosingPanes() async throws {
-    _ = try await requireVisiblePanes(count: 1)
+  func testResizeAndEqualizeChangeLayoutWithoutLosingPanes() throws {
+    _ = try requireVisiblePanes(count: 1)
     try clickMenuItem(.splitRight)
-    let panes = try await requireVisiblePanes(count: 2)
+    let panes = try requireVisiblePanes(count: 2)
     let leftPane = try XCTUnwrap(panes.min { $0.frame.midX < $1.frame.midX })
     let initialFrame = leftPane.frame
     let paneIdentifiers = Set(panes.map(\.identifier))
@@ -354,38 +354,38 @@ final class PanesSplitsUITests: SupatermUITestCase {
       try clickMenuItem(.moveSplitDividerLeft)
     }
 
-    let didResize = await wait(for: leftPane) {
+    let didResize = wait(for: leftPane) {
       $0.exists && $0.frame.width < initialFrame.width - 5
     }
     guard didResize else {
       XCTFail("Split divider did not move left")
       return
     }
-    let resizedPanes = try await requireVisiblePanes(count: 2)
+    let resizedPanes = try requireVisiblePanes(count: 2)
     XCTAssertEqual(Set(resizedPanes.map(\.identifier)), paneIdentifiers)
 
     try clickMenuItem(.equalizeSplits)
 
-    let didEqualize = await wait(for: leftPane) {
+    let didEqualize = wait(for: leftPane) {
       $0.exists && abs($0.frame.width - initialFrame.width) < 2
     }
     XCTAssertTrue(didEqualize)
-    let equalizedPanes = try await requireVisiblePanes(count: 2)
+    let equalizedPanes = try requireVisiblePanes(count: 2)
     XCTAssertEqual(Set(equalizedPanes.map(\.identifier)), paneIdentifiers)
   }
 
   @MainActor
-  func testClosingBusyPaneRequiresConfirmation() async throws {
-    _ = try await requireVisiblePanes(count: 1)
+  func testClosingBusyPaneRequiresConfirmation() throws {
+    _ = try requireVisiblePanes(count: 1)
     try clickMenuItem(.splitRight)
-    let panes = try await requireVisiblePanes(count: 2)
+    let panes = try requireVisiblePanes(count: 2)
     let rightPane = try XCTUnwrap(panes.max { $0.frame.midX < $1.frame.midX })
     rightPane.click()
-    try await requireFocus(on: rightPane)
+    try requireFocus(on: rightPane)
 
     let processSentinel = "pane-busy"
     rightPane.typeText("printf '\\033]0;\(processSentinel)\\007'; sleep 600\n")
-    let didStartProcess = await wait(for: rightPane, timeout: .seconds(30)) {
+    let didStartProcess = wait(for: rightPane, timeout: 30) {
       $0.label == processSentinel
     }
     guard didStartProcess else {
@@ -401,10 +401,10 @@ final class PanesSplitsUITests: SupatermUITestCase {
       return
     }
     cancelButton.click()
-    _ = try await requireVisiblePanes(count: 2)
+    _ = try requireVisiblePanes(count: 2)
 
     rightPane.click()
-    try await requireFocus(on: rightPane)
+    try requireFocus(on: rightPane)
     try clickMenuItem(.closeSurface)
 
     let confirmButton = mainWindow.sheets.firstMatch.buttons["Close"]
@@ -414,12 +414,12 @@ final class PanesSplitsUITests: SupatermUITestCase {
     }
     confirmButton.click()
 
-    _ = try await requireVisiblePanes(count: 1)
+    _ = try requireVisiblePanes(count: 1)
   }
 
   @MainActor
-  private func requireVisiblePanes(count expectedCount: Int) async throws -> [XCUIElement] {
-    let didReachCount = await wait(for: mainWindow, timeout: .seconds(30)) { _ in
+  private func requireVisiblePanes(count expectedCount: Int) throws -> [XCUIElement] {
+    let didReachCount = wait(for: mainWindow, timeout: 30) { _ in
       guard self.terminalPanes.count == expectedCount else { return false }
       return (0..<expectedCount).allSatisfy {
         let pane = self.terminalPanes.element(boundBy: $0)
@@ -435,9 +435,9 @@ final class PanesSplitsUITests: SupatermUITestCase {
   }
 
   @MainActor
-  private func requireFocus(on pane: XCUIElement) async throws {
+  private func requireFocus(on pane: XCUIElement) throws {
     let focusedPane = focusedTerminalPanes.matching(identifier: pane.identifier).firstMatch
-    let didFocus = await wait(for: focusedPane) { $0.exists }
+    let didFocus = wait(for: focusedPane) { $0.exists }
     XCTAssertTrue(didFocus, "Expected pane \(pane.identifier) to have keyboard focus")
   }
 

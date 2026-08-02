@@ -75,9 +75,9 @@ extension SupatermUITestCase {
   @MainActor
   func waitForDisplayedSpace(
     named name: String,
-    timeout: Duration = .seconds(10)
-  ) async -> Bool {
-    await wait(for: displayedSpace, timeout: timeout) { $0.label == "Space \(name)" }
+    timeout: TimeInterval = 10
+  ) -> Bool {
+    wait(for: displayedSpace, timeout: timeout) { $0.label == "Space \(name)" }
   }
 
   @MainActor
@@ -109,7 +109,7 @@ extension SupatermUITestCase {
   }
 
   @MainActor
-  func createGroup(named title: String, containing tabTitle: String) async throws {
+  func createGroup(named title: String, containing tabTitle: String) throws {
     try clickSidebarContextMenuItem("Move to New Group", on: sidebarTabRow(named: tabTitle))
 
     let titleField = try require(app.textFields["Group name"])
@@ -118,14 +118,14 @@ extension SupatermUITestCase {
     titleField.typeText(title)
     titleField.typeKey(.return, modifierFlags: [])
 
-    let didCreateGroup = await wait {
+    let didCreateGroup = wait {
       self.sidebarGroupHeader(named: title).exists
     }
     XCTAssertTrue(didCreateGroup)
   }
 
   @MainActor
-  func renameSelectedTab(to title: String) async throws {
+  func renameSelectedTab(to title: String) throws {
     try clickMenuItem(.changeTabTitle)
 
     let sheet = mainWindow.sheets.firstMatch
@@ -139,34 +139,34 @@ extension SupatermUITestCase {
     titleField.typeText(title)
     sheet.buttons["OK"].click()
 
-    let didDismissSheet = await wait(for: sheet) { !$0.exists }
+    let didDismissSheet = wait(for: sheet) { !$0.exists }
     XCTAssertTrue(didDismissSheet)
-    let didUpdateTitle = await wait(for: sidebarTabRow(named: title)) { $0.exists }
+    let didUpdateTitle = wait(for: sidebarTabRow(named: title)) { $0.exists }
     XCTAssertTrue(didUpdateTitle)
   }
 
   @MainActor
-  func createNamedTabs(_ titles: [String]) async throws {
+  func createNamedTabs(_ titles: [String]) throws {
     precondition(!titles.isEmpty)
     _ = mainWindow
-    let didShowInitialTab = await waitForSidebarElementCount(
+    let didShowInitialTab = waitForSidebarElementCount(
       sidebarTabRows,
       equals: 1,
-      timeout: .seconds(30)
+      timeout: 30
     )
     XCTAssertTrue(didShowInitialTab)
 
     for (index, title) in titles.enumerated() {
       if index > 0 {
         try clickMenuItem(.newTab)
-        let didCreateTab = await waitForSidebarElementCount(
+        let didCreateTab = waitForSidebarElementCount(
           sidebarTabRows,
           equals: index + 1,
-          timeout: .seconds(30)
+          timeout: 30
         )
         XCTAssertTrue(didCreateTab)
       }
-      try await renameSelectedTab(to: title)
+      try renameSelectedTab(to: title)
     }
   }
 
@@ -215,25 +215,25 @@ extension SupatermUITestCase {
   func waitForSidebarElementCount(
     _ query: XCUIElementQuery,
     equals expectedCount: Int,
-    timeout: Duration = .seconds(10)
-  ) async -> Bool {
-    await wait(timeout: timeout) {
+    timeout: TimeInterval = 10
+  ) -> Bool {
+    wait(timeout: timeout) {
       query.count == expectedCount
     }
   }
 
   @MainActor
-  func waitForSidebarSelection(_ element: XCUIElement) async -> Bool {
-    await wait(for: element) { $0.isSelected }
+  func waitForSidebarSelection(_ element: XCUIElement) -> Bool {
+    wait(for: element) { $0.isSelected }
   }
 
   @MainActor
   func waitForTabOrder(
     _ titles: [String],
-    timeout: Duration = .seconds(10)
-  ) async -> Bool {
+    timeout: TimeInterval = 10
+  ) -> Bool {
     precondition(!titles.isEmpty)
-    return await wait(
+    return wait(
       for: sidebarTabRows.element(boundBy: titles.count - 1),
       timeout: timeout
     ) { _ in
@@ -247,9 +247,9 @@ extension SupatermUITestCase {
   @MainActor
   func waitForSidebarStructure(
     _ expected: [SidebarRootExpectation],
-    timeout: Duration = .seconds(15)
-  ) async -> Bool {
-    await wait(timeout: timeout) {
+    timeout: TimeInterval = 15
+  ) -> Bool {
+    wait(timeout: timeout) {
       self.sidebarMatches(expected)
     }
   }

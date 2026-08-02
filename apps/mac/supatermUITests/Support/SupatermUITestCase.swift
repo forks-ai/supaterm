@@ -134,29 +134,23 @@ class SupatermUITestCase: XCTestCase {
 
   @MainActor
   func wait(
-    timeout: Duration = .seconds(10),
-    pollInterval: Duration = .milliseconds(100),
-    until condition: () -> Bool
-  ) async -> Bool {
-    let clock = ContinuousClock()
-    let deadline = clock.now.advanced(by: timeout)
-    while clock.now < deadline {
-      if condition() {
-        return true
-      }
-      try? await Task.sleep(for: pollInterval)
-    }
-    return condition()
+    timeout: TimeInterval = 10,
+    until condition: @escaping () -> Bool
+  ) -> Bool {
+    let expectation = XCTNSPredicateExpectation(
+      predicate: NSPredicate { _, _ in condition() },
+      object: nil
+    )
+    return XCTWaiter.wait(for: [expectation], timeout: timeout) == .completed
   }
 
   @MainActor
   func wait(
     for element: XCUIElement,
-    timeout: Duration = .seconds(10),
-    pollInterval: Duration = .milliseconds(100),
-    until condition: (XCUIElement) -> Bool
-  ) async -> Bool {
-    await wait(timeout: timeout, pollInterval: pollInterval) {
+    timeout: TimeInterval = 10,
+    until condition: @escaping (XCUIElement) -> Bool
+  ) -> Bool {
+    wait(timeout: timeout) {
       condition(element)
     }
   }

@@ -67,6 +67,12 @@ redundant_discardable_let:
   ignore_swiftui_view_bodies: true
 
 custom_rules:
+  no_ui_test_sleep:
+    name: "UI Test Sleep"
+    regex: "(?:\\.sleep|\\bu?sleep)\\s*\\("
+    message: "Wait for observable UI state with XCTest."
+    severity: error
+    included: "supatermUITests/.*\\.swift"
   store_state_mutation_in_views:
     name: "Store State Mutation In Views"
     regex: "\\bstore\\.[A-Za-z0-9_]+\\s*(?:\\+=|-=|\\*=|/=|=(?!=))"
