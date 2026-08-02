@@ -4,6 +4,7 @@ import XCTest
 class SupatermUITestCase: XCTestCase {
   private(set) var app: XCUIApplication!
 
+  @MainActor
   var stateHome: URL {
     guard let path = app.launchEnvironment["SUPATERM_STATE_HOME"] else {
       preconditionFailure("Missing SUPATERM_STATE_HOME")
@@ -11,6 +12,7 @@ class SupatermUITestCase: XCTestCase {
     return URL(fileURLWithPath: path, isDirectory: true)
   }
 
+  @MainActor
   var sessionFileURL: URL {
     stateHome.appendingPathComponent("session.json")
   }
@@ -20,13 +22,12 @@ class SupatermUITestCase: XCTestCase {
     continueAfterFailure = false
 
     let token = UUID().uuidString
-    let stateHome = FileManager.default.temporaryDirectory
+    let stateHome =
+      FileManager.default.temporaryDirectory
       .appendingPathComponent("supaterm-ui-\(token)", isDirectory: true)
-    let runtimeHome = URL(fileURLWithPath: "/tmp/supaterm-ui-\(token.prefix(8))", isDirectory: true)
     let home = stateHome.appendingPathComponent("home", isDirectory: true)
     let zmx = stateHome.appendingPathComponent("zmx", isDirectory: true)
     try FileManager.default.createDirectory(at: home, withIntermediateDirectories: true)
-    try FileManager.default.createDirectory(at: runtimeHome, withIntermediateDirectories: true)
     try FileManager.default.createDirectory(at: zmx, withIntermediateDirectories: true)
     try Data("0".utf8).write(to: stateHome.appendingPathComponent("launch-state.json"))
     try Data(#"{"acknowledgedVersion":"999999999.0.0"}"#.utf8).write(
@@ -41,7 +42,6 @@ class SupatermUITestCase: XCTestCase {
         "SUPATERM_INSTANCE_NAME": "ui-\(token)",
         "SUPATERM_STATE_HOME": stateHome.path,
         "SUPATERM_VERBOSE_LOGGING": "1",
-        "XDG_RUNTIME_DIR": runtimeHome.path,
         "ZMX_DIR": zmx.path,
       ]
       app.launch()
@@ -55,7 +55,6 @@ class SupatermUITestCase: XCTestCase {
         app.terminate()
       }
       try? FileManager.default.removeItem(at: stateHome)
-      try? FileManager.default.removeItem(at: runtimeHome)
     }
   }
 
@@ -134,39 +133,6 @@ class SupatermUITestCase: XCTestCase {
   }
 
   @MainActor
-  func runSP(_ arguments: [String]) throws {
-    let instanceName = try XCTUnwrap(app.launchEnvironment["SUPATERM_INSTANCE_NAME"])
-    let executable = try bundledSPExecutable()
-    let process = Process()
-    let output = Pipe()
-    let error = Pipe()
-    process.executableURL = executable
-    process.arguments = arguments + ["--instance", instanceName, "--quiet"]
-    process.environment = app.launchEnvironment
-    process.standardInput = FileHandle.nullDevice
-    process.standardOutput = output
-    process.standardError = error
-    try process.run()
-    process.waitUntilExit()
-
-    let standardOutput =
-      String(
-        bytes: output.fileHandleForReading.readDataToEndOfFile(),
-        encoding: .utf8
-      ) ?? "<non-UTF-8 stdout>"
-    let standardError =
-      String(
-        bytes: error.fileHandleForReading.readDataToEndOfFile(),
-        encoding: .utf8
-      ) ?? "<non-UTF-8 stderr>"
-    XCTAssertEqual(
-      process.terminationStatus,
-      0,
-      "sp \(arguments.joined(separator: " ")) failed\n\(standardOutput)\(standardError)"
-    )
-  }
-
-  @MainActor
   func wait(
     timeout: Duration = .seconds(10),
     pollInterval: Duration = .milliseconds(100),
@@ -195,15 +161,4 @@ class SupatermUITestCase: XCTestCase {
     }
   }
 
-  private func bundledSPExecutable() throws -> URL {
-    var directory = Bundle.main.bundleURL
-    for _ in 0..<6 {
-      let executable = directory.appendingPathComponent("supaterm.app/Contents/MacOS/sp")
-      if FileManager.default.isExecutableFile(atPath: executable.path) {
-        return executable
-      }
-      directory.deleteLastPathComponent()
-    }
-    return try XCTUnwrap(nil, "Built sp executable not found beside the UI test runner")
-  }
 }

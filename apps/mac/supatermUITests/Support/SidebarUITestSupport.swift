@@ -110,30 +110,16 @@ extension SupatermUITestCase {
 
   @MainActor
   func createGroup(named title: String, containing tabTitle: String) async throws {
-    let tab = try require(sidebarTabRow(named: tabTitle))
-    let tabIdentifier = tab.identifier
-    let tabIndex =
-      try XCTUnwrap(
-        sidebarTabRows.allElementsBoundByIndex.firstIndex { $0.identifier == tabIdentifier }
-      ) + 1
-    let rootRows = sidebarStructuralRows.allElementsBoundByIndex.filter {
-      $0.identifier.hasPrefix(SupatermUITestIdentifier.Accessibility.sidebarRootTabRowPrefix)
-        || $0.identifier.hasPrefix(
-          SupatermUITestIdentifier.Accessibility.sidebarGroupHeaderPrefix
-        )
-    }
-    let rootIndex =
-      try XCTUnwrap(
-        rootRows.firstIndex { $0.identifier == tabIdentifier }
-      ) + 1
+    try clickSidebarContextMenuItem("Move to New Group", on: sidebarTabRow(named: tabTitle))
 
-    try runSP(["group", "new", title, "--in", "1"])
-    try runSP(["tab", "move", "1/\(tabIndex)", "--group", title, "--index", "1"])
-    try runSP(["group", "move", title, "--index", "\(rootIndex)"])
+    let titleField = try require(app.textFields["Group name"])
+    titleField.click()
+    titleField.typeKey("a", modifierFlags: .command)
+    titleField.typeText(title)
+    titleField.typeKey(.return, modifierFlags: [])
 
     let didCreateGroup = await wait {
       self.sidebarGroupHeader(named: title).exists
-        && self.sidebarStructuralTabRow(named: tabTitle).exists
     }
     XCTAssertTrue(didCreateGroup)
   }
@@ -170,18 +156,18 @@ extension SupatermUITestCase {
     )
     XCTAssertTrue(didShowInitialTab)
 
-    try runSP(["tab", "rename", titles[0], "1/1"])
-    for (offset, title) in titles.dropFirst().enumerated() {
-      let tabIndex = offset + 2
-      try runSP(["tab", "new", "--in", "1", "--root", "--focus"])
-      try runSP(["tab", "rename", title, "1/\(tabIndex)"])
+    for (index, title) in titles.enumerated() {
+      if index > 0 {
+        try clickMenuItem(.newTab)
+        let didCreateTab = await waitForSidebarElementCount(
+          sidebarTabRows,
+          equals: index + 1,
+          timeout: .seconds(30)
+        )
+        XCTAssertTrue(didCreateTab)
+      }
+      try await renameSelectedTab(to: title)
     }
-
-    let didCreateTabs = await waitForTabOrder(titles, timeout: .seconds(30))
-    XCTAssertTrue(didCreateTabs)
-    let lastTitle = try XCTUnwrap(titles.last)
-    let didSelectLastTab = await waitForSidebarSelection(sidebarTabRow(named: lastTitle))
-    XCTAssertTrue(didSelectLastTab)
   }
 
   @MainActor
