@@ -331,7 +331,7 @@ struct SupatermMenuControllerTests {
   }
 
   @Test
-  func performGhosttyBindingMenuKeyEquivalentRoutesIndexedGhosttyItemsOnly() throws {
+  func performGhosttyBindingMenuKeyEquivalentRoutesForwardDeleteWithFunctionModifier() throws {
     try withDependencies {
       $0.defaultFileStorage = .inMemory
     } operation: {
@@ -347,7 +347,7 @@ struct SupatermMenuControllerTests {
         keyboardShortcutForAction: { action in
           switch action {
           case "new_window":
-            KeyboardShortcut("h", modifiers: [.command])
+            KeyboardShortcut(.deleteForward, modifiers: [])
           default:
             nil
           }
@@ -374,14 +374,14 @@ struct SupatermMenuControllerTests {
         NSEvent.keyEvent(
           with: .keyDown,
           location: .zero,
-          modifierFlags: [.command],
+          modifierFlags: [.function],
           timestamp: 0,
           windowNumber: 0,
           context: nil,
-          characters: "h",
-          charactersIgnoringModifiers: "h",
+          characters: KeyEquivalent.deleteForward.character.description,
+          charactersIgnoringModifiers: KeyEquivalent.deleteForward.character.description,
           isARepeat: false,
-          keyCode: 4
+          keyCode: UInt16(kVK_ForwardDelete)
         )
       )
 

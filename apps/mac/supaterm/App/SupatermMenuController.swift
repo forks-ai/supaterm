@@ -19,7 +19,9 @@ final class SupatermMenuController: NSObject {
     }
 
     func matches(_ event: NSEvent) -> Bool {
-      let eventModifiers = event.modifierFlags.intersection(.deviceIndependentFlagsMask)
+      let eventModifiers = event.modifierFlags
+        .subtracting(keyEquivalent == KeyEquivalent.deleteForward.character.description ? .function : [])
+        .intersection(.deviceIndependentFlagsMask)
       guard eventModifiers == modifierMask else { return false }
       let eventKeys = Set([event.charactersIgnoringModifiers, event.characters].compactMap { $0?.lowercased() })
       return eventKeys.contains(keyEquivalent)
