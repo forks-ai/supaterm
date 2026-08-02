@@ -2,69 +2,6 @@ import XCTest
 
 final class MenusFirstRunUITests: SupatermUITestCase {
   @MainActor
-  func testMenuBarStructure() throws {
-    _ = mainWindow
-
-    try assertMenu(
-      "supaterm",
-      exposes: [
-        SupatermUITestIdentifier.MenuItemIdentifier.about.rawValue,
-        SupatermUITestIdentifier.MenuItemIdentifier.settings.rawValue,
-      ]
-    )
-    try assertMenu(
-      "File",
-      exposes: [
-        SupatermUITestIdentifier.MenuItemIdentifier.newWindow.rawValue,
-        SupatermUITestIdentifier.MenuItemIdentifier.newTab.rawValue,
-        SupatermUITestIdentifier.MenuItemIdentifier.newTabInGroup.rawValue,
-      ]
-    )
-    try assertMenu(
-      "Edit",
-      exposes: [
-        SupatermUITestIdentifier.MenuItemIdentifier.copy.rawValue,
-        SupatermUITestIdentifier.MenuItemIdentifier.paste.rawValue,
-      ]
-    )
-    try assertMenu(
-      "View",
-      exposes: [
-        SupatermUITestIdentifier.MenuItemIdentifier.toggleSidebar.rawValue,
-        SupatermUITestIdentifier.MenuItemIdentifier.changeTabTitle.rawValue,
-      ]
-    )
-    try assertMenu(
-      "Tabs",
-      exposes: [
-        SupatermUITestIdentifier.MenuItemIdentifier.nextTab.rawValue,
-        SupatermUITestIdentifier.MenuItemIdentifier.selectLastTab.rawValue,
-      ]
-    )
-    try assertMenu(
-      "Spaces",
-      exposes: [
-        SupatermUITestIdentifier.MenuItemIdentifier.firstSpace.rawValue,
-        SupatermUITestIdentifier.MenuItemIdentifier.secondSpace.rawValue,
-      ]
-    )
-    try assertMenu(
-      "Window",
-      exposes: [
-        SupatermUITestIdentifier.MenuItemIdentifier.zoomSplit.rawValue,
-        SupatermUITestIdentifier.MenuItemIdentifier.nextSplit.rawValue,
-      ]
-    )
-    try assertMenu(
-      "Help",
-      exposes: [
-        SupatermUITestIdentifier.MenuItemIdentifier.changelog.rawValue,
-        SupatermUITestIdentifier.MenuItemIdentifier.submitGitHubIssue.rawValue,
-      ]
-    )
-  }
-
-  @MainActor
   func testPinMenuFollowsSelectedTabState() async throws {
     _ = mainWindow
 
@@ -158,18 +95,6 @@ final class MenusFirstRunUITests: SupatermUITestCase {
     }
     XCTAssertTrue(didStartShell)
     XCTAssertFalse((secondTerminal.value as? String)?.contains("Welcome to Supaterm!") == true)
-  }
-
-  @MainActor
-  private func assertMenu(_ title: String, exposes identifiers: [String]) throws {
-    try openMenu(title)
-    for identifier in identifiers {
-      XCTAssertTrue(
-        rawMenuItem(identifier).waitForExistence(timeout: 10),
-        "\(title) menu did not expose \(identifier)"
-      )
-    }
-    app.typeKey(.escape, modifierFlags: [])
   }
 
   @MainActor

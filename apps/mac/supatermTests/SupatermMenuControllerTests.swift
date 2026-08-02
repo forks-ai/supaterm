@@ -63,6 +63,7 @@ struct SupatermMenuControllerTests {
 
     try assertAppMenu(app.mainMenu)
     try assertFileMenu(app.mainMenu)
+    try assertEditMenu(app.mainMenu)
     try assertViewMenu(app.mainMenu)
     try assertTabsMenu(app.mainMenu)
     try assertSpacesMenu(app.mainMenu)
@@ -1089,6 +1090,35 @@ struct SupatermMenuControllerTests {
     #expect(tabsMenu.items[0].keyEquivalent == "u")
     #expect(tabsMenu.items[0].keyEquivalentModifierMask == [.command, .control])
     #expect(tabsMenu.items[0].image != nil)
+  }
+
+  private func assertEditMenu(_ menu: NSMenu?) throws {
+    let editMenu = try #require(menu?.items.first(where: { $0.title == "Edit" })?.submenu)
+    #expect(
+      editMenu.items.map(\.title) == [
+        "Undo",
+        "Redo",
+        "",
+        "Copy",
+        "Paste",
+        "Paste Selection",
+        "Select All",
+        "",
+        "Find",
+      ])
+    #expect(editMenu.items[3].identifier?.rawValue == "app.supabit.supaterm.edit.copy")
+    #expect(editMenu.items[4].identifier?.rawValue == "app.supabit.supaterm.edit.paste")
+    #expect(editMenu.items[5].identifier?.rawValue == "app.supabit.supaterm.edit.pasteSelection")
+    #expect(editMenu.items[6].identifier?.rawValue == "app.supabit.supaterm.edit.selectAll")
+    let findMenu = try #require(editMenu.items[8].submenu)
+    #expect(
+      findMenu.items.compactMap { $0.identifier?.rawValue } == [
+        "app.supabit.supaterm.edit.find",
+        "app.supabit.supaterm.edit.findNext",
+        "app.supabit.supaterm.edit.findPrevious",
+        "app.supabit.supaterm.edit.hideFindBar",
+        "app.supabit.supaterm.edit.selectionForFind",
+      ])
   }
 
   private func assertViewMenu(_ menu: NSMenu?) throws {
