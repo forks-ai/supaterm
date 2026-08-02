@@ -2,8 +2,11 @@ import Darwin
 import Dispatch
 import Foundation
 
-nonisolated struct TerminalAgentPanelRefreshContext: Equatable, Sendable {
+nonisolated struct TerminalAgentPanelWorkspaceContext: Equatable, Sendable {
   let workingDirectoryPath: String?
+}
+
+nonisolated struct TerminalPanePortScanContext: Equatable, Sendable {
   let processIDs: Set<Int32>
 }
 
@@ -1142,9 +1145,14 @@ nonisolated private struct GithubPRWorkflowResponse: Decodable {
 final class PaneAgentPortScanner {
   typealias Delivery = @MainActor (UUID, [PaneAgentArtifact]) -> Void
 
+  private struct Registration {
+    let processIDs: Set<Int32>
+    let foregroundProcessGroupID: @MainActor () -> Int32?
+  }
+
   private let runner: TerminalAgentPanelCommandRunner
   private let interval: Duration
-  private var processIDsBySurfaceID: [UUID: Set<Int>] = [:]
+  private var registrationsBySurfaceID: [UUID: Registration] = [:]
   private var artifactsBySurfaceID: [UUID: [PaneAgentArtifact]] = [:]
   private var scanTask: Task<Void, Never>?
   private var delivery: Delivery?
@@ -1159,25 +1167,20 @@ final class PaneAgentPortScanner {
 
   func update(
     surfaceID: UUID,
-    processIDs: Set<Int32>,
+    context: TerminalPanePortScanContext,
+    foregroundProcessGroupID: @escaping @MainActor () -> Int32? = { nil },
     deliver: @escaping Delivery
   ) {
-    let normalizedProcessIDs = Set(processIDs.map(Int.init).filter { $0 > 0 })
     delivery = deliver
-    guard !normalizedProcessIDs.isEmpty else {
-      clear(surfaceID: surfaceID, deliver: deliver)
-      return
-    }
-    guard processIDsBySurfaceID[surfaceID] != normalizedProcessIDs else {
-      startLoop()
-      return
-    }
-    processIDsBySurfaceID[surfaceID] = normalizedProcessIDs
+    registrationsBySurfaceID[surfaceID] = Registration(
+      processIDs: context.processIDs,
+      foregroundProcessGroupID: foregroundProcessGroupID
+    )
     startLoop()
   }
 
   func clear(surfaceID: UUID, deliver: Delivery? = nil) {
-    let wasTracked = processIDsBySurfaceID.removeValue(forKey: surfaceID) != nil
+    let wasTracked = registrationsBySurfaceID.removeValue(forKey: surfaceID) != nil
     let hadArtifacts = artifactsBySurfaceID.removeValue(forKey: surfaceID) != nil
     if wasTracked || hadArtifacts {
       (deliver ?? delivery)?(surfaceID, [])
@@ -1186,7 +1189,7 @@ final class PaneAgentPortScanner {
   }
 
   func stop() {
-    processIDsBySurfaceID.removeAll()
+    registrationsBySurfaceID.removeAll()
     artifactsBySurfaceID.removeAll()
     scanTask?.cancel()
     scanTask = nil
@@ -1195,20 +1198,25 @@ final class PaneAgentPortScanner {
 
   @discardableResult
   func scanOnce() async -> Bool {
-    let rootProcessIDsBySurfaceID = processIDsBySurfaceID
-    guard !rootProcessIDsBySurfaceID.isEmpty else {
+    let registrationSnapshot = registrationsBySurfaceID
+    guard !registrationSnapshot.isEmpty else {
       stopLoopIfIdle()
       return false
     }
+    let processIDsBySurfaceID = registrationSnapshot.mapValues(\.processIDs)
+    let foregroundProcessGroupIDsBySurfaceID = registrationSnapshot.compactMapValues {
+      $0.foregroundProcessGroupID()
+    }
     let portsBySurfaceID = await Self.scanPorts(
-      rootProcessIDsBySurfaceID: rootProcessIDsBySurfaceID,
+      processIDsBySurfaceID: processIDsBySurfaceID,
+      foregroundProcessGroupIDsBySurfaceID: foregroundProcessGroupIDsBySurfaceID,
       runner: runner
     )
     var delivered = false
-    let surfaceIDs = rootProcessIDsBySurfaceID.keys.sorted { $0.uuidString < $1.uuidString }
+    let surfaceIDs = registrationSnapshot.keys.sorted { $0.uuidString < $1.uuidString }
     for surfaceID in surfaceIDs {
       guard
-        processIDsBySurfaceID[surfaceID] == rootProcessIDsBySurfaceID[surfaceID]
+        registrationsBySurfaceID[surfaceID]?.processIDs == registrationSnapshot[surfaceID]?.processIDs
       else {
         continue
       }
@@ -1234,33 +1242,44 @@ final class PaneAgentPortScanner {
   }
 
   private func stopLoopIfIdle() {
-    guard processIDsBySurfaceID.isEmpty else { return }
+    guard registrationsBySurfaceID.isEmpty else { return }
     scanTask?.cancel()
     scanTask = nil
   }
 
   nonisolated static func scanPorts(
-    rootProcessIDsBySurfaceID: [UUID: Set<Int>],
+    processIDsBySurfaceID: [UUID: Set<Int32>],
+    foregroundProcessGroupIDsBySurfaceID: [UUID: Int32],
     runner: TerminalAgentPanelCommandRunner
   ) async -> [UUID: [Int]] {
-    let rootProcessIDs = rootProcessIDsBySurfaceID.values.reduce(into: Set<Int>()) {
-      $0.formUnion($1)
-    }
-    guard !rootProcessIDs.isEmpty else {
+    guard !processIDsBySurfaceID.isEmpty else {
       return [:]
     }
     guard
       let psResult = try? await runner.run(
         URL(fileURLWithPath: "/bin/ps"),
-        ["-ax", "-o", "pid=,ppid="],
+        ["-ax", "-o", "pid=,ppid=,pgid="],
         nil
       )
     else {
       return [:]
     }
-    let parentByPID = parentMap(fromPSOutput: psResult.stdout)
-    let descendantProcessIDsBySurfaceID = rootProcessIDsBySurfaceID.mapValues { rootProcessIDs in
-      expandProcessTree(rootProcessIDs: rootProcessIDs, parentByPID: parentByPID)
+    let processTable = parseProcessTable(psResult.stdout)
+    let parentByPID = processTable.mapValues { $0.parentProcessID }
+    var descendantProcessIDsBySurfaceID: [UUID: Set<Int>] = [:]
+    for (surfaceID, processIDs) in processIDsBySurfaceID {
+      var rootProcessIDs = Set(processIDs.map(Int.init))
+      if let processGroupID = foregroundProcessGroupIDsBySurfaceID[surfaceID].map(Int.init) {
+        rootProcessIDs.formUnion(
+          processTable.compactMap { processID, process in
+            process.processGroupID == processGroupID ? processID : nil
+          }
+        )
+      }
+      descendantProcessIDsBySurfaceID[surfaceID] = expandProcessTree(
+        rootProcessIDs: rootProcessIDs,
+        parentByPID: parentByPID
+      )
     }
     let processIDs = descendantProcessIDsBySurfaceID.values.reduce(into: Set<Int>()) {
       $0.formUnion($1)
@@ -1293,19 +1312,22 @@ final class PaneAgentPortScanner {
       }
   }
 
-  nonisolated static func parentMap(fromPSOutput output: String) -> [Int: Int] {
-    var mapping: [Int: Int] = [:]
+  nonisolated static func parseProcessTable(
+    _ output: String
+  ) -> [Int: (parentProcessID: Int, processGroupID: Int)] {
+    var table: [Int: (parentProcessID: Int, processGroupID: Int)] = [:]
     for line in output.split(whereSeparator: \.isNewline) {
       let parts = line.split(whereSeparator: \.isWhitespace)
-      guard parts.count >= 2,
+      guard parts.count >= 3,
         let pid = Int(parts[0]),
-        let parentPID = Int(parts[1])
+        let parentProcessID = Int(parts[1]),
+        let processGroupID = Int(parts[2])
       else {
         continue
       }
-      mapping[pid] = parentPID
+      table[pid] = (parentProcessID, processGroupID)
     }
-    return mapping
+    return table
   }
 
   nonisolated static func expandProcessTree(
@@ -1406,9 +1428,13 @@ final class TerminalAgentPanelController {
     #if SUPATERM_DEMO
       guard !DemoSeed.preservesSeededAgentState(surfaceID) else { return }
     #endif
-    let context = terminal?.agentPanelRefreshContext(for: surfaceID)
-    updatePortTracking(surfaceID, context: context)
-    guard let workspaceKey = updateWorkspaceTracking(surfaceID, context: context) else {
+    updatePortTracking(surfaceID, context: terminal?.panePortScanContext(for: surfaceID))
+    guard
+      let workspaceKey = updateWorkspaceTracking(
+        surfaceID,
+        context: terminal?.agentPanelWorkspaceContext(for: surfaceID)
+      )
+    else {
       _ = terminal?.storeAgentPanelBranchDetails(nil, for: surfaceID)
       return
     }
@@ -1423,7 +1449,7 @@ final class TerminalAgentPanelController {
     guard
       let workspaceKey = updateWorkspaceTracking(
         surfaceID,
-        context: terminal?.agentPanelRefreshContext(for: surfaceID)
+        context: terminal?.agentPanelWorkspaceContext(for: surfaceID)
       )
     else {
       _ = terminal?.storeAgentPanelBranchDetails(nil, for: surfaceID)
@@ -1437,13 +1463,10 @@ final class TerminalAgentPanelController {
     #if SUPATERM_DEMO
       guard !DemoSeed.preservesSeededAgentState(surfaceID) else { return }
     #endif
-    let context = terminal?.agentPanelRefreshContext(for: surfaceID)
-    updatePortTracking(surfaceID, context: context)
-    guard let workspaceKey = updateWorkspaceTracking(surfaceID, context: context) else {
+    let workspaceContext = terminal?.agentPanelWorkspaceContext(for: surfaceID)
+    updatePortTracking(surfaceID, context: terminal?.panePortScanContext(for: surfaceID))
+    guard let workspaceKey = updateWorkspaceTracking(surfaceID, context: workspaceContext) else {
       _ = terminal?.storeAgentPanelBranchDetails(nil, for: surfaceID)
-      if context == nil {
-        _ = terminal?.clearAgentPanelMetadata(for: surfaceID)
-      }
       return
     }
     scheduleRefresh(workspaceKey, delay: .milliseconds(200))
@@ -1455,6 +1478,7 @@ final class TerminalAgentPanelController {
       guard !DemoSeed.preservesSeededAgentState(surfaceID) else { return }
     #endif
     clearSurface(surfaceID)
+    updatePortTracking(surfaceID, context: terminal?.panePortScanContext(for: surfaceID))
   }
 
   func surfaceRemoved(_ surfaceID: UUID) {
@@ -1548,7 +1572,7 @@ final class TerminalAgentPanelController {
 
   private func updatePortTracking(
     _ surfaceID: UUID,
-    context: TerminalAgentPanelRefreshContext?
+    context: TerminalPanePortScanContext?
   ) {
     guard let context else {
       portScanner.clear(surfaceID: surfaceID) { [weak self] surfaceID, artifacts in
@@ -1558,10 +1582,14 @@ final class TerminalAgentPanelController {
     }
     portScanner.update(
       surfaceID: surfaceID,
-      processIDs: context.processIDs
-    ) { [weak self] surfaceID, artifacts in
-      self?.storeArtifacts(artifacts, surfaceID: surfaceID)
-    }
+      context: context,
+      foregroundProcessGroupID: { [weak self] in
+        self?.terminal?.paneForegroundProcessGroupID(for: surfaceID)
+      },
+      deliver: { [weak self] surfaceID, artifacts in
+        self?.storeArtifacts(artifacts, surfaceID: surfaceID)
+      }
+    )
   }
 
   private func pullRequestStatusForRefresh(
@@ -1622,7 +1650,7 @@ final class TerminalAgentPanelController {
   @discardableResult
   private func updateWorkspaceTracking(
     _ surfaceID: UUID,
-    context: TerminalAgentPanelRefreshContext?
+    context: TerminalAgentPanelWorkspaceContext?
   ) -> TerminalAgentPanelWorkspaceKey? {
     guard
       let workspaceKey = TerminalAgentPanelWorkspaceKey(

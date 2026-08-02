@@ -158,7 +158,7 @@ extension TerminalHostState {
     }
   }
 
-  func agentPanelRefreshContext(for surfaceID: UUID) -> TerminalAgentPanelRefreshContext? {
+  func agentPanelWorkspaceContext(for surfaceID: UUID) -> TerminalAgentPanelWorkspaceContext? {
     guard agentPanelIsEnabled else {
       return nil
     }
@@ -168,7 +168,7 @@ extension TerminalHostState {
     guard tabID(containing: surfaceID) != nil else {
       return nil
     }
-    guard agentPanelIsActive(for: surfaceID) else {
+    guard !agentStateStore.snapshots(for: surfaceID).isEmpty else {
       return nil
     }
     let current = currentAgentStateInstance(in: agentStateInstances(for: surfaceID))
@@ -176,13 +176,27 @@ extension TerminalHostState {
       for: surfaceID,
       agentWorkingDirectoryPath: current?.presentation.workingDirectoryPath
     )
+    return TerminalAgentPanelWorkspaceContext(workingDirectoryPath: workingDirectoryPath)
+  }
+
+  func panePortScanContext(for surfaceID: UUID) -> TerminalPanePortScanContext? {
+    guard agentPanelIsEnabled else {
+      return nil
+    }
+    guard surfaces[surfaceID] != nil else {
+      return nil
+    }
+    guard tabID(containing: surfaceID) != nil else {
+      return nil
+    }
     let processIDs = agentStateStore.snapshots(for: surfaceID).reduce(into: Set<Int32>()) {
       $0.formUnion($1.processIDs)
     }
-    return TerminalAgentPanelRefreshContext(
-      workingDirectoryPath: workingDirectoryPath,
-      processIDs: processIDs
-    )
+    return TerminalPanePortScanContext(processIDs: processIDs)
+  }
+
+  func paneForegroundProcessGroupID(for surfaceID: UUID) -> Int32? {
+    surfaces[surfaceID]?.processIdentity.foregroundProcessGroupID
   }
 
   var agentPanelIsEnabled: Bool {
