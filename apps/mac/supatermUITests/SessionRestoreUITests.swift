@@ -135,10 +135,7 @@ final class SessionRestoreUITests: SupatermUITestCase {
     let focusedTerminal = app.textViews
       .matching(NSPredicate(format: "hasKeyboardFocus == true"))
       .firstMatch
-    let didFocusTerminal = await wait(for: focusedTerminal) {
-      $0.exists && $0.isHittable
-    }
-    XCTAssertTrue(didFocusTerminal)
+    XCTAssertTrue(focusedTerminal.waitForExistence(timeout: 10))
     app.typeText("echo \"re\"store-\(token)\n")
     try await waitForPaneValue(app, containing: marker)
 
