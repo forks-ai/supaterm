@@ -132,7 +132,13 @@ final class SessionRestoreUITests: SupatermUITestCase {
 
     let token = UUID().uuidString
     let marker = "restore-\(token)"
-    try await Task.sleep(for: .milliseconds(500))
+    let focusedTerminal = app.textViews
+      .matching(NSPredicate(format: "hasKeyboardFocus == true"))
+      .firstMatch
+    let didFocusTerminal = await wait(for: focusedTerminal) {
+      $0.exists && $0.isHittable
+    }
+    XCTAssertTrue(didFocusTerminal)
     app.typeText("echo \"re\"store-\(token)\n")
     try await waitForPaneValue(app, containing: marker)
 

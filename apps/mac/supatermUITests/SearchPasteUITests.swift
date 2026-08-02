@@ -12,8 +12,14 @@ final class SearchPasteUITests: SupatermUITestCase {
     let readinessText = "search focus ready"
     let terminalText = try XCTUnwrap(terminal.value as? String)
     app.typeKey("f", modifierFlags: .command)
-    try await Task.sleep(for: .milliseconds(200))
-    app.typeText(readinessText)
+
+    let searchField = app.textFields[SupatermUITestIdentifier.Accessibility.searchField]
+    let focusedSearchField = app.textFields
+      .matching(identifier: SupatermUITestIdentifier.Accessibility.searchField)
+      .matching(NSPredicate(format: "hasKeyboardFocus == true"))
+      .firstMatch
+    XCTAssertTrue(focusedSearchField.waitForExistence(timeout: 10))
+    searchField.typeText(readinessText)
     XCTAssertEqual(terminal.value as? String, terminalText)
     replacePasteboard(with: "readiness sentinel")
     app.typeKey("a", modifierFlags: .command)
@@ -24,10 +30,12 @@ final class SearchPasteUITests: SupatermUITestCase {
     let pastedText = "search paste regression"
     replacePasteboard(with: pastedText)
 
-    try await reactivate(app)
+    reactivate(app)
+    XCTAssertTrue(focusedSearchField.waitForExistence(timeout: 10))
 
     app.typeKey("v", modifierFlags: .command)
-    try await Task.sleep(for: .milliseconds(500))
+    let didPaste = await wait(for: searchField) { $0.value as? String == pastedText }
+    XCTAssertTrue(didPaste)
     XCTAssertEqual(terminal.value as? String, terminalText)
 
     replacePasteboard(with: "verification sentinel")
@@ -37,22 +45,28 @@ final class SearchPasteUITests: SupatermUITestCase {
     XCTAssertEqual(NSPasteboard.general.string(forType: .string), pastedText)
 
     app.typeKey(.escape, modifierFlags: [])
-    try await reactivate(app)
+    reactivate(app)
+
+    let focusedTerminal = app.textViews
+      .matching(NSPredicate(format: "hasKeyboardFocus == true"))
+      .firstMatch
+    XCTAssertTrue(focusedTerminal.waitForExistence(timeout: 10))
 
     let terminalInput = "terminal focus restored"
-    app.typeText(terminalInput)
-    try await Task.sleep(for: .milliseconds(500))
-    XCTAssertEqual(terminal.value as? String, terminalText + terminalInput)
+    focusedTerminal.typeText(terminalInput)
+    let didTypeInTerminal = await wait(for: terminal) {
+      $0.value as? String == terminalText + terminalInput
+    }
+    XCTAssertTrue(didTypeInTerminal)
   }
 
   @MainActor
-  private func reactivate(_ app: XCUIApplication) async throws {
+  private func reactivate(_ app: XCUIApplication) {
     let finder = XCUIApplication(bundleIdentifier: "com.apple.finder")
     finder.activate()
     XCTAssertTrue(finder.wait(for: .runningForeground, timeout: 5))
     app.activate()
     XCTAssertTrue(app.wait(for: .runningForeground, timeout: 5))
-    try await Task.sleep(for: .milliseconds(200))
   }
 
 }
