@@ -1414,13 +1414,26 @@ final class GhosttySurfaceView: NSView, Identifiable {
       NSApp.sendEvent(current)
       return
     }
+    guard let action = Self.appKitDocumentBindingAction(for: selector, event: NSApp.currentEvent) else {
+      return
+    }
+    performBindingAction(action)
+  }
+
+  static func appKitDocumentBindingAction(for selector: Selector, event: NSEvent?) -> String? {
+    if let event,
+      event.modifierFlags.contains(.command),
+      event.keyCode == kVK_UpArrow || event.keyCode == kVK_DownArrow
+    {
+      return nil
+    }
     switch selector {
     case #selector(moveToBeginningOfDocument(_:)):
-      performBindingAction("scroll_to_top")
+      return "scroll_to_top"
     case #selector(moveToEndOfDocument(_:)):
-      performBindingAction("scroll_to_bottom")
+      return "scroll_to_bottom"
     default:
-      break
+      return nil
     }
   }
 
