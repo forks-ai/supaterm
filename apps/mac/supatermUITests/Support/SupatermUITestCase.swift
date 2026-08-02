@@ -130,6 +130,38 @@ class SupatermUITestCase: XCTestCase {
   }
 
   @MainActor
+  func runSP(_ arguments: [String]) throws {
+    let instanceName = try XCTUnwrap(app.launchEnvironment["SUPATERM_INSTANCE_NAME"])
+    let executable = try bundledSPExecutable()
+    let process = Process()
+    let output = Pipe()
+    let error = Pipe()
+    process.executableURL = executable
+    process.arguments = arguments + ["--instance", instanceName, "--quiet"]
+    process.standardInput = FileHandle.nullDevice
+    process.standardOutput = output
+    process.standardError = error
+    try process.run()
+    process.waitUntilExit()
+
+    let standardOutput =
+      String(
+        bytes: output.fileHandleForReading.readDataToEndOfFile(),
+        encoding: .utf8
+      ) ?? "<non-UTF-8 stdout>"
+    let standardError =
+      String(
+        bytes: error.fileHandleForReading.readDataToEndOfFile(),
+        encoding: .utf8
+      ) ?? "<non-UTF-8 stderr>"
+    XCTAssertEqual(
+      process.terminationStatus,
+      0,
+      "sp \(arguments.joined(separator: " ")) failed\n\(standardOutput)\(standardError)"
+    )
+  }
+
+  @MainActor
   func wait(
     timeout: Duration = .seconds(10),
     pollInterval: Duration = .milliseconds(100),
@@ -156,5 +188,17 @@ class SupatermUITestCase: XCTestCase {
     await wait(timeout: timeout, pollInterval: pollInterval) {
       condition(element)
     }
+  }
+
+  private func bundledSPExecutable() throws -> URL {
+    var directory = Bundle.main.bundleURL
+    for _ in 0..<6 {
+      let executable = directory.appendingPathComponent("supaterm.app/Contents/MacOS/sp")
+      if FileManager.default.isExecutableFile(atPath: executable.path) {
+        return executable
+      }
+      directory.deleteLastPathComponent()
+    }
+    return try XCTUnwrap(nil, "Built sp executable not found beside the UI test runner")
   }
 }
