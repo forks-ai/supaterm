@@ -138,9 +138,9 @@ struct SplitView<L: View, R: View>: View {
     private var pointerStyle: PointerStyle {
       switch direction {
       case .horizontal:
-        return .frameResize(position: .trailing)
+        return .columnResize
       case .vertical:
-        return .frameResize(position: .top)
+        return .rowResize
       }
     }
 
