@@ -84,8 +84,7 @@ struct GhosttySurfaceHoverLinkPresentation: View {
         }
         .shadow(color: palette.overlayShadow, radius: 6, y: 2)
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel("Hovered link")
-        .accessibilityValue(link)
+        .accessibilityLabel(Text(verbatim: "Hovered link: \(link)"))
         .accessibilityIdentifier("terminal-hovered-link")
         .allowsHitTesting(false)
 

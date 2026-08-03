@@ -29,8 +29,7 @@ final class HoverLinkUITests: SupatermUITestCase {
         XCTFail("Hovered link banner did not appear")
         return
       }
-      XCTAssertEqual(banner.label, "Hovered link")
-      XCTAssertEqual(banner.value as? String, link)
+      XCTAssertEqual(banner.label, "Hovered link: \(link)")
 
       let leadingFrame = banner.frame
       XCTAssertLessThanOrEqual(abs(leadingFrame.minX - terminal.frame.minX), 4)
