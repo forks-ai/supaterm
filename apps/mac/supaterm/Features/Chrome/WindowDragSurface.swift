@@ -12,6 +12,10 @@ struct WindowDragSurface: NSViewRepresentable {
 class WindowDragSurfaceView: NSView {
   override var mouseDownCanMoveWindow: Bool { false }
 
+  override func acceptsFirstMouse(for event: NSEvent?) -> Bool {
+    true
+  }
+
   override func hitTest(_ point: NSPoint) -> NSView? {
     bounds.contains(point) ? self : nil
   }

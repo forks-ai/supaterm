@@ -46,6 +46,11 @@ struct WindowDragSurfaceTests {
   }
 
   @Test
+  func inactiveWindowAcceptsFirstMouse() {
+    #expect(WindowDragSurfaceView().acceptsFirstMouse(for: nil))
+  }
+
+  @Test
   func controlsAboveSurfaceKeepTheirHitTarget() {
     let contentView = NSView(frame: NSRect(x: 0, y: 0, width: 240, height: 45))
     let surface = WindowDragSurfaceView(frame: contentView.bounds)
