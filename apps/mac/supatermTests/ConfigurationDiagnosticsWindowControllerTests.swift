@@ -21,6 +21,7 @@ struct ConfigDiagnosticsWindowControllerTests {
     controller.update(messages: ["unknown key"])
 
     #expect(window.isVisible)
+    #expect(window.firstResponder === window.contentViewController?.view)
   }
 
   @Test

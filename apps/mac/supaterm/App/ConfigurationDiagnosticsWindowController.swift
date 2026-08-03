@@ -51,7 +51,8 @@ final class ConfigurationDiagnosticsWindowController: NSWindowController {
       close()
       return
     }
-    guard window?.isVisible != true else { return }
-    window?.makeKeyAndOrderFront(nil)
+    guard let window, !window.isVisible else { return }
+    window.makeKeyAndOrderFront(nil)
+    window.makeFirstResponder(hostingController.view)
   }
 }
