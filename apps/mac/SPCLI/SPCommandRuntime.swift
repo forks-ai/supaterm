@@ -50,8 +50,11 @@ struct SPCommandOptions: ParsableArguments {
 func jsonString<T: Encodable>(_ value: T) throws -> String {
   let encoder = JSONEncoder()
   encoder.dateEncodingStrategy = .iso8601
-  encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
-  return String(decoding: try encoder.encode(value), as: UTF8.self)
+  encoder.outputFormatting = [.sortedKeys]
+  guard let json = String(bytes: try encoder.encode(value), encoding: .utf8) else {
+    throw CocoaError(.fileReadInapplicableStringEncoding)
+  }
+  return json
 }
 
 func emitCommandResult<T: Encodable>(
@@ -367,7 +370,12 @@ enum SPOnboardingRenderer {
       lines.append("")
       lines.append(
         contentsOf: snapshot.items.map { item in
-          "\(SPTerminalStyle.bold(item.shortcut.padding(toLength: shortcutWidth, withPad: " ", startingAt: 0)))  \(item.title)"
+          let shortcut = item.shortcut.padding(
+            toLength: shortcutWidth,
+            withPad: " ",
+            startingAt: 0
+          )
+          return "\(SPTerminalStyle.bold(shortcut))  \(item.title)"
         }
       )
     }

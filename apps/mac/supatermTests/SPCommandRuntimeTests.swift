@@ -95,6 +95,11 @@ struct SPCommandRuntimeTests {
   }
 
   @Test
+  func jsonStringIsCompactAndSorted() throws {
+    #expect(try jsonString(["b": 2, "a": 1]) == #"{"a":1,"b":2}"#)
+  }
+
+  @Test
   func destructiveConfirmationRequiresInteractiveInput() throws {
     do {
       try confirmDestructiveAction(prompt: "Destroy space 1? [y/N] ", isInteractive: { false })
