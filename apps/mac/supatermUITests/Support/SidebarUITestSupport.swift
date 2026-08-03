@@ -148,13 +148,7 @@ extension SupatermUITestCase {
   @MainActor
   func createNamedTabs(_ titles: [String]) async throws {
     precondition(!titles.isEmpty)
-    _ = mainWindow
-    let didShowInitialTab = await waitForSidebarElementCount(
-      sidebarTabRows,
-      equals: 1,
-      timeout: .seconds(30)
-    )
-    XCTAssertTrue(didShowInitialTab)
+    await requireInitialSidebarTab()
 
     for (index, title) in titles.enumerated() {
       if index > 0 {
@@ -168,6 +162,28 @@ extension SupatermUITestCase {
       }
       try await renameSelectedTab(to: title)
     }
+  }
+
+  @MainActor
+  func requireInitialSidebarTab() async {
+    _ = mainWindow
+    let didShowInitialTab = await waitForSidebarElementCount(
+      sidebarTabRows,
+      equals: 1,
+      timeout: .seconds(30)
+    )
+    XCTAssertTrue(didShowInitialTab)
+  }
+
+  @MainActor
+  func closeSelectedTab() throws {
+    try clickMenuItem(.closeTab)
+
+    let closeSheet = mainWindow.sheets.firstMatch
+    XCTAssertTrue(closeSheet.waitForExistence(timeout: 10))
+    let closeButton = closeSheet.buttons["Close"]
+    XCTAssertTrue(closeButton.waitForExistence(timeout: 10))
+    closeButton.click()
   }
 
   @MainActor
