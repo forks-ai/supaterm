@@ -130,12 +130,12 @@ struct TerminalWindowFeature {
   }
 
   private struct ResolvedCommandPalette {
-    let visibleRows: [TerminalCommandPaletteRow]
+    let matches: [TerminalCommandPaletteMatch]
     let selectedRowID: TerminalCommandPaletteRow.ID?
 
     var selectedRow: TerminalCommandPaletteRow? {
       guard let selectedRowID else { return nil }
-      return visibleRows.first(where: { $0.id == selectedRowID })
+      return matches.first(where: { $0.id == selectedRowID })?.row
     }
   }
 
@@ -682,9 +682,12 @@ struct TerminalWindowFeature {
   }
 
   private func openCommandPaletteState(windowID: ObjectIdentifier?) -> TerminalCommandPaletteState {
-    let rows = TerminalCommandPalettePresentation.rows(from: commandPaletteSnapshot(windowID: windowID))
+    let matches = TerminalCommandPalettePresentation.matches(
+      from: commandPaletteSnapshot(windowID: windowID),
+      query: ""
+    )
     return TerminalCommandPaletteState(
-      selectedRowID: TerminalCommandPalettePresentation.normalizedSelection(nil, in: rows)
+      selectedRowID: TerminalCommandPalettePresentation.normalizedSelection(nil, in: matches)
     )
   }
 
@@ -696,16 +699,16 @@ struct TerminalWindowFeature {
 
   private func resolvedCommandPalette(for state: State) -> ResolvedCommandPalette? {
     guard let commandPalette = state.commandPalette else { return nil }
-    let visibleRows = TerminalCommandPalettePresentation.visibleRows(
+    let matches = TerminalCommandPalettePresentation.matches(
       from: commandPaletteSnapshot(windowID: state.windowID),
       query: commandPalette.query
     )
     let selectedRowID = TerminalCommandPalettePresentation.normalizedSelection(
       commandPalette.selectedRowID,
-      in: visibleRows
+      in: matches
     )
     return ResolvedCommandPalette(
-      visibleRows: visibleRows,
+      matches: matches,
       selectedRowID: selectedRowID
     )
   }
@@ -716,13 +719,13 @@ struct TerminalWindowFeature {
   ) {
     guard state.commandPalette != nil else { return }
     state.commandPalette?.query = query
-    let visibleRows = TerminalCommandPalettePresentation.visibleRows(
+    let matches = TerminalCommandPalettePresentation.matches(
       from: commandPaletteSnapshot(windowID: state.windowID),
       query: query
     )
     state.commandPalette?.selectedRowID = TerminalCommandPalettePresentation.normalizedSelection(
       nil,
-      in: visibleRows
+      in: matches
     )
   }
 
@@ -731,7 +734,7 @@ struct TerminalWindowFeature {
     state: inout State
   ) {
     guard let resolved = resolvedCommandPalette(for: state) else { return }
-    guard let row = TerminalCommandPalettePresentation.row(atVisibleIndex: index, in: resolved.visibleRows)
+    guard let row = TerminalCommandPalettePresentation.row(atVisibleIndex: index, in: resolved.matches)
     else { return }
     state.commandPalette?.selectedRowID = row.id
   }
@@ -744,7 +747,7 @@ struct TerminalWindowFeature {
     state.commandPalette?.selectedRowID = TerminalCommandPalettePresentation.movedSelection(
       resolved.selectedRowID,
       by: offset,
-      in: resolved.visibleRows
+      in: resolved.matches
     )
   }
 
@@ -761,7 +764,7 @@ struct TerminalWindowFeature {
     state: inout State
   ) -> Effect<Action> {
     guard let resolved = resolvedCommandPalette(for: state) else { return .none }
-    guard let row = TerminalCommandPalettePresentation.rowForSlot(slot, in: resolved.visibleRows)
+    guard let row = TerminalCommandPalettePresentation.rowForSlot(slot, in: resolved.matches)
     else { return .none }
     state.commandPalette?.selectedRowID = row.id
     return executeCommandPaletteCommand(row.command, state: &state)

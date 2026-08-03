@@ -5,7 +5,7 @@ import SwiftUI
 struct TerminalCommandPaletteOverlay: View {
   let palette: Palette
   let state: TerminalCommandPaletteState
-  let rows: [TerminalCommandPaletteRow]
+  let matches: [TerminalCommandPaletteMatch]
   let onActivate: () -> Void
   let onClose: () -> Void
   let onQueryChange: (String) -> Void
@@ -22,7 +22,7 @@ struct TerminalCommandPaletteOverlay: View {
   private let minWidth: CGFloat = 280
 
   private var selectedRowID: TerminalCommandPaletteRow.ID? {
-    TerminalCommandPalettePresentation.normalizedSelection(state.selectedRowID, in: rows)
+    TerminalCommandPalettePresentation.normalizedSelection(state.selectedRowID, in: matches)
   }
 
   var body: some View {
@@ -41,7 +41,7 @@ struct TerminalCommandPaletteOverlay: View {
         VStack(alignment: .leading, spacing: 5) {
           searchField
 
-          if !rows.isEmpty {
+          if !matches.isEmpty {
             RoundedRectangle(cornerRadius: 100, style: .continuous)
               .fill(palette.divider)
               .frame(height: 0.5)
@@ -49,7 +49,7 @@ struct TerminalCommandPaletteOverlay: View {
 
           ScrollViewReader { proxy in
             Group {
-              if rows.isEmpty {
+              if matches.isEmpty {
                 VStack {
                   Spacer(minLength: 0)
                   Text("No matches")
@@ -61,21 +61,21 @@ struct TerminalCommandPaletteOverlay: View {
               } else {
                 ScrollView {
                   LazyVStack(alignment: .leading, spacing: 3) {
-                    ForEach(Array(rows.enumerated()), id: \.element.id) { index, row in
+                    ForEach(Array(matches.enumerated()), id: \.element.id) { index, match in
                       CommandPaletteRowButton(
-                        row: row,
-                        shortcutHint: shortcutHint(for: row, index: index),
+                        match: match,
+                        shortcutHint: shortcutHint(for: match.row, index: index),
                         palette: palette,
-                        isHovered: hoveredRowID == row.id,
-                        isSelected: selectedRowID == row.id,
+                        isHovered: hoveredRowID == match.id,
+                        isSelected: selectedRowID == match.id,
                         action: {
                           onSelectionChange(index)
                           onActivate()
                         }
                       )
-                      .id(row.id)
+                      .id(match.id)
                       .onHover { isHovering in
-                        hoveredRowID = isHovering ? row.id : nil
+                        hoveredRowID = isHovering ? match.id : nil
                       }
                     }
                   }
@@ -197,12 +197,14 @@ struct TerminalCommandPaletteOverlay: View {
 }
 
 private struct CommandPaletteRowButton: View {
-  let row: TerminalCommandPaletteRow
+  let match: TerminalCommandPaletteMatch
   let shortcutHint: String?
   let palette: Palette
   let isHovered: Bool
   let isSelected: Bool
   let action: () -> Void
+
+  private var row: TerminalCommandPaletteRow { match.row }
 
   var body: some View {
     Button(action: action) {
@@ -211,11 +213,17 @@ private struct CommandPaletteRowButton: View {
 
         VStack(alignment: .leading, spacing: row.subtitle == nil ? 0 : 2) {
           HStack(spacing: 6) {
-            Text(row.title)
-              .font(.system(size: 13, weight: .semibold))
-              .foregroundStyle(isSelected ? palette.selectedText : palette.primaryText)
-              .lineLimit(1)
-              .truncationMode(.tail)
+            Text(
+              highlightedText(
+                row.title,
+                offsets: match.titleMatchedCharacterOffsets,
+                fontSize: 13
+              )
+            )
+            .font(.system(size: 13, weight: .semibold))
+            .foregroundStyle(isSelected ? palette.selectedText : palette.primaryText)
+            .lineLimit(1)
+            .truncationMode(.tail)
 
             if let badge = row.badge {
               Text(badge)
@@ -232,11 +240,17 @@ private struct CommandPaletteRowButton: View {
           }
 
           if let subtitle = row.subtitle {
-            Text(subtitle)
-              .font(.system(size: 11, weight: .medium))
-              .foregroundStyle(isSelected ? palette.selectedSecondaryText : palette.secondaryText)
-              .lineLimit(1)
-              .truncationMode(.tail)
+            Text(
+              highlightedText(
+                subtitle,
+                offsets: match.subtitleMatchedCharacterOffsets,
+                fontSize: 11
+              )
+            )
+            .font(.system(size: 11, weight: .medium))
+            .foregroundStyle(isSelected ? palette.selectedSecondaryText : palette.secondaryText)
+            .lineLimit(1)
+            .truncationMode(.tail)
           }
         }
 
@@ -279,13 +293,28 @@ private struct CommandPaletteRowButton: View {
         .accessibilityHidden(true)
     }
   }
+
+  private func highlightedText(
+    _ text: String,
+    offsets: [Int],
+    fontSize: CGFloat
+  ) -> AttributedString {
+    var attributedText = AttributedString(text)
+    for offset in offsets {
+      let start = attributedText.index(attributedText.startIndex, offsetByCharacters: offset)
+      let end = attributedText.index(start, offsetByCharacters: 1)
+      attributedText[start..<end].font = .system(size: fontSize, weight: .bold)
+      attributedText[start..<end].foregroundColor = isSelected ? palette.selectedText : palette.accent
+    }
+    return attributedText
+  }
 }
 
 private struct TerminalCommandPalettePreviewColumn: View {
   let colorScheme: ColorScheme
 
-  private var rows: [TerminalCommandPaletteRow] {
-    TerminalCommandPalettePresentation.visibleRows(
+  private var matches: [TerminalCommandPaletteMatch] {
+    TerminalCommandPalettePresentation.matches(
       in: [
         TerminalCommandPaletteRow(
           id: "update:install",
@@ -357,7 +386,7 @@ private struct TerminalCommandPalettePreviewColumn: View {
   private var state: TerminalCommandPaletteState {
     TerminalCommandPaletteState(
       query: "split",
-      selectedRowID: rows.indices.contains(1) ? rows[1].id : rows.first?.id
+      selectedRowID: matches.indices.contains(1) ? matches[1].id : matches.first?.id
     )
   }
 
@@ -388,7 +417,7 @@ private struct TerminalCommandPalettePreviewColumn: View {
       TerminalCommandPaletteOverlay(
         palette: Palette(colorScheme: colorScheme),
         state: state,
-        rows: rows,
+        matches: matches,
         onActivate: {},
         onClose: {},
         onQueryChange: { _ in },

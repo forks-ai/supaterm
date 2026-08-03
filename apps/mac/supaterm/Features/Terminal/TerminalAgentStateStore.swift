@@ -203,6 +203,8 @@ nonisolated struct TerminalAgentStateStore {
         && (state.attentionRequestID == nil || state.attentionRequestID == requestID)
     case .hoverMessagesUpdated, .progressUpdated(_, source: .transcript):
       return acceptsTranscriptProjection(turnID: event.scope.turnID, state: state)
+    case .subagentsReconciled:
+      return true
     case .subagentDescribed, .subagentStarted, .subagentStopped:
       return false
     }
@@ -225,7 +227,7 @@ nonisolated struct TerminalAgentStateStore {
     case .turnRunning:
       return child.phase != .needsInput
     case .hoverMessagesUpdated, .progressUpdated, .sessionEnded, .sessionResumed, .sessionStarted,
-      .subagentStarted, .turnCompleted:
+      .subagentStarted, .subagentsReconciled, .turnCompleted:
       return false
     }
   }
@@ -315,6 +317,10 @@ nonisolated struct TerminalAgentStateStore {
       )
     case .attentionResolved(let requestID):
       resolveAttention(requestID: requestID, turnID: event.scope.turnID, state: &state)
+    case .subagentsReconciled(let liveSubagentIDs):
+      state.activeChildren = state.activeChildren.filter {
+        liveSubagentIDs.contains($0.key.subagentID)
+      }
     case .hoverMessagesUpdated(let messages):
       updateHoverMessages(messages, turnID: event.scope.turnID, state: &state)
     case .progressUpdated(let rows, let source):

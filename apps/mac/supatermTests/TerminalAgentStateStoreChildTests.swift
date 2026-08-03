@@ -538,6 +538,100 @@ extension TerminalAgentStateStoreTests {
   }
 
   @Test
+  func reconciledChildrenKeepOnlyLiveSubagents() throws {
+    let surfaceID = UUID()
+    let context = SupatermCLIContext(surfaceID: surfaceID, tabID: UUID())
+    var store = TerminalAgentStateStore()
+
+    store.apply(
+      event(
+        agent: .claude,
+        sessionID: "session-1",
+        context: context,
+        action: .sessionStarted(transcriptPath: nil)
+      )
+    )
+    store.apply(
+      event(agent: .claude, sessionID: "session-1", context: context, action: .turnStarted)
+    )
+    for subagentID in ["child-live", "child-lost"] {
+      store.apply(
+        event(
+          agent: .claude,
+          sessionID: "session-1",
+          subagentID: subagentID,
+          context: context,
+          action: .subagentStarted(nickname: nil, role: "general-purpose")
+        )
+      )
+    }
+    store.apply(
+      event(
+        agent: .claude,
+        sessionID: "session-1",
+        context: context,
+        action: .subagentsReconciled(liveSubagentIDs: ["child-live"])
+      )
+    )
+
+    let presentation = try #require(store.presentation(for: surfaceID, agent: .claude))
+    #expect(presentation.activeChildren.map(\.subagentID) == ["child-live"])
+    #expect(presentation.phase == .running)
+  }
+
+  @Test
+  func reconciledRestoredSessionDropsChildWhoseStopWasMissed() throws {
+    let surfaceID = UUID()
+    var store = TerminalAgentStateStore(processIdentity: testProcessIdentity)
+    store.restore([
+      TerminalAgentStateSnapshot(
+        agent: .claude,
+        sessionID: "session-1",
+        surfaceID: surfaceID,
+        processes: [TerminalAgentProcessIdentity(processID: 7, startTimeMicroseconds: 7)],
+        transcriptPath: nil,
+        turnLifecycle: .completed(nil),
+        phase: .idle,
+        detail: nil,
+        attentionRequestID: nil,
+        hoverMessages: [],
+        isActionable: false,
+        progressRowsBySource: [:],
+        activeChildren: [
+          TerminalAgentActiveChild(
+            id: TerminalAgentActiveChild.Identity(
+              subagentID: "child-lost",
+              sessionID: "session-1",
+              turnID: nil
+            ),
+            nickname: nil,
+            role: "general-purpose",
+            phase: .running,
+            detail: nil
+          )
+        ],
+        hasPendingBackgroundWork: false,
+        isForeground: true,
+        revision: 1,
+        workingDirectoryPath: nil
+      )
+    ])
+    #expect(store.presentation(for: surfaceID, agent: .claude)?.phase == .running)
+
+    store.apply(
+      event(
+        agent: .claude,
+        sessionID: "session-1",
+        action: .subagentsReconciled(liveSubagentIDs: [])
+      )
+    )
+
+    let presentation = try #require(store.presentation(for: surfaceID, agent: .claude))
+    #expect(presentation.activeChildren.isEmpty)
+    #expect(presentation.phase == .idle)
+  }
+
+  @Test
   func childAttentionOutranksRootRunning() throws {
     let fixture = startedStore()
     let surfaceID = fixture.surfaceID

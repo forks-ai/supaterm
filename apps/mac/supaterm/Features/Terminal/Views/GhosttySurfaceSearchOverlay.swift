@@ -7,18 +7,27 @@ struct GhosttySurfaceSearchOverlay: View {
   let surfaceView: GhosttySurfaceView
   @Bindable var state: GhosttySurfaceState
 
+  private let deferFocusRequest: @MainActor () async -> Void
+
   @Environment(\.accessibilityReduceMotion) private var reduceMotion
   @State private var searchText: String
   @State private var corner: GhosttySearchCorner = .topRight
   @State private var dragOffset: CGSize = .zero
   @State private var barSize: CGSize = .zero
   @State private var searchFocusRequest = 0
+  @State private var searchSelectionRequest = 0
   @State private var searchTask: Task<Void, Never>?
 
   private let overlayPadding: CGFloat = 8
 
-  init(surfaceView: GhosttySurfaceView) {
+  init(
+    surfaceView: GhosttySurfaceView,
+    deferFocusRequest: @escaping @MainActor () async -> Void = {
+      await Task.yield()
+    }
+  ) {
     self.surfaceView = surfaceView
+    self.deferFocusRequest = deferFocusRequest
     self._state = Bindable(surfaceView.bridge.state)
     self._searchText = State(initialValue: surfaceView.bridge.state.searchNeedle ?? "")
   }
@@ -30,6 +39,7 @@ struct GhosttySurfaceSearchOverlay: View {
           GhosttySearchField(
             text: $searchText,
             focusRequest: searchFocusRequest,
+            selectionRequest: searchSelectionRequest,
             onSubmit: { isShifted in
               navigateSearch(isShifted ? .previous : .next)
             },
@@ -118,20 +128,23 @@ struct GhosttySurfaceSearchOverlay: View {
       }
       .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: corner.alignment)
       .onAppear {
-        focusSearchFieldIfNeeded()
-        scheduleSearch(searchText)
+        updateSearchNeedleOnAppear()
+        updateSearchFieldOnAppear()
       }
       .onChange(of: searchText) { _, newValue in
-        scheduleSearch(newValue)
+        searchNeedleDidChange(newValue)
       }
       .onChange(of: state.searchNeedle) { _, newValue in
         guard let newValue else { return }
-        if !newValue.isEmpty, newValue != searchText {
+        if newValue != searchText {
           searchText = newValue
         }
       }
       .onChange(of: state.searchFocusCount) { _, _ in
         focusSearchFieldIfNeeded()
+      }
+      .onChange(of: state.searchSelectionRequestCount) { _, _ in
+        selectSearchNeedleIfNeeded()
       }
       .onDisappear {
         searchTask?.cancel()
@@ -162,7 +175,7 @@ struct GhosttySurfaceSearchOverlay: View {
   private func scheduleSearch(_ needle: String) {
     searchTask?.cancel()
     if needle.isEmpty || needle.count >= 3 {
-      emitSearch(needle)
+      performSearch(needle)
       return
     }
 
@@ -174,13 +187,17 @@ struct GhosttySurfaceSearchOverlay: View {
         return
       }
       guard !Task.isCancelled else { return }
-      emitSearch(text)
+      performSearch(text)
     }
   }
 
-  private func emitSearch(_ needle: String) {
-    state.searchNeedle = needle
+  private func performSearch(_ needle: String) {
     surfaceView.performBindingAction("search:\(needle)")
+  }
+
+  private func searchNeedleDidChange(_ needle: String) {
+    surfaceView.bridge.setSearchNeedle(needle)
+    scheduleSearch(needle)
   }
 
   private func navigateSearch(_ direction: GhosttySearchDirection) {
@@ -196,14 +213,52 @@ struct GhosttySurfaceSearchOverlay: View {
     guard let searchTask else { return }
     searchTask.cancel()
     self.searchTask = nil
-    emitSearch(searchText)
+    surfaceView.bridge.setSearchNeedle(searchText)
+    performSearch(searchText)
+  }
+
+  private func updateSearchNeedleOnAppear() {
+    let needle = state.searchNeedle ?? searchText
+    if needle == searchText {
+      scheduleSearch(needle)
+    } else {
+      searchText = needle
+    }
   }
 
   private func focusSearchFieldIfNeeded() {
     guard surfaceView.consumeSearchFocusRequest(state.searchFocusCount) else { return }
+    deferSearchFieldFocus(selectingNeedle: false)
+  }
+
+  private func selectSearchNeedleIfNeeded() {
+    guard
+      surfaceView.consumeSearchSelectionRequest(state.searchSelectionRequestCount)
+    else { return }
+    searchSelectionRequest += 1
+  }
+
+  private func updateSearchFieldOnAppear() {
+    let shouldFocus = surfaceView.consumeSearchFocusRequest(state.searchFocusCount)
+    let shouldSelect = surfaceView.consumeSearchSelectionRequest(
+      state.searchSelectionRequestCount
+    )
+    if shouldFocus {
+      deferSearchFieldFocus(selectingNeedle: shouldSelect)
+      return
+    }
+    if shouldSelect {
+      searchSelectionRequest += 1
+    }
+  }
+
+  private func deferSearchFieldFocus(selectingNeedle: Bool) {
     Task { @MainActor in
-      await Task.yield()
+      await deferFocusRequest()
       searchFocusRequest += 1
+      if selectingNeedle {
+        searchSelectionRequest += 1
+      }
     }
   }
 
@@ -285,6 +340,7 @@ private struct SearchButtonLabel: View {
 private struct GhosttySearchField: NSViewRepresentable {
   @Binding var text: String
   var focusRequest: Int
+  var selectionRequest: Int
   var onSubmit: (Bool) -> Void
   var onEscape: () -> Void
 
@@ -319,11 +375,18 @@ private struct GhosttySearchField: NSViewRepresentable {
       context.coordinator.focusRequest = focusRequest
       window.makeFirstResponder(nsView)
     }
+
+    guard context.coordinator.selectionRequest != selectionRequest else { return }
+    context.coordinator.selectionRequest = selectionRequest
+    if let editor = nsView.currentEditor() {
+      editor.selectedRange = NSRange(location: 0, length: nsView.stringValue.utf16.count)
+    }
   }
 
   final class Coordinator: NSObject, NSTextFieldDelegate {
     @Binding var text: String
     var focusRequest = 0
+    var selectionRequest = 0
 
     init(text: Binding<String>) {
       _text = text

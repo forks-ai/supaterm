@@ -34,6 +34,7 @@ final class GhosttySurfaceState {
   var searchTotal: Int?
   var searchSelected: Int?
   var searchFocusCount = 0
+  var searchSelectionRequestCount = 0
   var sizeLimitMinWidth: UInt32?
   var sizeLimitMinHeight: UInt32?
   var sizeLimitMaxWidth: UInt32?

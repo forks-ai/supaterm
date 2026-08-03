@@ -107,16 +107,46 @@ nonisolated enum TerminalAgentEventTranslator {
     case .sessionStart:
       action = sessionAction(for: request)
     case .stop:
-      action =
+      let stopAction: TerminalAgentEvent.Action =
         hasActiveClaudeBackgroundWork(request.event)
         ? .turnContinuesInBackground
         : .turnCompleted(message: request.event.lastAssistantMessage)
+      guard scope.subagentID == nil,
+        let liveSubagentIDs = runningClaudeSubagentIDs(request.event)
+      else {
+        return [event(request, scope: scope, action: stopAction)]
+      }
+      return [
+        event(
+          request,
+          scope: scope,
+          action: .subagentsReconciled(liveSubagentIDs: liveSubagentIDs)
+        ),
+        event(request, scope: scope, action: stopAction),
+      ]
     case .userPromptSubmit:
       action = .turnStarted
     default:
       return []
     }
     return [event(request, scope: scope, action: action)]
+  }
+
+  private static func runningClaudeSubagentIDs(
+    _ event: SupatermAgentHookEvent
+  ) -> Set<String>? {
+    guard let tasks = event.payload["background_tasks"]?.arrayValue else { return nil }
+    return Set(
+      tasks.compactMap { task in
+        guard let task = task.objectValue,
+          task["type"]?.stringValue == "subagent",
+          task["status"]?.stringValue == "running"
+        else {
+          return nil
+        }
+        return task["id"]?.stringValue
+      }
+    )
   }
 
   private static func hasActiveClaudeBackgroundWork(

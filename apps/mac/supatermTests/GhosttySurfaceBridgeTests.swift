@@ -62,6 +62,88 @@ struct GhosttySurfaceBridgeTests {
   }
 
   @Test
+  func emptySearchRestoresFindPasteboardNeedle() {
+    let pasteboard = makeFindPasteboard("restored")
+    let bridge = GhosttySurfaceBridge(findPasteboard: pasteboard)
+
+    withStartSearchAction(needle: "") { action in
+      #expect(bridge.handleAction(target: ghosttySurfaceTarget(), action: action) == false)
+    }
+
+    #expect(bridge.state.searchNeedle == "restored")
+    #expect(bridge.state.searchFocusCount == 1)
+    #expect(bridge.state.searchSelectionRequestCount == 1)
+  }
+
+  @Test
+  func nonEmptySearchWritesFindPasteboardNeedle() {
+    let pasteboard = makeFindPasteboard("old")
+    let bridge = GhosttySurfaceBridge(findPasteboard: pasteboard)
+
+    withStartSearchAction(needle: "new") { action in
+      #expect(bridge.handleAction(target: ghosttySurfaceTarget(), action: action) == false)
+    }
+
+    #expect(bridge.state.searchNeedle == "new")
+    #expect(pasteboard.string(forType: .string) == "new")
+    #expect(bridge.state.searchSelectionRequestCount == 0)
+  }
+
+  @Test
+  func repeatedExplicitSearchReassertsFindPasteboardNeedle() {
+    let pasteboard = makeFindPasteboard("other")
+    let bridge = GhosttySurfaceBridge(findPasteboard: pasteboard)
+    bridge.state.searchNeedle = "same"
+
+    withStartSearchAction(needle: "same") { action in
+      #expect(bridge.handleAction(target: ghosttySurfaceTarget(), action: action) == false)
+    }
+
+    #expect(bridge.state.searchNeedle == "same")
+    #expect(pasteboard.string(forType: .string) == "same")
+  }
+
+  @Test
+  func changedSearchNeedleWritesFindPasteboard() {
+    let pasteboard = makeFindPasteboard()
+    let bridge = GhosttySurfaceBridge(findPasteboard: pasteboard)
+    bridge.state.searchNeedle = "before"
+
+    bridge.setSearchNeedle("after")
+
+    #expect(bridge.state.searchNeedle == "after")
+    #expect(pasteboard.string(forType: .string) == "after")
+  }
+
+  @Test
+  func activationRestoreUpdatesNeedleAndRequestsSelection() {
+    let pasteboard = makeFindPasteboard("before")
+    let bridge = GhosttySurfaceBridge(findPasteboard: pasteboard)
+    bridge.state.searchNeedle = "before"
+    replaceFindPasteboard(pasteboard, with: "after")
+
+    bridge.restoreSearchNeedle()
+
+    #expect(bridge.state.searchNeedle == "after")
+    #expect(bridge.state.searchSelectionRequestCount == 1)
+  }
+
+  @Test
+  func sharedFindPasteboardDoesNotShareLiveSearchState() {
+    let pasteboard = makeFindPasteboard()
+    let firstBridge = GhosttySurfaceBridge(findPasteboard: pasteboard)
+    let secondBridge = GhosttySurfaceBridge(findPasteboard: pasteboard)
+    firstBridge.state.searchNeedle = "first"
+    secondBridge.state.searchNeedle = "second"
+
+    firstBridge.setSearchNeedle("updated")
+
+    #expect(firstBridge.state.searchNeedle == "updated")
+    #expect(secondBridge.state.searchNeedle == "second")
+    #expect(pasteboard.string(forType: .string) == "updated")
+  }
+
+  @Test
   func openConfigUsesAppActionPerformer() {
     let app = NSApplication.shared
     let previousDelegate = app.delegate
@@ -221,4 +303,5 @@ struct GhosttySurfaceBridgeTests {
     action.action.open_url.len = UInt(strlen(pointer))
     return body(action)
   }
+
 }

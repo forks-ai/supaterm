@@ -50,12 +50,31 @@ struct TerminalCommandPaletteRow: Equatable, Identifiable, Sendable {
   let emphasis: Bool
   let shortcut: String?
   let command: TerminalCommandPaletteCommand
+}
 
-  var searchableText: String {
-    [title, subtitle]
-      .compactMap { $0?.trimmingCharacters(in: .whitespacesAndNewlines) }
-      .filter { !$0.isEmpty }
-      .joined(separator: " ")
+struct TerminalCommandPaletteMatch: Equatable, Identifiable, Sendable {
+  enum MatchedCharacter: Equatable, Sendable {
+    case title(Int)
+    case subtitle(Int)
+  }
+
+  let row: TerminalCommandPaletteRow
+  let matchedCharacters: [MatchedCharacter]
+
+  var id: TerminalCommandPaletteRow.ID { row.id }
+
+  var titleMatchedCharacterOffsets: [Int] {
+    matchedCharacters.compactMap { character in
+      guard case .title(let offset) = character else { return nil }
+      return offset
+    }
+  }
+
+  var subtitleMatchedCharacterOffsets: [Int] {
+    matchedCharacters.compactMap { character in
+      guard case .subtitle(let offset) = character else { return nil }
+      return offset
+    }
   }
 }
 
@@ -112,42 +131,45 @@ enum TerminalCommandPalettePresentation {
     return rows
   }
 
-  static func visibleRows(
+  static func matches(
     from snapshot: TerminalCommandPaletteSnapshot,
     query: String
-  ) -> [TerminalCommandPaletteRow] {
-    visibleRows(in: rows(from: snapshot), query: query)
+  ) -> [TerminalCommandPaletteMatch] {
+    matches(in: rows(from: snapshot), query: query)
   }
 
-  static func visibleRows(
+  static func matches(
     in rows: [TerminalCommandPaletteRow],
     query: String
-  ) -> [TerminalCommandPaletteRow] {
-    guard !query.isEmpty else { return rows }
-
-    let normalizedQuery = query.lowercased()
-    let matchedRows: [MatchedRow] = rows.enumerated().compactMap { index, row -> MatchedRow? in
-      guard row.searchableText.lowercased().contains(normalizedQuery) else {
-        return nil
+  ) -> [TerminalCommandPaletteMatch] {
+    let query = query.trimmingCharacters(in: .whitespacesAndNewlines)
+    guard !query.isEmpty else {
+      return rows.map { row in
+        TerminalCommandPaletteMatch(row: row, matchedCharacters: [])
       }
-      return MatchedRow(index: index, row: row)
     }
 
-    return
-      matchedRows
-      .sorted { lhs, rhs in
-        lhs.index < rhs.index
+    return rows.compactMap { row in
+      let searchableContent = searchableContent(for: row)
+      guard let indices = matchedIndices(in: searchableContent.text, for: query) else {
+        return nil
       }
-      .map(\.row)
+      let matchedCharacters = indices.compactMap { index in
+        searchableContent.characterSources[
+          searchableContent.text.distance(from: searchableContent.text.startIndex, to: index)
+        ]
+      }
+      return TerminalCommandPaletteMatch(row: row, matchedCharacters: matchedCharacters)
+    }
   }
 
   static func normalizedSelection(
     _ selectedRowID: TerminalCommandPaletteRow.ID?,
-    in visibleRows: [TerminalCommandPaletteRow]
+    in matches: [TerminalCommandPaletteMatch]
   ) -> TerminalCommandPaletteRow.ID? {
-    guard !visibleRows.isEmpty else { return nil }
-    guard let selectedRowID, visibleRows.contains(where: { $0.id == selectedRowID }) else {
-      return visibleRows[0].id
+    guard !matches.isEmpty else { return nil }
+    guard let selectedRowID, matches.contains(where: { $0.id == selectedRowID }) else {
+      return matches[0].id
     }
     return selectedRowID
   }
@@ -155,32 +177,96 @@ enum TerminalCommandPalettePresentation {
   static func movedSelection(
     _ selectedRowID: TerminalCommandPaletteRow.ID?,
     by offset: Int,
-    in visibleRows: [TerminalCommandPaletteRow]
+    in matches: [TerminalCommandPaletteMatch]
   ) -> TerminalCommandPaletteRow.ID? {
-    guard !visibleRows.isEmpty else { return nil }
-    guard let currentSelection = normalizedSelection(selectedRowID, in: visibleRows) else {
-      return offset < 0 ? visibleRows.last?.id : visibleRows.first?.id
+    guard !matches.isEmpty else { return nil }
+    guard let currentSelection = normalizedSelection(selectedRowID, in: matches) else {
+      return offset < 0 ? matches.last?.id : matches.first?.id
     }
     let currentIndex =
-      visibleRows.firstIndex(where: { $0.id == currentSelection })
+      matches.firstIndex(where: { $0.id == currentSelection })
       ?? 0
-    let nextIndex = (currentIndex + offset).wrappedIndex(modulo: visibleRows.count)
-    return visibleRows[nextIndex].id
+    let nextIndex = (currentIndex + offset).wrappedIndex(modulo: matches.count)
+    return matches[nextIndex].id
   }
 
   static func row(
     atVisibleIndex index: Int,
-    in visibleRows: [TerminalCommandPaletteRow]
+    in matches: [TerminalCommandPaletteMatch]
   ) -> TerminalCommandPaletteRow? {
-    guard visibleRows.indices.contains(index) else { return nil }
-    return visibleRows[index]
+    guard matches.indices.contains(index) else { return nil }
+    return matches[index].row
   }
 
   static func rowForSlot(
     _ slot: Int,
-    in visibleRows: [TerminalCommandPaletteRow]
+    in matches: [TerminalCommandPaletteMatch]
   ) -> TerminalCommandPaletteRow? {
-    row(atVisibleIndex: slot - 1, in: visibleRows)
+    row(atVisibleIndex: slot - 1, in: matches)
+  }
+
+  private static func searchableContent(
+    for row: TerminalCommandPaletteRow
+  ) -> SearchableContent {
+    var text = ""
+    var characterSources: [TerminalCommandPaletteMatch.MatchedCharacter?] = []
+    appendSearchableText(
+      row.title,
+      source: TerminalCommandPaletteMatch.MatchedCharacter.title,
+      to: &text,
+      characterSources: &characterSources
+    )
+    if let subtitle = row.subtitle {
+      appendSearchableText(
+        subtitle,
+        source: TerminalCommandPaletteMatch.MatchedCharacter.subtitle,
+        to: &text,
+        characterSources: &characterSources
+      )
+    }
+    return SearchableContent(text: text, characterSources: characterSources)
+  }
+
+  private static func appendSearchableText(
+    _ rawText: String,
+    source: (Int) -> TerminalCommandPaletteMatch.MatchedCharacter,
+    to text: inout String,
+    characterSources: inout [TerminalCommandPaletteMatch.MatchedCharacter?]
+  ) {
+    let trimmedText = rawText.trimmingCharacters(in: .whitespacesAndNewlines)
+    guard !trimmedText.isEmpty, let range = rawText.range(of: trimmedText) else { return }
+
+    if !text.isEmpty {
+      text.append(" ")
+      characterSources.append(nil)
+    }
+
+    let sourceOffset = rawText.distance(from: rawText.startIndex, to: range.lowerBound)
+    for (offset, character) in trimmedText.enumerated() {
+      text.append(character)
+      characterSources.append(source(sourceOffset + offset))
+    }
+  }
+
+  private static func matchedIndices(
+    in text: String,
+    for query: String
+  ) -> [String.Index]? {
+    if let range = text.range(of: query, options: .caseInsensitive) {
+      return Array(text[range].indices)
+    }
+
+    var queryIndex = query.startIndex
+    var indices: [String.Index] = []
+
+    for word in text.split(whereSeparator: \.isWhitespace) {
+      guard queryIndex < query.endIndex else { break }
+      guard word.first?.lowercased() == query[queryIndex].lowercased() else { continue }
+      indices.append(word.startIndex)
+      queryIndex = query.index(after: queryIndex)
+    }
+
+    return queryIndex == query.endIndex ? indices : nil
   }
 
   private static func ghosttyRow(
@@ -403,9 +489,9 @@ enum TerminalCommandPalettePresentation {
 
 }
 
-private struct MatchedRow {
-  let index: Int
-  let row: TerminalCommandPaletteRow
+private struct SearchableContent {
+  let text: String
+  let characterSources: [TerminalCommandPaletteMatch.MatchedCharacter?]
 }
 
 extension Int {

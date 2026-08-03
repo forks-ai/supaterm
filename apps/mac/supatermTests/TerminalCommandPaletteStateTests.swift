@@ -38,80 +38,186 @@ struct TerminalCommandPaletteStateTests {
   }
 
   @Test
-  func substringQueryMatchesGhosttyRows() {
+  func whitespaceOnlyQueryReturnsEveryRowWithoutHighlights() {
     let rows = TerminalCommandPalettePresentation.rows(from: makeSnapshot())
 
-    let visibleRows = TerminalCommandPalettePresentation.visibleRows(
+    let matches = TerminalCommandPalettePresentation.matches(
       in: rows,
-      query: "split right"
+      query: " \n\t "
     )
 
-    #expect(visibleRows.first?.command == .ghosttyBindingAction("new_split:right"))
+    #expect(matches.map(\.row) == rows)
+    #expect(matches.map(\.matchedCharacters) == Array(repeating: [], count: matches.count))
+  }
+
+  @Test
+  func queryIgnoresCase() {
+    let matches = TerminalCommandPalettePresentation.matches(
+      in: TerminalCommandPalettePresentation.rows(from: makeSnapshot()),
+      query: "sPlIt rIgHt"
+    )
+
+    #expect(matches.map(\.row.command) == [.ghosttyBindingAction("new_split:right")])
+  }
+
+  @Test
+  func queryTrimsOuterWhitespace() {
+    let matches = TerminalCommandPalettePresentation.matches(
+      in: TerminalCommandPalettePresentation.rows(from: makeSnapshot()),
+      query: "  split right\n"
+    )
+
+    #expect(matches.map(\.row.command) == [.ghosttyBindingAction("new_split:right")])
+  }
+
+  @Test
+  func exactMatchHighlightsEveryCharacter() {
+    let match = TerminalCommandPalettePresentation.matches(
+      in: [makeRow(id: "split", title: "Split Right")],
+      query: "Split Right"
+    ).first
+
+    #expect(match?.matchedCharacters == (0...10).map(TerminalCommandPaletteMatch.MatchedCharacter.title))
+  }
+
+  @Test
+  func substringMatchHighlightsOnlyTheSubstring() {
+    let match = TerminalCommandPalettePresentation.matches(
+      in: [makeRow(id: "split", title: "Split Right")],
+      query: "lit Ri"
+    ).first
+
+    #expect(match?.matchedCharacters == (2...7).map(TerminalCommandPaletteMatch.MatchedCharacter.title))
+  }
+
+  @Test
+  func subtitleMatchHighlightsSubtitleCharacters() {
+    let match = TerminalCommandPalettePresentation.matches(
+      in: [makeRow(id: "config", title: "Open", subtitle: "Config File")],
+      query: "config"
+    ).first
+
+    #expect(match?.matchedCharacters == (0...5).map(TerminalCommandPaletteMatch.MatchedCharacter.subtitle))
+  }
+
+  @Test
+  func substringMatchCanSpanTitleAndSubtitle() {
+    let match = TerminalCommandPalettePresentation.matches(
+      in: [makeRow(id: "config", title: "Open", subtitle: "Config")],
+      query: "open config"
+    ).first
+
+    #expect(
+      match?.matchedCharacters == (0...3).map(TerminalCommandPaletteMatch.MatchedCharacter.title)
+        + (0...5).map(TerminalCommandPaletteMatch.MatchedCharacter.subtitle)
+    )
+  }
+
+  @Test
+  func wordInitialMatchFindsNewTabInWindow() {
+    let match = TerminalCommandPalettePresentation.matches(
+      in: [makeRow(id: "new-tab", title: "New Tab in Window")],
+      query: "ntw"
+    ).first
+
+    #expect(match?.row.title == "New Tab in Window")
+    #expect(match?.matchedCharacters == [.title(0), .title(4), .title(11)])
+  }
+
+  @Test
+  func matchingPreservesSourceOrdering() {
+    let rows = [
+      makeRow(id: "substring", title: "Walk"),
+      makeRow(id: "initials", title: "Able Landing"),
+      makeRow(id: "exact", title: "AL"),
+    ]
+
+    let matches = TerminalCommandPalettePresentation.matches(in: rows, query: "al")
+
+    #expect(matches.map(\.id) == ["substring", "initials", "exact"])
   }
 
   @Test
   func unmatchedQueryReturnsNoRows() {
     let rows = TerminalCommandPalettePresentation.rows(from: makeSnapshot())
 
-    let visibleRows = TerminalCommandPalettePresentation.visibleRows(
+    let matches = TerminalCommandPalettePresentation.matches(
       in: rows,
       query: "missing"
     )
 
-    #expect(visibleRows.isEmpty)
+    #expect(matches.isEmpty)
   }
 
   @Test
   func normalizedSelectionFallsBackToFirstVisibleRow() {
     let rows = TerminalCommandPalettePresentation.rows(from: makeSnapshot())
-    let visibleRows = TerminalCommandPalettePresentation.visibleRows(
+    let matches = TerminalCommandPalettePresentation.matches(
       in: rows,
       query: "switch"
     )
 
     let selectedRowID = TerminalCommandPalettePresentation.normalizedSelection(
       "missing",
-      in: visibleRows
+      in: matches
     )
 
-    #expect(selectedRowID == visibleRows.first?.id)
+    #expect(selectedRowID == matches.first?.id)
   }
 
   @Test
   func movedSelectionWrapsWithinFilteredRows() {
     let rows = TerminalCommandPalettePresentation.rows(from: makeSnapshot())
-    let visibleRows = TerminalCommandPalettePresentation.visibleRows(
+    let matches = TerminalCommandPalettePresentation.matches(
       in: rows,
       query: "switch"
     )
 
     let wrappedBackward = TerminalCommandPalettePresentation.movedSelection(
-      visibleRows.first?.id,
+      matches.first?.id,
       by: -1,
-      in: visibleRows
+      in: matches
     )
     let wrappedForward = TerminalCommandPalettePresentation.movedSelection(
-      visibleRows.last?.id,
+      matches.last?.id,
       by: 1,
-      in: visibleRows
+      in: matches
     )
 
-    #expect(wrappedBackward == visibleRows.last?.id)
-    #expect(wrappedForward == visibleRows.first?.id)
+    #expect(wrappedBackward == matches.last?.id)
+    #expect(wrappedForward == matches.first?.id)
   }
 
   @Test
   func rowForSlotUsesFilteredOrdering() {
     let rows = TerminalCommandPalettePresentation.rows(from: makeSnapshot())
-    let visibleRows = TerminalCommandPalettePresentation.visibleRows(
+    let matches = TerminalCommandPalettePresentation.matches(
       in: rows,
       query: "switch"
     )
 
-    let row = TerminalCommandPalettePresentation.rowForSlot(2, in: visibleRows)
+    let row = TerminalCommandPalettePresentation.rowForSlot(2, in: matches)
 
-    #expect(row?.id == visibleRows[1].id)
+    #expect(row?.id == matches[1].id)
     #expect(row?.command == .selectSpace(makeSnapshot().spaces[1].id))
+  }
+
+  private func makeRow(
+    id: String,
+    title: String,
+    subtitle: String? = nil
+  ) -> TerminalCommandPaletteRow {
+    TerminalCommandPaletteRow(
+      id: id,
+      title: title,
+      subtitle: subtitle,
+      description: nil,
+      leadingIcon: nil,
+      badge: nil,
+      emphasis: false,
+      shortcut: nil,
+      command: .ghosttyBindingAction(id)
+    )
   }
 
   private var visibleTabs: [TerminalTabItem] = [

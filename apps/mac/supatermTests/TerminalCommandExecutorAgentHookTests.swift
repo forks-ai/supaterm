@@ -267,6 +267,57 @@ struct TerminalCommandExecutorAgentHookTests {
     #expect(harness.host.latestNotificationText(for: harness.tabID) == "Done.")
   }
   @Test
+  func claudeStopRemovesChildrenMissingFromBackgroundTasks() throws {
+    let harness = try makeClaudeHookHarness()
+    func presentedChildIDs() -> [String] {
+      harness.host.agentPanelPresentation(for: harness.context.surfaceID)?
+        .activeChildren.map(\.subagentID) ?? []
+    }
+
+    _ = try harness.commandExecutor.handleAgentHook(
+      ClaudeHookFixtures.request(ClaudeHookFixtures.sessionStart, context: harness.context)
+    )
+    for agentID in ["child-live", "child-lost"] {
+      _ = try harness.commandExecutor.handleAgentHook(
+        SupatermAgentHookRequest(
+          agent: .claude,
+          context: harness.context,
+          event: SupatermAgentHookEvent(
+            agentType: "general-purpose",
+            hookEventName: .subagentStart,
+            sessionID: ClaudeHookFixtures.sessionID,
+            transcriptPath: ClaudeHookFixtures.transcriptPath,
+            agentID: agentID
+          )
+        )
+      )
+    }
+    #expect(presentedChildIDs() == ["child-live", "child-lost"])
+
+    _ = try harness.commandExecutor.handleAgentHook(
+      ClaudeHookFixtures.request(
+        ClaudeHookFixtures.stopWithRunningSubagent,
+        context: harness.context
+      )
+    )
+    #expect(presentedChildIDs() == ["child-live"])
+    expectNoDifference(
+      harness.host.agentActivity(for: harness.tabID),
+      .claude(.running)
+    )
+
+    _ = try harness.commandExecutor.handleAgentHook(
+      ClaudeHookFixtures.request(ClaudeHookFixtures.stop, context: harness.context)
+    )
+    #expect(presentedChildIDs() == ["child-live"])
+
+    _ = try harness.commandExecutor.handleAgentHook(
+      ClaudeHookFixtures.request(ClaudeHookFixtures.stopWithPendingCron, context: harness.context)
+    )
+    #expect(presentedChildIDs().isEmpty)
+  }
+
+  @Test
   func claudeIdlePromptDoesNotOverridePendingBackgroundWork() throws {
     let harness = try makeClaudeHookHarness()
 
