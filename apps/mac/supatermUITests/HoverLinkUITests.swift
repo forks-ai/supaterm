@@ -6,7 +6,7 @@ final class HoverLinkUITests: SupatermUITestCase {
     _ = mainTerminal
     try clickMenuItem(.splitDown)
     let terminals = app.textViews
-    let didSplit = await wait(for: terminals.firstMatch, timeout: .seconds(30)) {
+    let didSplit = await wait(for: terminals.firstMatch, timeout: .seconds(30)) { _ in
       terminals.count == 2
     }
     XCTAssertTrue(didSplit)
