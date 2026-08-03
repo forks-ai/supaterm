@@ -7,7 +7,7 @@ extension SnapshotCatalog {
       "hovered-link-corners",
       group: "Terminal Pane",
       title: "Hovered link corners",
-      size: CGSize(width: 420, height: 320)
+      size: CGSize(width: 420, height: 400)
     ) { appearance in
       AnyView(HoverLinkSnapshotFixture(appearance: appearance))
     }
@@ -36,6 +36,9 @@ private struct HoverLinkSnapshotFixture: View {
       presentation(link: longLink, pointerIsNearLeadingBanner: false)
         .frame(width: 240)
         .frame(maxWidth: .infinity, alignment: .leading)
+      presentation(link: longLink, pointerIsNearLeadingBanner: true)
+        .frame(width: 240)
+        .frame(maxWidth: .infinity, alignment: .trailing)
     }
     .padding(16)
     .background(palette.detailBackground)
