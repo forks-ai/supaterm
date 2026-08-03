@@ -2,13 +2,13 @@ import XCTest
 
 final class DialogsLifecycleUITests: SupatermUITestCase {
   @MainActor
-  func testCloseAllWindowsShowsSingleConfirmationThatCancelsAndCloses() throws {
+  func testCloseAllWindowsShowsSingleConfirmationThatCancelsAndCloses() async throws {
     _ = mainTerminal
 
     try clickMenuItem(.newWindow)
-    let didOpenSecondWindow = wait(
+    let didOpenSecondWindow = await wait(
       for: app.windows.firstMatch,
-      timeout: 30
+      timeout: .seconds(30)
     ) { _ in
       self.app.windows.count == 2 && self.app.textViews.count == 2
     }
@@ -28,7 +28,7 @@ final class DialogsLifecycleUITests: SupatermUITestCase {
     XCTAssertEqual(cancelButtons.count, 1)
 
     cancelButtons.firstMatch.click()
-    let didCancel = wait(for: title) { !$0.exists }
+    let didCancel = await wait(for: title) { !$0.exists }
     XCTAssertTrue(didCancel)
     XCTAssertEqual(app.windows.count, 2)
     XCTAssertEqual(app.textViews.count, 2)
@@ -37,9 +37,9 @@ final class DialogsLifecycleUITests: SupatermUITestCase {
     XCTAssertTrue(title.waitForExistence(timeout: 10))
     confirmButtons.firstMatch.click()
 
-    let didCloseAllWindows = wait(
+    let didCloseAllWindows = await wait(
       for: app.windows.firstMatch,
-      timeout: 30
+      timeout: .seconds(30)
     ) { _ in
       self.app.windows.count < 1
     }
@@ -48,7 +48,7 @@ final class DialogsLifecycleUITests: SupatermUITestCase {
   }
 
   @MainActor
-  func testChangeTerminalTitleAppliesTypedTitle() throws {
+  func testChangeTerminalTitleAppliesTypedTitle() async throws {
     _ = mainWindow
     let terminal = app.textViews.firstMatch
     XCTAssertTrue(terminal.waitForExistence(timeout: 30))
@@ -70,14 +70,14 @@ final class DialogsLifecycleUITests: SupatermUITestCase {
     XCTAssertTrue(confirmButton.waitForExistence(timeout: 10))
     confirmButton.click()
 
-    let didDismiss = wait(for: heading) { !$0.exists }
+    let didDismiss = await wait(for: heading) { !$0.exists }
     XCTAssertTrue(didDismiss)
-    let didApplyTitle = waitForTabTitle(title)
+    let didApplyTitle = await waitForTabTitle(title)
     XCTAssertTrue(didApplyTitle)
   }
 
   @MainActor
-  func testQuitCanBeCancelledWhileForegroundProcessIsRunning() throws {
+  func testQuitCanBeCancelledWhileForegroundProcessIsRunning() async throws {
     _ = mainWindow
     let terminal = app.textViews.firstMatch
     XCTAssertTrue(terminal.waitForExistence(timeout: 30))
@@ -85,7 +85,7 @@ final class DialogsLifecycleUITests: SupatermUITestCase {
 
     let marker = "quit-cancel-\(UUID().uuidString)"
     app.typeText("echo \(marker); sleep 300\n")
-    let processStarted = wait(for: terminal, timeout: 30) { element in
+    let processStarted = await wait(for: terminal, timeout: .seconds(30)) { element in
       (element.value as? String)?.contains(marker) == true
     }
     XCTAssertTrue(processStarted)
@@ -101,7 +101,7 @@ final class DialogsLifecycleUITests: SupatermUITestCase {
     XCTAssertTrue(cancelButton.waitForExistence(timeout: 10))
     cancelButton.click()
 
-    let didDismiss = wait(for: quitDialog) { !$0.exists }
+    let didDismiss = await wait(for: quitDialog) { !$0.exists }
     XCTAssertTrue(didDismiss)
     XCTAssertTrue(app.wait(for: .runningForeground, timeout: 5))
     XCTAssertTrue(mainWindow.exists)
@@ -111,7 +111,7 @@ final class DialogsLifecycleUITests: SupatermUITestCase {
   }
 
   @MainActor
-  func testReactivatingAfterClosingLastWindowOpensTerminalWindow() throws {
+  func testReactivatingAfterClosingLastWindowOpensTerminalWindow() async throws {
     let window = mainWindow
 
     try clickMenuItem(.closeWindow)
@@ -122,7 +122,7 @@ final class DialogsLifecycleUITests: SupatermUITestCase {
     XCTAssertTrue(confirmButton.waitForExistence(timeout: 10))
     confirmButton.click()
 
-    let didCloseWindow = wait(for: window, timeout: 30) { !$0.exists }
+    let didCloseWindow = await wait(for: window, timeout: .seconds(30)) { !$0.exists }
     XCTAssertTrue(didCloseWindow)
 
     let finder = XCUIApplication(bundleIdentifier: "com.apple.finder")
@@ -136,11 +136,11 @@ final class DialogsLifecycleUITests: SupatermUITestCase {
   }
 
   @MainActor
-  private func waitForTabTitle(_ title: String) -> Bool {
+  private func waitForTabTitle(_ title: String) async -> Bool {
     let rows = tabRows
-    return wait(
+    return await wait(
       for: rows.firstMatch,
-      timeout: 30
+      timeout: .seconds(30)
     ) { _ in
       rows.allElementsBoundByIndex.contains { $0.label.contains(title) }
     }

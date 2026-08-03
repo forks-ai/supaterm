@@ -1,156 +1,156 @@
 import XCTest
 
 final class AgentPanelUITests: SupatermUITestCase {
-  private static let coldStartTimeout: TimeInterval = 60
+  private static let coldStartTimeout: Duration = .seconds(60)
   private static let sessionID = "agent-panel-ui-tests"
 
   @MainActor
-  func testCommandIAndMenuItemToggleAgentPanel() throws {
+  func testCommandIAndMenuItemToggleAgentPanel() async throws {
     _ = mainWindow
-    try sendClaudeEvent("session-start")
-    try assertAgentPanelMenuItem(isEnabled: true)
+    try await sendClaudeEvent("session-start")
+    try await assertAgentPanelMenuItem(isEnabled: true)
 
     let panel = agentPanel
-    assertEventually(panel, timeout: Self.coldStartTimeout) { $0.exists }
+    await assertEventually(panel, timeout: Self.coldStartTimeout) { $0.exists }
 
     app.typeKey("i", modifierFlags: .command)
-    assertEventually(panel, timeout: Self.coldStartTimeout) { !$0.exists }
+    await assertEventually(panel, timeout: Self.coldStartTimeout) { !$0.exists }
 
     app.typeKey("i", modifierFlags: .command)
-    assertEventually(panel, timeout: Self.coldStartTimeout) { $0.exists }
+    await assertEventually(panel, timeout: Self.coldStartTimeout) { $0.exists }
 
     try clickMenuItem(.toggleAgentPanel)
-    assertEventually(panel, timeout: Self.coldStartTimeout) { !$0.exists }
+    await assertEventually(panel, timeout: Self.coldStartTimeout) { !$0.exists }
   }
 
   @MainActor
-  func testCopySessionIDShowsTemporaryCopiedFeedback() throws {
+  func testCopySessionIDShowsTemporaryCopiedFeedback() async throws {
     _ = mainWindow
-    try sendClaudeEvent("session-start")
-    try sendClaudeEvent("user-prompt-submit")
+    try await sendClaudeEvent("session-start")
+    try await sendClaudeEvent("user-prompt-submit")
 
     let copyButton = agentPanel.buttons.matching(
       NSPredicate(format: "label IN %@", ["Copy session ID", "Copied"])
     ).firstMatch
-    assertEventually(copyButton, timeout: Self.coldStartTimeout) {
+    await assertEventually(copyButton, timeout: Self.coldStartTimeout) {
       $0.exists
     }
 
     copyButton.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)).click()
 
-    assertEventually(copyButton) { $0.label == "Copied" }
-    assertEventually(copyButton) { $0.label == "Copy session ID" }
+    await assertEventually(copyButton) { $0.label == "Copied" }
+    await assertEventually(copyButton) { $0.label == "Copy session ID" }
   }
 
   @MainActor
-  func testClaudeLifecycleUpdatesSidebarAndPanel() throws {
+  func testClaudeLifecycleUpdatesSidebarAndPanel() async throws {
     let tabRows = sidebarTabRows
-    let firstTab = requireFirstTab()
+    let firstTab = await requireFirstTab()
 
-    try sendClaudeEvent("session-start")
-    try sendClaudeEvent("user-prompt-submit")
+    try await sendClaudeEvent("session-start")
+    try await sendClaudeEvent("user-prompt-submit")
 
-    assertEventually(firstTab, timeout: Self.coldStartTimeout) {
+    await assertEventually(firstTab, timeout: Self.coldStartTimeout) {
       $0.label.contains("Agent activity: Running")
     }
-    try assertAgentPanelMenuItem(isEnabled: true)
+    try await assertAgentPanelMenuItem(isEnabled: true)
 
-    try sendClaudeEvent("notification")
+    try await sendClaudeEvent("notification")
     try clickMenuItem(.newTab, timeout: 60)
 
     let secondTab = tabRows.element(boundBy: 1)
-    assertEventually(secondTab, timeout: Self.coldStartTimeout) {
+    await assertEventually(secondTab, timeout: Self.coldStartTimeout) {
       $0.exists && $0.isHittable && $0.isSelected
     }
-    selectTab(firstTab)
-    selectTab(secondTab)
-    assertEventually(firstTab, timeout: Self.coldStartTimeout) {
+    await selectTab(firstTab)
+    await selectTab(secondTab)
+    await assertEventually(firstTab, timeout: Self.coldStartTimeout) {
       $0.label.contains("Agent activity: Needs input")
     }
 
-    selectTab(firstTab)
-    try sendClaudeEvent("stop")
+    await selectTab(firstTab)
+    try await sendClaudeEvent("stop")
 
-    assertEventually(firstTab, timeout: Self.coldStartTimeout) {
+    await assertEventually(firstTab, timeout: Self.coldStartTimeout) {
       $0.label.contains("Done.") && !$0.label.contains("Agent activity:")
     }
-    try sendClaudeEvent("session-end")
-    try assertAgentPanelMenuItem(isEnabled: false)
+    try await sendClaudeEvent("session-end")
+    try await assertAgentPanelMenuItem(isEnabled: false)
   }
 
   @MainActor
-  func testNewSessionInSamePaneReplacesForegroundAgentSession() throws {
-    let firstTab = requireFirstTab()
+  func testNewSessionInSamePaneReplacesForegroundAgentSession() async throws {
+    let firstTab = await requireFirstTab()
 
-    try sendClaudeEvent("session-start", sessionID: "fork-parent-session")
-    try sendClaudeEvent("user-prompt-submit", sessionID: "fork-parent-session")
-    assertEventually(firstTab, timeout: Self.coldStartTimeout) {
+    try await sendClaudeEvent("session-start", sessionID: "fork-parent-session")
+    try await sendClaudeEvent("user-prompt-submit", sessionID: "fork-parent-session")
+    await assertEventually(firstTab, timeout: Self.coldStartTimeout) {
       $0.label.contains("Agent activity: Running")
     }
 
-    try sendClaudeEvent("session-start", sessionID: "fork-child-session")
-    assertEventually(firstTab, timeout: Self.coldStartTimeout) {
+    try await sendClaudeEvent("session-start", sessionID: "fork-child-session")
+    await assertEventually(firstTab, timeout: Self.coldStartTimeout) {
       !$0.label.contains("Agent activity:")
     }
 
-    try sendClaudeEvent("user-prompt-submit", sessionID: "fork-child-session")
-    assertEventually(firstTab, timeout: Self.coldStartTimeout) {
+    try await sendClaudeEvent("user-prompt-submit", sessionID: "fork-child-session")
+    await assertEventually(firstTab, timeout: Self.coldStartTimeout) {
       $0.label.contains("Agent activity: Running")
     }
 
-    try sendClaudeEvent("stop", sessionID: "fork-child-session")
-    assertEventually(firstTab, timeout: Self.coldStartTimeout) {
+    try await sendClaudeEvent("stop", sessionID: "fork-child-session")
+    await assertEventually(firstTab, timeout: Self.coldStartTimeout) {
       $0.label.contains("Done.") && !$0.label.contains("Agent activity:")
     }
 
-    try sendClaudeEvent("session-end", sessionID: "fork-child-session")
-    try sendClaudeEvent("session-end", sessionID: "fork-parent-session")
-    try assertAgentPanelMenuItem(isEnabled: false)
+    try await sendClaudeEvent("session-end", sessionID: "fork-child-session")
+    try await sendClaudeEvent("session-end", sessionID: "fork-parent-session")
+    try await assertAgentPanelMenuItem(isEnabled: false)
   }
 
   @MainActor
-  func testSessionStartKeepsAgentIdleUntilPromptSubmit() throws {
-    let firstTab = requireFirstTab()
+  func testSessionStartKeepsAgentIdleUntilPromptSubmit() async throws {
+    let firstTab = await requireFirstTab()
 
-    try sendClaudeEvent("session-start")
-    try assertAgentPanelMenuItem(isEnabled: true)
+    try await sendClaudeEvent("session-start")
+    try await assertAgentPanelMenuItem(isEnabled: true)
     XCTAssertFalse(firstTab.label.contains("Agent activity:"))
 
-    try sendClaudeEvent("user-prompt-submit")
-    assertEventually(firstTab, timeout: Self.coldStartTimeout) {
+    try await sendClaudeEvent("user-prompt-submit")
+    await assertEventually(firstTab, timeout: Self.coldStartTimeout) {
       $0.label.contains("Agent activity: Running")
     }
 
-    try sendClaudeEvent("stop")
-    try sendClaudeEvent("session-end")
-    try assertAgentPanelMenuItem(isEnabled: false)
+    try await sendClaudeEvent("stop")
+    try await sendClaudeEvent("session-end")
+    try await assertAgentPanelMenuItem(isEnabled: false)
   }
 
   @MainActor
-  func testForkedClaudeSessionRecoversSidebarActivityWithoutSessionStart() throws {
-    let firstTab = requireFirstTab()
+  func testForkedClaudeSessionRecoversSidebarActivityWithoutSessionStart() async throws {
+    let firstTab = await requireFirstTab()
 
-    try sendClaudeEvent("session-start", sessionID: "parent-session")
-    try sendClaudeEvent("user-prompt-submit", sessionID: "forked-session")
-    assertEventually(firstTab, timeout: Self.coldStartTimeout) {
+    try await sendClaudeEvent("session-start", sessionID: "parent-session")
+    try await sendClaudeEvent("user-prompt-submit", sessionID: "forked-session")
+    await assertEventually(firstTab, timeout: Self.coldStartTimeout) {
       $0.label.contains("Agent activity: Running")
     }
 
-    try sendClaudeEvent("stop", sessionID: "forked-session")
-    assertEventually(firstTab, timeout: Self.coldStartTimeout) {
+    try await sendClaudeEvent("stop", sessionID: "forked-session")
+    await assertEventually(firstTab, timeout: Self.coldStartTimeout) {
       $0.label.contains("Done.") && !$0.label.contains("Agent activity:")
     }
   }
 
   @MainActor
-  private func requireFirstTab() -> XCUIElement {
+  private func requireFirstTab() async -> XCUIElement {
     let terminal = mainTerminal
-    assertEventually(terminal, timeout: Self.coldStartTimeout) {
+    await assertEventually(terminal, timeout: Self.coldStartTimeout) {
       $0.exists && $0.isHittable
     }
 
     let firstTab = sidebarTabRows.element(boundBy: 0)
-    assertEventually(firstTab, timeout: Self.coldStartTimeout) {
+    await assertEventually(firstTab, timeout: Self.coldStartTimeout) {
       $0.exists && $0.isHittable
     }
     return firstTab
@@ -162,23 +162,23 @@ final class AgentPanelUITests: SupatermUITestCase {
   }
 
   @MainActor
-  private func selectTab(_ tab: XCUIElement) {
+  private func selectTab(_ tab: XCUIElement) async {
     tab.click()
-    assertEventually(tab, timeout: Self.coldStartTimeout) { $0.isSelected }
+    await assertEventually(tab, timeout: Self.coldStartTimeout) { $0.isSelected }
   }
 
   @MainActor
-  private func assertAgentPanelMenuItem(isEnabled: Bool) throws {
+  private func assertAgentPanelMenuItem(isEnabled: Bool) async throws {
     let identifier = SupatermUITestIdentifier.MenuItemIdentifier.toggleAgentPanel
     let topLevelMenu = app.menuBars.menuBarItems[identifier.menuTitle]
-    assertEventually(topLevelMenu, timeout: Self.coldStartTimeout) {
+    await assertEventually(topLevelMenu, timeout: Self.coldStartTimeout) {
       $0.exists && $0.isHittable
     }
     topLevelMenu.click()
 
     let item = menuItem(identifier)
-    assertEventually(item, timeout: Self.coldStartTimeout) { $0.exists }
-    assertEventually(item, timeout: Self.coldStartTimeout) { $0.isEnabled == isEnabled }
+    await assertEventually(item, timeout: Self.coldStartTimeout) { $0.exists }
+    await assertEventually(item, timeout: Self.coldStartTimeout) { $0.isEnabled == isEnabled }
     app.typeKey(.escape, modifierFlags: [])
   }
 
@@ -186,9 +186,9 @@ final class AgentPanelUITests: SupatermUITestCase {
   private func sendClaudeEvent(
     _ event: String,
     sessionID: String = AgentPanelUITests.sessionID
-  ) throws {
+  ) async throws {
     let terminal = mainTerminal
-    assertEventually(terminal, timeout: Self.coldStartTimeout) {
+    await assertEventually(terminal, timeout: Self.coldStartTimeout) {
       $0.exists && $0.isHittable
     }
 
@@ -200,7 +200,7 @@ final class AgentPanelUITests: SupatermUITestCase {
     terminal.typeKey(.return, modifierFlags: [])
 
     let expectedOutput = "sent \(event) for session \(sessionID)"
-    assertEventually(terminal, timeout: Self.coldStartTimeout) {
+    await assertEventually(terminal, timeout: Self.coldStartTimeout) {
       ($0.value as? String)?.contains(expectedOutput) == true
     }
   }
@@ -208,12 +208,12 @@ final class AgentPanelUITests: SupatermUITestCase {
   @MainActor
   private func assertEventually(
     _ element: XCUIElement,
-    timeout: TimeInterval = 10,
+    timeout: Duration = .seconds(10),
     file: StaticString = #filePath,
     line: UInt = #line,
     until condition: @escaping (XCUIElement) -> Bool
-  ) {
-    let didMatch = wait(for: element, timeout: timeout, until: condition)
+  ) async {
+    let didMatch = await wait(for: element, timeout: timeout, until: condition)
     XCTAssertTrue(didMatch, file: file, line: line)
   }
 

@@ -2,9 +2,9 @@ import XCTest
 
 final class TabGroupingDragUITests: SupatermUITestCase {
   @MainActor
-  func testGroupCloseAppearsOnlyWhileHoveringItsHeader() throws {
-    try createNamedTabs(["Seed"])
-    try createGroup(named: "Hover", containing: "Seed")
+  func testGroupCloseAppearsOnlyWhileHoveringItsHeader() async throws {
+    try await createNamedTabs(["Seed"])
+    try await createGroup(named: "Hover", containing: "Seed")
     let header = try require(sidebarGroupHeader(named: "Hover"))
     let child = try require(sidebarStructuralTabRow(named: "Seed"))
     let close = app.buttons["Close Hover"]
@@ -14,20 +14,20 @@ final class TabGroupingDragUITests: SupatermUITestCase {
     XCTAssertTrue(close.waitForExistence(timeout: 2))
 
     child.hover()
-    let didHideClose = wait(for: close) { !$0.exists }
+    let didHideClose = await wait(for: close) { !$0.exists }
     XCTAssertTrue(didHideClose)
   }
 
   @MainActor
-  func testGroupHeaderTogglesFromItsFullWidth() throws {
-    try createNamedTabs(["Seed"])
-    try createGroup(named: "Toggle", containing: "Seed")
+  func testGroupHeaderTogglesFromItsFullWidth() async throws {
+    try await createNamedTabs(["Seed"])
+    try await createGroup(named: "Toggle", containing: "Seed")
     let header = try require(sidebarGroupHeader(named: "Toggle"))
     let row = try require(sidebarGroupHeaders.matching(identifier: header.identifier).firstMatch)
     XCTAssertEqual(header.frame, row.frame)
 
     header.click()
-    let didCollapse = wait(for: sidebarStructuralTabRow(named: "Seed")) { !$0.exists }
+    let didCollapse = await wait(for: sidebarStructuralTabRow(named: "Seed")) { !$0.exists }
     XCTAssertTrue(didCollapse)
 
     header.click()
@@ -35,27 +35,27 @@ final class TabGroupingDragUITests: SupatermUITestCase {
   }
 
   @MainActor
-  func testNewTabCommandsChooseRootOrSelectedGroup() throws {
-    try createNamedTabs(["Seed"])
-    try createGroup(named: "Target", containing: "Seed")
+  func testNewTabCommandsChooseRootOrSelectedGroup() async throws {
+    try await createNamedTabs(["Seed"])
+    try await createGroup(named: "Target", containing: "Seed")
     let seed = try require(sidebarTabRow(named: "Seed"))
 
     seed.click()
     app.typeKey("t", modifierFlags: .command)
-    let didCreateRootTab = waitForSidebarElementCount(sidebarTabRows, equals: 2)
+    let didCreateRootTab = await waitForSidebarElementCount(sidebarTabRows, equals: 2)
     XCTAssertTrue(didCreateRootTab)
-    try renameSelectedTab(to: "Root")
-    requireSidebarStructure([
+    try await renameSelectedTab(to: "Root")
+    await requireSidebarStructure([
       .group("Target", children: ["Seed"]),
       .tab("Root"),
     ])
 
     seed.click()
     app.typeKey("t", modifierFlags: [.command, .option])
-    let didCreateShortcutChild = waitForSidebarElementCount(sidebarTabRows, equals: 3)
+    let didCreateShortcutChild = await waitForSidebarElementCount(sidebarTabRows, equals: 3)
     XCTAssertTrue(didCreateShortcutChild)
-    try renameSelectedTab(to: "Shortcut Child")
-    requireSidebarStructure([
+    try await renameSelectedTab(to: "Shortcut Child")
+    await requireSidebarStructure([
       .group("Target", children: ["Seed", "Shortcut Child"]),
       .tab("Root"),
     ])
@@ -64,25 +64,25 @@ final class TabGroupingDragUITests: SupatermUITestCase {
       "New Tab in Group",
       on: sidebarGroupHeader(named: "Target")
     )
-    let didCreateMenuChild = waitForSidebarElementCount(sidebarTabRows, equals: 4)
+    let didCreateMenuChild = await waitForSidebarElementCount(sidebarTabRows, equals: 4)
     XCTAssertTrue(didCreateMenuChild)
-    try renameSelectedTab(to: "Menu Child")
-    requireSidebarStructure([
+    try await renameSelectedTab(to: "Menu Child")
+    await requireSidebarStructure([
       .group("Target", children: ["Seed", "Shortcut Child", "Menu Child"]),
       .tab("Root"),
     ])
   }
 
   @MainActor
-  func testDroppingTabOnTabOnlyReordersRoots() throws {
-    try createNamedTabs(["First", "Mover"])
+  func testDroppingTabOnTabOnlyReordersRoots() async throws {
+    try await createNamedTabs(["First", "Mover"])
 
     try drag(
       sidebarStructuralTabRow(named: "Mover"),
       to: sidebarStructuralTabRow(named: "First")
     )
 
-    requireSidebarStructure([
+    await requireSidebarStructure([
       .tab("Mover"),
       .tab("First"),
     ])
@@ -90,10 +90,10 @@ final class TabGroupingDragUITests: SupatermUITestCase {
   }
 
   @MainActor
-  func testRootTabDropsBeforeFirstGroupAtLeadingEdge() throws {
-    try createNamedTabs(["Group Seed", "Mover"])
-    try createGroup(named: "First", containing: "Group Seed")
-    requireSidebarStructure([
+  func testRootTabDropsBeforeFirstGroupAtLeadingEdge() async throws {
+    try await createNamedTabs(["Group Seed", "Mover"])
+    try await createGroup(named: "First", containing: "Group Seed")
+    await requireSidebarStructure([
       .group("First", children: ["Group Seed"]),
       .tab("Mover"),
     ])
@@ -104,17 +104,17 @@ final class TabGroupingDragUITests: SupatermUITestCase {
       destinationOffset: CGVector(dx: 0.5, dy: 0.2)
     )
 
-    requireSidebarStructure([
+    await requireSidebarStructure([
       .tab("Mover"),
       .group("First", children: ["Group Seed"]),
     ])
   }
 
   @MainActor
-  func testRootTabDropsIntoExpandedGroup() throws {
-    try createNamedTabs(["Group Seed", "Root A", "Root B"])
-    try createGroup(named: "Alpha", containing: "Group Seed")
-    requireSidebarStructure([
+  func testRootTabDropsIntoExpandedGroup() async throws {
+    try await createNamedTabs(["Group Seed", "Root A", "Root B"])
+    try await createGroup(named: "Alpha", containing: "Group Seed")
+    await requireSidebarStructure([
       .group("Alpha", children: ["Group Seed"]),
       .tab("Root A"),
       .tab("Root B"),
@@ -125,17 +125,17 @@ final class TabGroupingDragUITests: SupatermUITestCase {
       to: sidebarGroupHeader(named: "Alpha")
     )
 
-    requireSidebarStructure([
+    await requireSidebarStructure([
       .group("Alpha", children: ["Group Seed", "Root A"]),
       .tab("Root B"),
     ])
   }
 
   @MainActor
-  func testLastGroupChildDropsIntoRootAndRemovesEmptyGroup() throws {
-    try createNamedTabs(["Root Before", "Only Child", "Root After"])
-    try createGroup(named: "Solo", containing: "Only Child")
-    requireSidebarStructure([
+  func testLastGroupChildDropsIntoRootAndRemovesEmptyGroup() async throws {
+    try await createNamedTabs(["Root Before", "Only Child", "Root After"])
+    try await createGroup(named: "Solo", containing: "Only Child")
+    await requireSidebarStructure([
       .tab("Root Before"),
       .group("Solo", children: ["Only Child"]),
       .tab("Root After"),
@@ -146,7 +146,7 @@ final class TabGroupingDragUITests: SupatermUITestCase {
       to: sidebarFooterRow(SupatermUITestIdentifier.Accessibility.sidebarNewTab)
     )
 
-    requireSidebarStructure([
+    await requireSidebarStructure([
       .tab("Root Before"),
       .tab("Root After"),
       .tab("Only Child"),
@@ -155,10 +155,10 @@ final class TabGroupingDragUITests: SupatermUITestCase {
   }
 
   @MainActor
-  func testWholeGroupAtBottomDropsAtSecondRootPosition() throws {
-    try createNamedTabs(["First", "Second", "Third", "Group Child"])
-    try createGroup(named: "Bottom Group", containing: "Group Child")
-    requireSidebarStructure([
+  func testWholeGroupAtBottomDropsAtSecondRootPosition() async throws {
+    try await createNamedTabs(["First", "Second", "Third", "Group Child"])
+    try await createGroup(named: "Bottom Group", containing: "Group Child")
+    await requireSidebarStructure([
       .tab("First"),
       .tab("Second"),
       .tab("Third"),
@@ -171,7 +171,7 @@ final class TabGroupingDragUITests: SupatermUITestCase {
       destinationOffset: CGVector(dx: 0.5, dy: 0.1)
     )
 
-    requireSidebarStructure([
+    await requireSidebarStructure([
       .tab("First"),
       .group("Bottom Group", children: ["Group Child"]),
       .tab("Second"),
@@ -180,16 +180,16 @@ final class TabGroupingDragUITests: SupatermUITestCase {
   }
 
   @MainActor
-  func testGroupedTabDroppedBetweenGroupsRemainsRoot() throws {
-    try createNamedTabs(["Alpha Child", "Beta Child", "Mover"])
-    try createGroup(named: "Alpha", containing: "Alpha Child")
-    try createGroup(named: "Beta", containing: "Beta Child")
+  func testGroupedTabDroppedBetweenGroupsRemainsRoot() async throws {
+    try await createNamedTabs(["Alpha Child", "Beta Child", "Mover"])
+    try await createGroup(named: "Alpha", containing: "Alpha Child")
+    try await createGroup(named: "Beta", containing: "Beta Child")
 
     try drag(
       sidebarStructuralTabRow(named: "Mover"),
       to: sidebarGroupHeader(named: "Beta")
     )
-    requireSidebarStructure([
+    await requireSidebarStructure([
       .group("Alpha", children: ["Alpha Child"]),
       .group("Beta", children: ["Beta Child", "Mover"]),
     ])
@@ -202,7 +202,7 @@ final class TabGroupingDragUITests: SupatermUITestCase {
     ).withOffset(CGVector(dx: 0, dy: -gap / 2))
     try drag(sidebarStructuralTabRow(named: "Mover"), to: destination)
 
-    requireSidebarStructure([
+    await requireSidebarStructure([
       .group("Alpha", children: ["Alpha Child"]),
       .tab("Mover"),
       .group("Beta", children: ["Beta Child"]),
@@ -210,15 +210,15 @@ final class TabGroupingDragUITests: SupatermUITestCase {
   }
 
   @MainActor
-  func testExpandedAndCollapsedGroupHeadersAcceptTabs() throws {
-    try createNamedTabs(["Seed", "Expanded Join", "Collapsed Join", "Tail"])
-    try createGroup(named: "Target", containing: "Seed")
+  func testExpandedAndCollapsedGroupHeadersAcceptTabs() async throws {
+    try await createNamedTabs(["Seed", "Expanded Join", "Collapsed Join", "Tail"])
+    try await createGroup(named: "Target", containing: "Seed")
 
     try drag(
       sidebarStructuralTabRow(named: "Expanded Join"),
       to: sidebarGroupHeader(named: "Target")
     )
-    requireSidebarStructure([
+    await requireSidebarStructure([
       .group("Target", children: ["Seed", "Expanded Join"]),
       .tab("Collapsed Join"),
       .tab("Tail"),
@@ -226,10 +226,10 @@ final class TabGroupingDragUITests: SupatermUITestCase {
 
     let tail = try require(sidebarTabRow(named: "Tail"))
     tail.click()
-    let didSelectTail = waitForSidebarSelection(tail)
+    let didSelectTail = await waitForSidebarSelection(tail)
     XCTAssertTrue(didSelectTail)
     try clickSidebarContextMenuItem("Collapse Group", on: sidebarGroupHeader(named: "Target"))
-    let didCollapse = wait(for: sidebarGroupHeader(named: "Target")) {
+    let didCollapse = await wait(for: sidebarGroupHeader(named: "Target")) {
       ($0.value as? String) == "Collapsed"
     }
     XCTAssertTrue(didCollapse)
@@ -240,29 +240,29 @@ final class TabGroupingDragUITests: SupatermUITestCase {
       to: sidebarGroupHeader(named: "Target"),
       destinationOffset: CGVector(dx: 0.5, dy: 0.35)
     )
-    let didAddAndExpandCollapsedGroup = wait(
+    let didAddAndExpandCollapsedGroup = await wait(
       for: sidebarGroupHeader(named: "Target")
     ) {
       $0.label.contains("3 tabs") && ($0.value as? String) == "Expanded"
     }
     XCTAssertTrue(didAddAndExpandCollapsedGroup)
 
-    requireSidebarStructure([
+    await requireSidebarStructure([
       .group("Target", children: ["Seed", "Expanded Join", "Collapsed Join"]),
       .tab("Tail"),
     ])
   }
 
   @MainActor
-  func testNewTabFooterDropAppendsRootWithoutActivatingFooter() throws {
-    try createNamedTabs(["First", "Second", "Third"])
+  func testNewTabFooterDropAppendsRootWithoutActivatingFooter() async throws {
+    try await createNamedTabs(["First", "Second", "Third"])
     let newTab = try require(
       sidebarFooterRow(SupatermUITestIdentifier.Accessibility.sidebarNewTab)
     )
 
     try drag(sidebarStructuralTabRow(named: "First"), to: newTab)
 
-    requireSidebarStructure([
+    await requireSidebarStructure([
       .tab("Second"),
       .tab("Third"),
       .tab("First"),
@@ -275,8 +275,8 @@ final class TabGroupingDragUITests: SupatermUITestCase {
     _ expected: [SidebarRootExpectation],
     file: StaticString = #filePath,
     line: UInt = #line
-  ) {
-    let didMatch = waitForSidebarStructure(expected)
+  ) async {
+    let didMatch = await waitForSidebarStructure(expected)
     XCTAssertTrue(
       didMatch,
       "Expected \(expected); actual \(sidebarStructureDescription())",

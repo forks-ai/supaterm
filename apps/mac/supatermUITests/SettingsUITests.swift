@@ -3,7 +3,7 @@ import XCTest
 
 final class SettingsUITests: SupatermUITestCase {
   @MainActor
-  func testCommandCommaOpensSettingsAndEveryTabShowsItsControls() throws {
+  func testCommandCommaOpensSettingsAndEveryTabShowsItsControls() async throws {
     let settingsWindow = try openSettings()
 
     for tab in SettingsTab.allCases {
@@ -15,46 +15,46 @@ final class SettingsUITests: SupatermUITestCase {
       sidebarTab.click()
 
       let keyControl = element(tab.keyControlIdentifier, in: settingsWindow)
-      let didShowKeyControl = wait(for: keyControl) { $0.exists }
+      let didShowKeyControl = await wait(for: keyControl) { $0.exists }
       XCTAssertTrue(didShowKeyControl, "\(tab.rawValue) did not show its key control")
     }
   }
 
   @MainActor
-  func testRestoreTerminalLayoutPersistsAcrossRelaunch() throws {
+  func testRestoreTerminalLayoutPersistsAcrossRelaunch() async throws {
     let settingsWindow = try openSettings()
-    try select(.general, in: settingsWindow)
+    try await select(.general, in: settingsWindow)
 
     let toggle = element(
       SupatermUITestIdentifier.Settings.restoreTerminalLayout,
       in: settingsWindow
     )
-    let didLoadEnabledToggle = wait(for: toggle) { self.toggleState($0) == true }
+    let didLoadEnabledToggle = await wait(for: toggle) { self.toggleState($0) == true }
     XCTAssertTrue(didLoadEnabledToggle)
     toggle.click()
-    let didDisableToggle = wait(for: toggle) { self.toggleState($0) == false }
+    let didDisableToggle = await wait(for: toggle) { self.toggleState($0) == false }
     XCTAssertTrue(didDisableToggle)
-    let didPersistSetting = waitForSettingsFile(containing: "restore_layout = false")
+    let didPersistSetting = await waitForSettingsFile(containing: "restore_layout = false")
     XCTAssertTrue(didPersistSetting)
 
     try relaunch()
 
     let relaunchedSettingsWindow = try openSettings()
-    try select(.general, in: relaunchedSettingsWindow)
+    try await select(.general, in: relaunchedSettingsWindow)
     let persistedToggle = element(
       SupatermUITestIdentifier.Settings.restoreTerminalLayout,
       in: relaunchedSettingsWindow
     )
-    let didRestoreDisabledToggle = wait(for: persistedToggle) {
+    let didRestoreDisabledToggle = await wait(for: persistedToggle) {
       self.toggleState($0) == false
     }
     XCTAssertTrue(didRestoreDisabledToggle)
   }
 
   @MainActor
-  func testAppearanceModeSwitchesBetweenEveryOptionAndPersists() throws {
+  func testAppearanceModeSwitchesBetweenEveryOptionAndPersists() async throws {
     let settingsWindow = try openSettings()
-    try select(.general, in: settingsWindow)
+    try await select(.general, in: settingsWindow)
 
     let light = element(SupatermUITestIdentifier.Settings.appearanceLight, in: settingsWindow)
     let dark = element(SupatermUITestIdentifier.Settings.appearanceDark, in: settingsWindow)
@@ -64,33 +64,33 @@ final class SettingsUITests: SupatermUITestCase {
     }
 
     light.click()
-    let didSelectLight = waitForSelection(light)
+    let didSelectLight = await waitForSelection(light)
     XCTAssertTrue(didSelectLight)
     dark.click()
-    let didSelectDark = waitForSelection(dark)
+    let didSelectDark = await waitForSelection(dark)
     XCTAssertTrue(didSelectDark)
     auto.click()
-    let didSelectAuto = waitForSelection(auto)
+    let didSelectAuto = await waitForSelection(auto)
     XCTAssertTrue(didSelectAuto)
-    let didPersistSetting = waitForSettingsFile(containing: "mode = \"system\"")
+    let didPersistSetting = await waitForSettingsFile(containing: "mode = \"system\"")
     XCTAssertTrue(didPersistSetting)
 
     try relaunch()
 
     let relaunchedSettingsWindow = try openSettings()
-    try select(.general, in: relaunchedSettingsWindow)
+    try await select(.general, in: relaunchedSettingsWindow)
     let persistedAuto = element(
       SupatermUITestIdentifier.Settings.appearanceAuto,
       in: relaunchedSettingsWindow
     )
-    let didRestoreAuto = waitForSelection(persistedAuto)
+    let didRestoreAuto = await waitForSelection(persistedAuto)
     XCTAssertTrue(didRestoreAuto)
   }
 
   @MainActor
-  func testAboutShowsVersionAndUpdateControls() throws {
+  func testAboutShowsVersionAndUpdateControls() async throws {
     let settingsWindow = try openSettings()
-    try select(.about, in: settingsWindow)
+    try await select(.about, in: settingsWindow)
 
     let version = element(SupatermUITestIdentifier.Settings.aboutVersion, in: settingsWindow)
     XCTAssertTrue(version.waitForExistence(timeout: 10))
@@ -129,19 +129,19 @@ final class SettingsUITests: SupatermUITestCase {
   private func select(
     _ tab: SettingsTab,
     in settingsWindow: XCUIElement
-  ) throws {
+  ) async throws {
     let sidebarTab = element(tab.sidebarIdentifier, in: settingsWindow)
     try require(sidebarTab)
     sidebarTab.click()
 
     let keyControl = element(tab.keyControlIdentifier, in: settingsWindow)
-    let didShowKeyControl = wait(for: keyControl) { $0.exists }
-    _ = try XCTUnwrap(didShowKeyControl ? keyControl : nil)
+    let didShowKeyControl = await wait(for: keyControl) { $0.exists }
+    try XCTUnwrap(didShowKeyControl ? keyControl : nil)
   }
 
   @MainActor
-  private func waitForSelection(_ element: XCUIElement) -> Bool {
-    wait(for: element) { $0.value as? String == "selected" }
+  private func waitForSelection(_ element: XCUIElement) async -> Bool {
+    await wait(for: element) { $0.value as? String == "selected" }
   }
 
   @MainActor
@@ -165,9 +165,9 @@ final class SettingsUITests: SupatermUITestCase {
   @MainActor
   private func waitForSettingsFile(
     containing expectedText: String,
-    timeout: TimeInterval = 10
-  ) -> Bool {
-    wait(timeout: timeout) {
+    timeout: Duration = .seconds(10)
+  ) async -> Bool {
+    await wait(timeout: timeout) {
       self.settingsFile(at: self.settingsURL, contains: expectedText)
     }
   }
