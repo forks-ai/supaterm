@@ -1,19 +1,5 @@
 import SwiftUI
 
-enum SplitDividerCursor: Equatable {
-  case columnResize
-  case rowResize
-
-  var pointerStyle: PointerStyle {
-    switch self {
-    case .columnResize:
-      return .columnResize
-    case .rowResize:
-      return .rowResize
-    }
-  }
-}
-
 struct SplitView<L: View, R: View>: View {
   let direction: Direction
   let dividerColor: Color
@@ -130,7 +116,7 @@ struct SplitView<L: View, R: View>: View {
     case horizontal
     case vertical
 
-    var dividerCursor: SplitDividerCursor {
+    var dividerPointerStyle: PointerStyle {
       switch self {
       case .horizontal:
         return .columnResize
@@ -155,7 +141,7 @@ struct SplitView<L: View, R: View>: View {
           .fill(color)
           .frame(width: visibleWidth, height: visibleHeight)
       }
-      .pointerStyle(direction.dividerCursor.pointerStyle)
+      .pointerStyle(direction.dividerPointerStyle)
     }
 
     private var visibleWidth: CGFloat? {

@@ -8,7 +8,11 @@ struct SplitViewTests {
 
   @Test
   func dividerCursorsMatchTheirAxes() {
-    #expect(TestSplitView.Direction.horizontal.dividerCursor == .columnResize)
-    #expect(TestSplitView.Direction.vertical.dividerCursor == .rowResize)
+    #expect(
+      String(reflecting: TestSplitView.Direction.horizontal.dividerPointerStyle)
+        == String(reflecting: PointerStyle.columnResize))
+    #expect(
+      String(reflecting: TestSplitView.Direction.vertical.dividerPointerStyle)
+        == String(reflecting: PointerStyle.rowResize))
   }
 }
