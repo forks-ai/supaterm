@@ -165,6 +165,13 @@ jobs:
       - id: build
         run: mise exec -- tuist test supatermUITests --build-only --shard-total 4 --shard-granularity suite
         working-directory: apps/mac
+      - uses: actions/upload-artifact@v6
+        with:
+          name: mac-test-ui-project
+          path: |
+            apps/mac/supaterm.xcworkspace
+            apps/mac/supaterm.xcodeproj
+          retention-days: 1
 
   mac_test_ui:
     name: mac-test-ui (${{ matrix.shard }})
@@ -205,12 +212,13 @@ jobs:
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v6
-        with:
-          submodules: recursive
       - uses: ./.github/actions/setup-macos
         with:
           cache-native-builds: false
-      - run: make mac-tuist-generate
+      - uses: actions/download-artifact@v7
+        with:
+          name: mac-test-ui-project
+          path: apps/mac
       - uses: actions/download-artifact@v7
         with:
           pattern: mac-test-ui-xcresult-*
@@ -219,7 +227,7 @@ jobs:
           set --
           while IFS= read -r result_bundle; do
             set -- "$@" "$result_bundle"
-          done < <(find "$RUNNER_TEMP/supatermUITests" -type d -name '*.xcresult' -prune -print | sort)
+          done < <(find "$RUNNER_TEMP/supatermUITests" -mindepth 1 -maxdepth 1 -type d -name 'mac-test-ui-xcresult-*' -print | sort)
           test "$#" -eq "$(jq -r '.shard | length' <<< "$SHARD_MATRIX")"
           xcrun xcresulttool merge --output-path "$RUNNER_TEMP/supatermUITests.xcresult" "$@"
         env:
