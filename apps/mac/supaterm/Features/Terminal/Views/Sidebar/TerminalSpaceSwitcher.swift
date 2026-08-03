@@ -64,6 +64,9 @@ struct TerminalWindowHeader: View {
         )
         .padding(.top, TerminalWindowHeaderMetrics.switcherTopPadding)
         .frame(height: TerminalSidebarLayout.scrollViewportTopInset, alignment: .top)
+        .background {
+          WindowDragSurface()
+        }
       }
       .fixedSize(horizontal: true, vertical: false)
 

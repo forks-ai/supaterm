@@ -103,6 +103,16 @@ struct WindowDragSurfaceTests {
       x: WindowTrafficLightMetrics.clusterWidth + TerminalWindowHeaderMetrics.spacing / 2,
       y: header.bounds.midY
     )
+    let switcherX =
+      WindowTrafficLightMetrics.clusterWidth + TerminalWindowHeaderMetrics.spacing + 12
+    let switcherTopPoint = NSPoint(x: switcherX, y: header.bounds.maxY - 2)
+    let switcherBottomPoint = NSPoint(x: switcherX, y: 2)
+    let switcherControlPoint = NSPoint(
+      x: switcherX,
+      y: header.bounds.maxY
+        - TerminalWindowHeaderMetrics.switcherTopPadding
+        - TerminalWindowHeaderMetrics.switcherHeight / 2
+    )
     let trafficLightBottomPoint = NSPoint(
       x: WindowTrafficLightMetrics.edgePadding + WindowTrafficLightMetrics.buttonSize / 2,
       y: 2
@@ -117,7 +127,10 @@ struct WindowDragSurfaceTests {
     #expect(header.hitTest(leftBlankPoint) is WindowDragSurfaceView)
     #expect(header.hitTest(trafficLightGapPoint) is WindowDragSurfaceView)
     #expect(header.hitTest(switcherGapPoint) is WindowDragSurfaceView)
+    #expect(header.hitTest(switcherTopPoint) is WindowDragSurfaceView)
+    #expect(header.hitTest(switcherBottomPoint) is WindowDragSurfaceView)
     #expect(header.hitTest(trafficLightBottomPoint) is WindowDragSurfaceView)
+    #expect(!(header.hitTest(switcherControlPoint) is WindowDragSurfaceView))
     #expect(!(control is WindowDragSurfaceView))
   }
 }
