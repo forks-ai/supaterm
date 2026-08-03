@@ -35,6 +35,7 @@ struct TerminalSidebarLayoutPlanTests {
         .tab(first),
         .tab(second),
         .group(emptyGroup),
+        .newTab,
       ]
     )
   }
@@ -341,7 +342,9 @@ struct TerminalSidebarLayoutPlanTests {
       outline: outline,
       viewportHeight: viewportHeight
     )
-    let lastFrame = try #require(plan.items.last?.frame)
+    let lastTab = try #require(tabs.last)
+    let lastFrame = try #require(plan.items.first { $0.id == .tab(lastTab) }?.frame)
+    let newTabFrame = try #require(plan.items.first { $0.id == .newTab }?.frame)
     let trailingTarget = try #require(
       plan.semanticTargets.first { $0.path == .trailingRoot }
     )
@@ -353,11 +356,38 @@ struct TerminalSidebarLayoutPlanTests {
     )
 
     #expect(plan.contentSize.height > viewportHeight)
-    #expect(plan.items.map(\.id) == tabs.map(TerminalSidebarEntryID.tab))
+    #expect(plan.items.map(\.id) == tabs.map(TerminalSidebarEntryID.tab) + [.newTab])
     #expect(trailingTarget.frame.minY == lastFrame.maxY)
+    #expect(newTabFrame.minY > trailingTarget.frame.minY)
     #expect(plan.semanticTarget(at: trailingTarget.frame.minY + 1)?.path == .trailingRoot)
     #expect(dropPlan?.destination == .root(isPinned: false, index: tabs.count - 1))
     #expect(dropPlan?.placeholder == .beforeFooter)
+  }
+
+  @Test
+  func separatorsAndNewTabSpanTheSidebarWidth() throws {
+    let pinned = TerminalTabID()
+    let regular = TerminalTabID()
+    let plan = TerminalSidebarTestFixture.layoutPlan(
+      outline: TerminalSidebarTestFixture.outline(
+        roots: [
+          TerminalSidebarOutline.Root(content: .tab(pinned), isPinned: true),
+          TerminalSidebarOutline.Root(content: .tab(regular), isPinned: false),
+        ],
+        revision: 1
+      ),
+      width: 220
+    )
+    let pinnedFrame = try #require(plan.items.first { $0.id == .tab(pinned) }?.frame)
+    let dividerFrame = try #require(plan.items.first { $0.id == .pinDivider }?.frame)
+    let newTabFrame = try #require(plan.items.first { $0.id == .newTab }?.frame)
+
+    #expect(pinnedFrame.minX == TerminalSidebarLayout.visibleHorizontalInset)
+    #expect(pinnedFrame.width == 200)
+    #expect(dividerFrame.minX == 0)
+    #expect(dividerFrame.width == 220)
+    #expect(newTabFrame.minX == 0)
+    #expect(newTabFrame.width == 220)
   }
 
   @Test

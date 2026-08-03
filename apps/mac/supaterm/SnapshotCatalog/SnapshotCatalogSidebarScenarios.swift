@@ -34,6 +34,19 @@ extension SnapshotCatalog {
       )
     },
     scenario(
+      "overflow",
+      group: "Sidebar",
+      title: "Overflowing sidebar",
+      size: CGSize(width: 280, height: 300)
+    ) { appearance in
+      AnyView(
+        SidebarChromeSnapshotFixture(
+          appearance: appearance,
+          fixedHoveredGroupID: nil
+        )
+      )
+    },
+    scenario(
       "selected-before-new-tab",
       group: "Sidebar",
       title: "Selected tab before new tab",

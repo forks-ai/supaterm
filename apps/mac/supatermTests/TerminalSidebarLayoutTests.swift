@@ -62,7 +62,7 @@ struct TerminalSidebarLayoutTests {
       ),
       viewportHeight: initial.scrollViewportFrame.height
     )
-    let lastFrame = try #require(longList.items.last?.frame)
+    let lastFrame = try #require(longList.items.first { $0.id == .newTab }?.frame)
     let maximumScrollY = max(
       0,
       longList.contentSize.height - initial.scrollViewportFrame.height
@@ -90,6 +90,48 @@ struct TerminalSidebarLayoutTests {
     #expect(shortList.contentSize.height < initial.scrollViewportFrame.height)
     #expect(longList.contentSize.height > initial.scrollViewportFrame.height)
     #expect(lastRowViewport.contains(lastFrame))
+  }
+
+  @Test
+  func newTabFlowsUntilItCrossesTheVisibleBottom() {
+    let visibleRect = CGRect(x: 0, y: 0, width: 280, height: 180)
+    let inlineFrame = CGRect(x: 0, y: 120, width: 280, height: 37)
+    let overflowingFrame = CGRect(x: 0, y: 170, width: 280, height: 37)
+    let pinnedVisibleRect = CGRect(x: 0, y: 0, width: 280, height: 140)
+    let scrolledPinnedVisibleRect = CGRect(x: 0, y: 44, width: 280, height: 140)
+
+    #expect(
+      !TerminalSidebarNewTabPlacement.shouldPin(
+        itemFrame: inlineFrame,
+        visibleRect: visibleRect,
+        pinnedHeight: TerminalSidebarLayout.pinnedControlHeight,
+        isPinned: false
+      )
+    )
+    #expect(
+      TerminalSidebarNewTabPlacement.shouldPin(
+        itemFrame: overflowingFrame,
+        visibleRect: visibleRect,
+        pinnedHeight: TerminalSidebarLayout.pinnedControlHeight,
+        isPinned: false
+      )
+    )
+    #expect(
+      TerminalSidebarNewTabPlacement.shouldPin(
+        itemFrame: overflowingFrame,
+        visibleRect: pinnedVisibleRect,
+        pinnedHeight: TerminalSidebarLayout.pinnedControlHeight,
+        isPinned: true
+      )
+    )
+    #expect(
+      !TerminalSidebarNewTabPlacement.shouldPin(
+        itemFrame: overflowingFrame,
+        visibleRect: scrolledPinnedVisibleRect,
+        pinnedHeight: TerminalSidebarLayout.pinnedControlHeight,
+        isPinned: true
+      )
+    )
   }
 
   @Test

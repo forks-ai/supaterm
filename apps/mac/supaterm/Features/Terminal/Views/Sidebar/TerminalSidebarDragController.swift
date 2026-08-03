@@ -263,7 +263,7 @@ final class TerminalSidebarDragController {
       return true
     case .tab:
       return true
-    case .pinDivider:
+    case .pinDivider, .newTab:
       return false
     }
   }
@@ -306,7 +306,7 @@ final class TerminalSidebarDragController {
     case .tab:
       resolveDeferredSelection(pendingDrag, content: content)
       return true
-    case .pinDivider:
+    case .pinDivider, .newTab:
       return consumes
     }
   }

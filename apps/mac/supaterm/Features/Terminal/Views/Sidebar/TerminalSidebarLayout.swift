@@ -22,6 +22,21 @@ struct TerminalSidebarViewportLayout: Equatable {
   }
 }
 
+enum TerminalSidebarNewTabPlacement {
+  static let visibilityThreshold: CGFloat = 3
+
+  static func shouldPin(
+    itemFrame: CGRect?,
+    visibleRect: CGRect,
+    pinnedHeight: CGFloat,
+    isPinned: Bool
+  ) -> Bool {
+    guard let itemFrame, !itemFrame.isEmpty, !visibleRect.isEmpty else { return false }
+    let availableMaxY = visibleRect.maxY + (isPinned ? pinnedHeight : 0)
+    return itemFrame.maxY >= availableMaxY - visibilityThreshold
+  }
+}
+
 enum TerminalSidebarLayout {
   struct HorizontalInsets {
     let leading: CGFloat
@@ -55,6 +70,7 @@ enum TerminalSidebarLayout {
   }
   static let tabRowVerticalPadding: CGFloat = 5
   static let tabRowSpacing: CGFloat = 2
+  static let newTabRowHeight: CGFloat = 37
   static let pinnedControlHeight: CGFloat = 40
   static let cardCornerRadius: CGFloat = 12
   static let cardMinHeight: CGFloat = 36

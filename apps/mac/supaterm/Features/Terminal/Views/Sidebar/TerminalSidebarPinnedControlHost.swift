@@ -8,6 +8,8 @@ final class TerminalSidebarPinnedControlHost {
     view.isHidden ? 0 : TerminalSidebarLayout.pinnedControlHeight
   }
 
+  var isPinned: Bool { !view.isHidden }
+
   init(
     draggingUpdated: @escaping (any NSDraggingInfo) -> NSDragOperation,
     draggingExited: @escaping () -> Void,
@@ -24,11 +26,16 @@ final class TerminalSidebarPinnedControlHost {
   }
 
   func update(context: TerminalSidebarRowContext) {
-    view.isHidden = false
-    view.host(TerminalSidebarHostedRow(presentation: .newTab, context: context))
+    view.host(TerminalSidebarHostedRow(presentation: .newTab(.pinned), context: context))
+  }
+
+  func setPinned(_ isPinned: Bool) -> Bool {
+    guard self.isPinned != isPinned else { return false }
+    view.isHidden = !isPinned
+    return true
   }
 
   func layout(in frame: CGRect) {
-    view.frame = TerminalSidebarLayout.cardHorizontalInsets.frame(in: frame)
+    view.frame = frame
   }
 }

@@ -198,11 +198,16 @@ struct TerminalSidebarTabRowPresentation: Equatable {
   let showsShortcutHint: Bool
 }
 
+enum TerminalSidebarNewTabPresentation: Equatable {
+  case inline
+  case pinned
+}
+
 enum TerminalSidebarRowPresentation: Equatable {
   case tab(TerminalSidebarTabRowPresentation)
   case group(TerminalSidebarGroupRowPresentation)
   case pinDivider
-  case newTab
+  case newTab(TerminalSidebarNewTabPresentation)
 
   var measurementKey: AnyHashable {
     switch self {
@@ -342,14 +347,14 @@ struct TerminalSidebarHostedRow: View {
       Rectangle()
         .fill(context.palette.sidebarSeparator)
         .frame(height: 1)
-        .padding(.horizontal, TerminalSidebarLayout.rowHorizontalPadding)
         .frame(maxHeight: .infinity)
         .accessibilityHidden(true)
-    case .newTab:
+    case .newTab(let newTabPresentation):
       TerminalSidebarFooterButton(
         title: "New Tab",
         symbol: "plus",
         palette: context.palette,
+        showsSeparator: newTabPresentation == .pinned,
         action: context.actions.newTab
       )
       .accessibilityIdentifier(TerminalSidebarAccessibilityIdentifier.newTab)
@@ -361,32 +366,37 @@ private struct TerminalSidebarFooterButton: View {
   let title: String
   let symbol: String
   let palette: Palette
+  let showsSeparator: Bool
   let action: () -> Void
 
   var body: some View {
-    Button(action: action) {
-      HStack(spacing: 8) {
-        Image(systemName: symbol)
-          .font(.system(size: 12, weight: .semibold))
-          .frame(width: 18, height: 18)
-          .accessibilityHidden(true)
-        Text(title)
-          .font(.system(size: 13, weight: .medium))
-        Spacer(minLength: 0)
-      }
-      .foregroundStyle(palette.secondaryText)
-      .padding(.horizontal, TerminalSidebarLayout.rowHorizontalPadding)
-      .frame(minHeight: TerminalSidebarLayout.tabRowMinHeight)
-    }
-    .buttonStyle(TerminalSidebarButtonStyle(palette: palette, layout: .rect))
-    .frame(height: TerminalSidebarLayout.pinnedControlHeight)
-    .overlay(alignment: .top) {
-      Rectangle()
-        .fill(palette.sidebarSeparator)
-        .frame(height: 1)
+    ZStack(alignment: .top) {
+      Button(action: action) {
+        HStack(spacing: 8) {
+          Image(systemName: symbol)
+            .font(.system(size: 12, weight: .semibold))
+            .frame(width: 18, height: 18)
+            .accessibilityHidden(true)
+          Text(title)
+            .font(.system(size: 13, weight: .medium))
+          Spacer(minLength: 0)
+        }
+        .foregroundStyle(palette.secondaryText)
         .padding(.horizontal, TerminalSidebarLayout.rowHorizontalPadding)
-        .accessibilityHidden(true)
+        .frame(minHeight: TerminalSidebarLayout.tabRowMinHeight)
+      }
+      .buttonStyle(TerminalSidebarButtonStyle(palette: palette, layout: .rect))
+      .padding(.horizontal, TerminalSidebarLayout.visibleHorizontalInset)
+      .frame(maxHeight: .infinity)
+
+      if showsSeparator {
+        Rectangle()
+          .fill(palette.sidebarSeparator)
+          .frame(height: 1)
+          .accessibilityHidden(true)
+      }
     }
+    .frame(maxWidth: .infinity, maxHeight: .infinity)
   }
 }
 

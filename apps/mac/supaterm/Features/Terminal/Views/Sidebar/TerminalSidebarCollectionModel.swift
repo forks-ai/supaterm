@@ -6,6 +6,7 @@ enum TerminalSidebarEntryID: Hashable {
   case tab(TerminalTabID)
   case group(TerminalTabGroupID)
   case pinDivider
+  case newTab
 }
 
 enum TerminalSidebarRootContent: Equatable {
@@ -93,6 +94,8 @@ struct TerminalSidebarOutline: Equatable {
       }
     }
 
+    entries.append(TerminalSidebarEntry(kind: .newTab))
+
     return entries
   }
 
@@ -140,7 +143,7 @@ struct TerminalSidebarOutline: Equatable {
       source = .tabs(tabIDs)
     case .group(let id):
       source = .group(id)
-    case .pinDivider:
+    case .pinDivider, .newTab:
       return nil
     }
     return TerminalSidebarDragPayload(
@@ -184,6 +187,7 @@ struct TerminalSidebarEntry: Equatable {
     case tab(TerminalTabID, parentGroupID: TerminalTabGroupID?, rootIsPinned: Bool)
     case group(TerminalTabGroupID, color: ThemeTint, isPinned: Bool, isCollapsed: Bool)
     case pinDivider
+    case newTab
   }
 
   let kind: Kind
@@ -193,13 +197,14 @@ struct TerminalSidebarEntry: Equatable {
     case .tab(let id, _, _): .tab(id)
     case .group(let id, _, _, _): .group(id)
     case .pinDivider: .pinDivider
+    case .newTab: .newTab
     }
   }
 
   var parentGroupID: TerminalTabGroupID? {
     switch kind {
     case .tab(_, let groupID, _): groupID
-    case .group, .pinDivider: nil
+    case .group, .pinDivider, .newTab: nil
     }
   }
 }

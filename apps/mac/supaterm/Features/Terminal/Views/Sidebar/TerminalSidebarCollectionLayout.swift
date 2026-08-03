@@ -88,7 +88,6 @@ struct TerminalSidebarLayoutPlan: Equatable {
     var y = Self.initialY
     var dropPlaceholderFrame: CGRect?
     var previousVisibleEntry: TerminalSidebarEntry?
-    let horizontalInsets = TerminalSidebarLayout.cardHorizontalInsets
 
     for (index, entry) in entries.enumerated() {
       if insertionIndex == index, dropGapHeight > 0 {
@@ -107,6 +106,7 @@ struct TerminalSidebarLayoutPlan: Equatable {
       }
       let preferredHeight = preferredHeights[entry.id] ?? Self.defaultHeight(for: entry)
       let height = isDragged ? 0 : preferredHeight * visibility.height
+      let horizontalInsets = Self.horizontalInsets(for: entry)
       items.append(
         Item(
           id: entry.id,
@@ -249,7 +249,7 @@ struct TerminalSidebarLayoutPlan: Equatable {
       let descendants = entries.drop { $0.id != entry.id }.dropFirst().prefix { descendant in
         switch descendant.kind {
         case .tab(_, let parentGroupID, _): parentGroupID == id
-        case .group, .pinDivider: false
+        case .group, .pinDivider, .newTab: false
         }
       }
       let descendantFrames = descendants.compactMap { itemByID[$0.id]?.frame }.filter {
@@ -544,14 +544,14 @@ struct TerminalSidebarLayoutPlan: Equatable {
     case .before(let id):
       return entries.firstIndex { $0.id == id }
     case .beforeFooter:
-      return entries.count
+      return entries.firstIndex { $0.id == .newTab } ?? entries.count
     case .groupEnd(let groupID):
       guard let header = entries.firstIndex(where: { $0.id == .group(groupID) }) else {
         return entries.count
       }
       return entries[(header + 1)...].firstIndex { entry in
         switch entry.kind {
-        case .group, .pinDivider: true
+        case .group, .pinDivider, .newTab: true
         case .tab(_, let parentGroupID, _): parentGroupID != groupID
         }
       } ?? entries.count
@@ -603,6 +603,8 @@ struct TerminalSidebarLayoutPlan: Equatable {
     previous: TerminalSidebarEntry?
   ) -> CGFloat {
     switch (previous?.kind, entry.kind) {
+    case (_, .newTab):
+      rootSpacing
     case (_, .pinDivider):
       pinDividerTopSpacing
     case (.pinDivider, .group):
@@ -620,8 +622,22 @@ struct TerminalSidebarLayoutPlan: Equatable {
   }
 
   private static func defaultHeight(for entry: TerminalSidebarEntry) -> CGFloat {
-    if case .pinDivider = entry.kind { return dividerHeight }
-    return TerminalSidebarLayout.tabRowMinHeight
+    switch entry.kind {
+    case .pinDivider: dividerHeight
+    case .newTab: TerminalSidebarLayout.newTabRowHeight
+    case .tab, .group: TerminalSidebarLayout.tabRowMinHeight
+    }
+  }
+
+  private static func horizontalInsets(
+    for entry: TerminalSidebarEntry
+  ) -> TerminalSidebarLayout.HorizontalInsets {
+    switch entry.kind {
+    case .pinDivider, .newTab:
+      TerminalSidebarLayout.HorizontalInsets(leading: 0, trailing: 0)
+    case .tab, .group:
+      TerminalSidebarLayout.cardHorizontalInsets
+    }
   }
 
   private static func interpolateValue(
@@ -650,6 +666,7 @@ final class TerminalSidebarCollectionLayout: NSCollectionViewLayout {
   )
   var visibilityByEntryID: [TerminalSidebarEntryID: TerminalSidebarLayoutPlan.Visibility] = [:]
   var dragDropState: TerminalSidebarDragDropState?
+  var isNewTabItemHidden = false
   var preferredHeight: ((TerminalSidebarEntryID, CGFloat) -> CGFloat)?
   var itemIdentifiers: (() -> [TerminalSidebarEntryID])?
 
@@ -712,7 +729,11 @@ final class TerminalSidebarCollectionLayout: NSCollectionViewLayout {
     let entries = outline.visibleEntries
     let heights = Dictionary(
       uniqueKeysWithValues: entries.map { entry in
-        let itemWidth = TerminalSidebarLayout.cardHorizontalInsets.width(in: width)
+        let itemWidth =
+          switch entry.kind {
+          case .pinDivider, .newTab: width
+          case .tab, .group: TerminalSidebarLayout.cardHorizontalInsets.width(in: width)
+          }
         return (
           entry.id,
           preferredHeight?(entry.id, itemWidth) ?? TerminalSidebarLayout.tabRowMinHeight
@@ -759,6 +780,7 @@ final class TerminalSidebarCollectionLayout: NSCollectionViewLayout {
         let attributes = NSCollectionViewLayoutAttributes(forItemWith: indexPath)
         attributes.frame = item.frame
         attributes.alpha = item.alpha
+        attributes.isHidden = isNewTabItemHidden && item.id == .newTab
         return (indexPath, attributes)
       }
     )

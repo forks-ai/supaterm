@@ -226,12 +226,19 @@ final class TerminalSidebarListController: NSViewController, NSCollectionViewDel
       self?.dataSource.snapshot().itemIdentifiers ?? []
     }
     scrollView.documentView = collectionView
+    scrollView.contentView.postsBoundsChangedNotifications = true
 
     NotificationCenter.default.addObserver(
       self,
       selector: #selector(liveScrollDidStart),
       name: NSScrollView.willStartLiveScrollNotification,
       object: scrollView
+    )
+    NotificationCenter.default.addObserver(
+      self,
+      selector: #selector(scrollViewDidScroll),
+      name: NSView.boundsDidChangeNotification,
+      object: scrollView.contentView
     )
     NotificationCenter.default.addObserver(
       self,
@@ -418,6 +425,7 @@ final class TerminalSidebarListController: NSViewController, NSCollectionViewDel
 
   private func preferredHeight(for id: TerminalSidebarEntryID, width: CGFloat) -> CGFloat {
     if case .pinDivider = id { return TerminalSidebarLayoutPlan.dividerHeight }
+    if case .newTab = id { return TerminalSidebarLayout.newTabRowHeight }
     guard let presentation = rows[id], let context else {
       return TerminalSidebarLayout.tabRowMinHeight
     }
@@ -469,6 +477,25 @@ final class TerminalSidebarListController: NSViewController, NSCollectionViewDel
     guard !isLayingOut else { return }
     isLayingOut = true
     defer { isLayingOut = false }
+
+    for _ in 0..<2 {
+      layoutViewportAndCollection()
+      let shouldPin = TerminalSidebarNewTabPlacement.shouldPin(
+        itemFrame: collectionLayout.plan.items.first { $0.id == .newTab }?.frame,
+        visibleRect: scrollView.documentVisibleRect,
+        pinnedHeight: TerminalSidebarLayout.pinnedControlHeight,
+        isPinned: dragController.pinnedControl.isPinned
+      )
+      let placementChanged = dragController.pinnedControl.setPinned(shouldPin)
+      collectionLayout.isNewTabItemHidden = shouldPin
+      guard placementChanged else { break }
+    }
+
+    updateDecorations()
+    updateGroupHover(at: collectionView.pointerLocation)
+  }
+
+  private func layoutViewportAndCollection() {
     let viewportLayout = TerminalSidebarViewportLayout(
       bounds: view.bounds,
       pinnedControlHeight: dragController.pinnedControl.height
@@ -490,8 +517,6 @@ final class TerminalSidebarListController: NSViewController, NSCollectionViewDel
     )
     collectionLayout.invalidateLayout()
     collectionView.layoutSubtreeIfNeeded()
-    updateDecorations()
-    updateGroupHover(at: collectionView.pointerLocation)
   }
 
   private func updateDecorations() {
@@ -625,5 +650,11 @@ final class TerminalSidebarListController: NSViewController, NSCollectionViewDel
 
   @objc private func liveScrollDidEnd() {
     dragController.setLiveScrolling(false)
+  }
+
+  @objc private func scrollViewDidScroll() {
+    guard !isLayingOut else { return }
+    view.needsLayout = true
+    view.layoutSubtreeIfNeeded()
   }
 }
