@@ -117,6 +117,17 @@ enum TerminalChromeMetrics {
   }
 }
 
+enum TerminalFloatingSidebarShellMetrics {
+  static let borderWidth: CGFloat = 1
+  static let contentInset = TerminalChromeMetrics.paneInset
+  static let cornerRadius = TerminalChromeMetrics.paneCornerRadius
+  static let shadowRadius: CGFloat = 16
+  static let shadowYOffset: CGFloat = 6
+  static var shape: RoundedRectangle {
+    RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+  }
+}
+
 enum TerminalCoordinateSpace {
   static let split = "TerminalSplit"
   static let floatingSidebar = "TerminalFloatingSidebar"
@@ -132,6 +143,64 @@ private struct TerminalPaneSurfaceModifier: ViewModifier {
         TerminalChromeMetrics.paneShape
           .stroke(stroke, lineWidth: 1)
       }
+  }
+}
+
+struct TerminalFloatingSidebarShell<Content: View>: View {
+  let palette: Palette
+  let content: Content
+
+  init(palette: Palette, @ViewBuilder content: () -> Content) {
+    self.palette = palette
+    self.content = content()
+  }
+
+  var body: some View {
+    content
+      .background {
+        TerminalFloatingSidebarBackground(palette: palette)
+      }
+      .modifier(TerminalFloatingSidebarSurfaceModifier(palette: palette))
+      .modifier(TerminalFloatingSidebarShadowModifier(palette: palette))
+  }
+}
+
+private struct TerminalFloatingSidebarBackground: View {
+  let palette: Palette
+
+  var body: some View {
+    palette.windowBackgroundTint
+      .background {
+        BlurEffectView(material: .popover, blendingMode: .withinWindow)
+      }
+  }
+}
+
+private struct TerminalFloatingSidebarSurfaceModifier: ViewModifier {
+  let palette: Palette
+
+  func body(content: Content) -> some View {
+    content
+      .compositingGroup()
+      .clipShape(TerminalFloatingSidebarShellMetrics.shape)
+      .overlay {
+        TerminalFloatingSidebarShellMetrics.shape
+          .stroke(palette.floatingSidebarBorder, lineWidth: TerminalFloatingSidebarShellMetrics.borderWidth)
+      }
+      .padding(TerminalFloatingSidebarShellMetrics.contentInset)
+  }
+}
+
+private struct TerminalFloatingSidebarShadowModifier: ViewModifier {
+  let palette: Palette
+
+  func body(content: Content) -> some View {
+    content.shadow(
+      color: palette.shadow,
+      radius: TerminalFloatingSidebarShellMetrics.shadowRadius,
+      x: 0,
+      y: TerminalFloatingSidebarShellMetrics.shadowYOffset
+    )
   }
 }
 

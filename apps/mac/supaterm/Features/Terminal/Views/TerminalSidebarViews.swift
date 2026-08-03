@@ -306,22 +306,18 @@ private struct FloatingSidebarView: View {
   let dismissReleaseAnnouncement: () -> Void
 
   var body: some View {
-    TerminalSidebarView(
-      store: store,
-      updateStore: updateStore,
-      releaseAnnouncement: releaseAnnouncement,
-      palette: palette,
-      terminal: terminal,
-      isPagingActive: true,
-      dismissReleaseAnnouncement: dismissReleaseAnnouncement
-    )
-    .frame(width: width)
-    .background(palette.windowBackgroundTint)
-    .background {
-      BlurEffectView(material: .popover, blendingMode: .withinWindow)
+    TerminalFloatingSidebarShell(palette: palette) {
+      TerminalSidebarView(
+        store: store,
+        updateStore: updateStore,
+        releaseAnnouncement: releaseAnnouncement,
+        palette: palette,
+        terminal: terminal,
+        isPagingActive: true,
+        dismissReleaseAnnouncement: dismissReleaseAnnouncement
+      )
+      .frame(width: width)
     }
-    .terminalPaneChrome(palette: palette)
-    .shadow(color: palette.shadow, radius: 16, x: 0, y: 6)
   }
 }
 

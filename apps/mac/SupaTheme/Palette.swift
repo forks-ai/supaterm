@@ -73,6 +73,7 @@ public struct Palette {
   public var agentPanelBackground: Color { agentPanelBackgroundValue.color }
   public var detailStroke: Color { isDark ? Color.white.opacity(0.08) : Color.black.opacity(0.06) }
   public var detailShadow: Color { isDark ? .clear : Color.black.opacity(0.14) }
+  public var floatingSidebarBorder: Color { Color.white.opacity(0.3) }
   public var sidebarTabRow: SidebarTabRowPalette {
     let ink = isDark ? ThemeColor.white : ThemeColor.black
     let inverseInk = isDark ? ThemeColor.black : ThemeColor.white

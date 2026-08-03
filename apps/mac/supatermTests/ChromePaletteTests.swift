@@ -263,6 +263,11 @@ struct ChromePaletteTests {
       isDark ? .clear : Color.black.opacity(0.14),
       "detailShadow"
     )
+    expectSameColor(
+      palette.floatingSidebarBorder,
+      Color.white.opacity(0.3),
+      "floatingSidebarBorder"
+    )
     expectSameColor(palette.unselectedFill, (isDark ? Color.white : .black).opacity(0.06), "unselectedFill")
     expectSameColor(palette.hoverFill, Color.white.opacity(isDark ? 0.16 : 0.55), "hoverFill")
     expectSameColor(palette.pressedFill, Color.white.opacity(isDark ? 0.31 : 0.7), "pressedFill")
