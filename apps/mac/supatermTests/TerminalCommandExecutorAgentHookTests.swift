@@ -437,16 +437,21 @@ struct TerminalCommandExecutorAgentHookTests {
   }
 
   @Test
-  func claudeWorkflowCompletionRemovesItsChildren() throws {
+  func claudeWorkflowCompletionRemovesChildrenFromEveryCompletedWorkflow() throws {
     let transcript = try ClaudeProgressFixtures.makeTranscript()
     defer { try? FileManager.default.removeItem(at: transcript.deletingLastPathComponent()) }
-    let runID = "wf-1"
-    try ClaudeProgressFixtures.writeWorkflowSubagentSpawn(
-      agentID: "child-1",
-      runID: runID,
-      prompt: "Inspect the session state.",
-      forTranscriptAt: transcript
-    )
+    let workflowChildren = [
+      (runID: "wf-1", agentID: "child-1"),
+      (runID: "wf-2", agentID: "child-2"),
+    ]
+    for workflowChild in workflowChildren {
+      try ClaudeProgressFixtures.writeWorkflowSubagentSpawn(
+        agentID: workflowChild.agentID,
+        runID: workflowChild.runID,
+        prompt: "Inspect the session state.",
+        forTranscriptAt: transcript
+      )
+    }
     let harness = try makeClaudeHookHarness()
     let rootScope = TerminalAgentEvent.Scope(
       agent: .claude,
@@ -465,33 +470,37 @@ struct TerminalCommandExecutorAgentHookTests {
         )
       )
     )
-    _ = try harness.commandExecutor.handleAgentHook(
-      SupatermAgentHookRequest(
-        agent: .claude,
-        context: harness.context,
-        event: SupatermAgentHookEvent(
-          agentType: "workflow-subagent",
-          hookEventName: .subagentStart,
-          sessionID: ClaudeHookFixtures.sessionID,
-          transcriptPath: transcript.path,
-          agentID: "child-1"
+    for workflowChild in workflowChildren {
+      _ = try harness.commandExecutor.handleAgentHook(
+        SupatermAgentHookRequest(
+          agent: .claude,
+          context: harness.context,
+          event: SupatermAgentHookEvent(
+            agentType: "workflow-subagent",
+            hookEventName: .subagentStart,
+            sessionID: ClaudeHookFixtures.sessionID,
+            transcriptPath: transcript.path,
+            agentID: workflowChild.agentID
+          )
         )
       )
-    )
+    }
     #expect(
-      harness.host.agentPanelPresentation(for: harness.context.surfaceID)?.activeChildren.count == 1
+      harness.host.agentPanelPresentation(for: harness.context.surfaceID)?.activeChildren.count
+        == workflowChildren.count
     )
 
-    let transcriptDirectory =
+    let transcriptDirectories = workflowChildren.map {
       transcript
-      .deletingPathExtension()
-      .appendingPathComponent("subagents")
-      .appendingPathComponent("workflows")
-      .appendingPathComponent(runID)
-      .path
+        .deletingPathExtension()
+        .appendingPathComponent("subagents")
+        .appendingPathComponent("workflows")
+        .appendingPathComponent($0.runID)
+        .path
+    }
     harness.commandExecutor.handleMonitorSnapshot(
       AgentMonitorSnapshot(
-        completedSubagentTranscriptDirectories: [transcriptDirectory]
+        completedSubagentTranscriptDirectories: transcriptDirectories
       ),
       scope: rootScope,
       context: harness.context

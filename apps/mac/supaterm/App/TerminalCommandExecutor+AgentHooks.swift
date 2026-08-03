@@ -121,11 +121,12 @@ extension TerminalCommandExecutor {
     }
     var didChange = false
     for transcriptDirectoryPath in snapshot.completedSubagentTranscriptDirectories {
-      didChange = terminal.removeAgentChildren(
-        agent: scope.agent,
-        sessionID: scope.sessionID,
-        transcriptDirectoryPath: transcriptDirectoryPath
-      ) || didChange
+      didChange =
+        terminal.removeAgentChildren(
+          agent: scope.agent,
+          sessionID: scope.sessionID,
+          transcriptDirectoryPath: transcriptDirectoryPath
+        ) || didChange
     }
     let turnID = scope.subagentID == nil ? snapshot.status?.turnID : scope.turnID
     var actions: [TerminalAgentEvent.Action] = []
