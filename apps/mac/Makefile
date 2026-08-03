@@ -12,6 +12,9 @@ CURRENT_MAKEFILE_DIR := $(patsubst %/,%,$(dir $(CURRENT_MAKEFILE_PATH)))
 PROJECT_WORKSPACE := $(CURRENT_MAKEFILE_DIR)/supaterm.xcworkspace
 APP_SCHEME := supaterm
 MACOS_DESTINATION := platform=macOS,arch=$(shell uname -m)
+PERIPHERY_SCHEMES := supaterm supatermSnapshotCatalog
+PERIPHERY_DERIVED_DATA_PATH := $(CURRENT_MAKEFILE_DIR)/.build/periphery-derived-data
+PERIPHERY_INDEX_STORE_PATH := $(PERIPHERY_DERIVED_DATA_PATH)/Index.noindex/DataStore
 LOGO_GENERATOR_SCHEME := SupaThemeLogoGenerator
 TUIST_GENERATION_STAMP_DIR := $(CURRENT_MAKEFILE_DIR)/.build/.tuist-generated-stamps
 TUIST_INSTALL_STAMP := $(TUIST_GENERATION_STAMP_DIR)/.installed
@@ -195,7 +198,10 @@ record-snapshots: tuist-generate build-ghostty # Record snapshot references.
 	TEST_RUNNER_SNAPSHOT_TESTING_RECORD=all xcodebuild test -workspace "$(PROJECT_WORKSPACE)" -scheme "supatermSnapshots" -destination "$(MACOS_DESTINATION)" CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY=""
 
 scan-dead-code: tuist-generate build-ghostty build-zmx build-ap
-	mise exec -- periphery scan
+	for scheme in $(PERIPHERY_SCHEMES); do \
+		xcodebuild -workspace "$(PROJECT_WORKSPACE)" -scheme "$$scheme" -parallelizeTargets -derivedDataPath "$(PERIPHERY_DERIVED_DATA_PATH)" -quiet build-for-testing CODE_SIGNING_ALLOWED=NO ENABLE_BITCODE=NO DEBUG_INFORMATION_FORMAT=dwarf COMPILER_INDEX_STORE_ENABLE=YES INDEX_ENABLE_DATA_STORE=YES -destination "$(MACOS_DESTINATION)"; \
+	done
+	mise exec -- periphery scan --skip-build --schemes $(PERIPHERY_SCHEMES) --index-store-path "$(PERIPHERY_INDEX_STORE_PATH)"
 
 format: # Format code with swift format (local only)
 	swift format -p --in-place --recursive --configuration ./.swift-format.json SupaTheme SupaThemeLogoGenerator SupatermCLIShared SPCLI sp supaterm supatermTests supatermSnapshotTests supatermE2E supatermUITests
