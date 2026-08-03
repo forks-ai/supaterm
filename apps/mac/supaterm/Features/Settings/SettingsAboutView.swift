@@ -87,12 +87,13 @@ struct SettingsAboutView: View {
               Text(appName)
                 .font(.system(size: 28, weight: .semibold))
 
-              Text(versionText)
-                .font(.headline)
-                .foregroundStyle(.secondary)
-                .textSelection(.enabled)
-                .accessibilityIdentifier("settings.about.version")
-                .accessibilityValue(versionText)
+              Link(destination: SupatermExternalURL.releaseNotes) {
+                Text(versionText)
+              }
+              .font(.headline)
+              .textSelection(.enabled)
+              .accessibilityIdentifier("settings.about.version")
+              .accessibilityValue(versionText)
 
               HStack(spacing: 12) {
                 Button("Check for Updates") {

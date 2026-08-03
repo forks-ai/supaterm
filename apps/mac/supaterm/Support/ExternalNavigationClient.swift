@@ -3,6 +3,10 @@ import ComposableArchitecture
 import Foundation
 
 public enum SupatermExternalURL {
+  public static var releaseNotes: URL {
+    URL(string: "https://github.com/supabitapp/supaterm/releases/tag/v\(AppBuild.version)")!
+  }
+
   public static var submitGitHubIssue: URL {
     URL(string: "https://github.com/supabitapp/supaterm/issues/new")!
   }
