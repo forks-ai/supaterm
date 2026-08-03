@@ -2,6 +2,30 @@ import AppKit
 import SwiftUI
 
 @MainActor
+private final class ConfigurationDiagnosticsWindow: NSWindow {
+  var onCancelAction: () -> Void = {}
+  var onDefaultAction: () -> Void = {}
+
+  override func performKeyEquivalent(with event: NSEvent) -> Bool {
+    guard event.type == .keyDown,
+      event.modifierFlags.isDisjoint(with: [.command, .control, .option, .shift])
+    else {
+      return super.performKeyEquivalent(with: event)
+    }
+
+    switch event.charactersIgnoringModifiers {
+    case "\u{1b}":
+      onCancelAction()
+    case "\r":
+      onDefaultAction()
+    default:
+      return super.performKeyEquivalent(with: event)
+    }
+    return true
+  }
+}
+
+@MainActor
 final class ConfigurationDiagnosticsWindowController: NSWindowController {
   private let hostingController: NSHostingController<ConfigurationDiagnosticsView>
   private let notificationCenter: NotificationCenter
@@ -16,7 +40,7 @@ final class ConfigurationDiagnosticsWindowController: NSWindowController {
     )
     self.hostingController = hostingController
     self.notificationCenter = notificationCenter
-    let window = NSWindow(
+    let window = ConfigurationDiagnosticsWindow(
       contentRect: NSRect(x: 0, y: 0, width: 480, height: 270),
       styleMask: [.titled, .closable, .miniaturizable, .resizable],
       backing: .buffered,
@@ -30,6 +54,8 @@ final class ConfigurationDiagnosticsWindowController: NSWindowController {
     window.center()
     window.contentViewController = hostingController
     super.init(window: window)
+    window.onCancelAction = { [weak self] in self?.ignore() }
+    window.onDefaultAction = { [weak self] in self?.reload() }
   }
 
   @available(*, unavailable)
@@ -41,10 +67,10 @@ final class ConfigurationDiagnosticsWindowController: NSWindowController {
     hostingController.rootView = ConfigurationDiagnosticsView(
       messages: messages,
       onIgnore: { [weak self] in
-        self?.update(messages: [])
+        self?.ignore()
       },
-      onReload: { [notificationCenter] in
-        notificationCenter.post(name: .ghosttyRuntimeReloadRequested, object: nil)
+      onReload: { [weak self] in
+        self?.reload()
       }
     )
     guard !messages.isEmpty else {
@@ -53,6 +79,13 @@ final class ConfigurationDiagnosticsWindowController: NSWindowController {
     }
     guard let window, !window.isVisible else { return }
     window.makeKeyAndOrderFront(nil)
-    window.makeFirstResponder(hostingController.view)
+  }
+
+  private func ignore() {
+    update(messages: [])
+  }
+
+  private func reload() {
+    notificationCenter.post(name: .ghosttyRuntimeReloadRequested, object: nil)
   }
 }
