@@ -55,7 +55,7 @@ struct TerminalSidebarLiftedRow {
 }
 
 @MainActor
-final class TerminalSidebarHostingContainerView: NSView {
+class TerminalSidebarHostingContainerView: NSView {
   private var hostingView: NSHostingView<TerminalSidebarHostedRow>?
   private var isLifted = false
 
@@ -90,6 +90,48 @@ final class TerminalSidebarHostingContainerView: NSView {
     addSubview(hostedView)
     hostedView.frame = bounds
     isLifted = false
+  }
+}
+
+@MainActor
+final class TerminalSidebarPinnedControlView: TerminalSidebarHostingContainerView {
+  var onDraggingUpdated: (((any NSDraggingInfo)) -> NSDragOperation)?
+  var onDraggingExited: (() -> Void)?
+  var onDraggingEnded: (() -> Void)?
+  var onPrepareForDragOperation: (((any NSDraggingInfo)) -> Bool)?
+  var onPerformDragOperation: (((any NSDraggingInfo)) -> Bool)?
+
+  override init(frame frameRect: NSRect) {
+    super.init(frame: frameRect)
+    registerForDraggedTypes([.terminalSidebarOutlineItem])
+  }
+
+  @available(*, unavailable)
+  required init?(coder: NSCoder) { fatalError("init(coder:) is unavailable") }
+
+  override func draggingEntered(_ sender: any NSDraggingInfo) -> NSDragOperation {
+    onDraggingUpdated?(sender) ?? []
+  }
+
+  override func draggingUpdated(_ sender: any NSDraggingInfo) -> NSDragOperation {
+    onDraggingUpdated?(sender) ?? []
+  }
+
+  override func draggingExited(_ sender: (any NSDraggingInfo)?) {
+    onDraggingExited?()
+  }
+
+  override func draggingEnded(_ sender: any NSDraggingInfo) {
+    onDraggingEnded?()
+  }
+
+  override func prepareForDragOperation(_ sender: any NSDraggingInfo) -> Bool {
+    sender.animatesToDestination = false
+    return onPrepareForDragOperation?(sender) == true
+  }
+
+  override func performDragOperation(_ sender: any NSDraggingInfo) -> Bool {
+    onPerformDragOperation?(sender) == true
   }
 }
 

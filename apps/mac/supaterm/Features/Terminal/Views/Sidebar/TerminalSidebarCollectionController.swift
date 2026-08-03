@@ -71,6 +71,7 @@ final class TerminalSidebarListController: NSViewController, NSCollectionViewDel
 
   private let scrollView = TerminalSidebarScrollView()
   private let collectionView = TerminalSidebarCollectionView()
+  private let pinnedNewTabView = TerminalSidebarPinnedControlView(frame: .zero)
   private let collectionLayout = TerminalSidebarCollectionLayout()
   private let selectionGlowView = TerminalSidebarSelectionGlowView()
   private var groupBackgroundViews: [TerminalTabGroupID: TerminalSidebarGroupBackgroundView] = [:]
@@ -93,6 +94,7 @@ final class TerminalSidebarListController: NSViewController, NSCollectionViewDel
   private var activeDrag: ActiveDrag?
   private var motionPolicy = TerminalSidebarMotionPolicy(reduceMotion: false)
   private var isLayingOut = false
+  private var isDraggingOverPinnedNewTab = false
 
   private lazy var collapseAnimator = TerminalSidebarCollapseAnimator(
     collectionView: collectionView,
@@ -110,7 +112,7 @@ final class TerminalSidebarListController: NSViewController, NSCollectionViewDel
   private lazy var autoscrollController = TerminalSidebarDragAutoscrollController(
     collectionView: collectionView,
     scrollView: scrollView,
-    onScroll: { [weak self] pointerY in self?.updateDropTarget(pointerY: pointerY) }
+    onScroll: { [weak self] pointerY in self?.updateDropTargetAfterAutoscroll(pointerY: pointerY) }
   )
   private lazy var dragPresentation = TerminalSidebarDragPresentation(
     collectionView: collectionView
@@ -136,6 +138,7 @@ final class TerminalSidebarListController: NSViewController, NSCollectionViewDel
   ) {
     self.rows = rows
     self.context = context
+    updatePinnedNewTab()
     fixedHoveredGroupID = context.fixedHoveredGroupID
     motionPolicy = TerminalSidebarMotionPolicy(reduceMotion: reduceMotion)
     let groupIDs = Set(
@@ -189,6 +192,8 @@ final class TerminalSidebarListController: NSViewController, NSCollectionViewDel
     scrollView.drawsBackground = false
     scrollView.automaticallyAdjustsContentInsets = false
     view.addSubview(scrollView)
+    pinnedNewTabView.isHidden = true
+    view.addSubview(pinnedNewTabView)
 
     collectionView.collectionViewLayout = collectionLayout
     collectionView.backgroundColors = [.clear]
@@ -231,6 +236,19 @@ final class TerminalSidebarListController: NSViewController, NSCollectionViewDel
     }
     collectionView.onPointerMoved = { [weak self] point in
       self?.updateGroupHover(at: point)
+    }
+    pinnedNewTabView.onDraggingUpdated = { [weak self] info in
+      self?.draggingUpdatedAtPinnedNewTab(info) ?? []
+    }
+    pinnedNewTabView.onDraggingExited = { [weak self] in self?.draggingExited() }
+    pinnedNewTabView.onDraggingEnded = { [weak self] in
+      self?.nativeDraggingEnded(source: "pinnedNewTab")
+    }
+    pinnedNewTabView.onPrepareForDragOperation = { [weak self] info in
+      self?.prepareForDragOperation(info) == true
+    }
+    pinnedNewTabView.onPerformDragOperation = { [weak self] info in
+      self?.performDragOperation(info) == true
     }
 
     dataSource = NSCollectionViewDiffableDataSource(collectionView: collectionView) {
@@ -800,6 +818,7 @@ final class TerminalSidebarListController: NSViewController, NSCollectionViewDel
       let activeDrag,
       case .tracking = activeDrag.coordinator.phase
     else { return [] }
+    isDraggingOverPinnedNewTab = false
     let location = collectionView.convert(info.draggingLocation, from: nil)
     autoscrollController.update(pointerY: location.y)
     updateDropTarget(pointerY: location.y)
@@ -808,7 +827,26 @@ final class TerminalSidebarListController: NSViewController, NSCollectionViewDel
     return .move
   }
 
+  private func draggingUpdatedAtPinnedNewTab(_ info: any NSDraggingInfo) -> NSDragOperation {
+    guard
+      info.draggingSource as AnyObject? === collectionView,
+      let activeDrag,
+      case .tracking = activeDrag.coordinator.phase
+    else { return [] }
+    isDraggingOverPinnedNewTab = true
+    autoscrollController.update(
+      pointerY: TerminalSidebarPinnedDropRouting.autoscrollPointerY(
+        in: collectionView.visibleRect
+      )
+    )
+    updatePinnedNewTabDropTarget()
+    guard activeDrag.target != nil else { return [] }
+    info.numberOfValidItemsForDrop = 1
+    return .move
+  }
+
   private func draggingExited() {
+    isDraggingOverPinnedNewTab = false
     autoscrollController.stop()
     guard let activeDrag, case .tracking = activeDrag.coordinator.phase else { return }
     setDropTarget(nil, pointerY: nil)
@@ -873,6 +911,7 @@ final class TerminalSidebarListController: NSViewController, NSCollectionViewDel
 
   private func nativeDraggingEnded(source: String) {
     pendingDrag = nil
+    isDraggingOverPinnedNewTab = false
     autoscrollController.stop()
     guard var activeDrag else { return }
     let previousPhase = activeDrag.coordinator.phase
@@ -906,6 +945,23 @@ final class TerminalSidebarListController: NSViewController, NSCollectionViewDel
       )
     }
     setDropTarget(target, pointerY: pointerY)
+  }
+
+  private func updateDropTargetAfterAutoscroll(pointerY: CGFloat) {
+    if isDraggingOverPinnedNewTab {
+      updatePinnedNewTabDropTarget()
+    } else {
+      updateDropTarget(pointerY: pointerY)
+    }
+  }
+
+  private func updatePinnedNewTabDropTarget() {
+    guard let activeDrag, case .tracking = activeDrag.coordinator.phase else { return }
+    let target = TerminalSidebarPinnedDropRouting.target(
+      payload: activeDrag.payload,
+      outline: appliedOutline
+    )
+    setDropTarget(target, pointerY: nil)
   }
 
   private func setDropTarget(_ target: TerminalSidebarDropPlan?, pointerY: CGFloat?) {
@@ -1023,6 +1079,7 @@ final class TerminalSidebarListController: NSViewController, NSCollectionViewDel
     activeDrag?.coordinator.finish()
     activeDrag = nil
     pendingDrag = nil
+    isDraggingOverPinnedNewTab = false
     swipe?.isRowDragActive = false
     invalidateLayout()
     consumePendingUpdate()
@@ -1033,6 +1090,7 @@ final class TerminalSidebarListController: NSViewController, NSCollectionViewDel
     layoutAnimator.finish()
     collectionLayout.dragDropState = nil
     activeDrag?.target = nil
+    isDraggingOverPinnedNewTab = false
     dragPresentation.resetHapticTarget()
     invalidateLayout()
   }
@@ -1078,6 +1136,15 @@ final class TerminalSidebarListController: NSViewController, NSCollectionViewDel
     }
   }
 
+  private func updatePinnedNewTab() {
+    guard let presentation = rows[.newTab], let context else {
+      pinnedNewTabView.isHidden = true
+      return
+    }
+    pinnedNewTabView.isHidden = false
+    pinnedNewTabView.host(TerminalSidebarHostedRow(presentation: presentation, context: context))
+  }
+
   private func invalidateLayout() {
     collectionLayout.invalidateLayout()
     collectionView.needsLayout = true
@@ -1090,7 +1157,15 @@ final class TerminalSidebarListController: NSViewController, NSCollectionViewDel
     guard !isLayingOut else { return }
     isLayingOut = true
     defer { isLayingOut = false }
-    scrollView.frame = TerminalSidebarLayout.scrollViewportFrame(in: view.bounds)
+    let newTabHeight = rows[.newTab] == nil ? 0 : TerminalSidebarLayout.pinnedControlHeight
+    let viewportLayout = TerminalSidebarViewportLayout(
+      bounds: view.bounds,
+      pinnedControlHeight: newTabHeight
+    )
+    pinnedNewTabView.frame = TerminalSidebarLayout.cardHorizontalInsets.frame(
+      in: viewportLayout.pinnedControlFrame
+    )
+    scrollView.frame = viewportLayout.scrollViewportFrame
     scrollView.tile()
     let documentWidth = max(1, scrollView.contentView.bounds.width)
     let viewportHeight = max(1, scrollView.contentView.bounds.height)

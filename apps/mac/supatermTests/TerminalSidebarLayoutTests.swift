@@ -15,6 +15,9 @@ struct TerminalSidebarLayoutTests {
     let scrollView = try #require(
       controller.view.subviews.compactMap { $0 as? TerminalSidebarScrollView }.first
     )
+    let pinnedNewTabView = try #require(
+      controller.view.subviews.compactMap { $0 as? TerminalSidebarPinnedControlView }.first
+    )
     let viewportTopInset = controller.view.bounds.maxY - scrollView.frame.maxY
     let trafficLightBottom =
       WindowTrafficLightMetrics.edgePadding + WindowTrafficLightMetrics.buttonSize
@@ -23,6 +26,90 @@ struct TerminalSidebarLayoutTests {
     #expect(!scrollView.automaticallyAdjustsContentInsets)
     #expect(scrollView.contentInsets.top == 0)
     #expect(scrollView.contentInsets.bottom == 0)
+    #expect(pinnedNewTabView.isHidden)
+    #expect(scrollView.frame.minY == controller.view.bounds.minY)
+  }
+
+  @Test
+  func pinnedNewTabReservesTheViewportAndRecalculatesOnResize() throws {
+    let controlHeight = TerminalSidebarLayout.pinnedControlHeight
+    let initialBounds = CGRect(x: 0, y: 0, width: 280, height: 400)
+    let initial = TerminalSidebarViewportLayout(
+      bounds: initialBounds,
+      pinnedControlHeight: controlHeight
+    )
+    let resized = TerminalSidebarViewportLayout(
+      bounds: CGRect(x: 0, y: 0, width: 360, height: 480),
+      pinnedControlHeight: controlHeight
+    )
+    let withoutPinnedControl = TerminalSidebarViewportLayout(
+      bounds: initialBounds,
+      pinnedControlHeight: 0
+    )
+    let shortTab = TerminalTabID()
+    let shortList = TerminalSidebarTestFixture.layoutPlan(
+      outline: TerminalSidebarTestFixture.outline(
+        roots: [TerminalSidebarOutline.Root(content: .tab(shortTab), isPinned: false)],
+        revision: 1
+      ),
+      viewportHeight: initial.scrollViewportFrame.height
+    )
+    let tabs = (0..<12).map { _ in TerminalTabID() }
+    let longList = TerminalSidebarTestFixture.layoutPlan(
+      outline: TerminalSidebarTestFixture.outline(
+        roots: tabs.map { TerminalSidebarOutline.Root(content: .tab($0), isPinned: false) },
+        revision: 1
+      ),
+      viewportHeight: initial.scrollViewportFrame.height
+    )
+    let lastFrame = try #require(longList.items.last?.frame)
+    let maximumScrollY = max(
+      0,
+      longList.contentSize.height - initial.scrollViewportFrame.height
+    )
+    let lastRowScrollY = min(
+      max(0, lastFrame.maxY - initial.scrollViewportFrame.height),
+      maximumScrollY
+    )
+    let lastRowViewport = CGRect(
+      x: 0,
+      y: lastRowScrollY,
+      width: initial.scrollViewportFrame.width,
+      height: initial.scrollViewportFrame.height
+    )
+
+    #expect(controlHeight == 40)
+    #expect(initial.pinnedControlFrame.height == controlHeight)
+    #expect(initial.scrollViewportFrame.minY == initial.pinnedControlFrame.maxY)
+    #expect(!initial.scrollViewportFrame.intersects(initial.pinnedControlFrame))
+    #expect(withoutPinnedControl.pinnedControlFrame.height == 0)
+    #expect(withoutPinnedControl.scrollViewportFrame.minY == initialBounds.minY)
+    #expect(resized.pinnedControlFrame.height == controlHeight)
+    #expect(resized.scrollViewportFrame.width == 360)
+    #expect(resized.scrollViewportFrame.height > initial.scrollViewportFrame.height)
+    #expect(shortList.contentSize.height < initial.scrollViewportFrame.height)
+    #expect(longList.contentSize.height > initial.scrollViewportFrame.height)
+    #expect(lastRowViewport.contains(lastFrame))
+  }
+
+  @Test
+  func collectionLayoutInvalidatesForViewportResize() {
+    let collectionView = NSCollectionView(frame: CGRect(x: 0, y: 0, width: 220, height: 180))
+    let layout = TerminalSidebarCollectionLayout()
+    collectionView.collectionViewLayout = layout
+    layout.prepare()
+
+    #expect(!layout.shouldInvalidateLayout(forBoundsChange: collectionView.bounds))
+    #expect(
+      layout.shouldInvalidateLayout(
+        forBoundsChange: CGRect(x: 0, y: 0, width: 221, height: 180)
+      )
+    )
+    #expect(
+      layout.shouldInvalidateLayout(
+        forBoundsChange: CGRect(x: 0, y: 0, width: 220, height: 181)
+      )
+    )
   }
 
   @Test

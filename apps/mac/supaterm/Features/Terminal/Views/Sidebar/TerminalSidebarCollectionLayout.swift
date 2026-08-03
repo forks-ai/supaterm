@@ -249,7 +249,7 @@ struct TerminalSidebarLayoutPlan: Equatable {
       let descendants = entries.drop { $0.id != entry.id }.dropFirst().prefix { descendant in
         switch descendant.kind {
         case .tab(_, let parentGroupID, _): parentGroupID == id
-        case .group, .pinDivider, .newTab: false
+        case .group, .pinDivider: false
         }
       }
       let descendantFrames = descendants.compactMap { itemByID[$0.id]?.frame }.filter {
@@ -471,12 +471,14 @@ struct TerminalSidebarLayoutPlan: Equatable {
     context: TargetGeometryContext
   ) -> CGFloat {
     guard let root = context.outline.roots[safe: rootIndex] else { return 0 }
-    let nextRoot = context.outline.roots.dropFirst(rootIndex + 1).first {
-      !context.draggedIDs.contains($0.entryID)
-    }
-    if let nextRoot, root.isPinned != nextRoot.isPinned { return 0 }
-    let nextEntryID = nextRoot?.entryID ?? .newTab
-    guard let nextItem = context.itemByID[nextEntryID] else { return 0 }
+    guard
+      let nextRoot = context.outline.roots.dropFirst(rootIndex + 1).first(where: {
+        !context.draggedIDs.contains($0.entryID)
+      })
+    else { return 0 }
+    guard root.isPinned == nextRoot.isPinned,
+      let nextItem = context.itemByID[nextRoot.entryID]
+    else { return 0 }
     return max(0, nextItem.frame.minY - containerMaxY)
   }
 
@@ -542,14 +544,14 @@ struct TerminalSidebarLayoutPlan: Equatable {
     case .before(let id):
       return entries.firstIndex { $0.id == id }
     case .beforeFooter:
-      return entries.firstIndex { $0.id == .newTab } ?? entries.count
+      return entries.count
     case .groupEnd(let groupID):
       guard let header = entries.firstIndex(where: { $0.id == .group(groupID) }) else {
-        return entries.firstIndex { $0.id == .newTab } ?? entries.count
+        return entries.count
       }
       return entries[(header + 1)...].firstIndex { entry in
         switch entry.kind {
-        case .group, .pinDivider, .newTab: true
+        case .group, .pinDivider: true
         case .tab(_, let parentGroupID, _): parentGroupID != groupID
         }
       } ?? entries.count
@@ -610,7 +612,7 @@ struct TerminalSidebarLayoutPlan: Equatable {
     case (.tab(_, .some, _), .tab(_, nil, _)),
       (.group, .tab(_, nil, _)):
       rootSpacing
-    case (_, .group), (_, .newTab):
+    case (_, .group):
       rootSpacing
     default:
       TerminalSidebarLayout.tabRowSpacing

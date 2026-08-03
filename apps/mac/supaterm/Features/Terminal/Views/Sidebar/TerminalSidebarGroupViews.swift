@@ -381,6 +381,7 @@ private struct TerminalSidebarFooterButton: View {
       .frame(minHeight: TerminalSidebarLayout.tabRowMinHeight)
     }
     .buttonStyle(TerminalSidebarButtonStyle(palette: palette, layout: .rect))
+    .frame(height: TerminalSidebarLayout.pinnedControlHeight)
   }
 }
 

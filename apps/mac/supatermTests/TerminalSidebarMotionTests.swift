@@ -144,6 +144,29 @@ struct TerminalSidebarMotionTests {
     #expect(TerminalSidebarAutoscrollBehavior.direction(pointerY: 99, visibleRect: visible) == nil)
   }
 
+  @Test
+  func pinnedNewTabRoutesToBottomAutoscrollAndTrailingRootDrop() throws {
+    let source = TerminalTabID()
+    let target = TerminalTabID()
+    let outline = TerminalSidebarTestFixture.outline(
+      roots: [
+        TerminalSidebarOutline.Root(content: .tab(source), isPinned: false),
+        TerminalSidebarOutline.Root(content: .tab(target), isPinned: false),
+      ],
+      revision: 2
+    )
+    let payload = try #require(outline.dragPayload(for: .tab(source)))
+    let visibleRect = CGRect(x: 0, y: 100, width: 220, height: 300)
+    let pointerY = TerminalSidebarPinnedDropRouting.autoscrollPointerY(in: visibleRect)
+    let dropPlan = TerminalSidebarPinnedDropRouting.target(payload: payload, outline: outline)
+
+    #expect(pointerY == visibleRect.maxY)
+    #expect(TerminalSidebarAutoscrollBehavior.direction(pointerY: pointerY, visibleRect: visibleRect) == .down)
+    #expect(dropPlan?.path == .trailingRoot)
+    #expect(dropPlan?.destination == .root(isPinned: false, index: 1))
+    #expect(dropPlan?.placeholder == .beforeFooter)
+  }
+
   @Test @MainActor
   func liftAndSettlementUseTheSameSpring() throws {
     let lift = TerminalSidebarTransformSpring.animation(from: 0, to: -2)

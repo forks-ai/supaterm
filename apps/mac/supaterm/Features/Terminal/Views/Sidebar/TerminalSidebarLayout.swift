@@ -1,5 +1,27 @@
 import CoreGraphics
 
+struct TerminalSidebarViewportLayout: Equatable {
+  let scrollViewportFrame: CGRect
+  let pinnedControlFrame: CGRect
+
+  init(bounds: CGRect, pinnedControlHeight: CGFloat) {
+    let scrollTop = bounds.maxY - TerminalSidebarLayout.scrollViewportTopInset
+    let controlHeight = min(max(0, pinnedControlHeight), max(0, scrollTop - bounds.minY))
+    pinnedControlFrame = CGRect(
+      x: bounds.minX,
+      y: bounds.minY,
+      width: bounds.width,
+      height: controlHeight
+    )
+    scrollViewportFrame = CGRect(
+      x: bounds.minX,
+      y: pinnedControlFrame.maxY,
+      width: bounds.width,
+      height: max(0, scrollTop - pinnedControlFrame.maxY)
+    )
+  }
+}
+
 enum TerminalSidebarLayout {
   struct HorizontalInsets {
     let leading: CGFloat
@@ -33,6 +55,7 @@ enum TerminalSidebarLayout {
   }
   static let tabRowVerticalPadding: CGFloat = 5
   static let tabRowSpacing: CGFloat = 2
+  static let pinnedControlHeight: CGFloat = 40
   static let cardCornerRadius: CGFloat = 12
   static let cardMinHeight: CGFloat = 36
   static let cardVerticalPadding: CGFloat = 8
@@ -64,12 +87,4 @@ enum TerminalSidebarLayout {
       + trafficLightGap
   }
 
-  static func scrollViewportFrame(in bounds: CGRect) -> CGRect {
-    CGRect(
-      x: bounds.minX,
-      y: bounds.minY,
-      width: bounds.width,
-      height: max(0, bounds.height - scrollViewportTopInset)
-    )
-  }
 }
