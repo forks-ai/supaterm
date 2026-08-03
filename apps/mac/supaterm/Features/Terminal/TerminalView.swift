@@ -18,9 +18,6 @@ struct TerminalView: View {
 
   @State private var window: NSWindow?
 
-  private let minSidebarFraction: CGFloat = 0.10
-  private let maxSidebarFraction: CGFloat = 0.30
-
   private var chromeColorScheme: ColorScheme {
     supatermSettings.appearanceMode.colorScheme ?? terminal.terminalChromeColorScheme
   }
@@ -74,13 +71,6 @@ struct TerminalView: View {
     return terminal.isSpaceNameAvailable(
       spaceEditor.draftName,
       excluding: spaceEditor.excludedSpaceID
-    )
-  }
-
-  private var sidebarFractionBinding: Binding<CGFloat> {
-    Binding(
-      get: { store.sidebarFraction },
-      set: { _ = store.send(.sidebarFractionChanged($0)) }
     )
   }
 
@@ -293,10 +283,11 @@ struct TerminalView: View {
         terminal: terminal,
         totalWidth: geometry.size.width,
         isSidebarCollapsed: store.isSidebarCollapsed,
-        sidebarFraction: sidebarFractionBinding,
-        minFraction: minSidebarFraction,
-        maxFraction: maxSidebarFraction,
-        onHide: collapseSidebar,
+        sidebarWidth: store.sidebarWidth,
+        sidebarResizeState: store.sidebarResizeState,
+        onResizeInput: { input in
+          sendSidebarResizeInput(input, totalWidth: geometry.size.width)
+        },
         dismissReleaseAnnouncement: dismissReleaseAnnouncement
       )
       .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -309,19 +300,22 @@ struct TerminalView: View {
           palette: palette,
           terminal: terminal,
           totalWidth: geometry.size.width,
-          sidebarFraction: sidebarFractionBinding,
+          sidebarWidth: store.sidebarWidth,
+          sidebarResizeState: store.sidebarResizeState,
           isVisible: floatingSidebarVisibilityBinding,
-          minFraction: minSidebarFraction,
-          maxFraction: maxSidebarFraction,
+          onResizeInput: { input in
+            sendSidebarResizeInput(input, totalWidth: geometry.size.width)
+          },
           dismissReleaseAnnouncement: dismissReleaseAnnouncement
         )
       }
     }
   }
 
-  private func collapseSidebar() {
-    TerminalMotion.animate(.spring(response: 0.2, dampingFraction: 1.0), reduceMotion: reduceMotion) {
-      _ = store.send(.collapseSidebarButtonTapped)
-    }
+  private func sendSidebarResizeInput(
+    _ input: TerminalSidebarResizeInput,
+    totalWidth: CGFloat
+  ) {
+    _ = store.send(.sidebarResizeInput(input, totalWidth: totalWidth))
   }
 }

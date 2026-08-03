@@ -105,12 +105,6 @@ final class TerminalSidebarGroupHoverState {
   }
 }
 
-enum TerminalSidebarTabSelectionStyle: Equatable {
-  case none
-  case primary
-  case secondary
-}
-
 @MainActor
 @Observable
 final class TerminalSidebarTabSelectionState {
@@ -119,7 +113,7 @@ final class TerminalSidebarTabSelectionState {
   func style(
     for tabID: TerminalTabID,
     primaryTabID: TerminalTabID?
-  ) -> TerminalSidebarTabSelectionStyle {
+  ) -> SelectableRowSelection {
     if tabID == primaryTabID { return .primary }
     return secondaryTabIDs.contains(tabID) ? .secondary : .none
   }
@@ -204,11 +198,16 @@ struct TerminalSidebarTabRowPresentation: Equatable {
   let showsShortcutHint: Bool
 }
 
+enum TerminalSidebarNewTabPresentation: Equatable {
+  case inline
+  case pinned
+}
+
 enum TerminalSidebarRowPresentation: Equatable {
   case tab(TerminalSidebarTabRowPresentation)
   case group(TerminalSidebarGroupRowPresentation)
   case pinDivider
-  case newTab
+  case newTab(TerminalSidebarNewTabPresentation)
 
   var measurementKey: AnyHashable {
     switch self {
@@ -231,6 +230,10 @@ enum TerminalSidebarRowPresentation: Equatable {
 }
 
 enum TerminalSidebarAccessibilityIdentifier {
+  static let newTab = "sidebar.new-tab"
+  static let tabOutline = "sidebar.tab-outline"
+  static let resizeHandle = "sidebar.resize-handle"
+
   static func spaceDot(_ spaceID: TerminalSpaceID) -> String {
     "sidebar.space-dot.\(spaceID.rawValue.uuidString.lowercased())"
   }
@@ -250,7 +253,7 @@ enum TerminalSidebarAccessibilityIdentifier {
     case .tab(let row): tab(row.tab.id, groupID: row.groupID)
     case .group(let row): group(row.id)
     case .pinDivider: "sidebar.pin-divider"
-    case .newTab: "sidebar.new-tab"
+    case .newTab: newTab
     }
   }
 }
@@ -344,17 +347,17 @@ struct TerminalSidebarHostedRow: View {
       Rectangle()
         .fill(context.palette.sidebarSeparator)
         .frame(height: 1)
-        .padding(.horizontal, TerminalSidebarLayout.rowHorizontalPadding)
         .frame(maxHeight: .infinity)
         .accessibilityHidden(true)
-    case .newTab:
+    case .newTab(let newTabPresentation):
       TerminalSidebarFooterButton(
         title: "New Tab",
         symbol: "plus",
         palette: context.palette,
+        showsSeparator: newTabPresentation == .pinned,
         action: context.actions.newTab
       )
-      .accessibilityIdentifier("sidebar.new-tab")
+      .accessibilityIdentifier(TerminalSidebarAccessibilityIdentifier.newTab)
     }
   }
 }
@@ -363,24 +366,37 @@ private struct TerminalSidebarFooterButton: View {
   let title: String
   let symbol: String
   let palette: Palette
+  let showsSeparator: Bool
   let action: () -> Void
 
   var body: some View {
-    Button(action: action) {
-      HStack(spacing: 8) {
-        Image(systemName: symbol)
-          .font(.system(size: 12, weight: .semibold))
-          .frame(width: 18, height: 18)
-          .accessibilityHidden(true)
-        Text(title)
-          .font(.system(size: 13, weight: .medium))
-        Spacer(minLength: 0)
+    ZStack(alignment: .top) {
+      Button(action: action) {
+        HStack(spacing: 8) {
+          Image(systemName: symbol)
+            .font(.system(size: 12, weight: .semibold))
+            .frame(width: 18, height: 18)
+            .accessibilityHidden(true)
+          Text(title)
+            .font(.system(size: 13, weight: .medium))
+          Spacer(minLength: 0)
+        }
+        .foregroundStyle(palette.secondaryText)
+        .padding(.horizontal, TerminalSidebarLayout.rowHorizontalPadding)
+        .frame(minHeight: TerminalSidebarLayout.tabRowMinHeight)
       }
-      .foregroundStyle(palette.secondaryText)
-      .padding(.horizontal, TerminalSidebarLayout.rowHorizontalPadding)
-      .frame(minHeight: TerminalSidebarLayout.tabRowMinHeight)
+      .buttonStyle(TerminalSidebarButtonStyle(palette: palette, layout: .rect))
+      .padding(.horizontal, TerminalSidebarLayout.visibleHorizontalInset)
+      .frame(maxHeight: .infinity)
+
+      if showsSeparator {
+        Rectangle()
+          .fill(palette.sidebarSeparator)
+          .frame(height: 1)
+          .accessibilityHidden(true)
+      }
     }
-    .buttonStyle(TerminalSidebarButtonStyle(palette: palette, layout: .rect))
+    .frame(maxWidth: .infinity, maxHeight: .infinity)
   }
 }
 

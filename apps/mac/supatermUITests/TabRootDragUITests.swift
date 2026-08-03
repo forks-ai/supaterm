@@ -60,10 +60,10 @@ final class TabRootDragUITests: SupatermUITestCase {
   }
 
   @MainActor
-  func testNewTabFooterDropAppendsRootWithoutActivatingFooter() async throws {
+  func testNewTabPinnedControlDropAppendsRootWithoutActivatingControl() async throws {
     try await createNamedTabs(["First", "Second", "Third"])
     let newTab = try require(
-      sidebarFooterRow(SupatermUITestIdentifier.Accessibility.sidebarNewTab)
+      sidebarPinnedControl(SupatermUITestIdentifier.Accessibility.sidebarNewTab)
     )
 
     try drag(sidebarStructuralTabRow(named: "First"), to: newTab)

@@ -104,8 +104,18 @@ extension SupatermUITestCase {
   }
 
   @MainActor
-  func sidebarFooterRow(_ identifier: String) -> XCUIElement {
-    sidebarStructuralRows.matching(identifier: identifier).firstMatch
+  func sidebarPinnedControl(_ identifier: String) -> XCUIElement {
+    app.buttons.matching(identifier: identifier).firstMatch
+  }
+
+  @MainActor
+  var sidebarTabOutline: XCUIElement {
+    element(SupatermUITestIdentifier.Accessibility.sidebarTabOutline)
+  }
+
+  @MainActor
+  var sidebarResizeHandle: XCUIElement {
+    element(SupatermUITestIdentifier.Accessibility.sidebarResizeHandle)
   }
 
   @MainActor

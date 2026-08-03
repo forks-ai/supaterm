@@ -1,5 +1,16 @@
 import SwiftUI
 
+public struct SelectableRowPalette {
+  public let restFill: Color
+  public let hoverFill: Color
+  public let pressedFill: Color
+  public let primarySelectionFill: Color
+  public let secondarySelectionFill: Color
+  public let selectedTitle: Color
+  public let title: Color
+  public let shadow: Color
+}
+
 public struct Palette {
   public let colorScheme: ColorScheme
   public let referencePalette: ReferencePalette
@@ -27,9 +38,8 @@ public struct Palette {
 
   public var isDark: Bool { colorScheme == .dark }
   private var surfaceSeed: ThemeColor { referencePalette.neutral.light }
-  private var sidebarItemInk: ThemeColor { isDark ? ThemeColor(hex: 0xFAFBFF) : ThemeColor(hex: 0x0E0F10) }
-  private var sidebarSelectedFillValue: ThemeColor { isDark ? ThemeColor(hex: 0x141414) : .white }
-  private var sidebarSelectedFillOpacity: Double { isDark ? 1 : 0.85 }
+  private var selectableRowInkValue: ThemeColor { isDark ? .white : .black }
+  private var selectableRowPrimarySelectionValue: ThemeColor { isDark ? .black : .white }
 
   public var chromeBackgroundBaseStartValue: ThemeColor { backgroundTopValue }
   public var chromeBackgroundBaseStopValue: ThemeColor { isDark ? backgroundBottomValue : backgroundTopValue }
@@ -56,25 +66,46 @@ public struct Palette {
   public var agentPanelBackground: Color { agentPanelBackgroundValue.color }
   public var detailStroke: Color { isDark ? Color.white.opacity(0.08) : Color.black.opacity(0.06) }
   public var detailShadow: Color { isDark ? .clear : Color.black.opacity(0.14) }
-  public var unselectedFill: Color { (isDark ? Color.white : .black).opacity(0.06) }
-  public var hoverFill: Color { Color.white.opacity(isDark ? 0.16 : 0.55) }
-  public var pressedFill: Color { Color.white.opacity(isDark ? 0.31 : 0.7) }
+  public var floatingSidebarBorder: Color { Color.white.opacity(0.3) }
+  public var selectableRow: SelectableRowPalette {
+    let ink = selectableRowInkValue
+    return SelectableRowPalette(
+      restFill: ThemeColor(
+        red: ink.red,
+        green: ink.green,
+        blue: ink.blue,
+        alpha: 0.06
+      ).color,
+      hoverFill: ThemeColor(red: 1, green: 1, blue: 1, alpha: isDark ? 0.16 : 0.55).color,
+      pressedFill: ThemeColor(red: 1, green: 1, blue: 1, alpha: isDark ? 0.31 : 0.70).color,
+      primarySelectionFill: selectableRowPrimarySelectionValue.color,
+      secondarySelectionFill: ThemeColor(red: 1, green: 1, blue: 1, alpha: isDark ? 0.25 : 0.70).color,
+      selectedTitle: ink.color,
+      title: ThemeColor(
+        red: ink.red,
+        green: ink.green,
+        blue: ink.blue,
+        alpha: isDark ? 0.78 : 0.68
+      ).color,
+      shadow: ThemeColor(
+        red: ink.red,
+        green: ink.green,
+        blue: ink.blue,
+        alpha: isDark ? 0.15 : 0.12
+      ).color
+    )
+  }
+  public var unselectedFill: Color { selectableRow.restFill }
+  public var hoverFill: Color { selectableRow.hoverFill }
+  public var pressedFill: Color { selectableRow.pressedFill }
   public var selectedFillValue: ThemeColor { isDark ? ThemeColor(red: 0.04, green: 0.04, blue: 0.04) : .white }
   public var selectedFill: Color { selectedFillValue.color }
   public var selectedStrokeBright: Color { Color.white.opacity(isDark ? 0.35 : 0.98) }
   public var selectedStrokeDim: Color { Color.white.opacity(isDark ? 0.08 : 0.98) }
-  public var selectedShadow: Color { isDark ? Color.white.opacity(0.15) : Color.black.opacity(0.12) }
+  public var selectedShadow: Color { selectableRow.shadow }
+  public var sidebarTabRowSelectedEdge: Color { isDark ? .clear : Color.white.opacity(0.98) }
   public var primaryText: Color { isDark ? Color.white.opacity(0.94) : Color.black.opacity(0.86) }
   public var secondaryText: Color { isDark ? Color.white.opacity(0.58) : Color.black.opacity(0.48) }
-  public var sidebarTabTitle: Color { (isDark ? Color.white : .black).opacity(isDark ? 0.78 : 0.68) }
-  public var sidebarSelectedFill: Color { sidebarSelectedFillValue.color.opacity(sidebarSelectedFillOpacity) }
-  public var sidebarDragPreviewFill: Color {
-    sidebarSelectedSurface(over: chromeBackgroundStartValue).color
-  }
-  public var sidebarSelectedStroke: Color { isDark ? .clear : Color.white.opacity(0.98) }
-  public var sidebarSelectedShadow: Color { selectedShadow }
-  public var sidebarItemHoverFill: Color { sidebarItemInk.color.opacity(isDark ? 0.15 : 0.1) }
-  public var sidebarItemPressedFill: Color { sidebarItemInk.color.opacity(0.065) }
   public var sidebarGroupNeutralHoverFillValue: ThemeColor {
     isDark
       ? ThemeColor(red: 1, green: 1, blue: 1, alpha: 0.10)
@@ -85,8 +116,14 @@ public struct Palette {
       ? ThemeColor(red: 1, green: 1, blue: 1, alpha: 0.10)
       : ThemeColor(red: 0, green: 0, blue: 0, alpha: 0.10)
   }
+  public var sidebarControlHoverFill: Color {
+    (isDark ? ThemeColor(hex: 0xFAFBFF).color : ThemeColor(hex: 0x0E0F10).color).opacity(isDark ? 0.15 : 0.10)
+  }
+  public var sidebarControlPressedFill: Color {
+    (isDark ? ThemeColor(hex: 0xFAFBFF).color : ThemeColor(hex: 0x0E0F10).color).opacity(0.065)
+  }
   public var sidebarSeparator: Color { (isDark ? Color.white : .black).opacity(0.15) }
-  public var selectedText: Color { isDark ? Color.white : .black }
+  public var selectedText: Color { selectableRow.selectedTitle }
   public var shadow: Color { .black.opacity(isDark ? 0.28 : 0.08) }
   public var scrim: Color { Color.black.opacity(0.4) }
   public var overlayShadow: Color { Color.black.opacity(0.25) }
@@ -123,8 +160,8 @@ public struct Palette {
     )
   }
 
-  public func sidebarSelectedSurface(over background: ThemeColor) -> ThemeColor {
-    ColorMath.composited(sidebarSelectedFillValue, opacity: sidebarSelectedFillOpacity, over: background)
+  public func sidebarTabPrimarySurface(over background: ThemeColor) -> ThemeColor {
+    ColorMath.composited(selectableRowPrimarySelectionValue, opacity: 1, over: background)
   }
 
   public var referenceSwatches: [ThemeSwatch] {

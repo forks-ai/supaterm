@@ -95,6 +95,7 @@ struct TerminalSidebarOutline: Equatable {
     }
 
     entries.append(TerminalSidebarEntry(kind: .newTab))
+
     return entries
   }
 

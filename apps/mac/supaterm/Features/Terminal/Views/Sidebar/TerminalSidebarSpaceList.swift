@@ -52,7 +52,6 @@ struct TerminalSidebarSpaceList: View {
       performDrop: performDrop
     )
     .frame(maxWidth: .infinity, maxHeight: .infinity)
-    .accessibilityIdentifier("sidebar.tab-outline")
   }
 
   private var rootItems: [TerminalTabRootItem] {
@@ -121,7 +120,7 @@ struct TerminalSidebarSpaceList: View {
     if rootItems.contains(where: \.isPinned), rootItems.contains(where: { !$0.isPinned }) {
       rows[.pinDivider] = .pinDivider
     }
-    rows[.newTab] = .newTab
+    rows[.newTab] = .newTab(.inline)
     return rows
   }
 

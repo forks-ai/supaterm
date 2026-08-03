@@ -18,7 +18,7 @@ struct TerminalSessionCatalogTests {
 
   @Test
   func catalogRejectsUnsupportedAndPreviousVersions() {
-    for version in [8, 999] {
+    for version in [8, 9, 999] {
       let data = Data("{\"version\":\(version),\"windows\":[]}".utf8)
       #expect(throws: DecodingError.self) {
         try JSONDecoder().decode(TerminalSessionCatalog.self, from: data)
@@ -60,7 +60,8 @@ struct TerminalSessionCatalogTests {
           tab: tabSession(id: tabID, title: "Selected")
         ),
         spaceSession(spaceID: hiddenSpaceID, tab: tabSession(title: "Hidden")),
-      ]
+      ],
+      sidebarWidth: 304
     )
 
     let data = try TerminalSessionCatalog.fileStorageEncoder().encode(
@@ -68,9 +69,10 @@ struct TerminalSessionCatalogTests {
     )
     let json = try #require(String(bytes: data, encoding: .utf8))
 
-    #expect(json.contains(#""version":9"#))
+    #expect(json.contains(#""version":10"#))
     #expect(json.contains(#""displayedSpaceID":"#))
     #expect(json.contains(#""spaces":[{"#))
+    #expect(json.contains(#""sidebarWidth":304"#))
     #expect(try JSONDecoder().decode(TerminalSessionCatalog.self, from: data).windows == [session])
   }
 
@@ -386,7 +388,7 @@ struct TerminalSessionCatalogTests {
     let decoded = try JSONDecoder().decode(TerminalSessionCatalog.self, from: data)
 
     #expect(decoded == catalog)
-    #expect(json.contains(#""version":9"#))
+    #expect(json.contains(#""version":10"#))
     #expect(json.contains(#""nodes""#))
     #expect(json.contains(#""parent":{"id":"CCCCCCCC-CCCC-CCCC-CCCC-CCCCCCCCCCCC","kind":"group"}"#))
     #expect(json.contains(#""collapsedGroupIDs":["CCCCCCCC-CCCC-CCCC-CCCC-CCCCCCCCCCCC"]"#))

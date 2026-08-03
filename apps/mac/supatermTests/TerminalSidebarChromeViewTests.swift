@@ -9,6 +9,21 @@ import Testing
 
 struct TerminalSidebarChromeViewTests {
   @Test
+  func sidebarRowAppearanceResolvesEveryState() {
+    for colorScheme in [ColorScheme.light, ColorScheme.dark] {
+      let palette = Palette(colorScheme: colorScheme)
+      let row = SelectableRowButtonStyle.Appearance.sidebar.resolve(palette: palette)
+      let colors = palette.selectableRow
+
+      expectSameColor(row.fill(selection: .none, isPressed: false, isHovering: false), colors.restFill)
+      expectSameColor(row.fill(selection: .none, isPressed: false, isHovering: true), colors.hoverFill)
+      expectSameColor(row.fill(selection: .none, isPressed: true, isHovering: true), colors.pressedFill)
+      expectSameColor(row.fill(selection: .primary, isPressed: true, isHovering: true), colors.primarySelectionFill)
+      expectSameColor(row.fill(selection: .secondary, isPressed: true, isHovering: true), colors.secondarySelectionFill)
+    }
+  }
+
+  @Test
   func selectionGlowExpandsItsDrawingFrameWithoutChangingTheItemFrame() {
     let itemFrame = CGRect(x: 12, y: 30, width: 220, height: 40)
 
@@ -631,6 +646,23 @@ struct TerminalSidebarChromeViewTests {
   func missingFocusedPaneStateProducesNoProgressRing() {
     #expect(TerminalHostState.sidebarTerminalProgress(state: nil) == nil)
   }
+}
+
+private func expectSameColor(
+  _ actual: Color,
+  _ expected: Color,
+  sourceLocation: SourceLocation = #_sourceLocation
+) {
+  let actual = actual.resolve(in: EnvironmentValues())
+  let expected = expected.resolve(in: EnvironmentValues())
+  #expect(
+    abs(actual.red - expected.red) < 0.0001
+      && abs(actual.green - expected.green) < 0.0001
+      && abs(actual.blue - expected.blue) < 0.0001
+      && abs(actual.opacity - expected.opacity) < 0.0001,
+    "\(actual) != \(expected)",
+    sourceLocation: sourceLocation
+  )
 }
 
 private struct SelectionGlowRaster {

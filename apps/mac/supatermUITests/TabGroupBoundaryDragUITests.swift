@@ -13,7 +13,7 @@ final class TabGroupBoundaryDragUITests: SupatermUITestCase {
 
     try drag(
       sidebarStructuralTabRow(named: "Only Child"),
-      to: sidebarFooterRow(SupatermUITestIdentifier.Accessibility.sidebarNewTab)
+      to: sidebarPinnedControl(SupatermUITestIdentifier.Accessibility.sidebarNewTab)
     )
 
     await requireSidebarStructure([

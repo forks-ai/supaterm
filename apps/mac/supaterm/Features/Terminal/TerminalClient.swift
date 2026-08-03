@@ -65,6 +65,7 @@ struct TerminalClient: Sendable {
     case selectSpaceSlot(Int)
     case selectSpace(TerminalSpaceID)
     case renameGroup(TerminalTabGroupID, String)
+    case sessionDidChange
     case setGroupColor(TerminalTabGroupID, ThemeTint)
     case setSpaceColor(TerminalSpaceID, ThemeTint)
     case toggleGroupCollapsed(TerminalTabGroupID)

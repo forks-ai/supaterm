@@ -55,7 +55,7 @@ struct TerminalSidebarLiftedRow {
 }
 
 @MainActor
-final class TerminalSidebarHostingContainerView: NSView {
+class TerminalSidebarHostingContainerView: NSView {
   private var hostingView: NSHostingView<TerminalSidebarHostedRow>?
   private var isLifted = false
 
@@ -93,29 +93,95 @@ final class TerminalSidebarHostingContainerView: NSView {
   }
 }
 
+@MainActor
+final class TerminalSidebarPinnedControlView: TerminalSidebarHostingContainerView {
+  var onDraggingUpdated: (((any NSDraggingInfo)) -> NSDragOperation)?
+  var onDraggingExited: (() -> Void)?
+  var onDraggingEnded: (() -> Void)?
+  var onPrepareForDragOperation: (((any NSDraggingInfo)) -> Bool)?
+  var onPerformDragOperation: (((any NSDraggingInfo)) -> Bool)?
+
+  override init(frame frameRect: NSRect) {
+    super.init(frame: frameRect)
+    registerForDraggedTypes([.terminalSidebarOutlineItem])
+  }
+
+  @available(*, unavailable)
+  required init?(coder: NSCoder) { nil }
+
+  override func draggingEntered(_ sender: any NSDraggingInfo) -> NSDragOperation {
+    onDraggingUpdated?(sender) ?? []
+  }
+
+  override func draggingUpdated(_ sender: any NSDraggingInfo) -> NSDragOperation {
+    onDraggingUpdated?(sender) ?? []
+  }
+
+  override func draggingExited(_ sender: (any NSDraggingInfo)?) {
+    onDraggingExited?()
+  }
+
+  override func draggingEnded(_ sender: any NSDraggingInfo) {
+    onDraggingEnded?()
+  }
+
+  override func prepareForDragOperation(_ sender: any NSDraggingInfo) -> Bool {
+    sender.animatesToDestination = false
+    return onPrepareForDragOperation?(sender) == true
+  }
+
+  override func performDragOperation(_ sender: any NSDraggingInfo) -> Bool {
+    onPerformDragOperation?(sender) == true
+  }
+}
+
 struct TerminalSidebarRowPointerView: NSViewRepresentable {
   let entryID: TerminalSidebarEntryID
+  @Binding var isPressed: Bool
+
+  init(entryID: TerminalSidebarEntryID, isPressed: Binding<Bool> = .constant(false)) {
+    self.entryID = entryID
+    _isPressed = isPressed
+  }
 
   func makeNSView(context: Context) -> TerminalSidebarRowPointerNSView {
-    TerminalSidebarRowPointerNSView(entryID: entryID)
+    TerminalSidebarRowPointerNSView(entryID: entryID) { isPressed in
+      self.isPressed = isPressed
+    }
   }
 
   func updateNSView(_ nsView: TerminalSidebarRowPointerNSView, context: Context) {
-    nsView.entryID = entryID
+    nsView.update(entryID: entryID) { isPressed in
+      self.isPressed = isPressed
+    }
   }
 }
 
 final class TerminalSidebarRowPointerNSView: NSView {
   var entryID: TerminalSidebarEntryID
+  private var setPressed: (Bool) -> Void
   private var isTracking = false
 
-  init(entryID: TerminalSidebarEntryID) {
+  init(entryID: TerminalSidebarEntryID, setPressed: @escaping (Bool) -> Void = { _ in }) {
     self.entryID = entryID
+    self.setPressed = setPressed
     super.init(frame: .zero)
   }
 
   @available(*, unavailable)
   required init?(coder: NSCoder) { fatalError("init(coder:) is unavailable") }
+
+  func update(
+    entryID: TerminalSidebarEntryID,
+    setPressed: @escaping (Bool) -> Void
+  ) {
+    let entryChanged = self.entryID != entryID
+    self.entryID = entryID
+    self.setPressed = setPressed
+    guard entryChanged, isTracking else { return }
+    isTracking = false
+    self.setPressed(false)
+  }
 
   override func hitTest(_ point: NSPoint) -> NSView? {
     guard bounds.contains(point),
@@ -130,6 +196,7 @@ final class TerminalSidebarRowPointerNSView: NSView {
       return
     }
     isTracking = true
+    setPressed(true)
   }
 
   override func mouseDragged(with event: NSEvent) {
@@ -139,6 +206,7 @@ final class TerminalSidebarRowPointerNSView: NSView {
     }
     if collectionView.rowMouseDragged(entryID: entryID, event: event) {
       isTracking = false
+      setPressed(false)
     }
   }
 
@@ -148,7 +216,16 @@ final class TerminalSidebarRowPointerNSView: NSView {
       return
     }
     isTracking = false
+    setPressed(false)
     _ = collectionView.rowMouseUp(entryID: entryID, event: event)
+  }
+
+  override func viewWillMove(toWindow newWindow: NSWindow?) {
+    if newWindow == nil, isTracking {
+      isTracking = false
+      setPressed(false)
+    }
+    super.viewWillMove(toWindow: newWindow)
   }
 
   override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }

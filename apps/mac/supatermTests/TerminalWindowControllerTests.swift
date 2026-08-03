@@ -120,7 +120,8 @@ struct TerminalWindowControllerTests {
             tabs: []
           )
         ],
-        frame: TerminalWindowFrame(frame)
+        frame: TerminalWindowFrame(frame),
+        sidebarWidth: 336
       )
       let controller = TerminalWindowController(
         runtime: GhosttyRuntime(applicationIsActive: { false }),
@@ -138,6 +139,47 @@ struct TerminalWindowControllerTests {
 
       #expect(controller.window?.frame == frame.constrained(to: visibleFrame))
       #expect(controller.terminal.visibleTabs.count == 1)
+      #expect(controller.store.terminal.sidebarWidth == 336)
+    }
+  }
+
+  @Test
+  func committedSidebarWidthUpdatesRestorationCatalog() async {
+    await withDependencies {
+      $0.defaultFileStorage = .inMemory
+    } operation: {
+      initializeGhosttyForTests()
+
+      let registry = TerminalWindowRegistry(zmxClient: .noop)
+      let savedCatalog = Mutex<TerminalSessionCatalog?>(nil)
+      let controller = TerminalWindowController(
+        runtime: GhosttyRuntime(applicationIsActive: { false }),
+        registry: registry,
+        zmxClient: .noop,
+        zmxSessionsEnabled: false,
+        onSessionChange: {
+          savedCatalog.withLock { $0 = registry.restorationSnapshot() }
+        }
+      )
+      defer {
+        controller.window?.delegate = nil
+        controller.window?.close()
+      }
+
+      _ = controller.store.send(
+        .terminal(.sidebarResizeInput(.began, totalWidth: 1_440))
+      )
+      _ = controller.store.send(
+        .terminal(.sidebarResizeInput(.changed(delta: 72), totalWidth: 1_440))
+      )
+      _ = controller.store.send(
+        .terminal(.sidebarResizeInput(.ended, totalWidth: 1_440))
+      )
+      for _ in 0..<5 {
+        await Task.yield()
+      }
+
+      #expect(savedCatalog.withLock { $0?.windows.first?.sidebarWidth } == 360)
     }
   }
 

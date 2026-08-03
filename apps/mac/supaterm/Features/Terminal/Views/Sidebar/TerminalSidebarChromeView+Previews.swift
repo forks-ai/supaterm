@@ -298,14 +298,14 @@ private struct TerminalSidebarTabPreviewRow: View {
     .frame(maxWidth: .infinity, alignment: .leading)
     .background(
       rowAppearance.fill(
-        isSelected: item.isSelected,
+        selection: item.isSelected ? .primary : .none,
         isPressed: false,
         isHovering: false
       )
     )
     .modifier(
       SelectableRowChrome(
-        isSelected: item.isSelected,
+        selection: item.isSelected ? .primary : .none,
         cornerRadius: TerminalSidebarLayout.tabRowCornerRadius,
         appearance: rowAppearance,
         showsSelectionEdge: true
@@ -314,7 +314,7 @@ private struct TerminalSidebarTabPreviewRow: View {
   }
 
   private var rowAppearance: SelectableRowButtonStyle.ResolvedAppearance {
-    SelectableRowButtonStyle.Appearance.sidebar(restFill: .clear).resolve(palette: palette)
+    SelectableRowButtonStyle.Appearance.sidebar.resolve(palette: palette)
   }
 }
 

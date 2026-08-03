@@ -71,13 +71,13 @@ struct ChromePaletteTests {
     expectDefaultSurfaceTokens(Palette(colorScheme: .dark), isDark: true)
   }
 
-  @Test func darkSidebarSelectionIsOpaqueReferenceSurface() {
+  @Test func darkSidebarPrimarySelectionIsOpaqueBlack() {
     let palette = Palette(colorScheme: .dark)
     for background in [palette.backgroundTopValue, palette.backgroundBottomValue] {
       expectSameThemeColor(
-        palette.sidebarSelectedSurface(over: background),
-        ThemeColor(hex: 0x141414),
-        "sidebarSelectedSurface"
+        palette.sidebarTabPrimarySurface(over: background),
+        .black,
+        "sidebarTabPrimarySurface"
       )
     }
   }
@@ -263,6 +263,11 @@ struct ChromePaletteTests {
       isDark ? .clear : Color.black.opacity(0.14),
       "detailShadow"
     )
+    expectSameColor(
+      palette.floatingSidebarBorder,
+      Color.white.opacity(0.3),
+      "floatingSidebarBorder"
+    )
     expectSameColor(palette.unselectedFill, (isDark ? Color.white : .black).opacity(0.06), "unselectedFill")
     expectSameColor(palette.hoverFill, Color.white.opacity(isDark ? 0.16 : 0.55), "hoverFill")
     expectSameColor(palette.pressedFill, Color.white.opacity(isDark ? 0.31 : 0.7), "pressedFill")
@@ -275,7 +280,7 @@ struct ChromePaletteTests {
       "selectedShadow"
     )
     expectSameColor(palette.selectedText, isDark ? Color.white : .black, "selectedText")
-    expectSidebarTokens(palette, isDark: isDark)
+    expectSidebarTabRowTokens(palette, isDark: isDark)
     expectSameColor(
       palette.selectedSecondaryText,
       (isDark ? Color.white : .black).opacity(0.72),
@@ -339,47 +344,61 @@ struct ChromePaletteTests {
     )
   }
 
-  private func expectSidebarTokens(_ palette: Palette, isDark: Bool) {
-    let selectedFillValue = isDark ? ThemeColor(hex: 0x141414) : .white
-    let selectedFillOpacity = isDark ? 1 : 0.85
+  private func expectSidebarTabRowTokens(_ palette: Palette, isDark: Bool) {
+    let row = palette.selectableRow
+    let ink = isDark ? Color.white : .black
+    let primarySelection = isDark ? Color.black : Color.white
     expectSameColor(
-      palette.sidebarTabTitle,
-      (isDark ? Color.white : .black).opacity(isDark ? 0.78 : 0.68),
-      "sidebarTabTitle"
+      row.restFill,
+      ink.opacity(0.06),
+      "sidebarTabRow.restFill"
     )
     expectSameColor(
-      palette.sidebarSelectedFill,
-      selectedFillValue.color.opacity(selectedFillOpacity),
-      "sidebarSelectedFill"
+      row.hoverFill,
+      Color.white.opacity(isDark ? 0.16 : 0.55),
+      "sidebarTabRow.hoverFill"
     )
     expectSameColor(
-      palette.sidebarDragPreviewFill,
-      ColorMath.composited(
-        selectedFillValue,
-        opacity: selectedFillOpacity,
-        over: palette.chromeBackgroundStartValue
-      ).color,
-      "sidebarDragPreviewFill"
+      row.pressedFill,
+      Color.white.opacity(isDark ? 0.31 : 0.70),
+      "sidebarTabRow.pressedFill"
     )
     expectSameColor(
-      palette.sidebarSelectedShadow,
-      isDark ? Color.white.opacity(0.15) : Color.black.opacity(0.12),
-      "sidebarSelectedShadow"
+      row.primarySelectionFill,
+      primarySelection,
+      "sidebarTabRow.primarySelectionFill"
+    )
+    expectSameColor(
+      row.secondarySelectionFill,
+      Color.white.opacity(isDark ? 0.25 : 0.70),
+      "sidebarTabRow.secondarySelectionFill"
+    )
+    expectSameColor(
+      row.selectedTitle,
+      ink,
+      "sidebarTabRow.selectedTitle"
+    )
+    expectSameColor(
+      row.title,
+      ink.opacity(isDark ? 0.78 : 0.68),
+      "sidebarTabRow.title"
+    )
+    expectSameColor(
+      row.shadow,
+      ink.opacity(isDark ? 0.15 : 0.12),
+      "sidebarTabRow.shadow"
+    )
+    expectSameColor(
+      palette.sidebarTabRowSelectedEdge,
+      isDark ? .clear : Color.white.opacity(0.98),
+      "sidebarTabRowSelectedEdge"
     )
     expectSameThemeColor(
-      palette.sidebarSelectedSurface(over: palette.backgroundTopValue),
-      ColorMath.composited(selectedFillValue, opacity: selectedFillOpacity, over: palette.backgroundTopValue),
-      "sidebarSelectedSurface"
-    )
-    expectSameColor(
-      palette.sidebarItemHoverFill,
-      (isDark ? ThemeColor(hex: 0xFAFBFF).color : ThemeColor(hex: 0x0E0F10).color).opacity(isDark ? 0.15 : 0.1),
-      "sidebarItemHoverFill"
-    )
-    expectSameColor(
-      palette.sidebarItemPressedFill,
-      (isDark ? ThemeColor(hex: 0xFAFBFF).color : ThemeColor(hex: 0x0E0F10).color).opacity(0.065),
-      "sidebarItemPressedFill"
+      palette.sidebarGroupStrokeValue,
+      isDark
+        ? ThemeColor(red: 1, green: 1, blue: 1, alpha: 0.10)
+        : ThemeColor(red: 0, green: 0, blue: 0, alpha: 0.10),
+      "sidebarGroupStrokeValue"
     )
     expectSameColor(
       palette.sidebarSeparator,
