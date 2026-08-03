@@ -83,7 +83,10 @@ private struct TerminalChromeSnapshotFixture: View {
   let appearance: SnapshotAppearance
 
   private var palette: Palette {
-    Palette(colorScheme: appearance.colorScheme)
+    Palette(
+      colorScheme: appearance.colorScheme,
+      tint: SidebarChromeSnapshotContext.selectedGroupTerminal.displayedSpace.color
+    )
   }
 
   var body: some View {
@@ -111,7 +114,10 @@ private struct FloatingSidebarSnapshotFixture: View {
   let appearance: SnapshotAppearance
 
   private var palette: Palette {
-    Palette(colorScheme: appearance.colorScheme)
+    Palette(
+      colorScheme: appearance.colorScheme,
+      tint: SidebarChromeSnapshotContext.selectedGroupTerminal.displayedSpace.color
+    )
   }
 
   var body: some View {

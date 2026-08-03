@@ -447,7 +447,8 @@ enum SidebarChromeSnapshotContext {
       id: TerminalSpaceID(
         rawValue: SnapshotFixtureValues.uuid("30000000-0000-0000-0000-000000000005")
       ),
-      name: "supaterm"
+      name: "supaterm",
+      color: .green
     )
     let terminal = makeTerminal(space: space, spaces: [space])
     let selectedTab = tab("47", title: "/Users/Developer/code/github.com/Goodnotes-CN/Good-Board")

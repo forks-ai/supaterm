@@ -66,10 +66,11 @@ struct TerminalFloatingSidebarShell<Content: View>: View {
     content
       .padding(TerminalFloatingSidebarShellMetrics.contentInset)
       .background {
-        palette.windowBackgroundTint
-          .background {
-            BlurEffectView(material: .popover, blendingMode: .withinWindow)
-          }
+        ChromeBackgroundView(
+          palette: palette,
+          material: .popover,
+          blendingMode: .withinWindow
+        )
       }
       .compositingGroup()
       .clipShape(TerminalFloatingSidebarShellMetrics.shape)
