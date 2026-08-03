@@ -27,6 +27,14 @@ struct AppBuildTests {
   }
 
   @Test
+  func releaseNotesMatchMarketingVersion() {
+    #expect(
+      SupatermExternalURL.releaseNotes.absoluteString
+        == "https://github.com/supabitapp/supaterm/releases/tag/v\(AppBuild.version)"
+    )
+  }
+
+  @Test
   func developmentFlagParsesTrueValues() {
     #expect(AppBuild.isDevelopmentFlag(true))
     #expect(AppBuild.isDevelopmentFlag("YES"))

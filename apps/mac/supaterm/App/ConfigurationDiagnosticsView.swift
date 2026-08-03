@@ -41,7 +41,9 @@ struct ConfigurationDiagnosticsView: View {
       HStack {
         Spacer()
         Button("Ignore", action: onIgnore)
+          .keyboardShortcut(.cancelAction)
         Button("Reload Configuration", action: onReload)
+          .keyboardShortcut(.defaultAction)
       }
       .padding()
     }
