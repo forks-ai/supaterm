@@ -2,45 +2,62 @@ import XCTest
 
 final class HoverLinkUITests: SupatermUITestCase {
   @MainActor
-  func testHoveredLinkBannerMovesAwayFromPointer() async throws {
+  func testHoveredLinkBannerMovesAwayFromPointer() async {
     let terminal = mainTerminal
     terminal.click()
 
     let link = "https://supaterm.com/docs/terminal/hovered-link-feedback-for-split-pane-regression"
-    app.typeText("clear; printf '\\033[999B\(link)'; sleep 300")
+    app.typeText("clear; printf '\\033[H\(link)\\033[999B\\033[A\(link)'; sleep 300")
     app.typeKey(.return, modifierFlags: [])
     let linkAppeared = await wait(for: terminal, timeout: .seconds(30)) {
       ($0.value as? String)?.contains(link) == true
     }
     XCTAssertTrue(linkAppeared)
 
+    let banner = element(SupatermUITestIdentifier.Accessibility.hoveredLink)
     XCUIElement.perform(withKeyModifiers: .command) {
       terminal.coordinate(withNormalizedOffset: .zero)
         .withOffset(
           CGVector(
             dx: terminal.frame.width * 0.6,
-            dy: terminal.frame.height - 12
+            dy: 12
           )
         )
         .hover()
-    }
 
-    let banner = element(SupatermUITestIdentifier.Accessibility.hoveredLink)
-    try require(banner)
-    XCTAssertEqual(banner.label, "Hovered link")
-    XCTAssertEqual(banner.value as? String, link)
+      guard banner.waitForExistence(timeout: 10) else {
+        XCTFail("Hovered link banner did not appear")
+        return
+      }
+      XCTAssertEqual(banner.label, "Hovered link")
+      XCTAssertEqual(banner.value as? String, link)
 
-    let leadingFrame = banner.frame
-    XCTAssertLessThanOrEqual(abs(leadingFrame.minX - terminal.frame.minX), 4)
-    XCTAssertLessThanOrEqual(abs(leadingFrame.maxY - terminal.frame.maxY), 4)
+      let leadingFrame = banner.frame
+      XCTAssertLessThanOrEqual(abs(leadingFrame.minX - terminal.frame.minX), 4)
+      XCTAssertLessThanOrEqual(abs(leadingFrame.maxY - terminal.frame.maxY), 4)
 
-    XCUIElement.perform(withKeyModifiers: .command) {
-      banner.hover()
+      terminal.coordinate(withNormalizedOffset: .zero)
+        .withOffset(
+          CGVector(
+            dx: leadingFrame.midX - terminal.frame.minX,
+            dy: leadingFrame.minY - terminal.frame.minY + 6
+          )
+        )
+        .hover()
+      let movedToTrailingEdge =
+        XCTWaiter.wait(
+          for: [
+            XCTNSPredicateExpectation(
+              predicate: NSPredicate { _, _ in
+                banner.exists && banner.frame.minX > leadingFrame.minX + 20
+              },
+              object: banner
+            )
+          ],
+          timeout: 10
+        ) == .completed
+      XCTAssertTrue(movedToTrailingEdge)
+      XCTAssertLessThanOrEqual(abs(banner.frame.maxX - terminal.frame.maxX), 4)
     }
-    let movedToTrailingEdge = await wait(for: banner) {
-      $0.exists && $0.frame.minX > leadingFrame.minX + 20
-    }
-    XCTAssertTrue(movedToTrailingEdge)
-    XCTAssertLessThanOrEqual(abs(banner.frame.maxX - terminal.frame.maxX), 4)
   }
 }
