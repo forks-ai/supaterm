@@ -163,7 +163,7 @@ class SupatermUITestCase: XCTestCase {
     RunLoop.main.add(timer, forMode: .common)
     let result = await XCTWaiter.fulfillment(of: [expectation], timeout: seconds)
     timer.invalidate()
-    return result == .completed
+    return result == .completed || condition.evaluate()
   }
 
   @MainActor

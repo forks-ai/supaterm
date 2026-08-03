@@ -171,6 +171,7 @@ jobs:
             apps/mac/supaterm.xcworkspace
             apps/mac/supaterm.xcodeproj
           retention-days: 1
+          overwrite: true
 
   mac_test_ui:
     name: mac-test-ui (${{ matrix.shard }})
@@ -200,6 +201,7 @@ jobs:
           path: ${{ runner.temp }}/supatermUITests.xcresult
           if-no-files-found: ignore
           retention-days: 1
+          overwrite: true
 
   mac_test_ui_results:
     name: mac-test-ui-results
