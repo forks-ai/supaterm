@@ -128,7 +128,7 @@ struct GhosttySurfaceSearchOverlay: View {
       }
       .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: corner.alignment)
       .onAppear {
-        restoreSearchNeedleOnAppear()
+        updateSearchNeedleOnAppear()
         updateSearchFieldOnAppear()
       }
       .onChange(of: searchText) { _, newValue in
@@ -149,10 +149,6 @@ struct GhosttySurfaceSearchOverlay: View {
       .onDisappear {
         searchTask?.cancel()
         searchTask = nil
-      }
-      .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) {
-        _ in
-        surfaceView.bridge.restoreSearchNeedle()
       }
     }
   }
@@ -221,11 +217,10 @@ struct GhosttySurfaceSearchOverlay: View {
     performSearch(searchText)
   }
 
-  private func restoreSearchNeedleOnAppear() {
-    surfaceView.bridge.restoreSearchNeedle()
+  private func updateSearchNeedleOnAppear() {
     let needle = state.searchNeedle ?? searchText
     if needle == searchText {
-      searchNeedleDidChange(needle)
+      scheduleSearch(needle)
     } else {
       searchText = needle
     }

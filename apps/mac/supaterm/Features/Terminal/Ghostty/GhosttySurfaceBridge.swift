@@ -599,8 +599,9 @@ final class GhosttySurfaceBridge {
   }
 
   func setSearchNeedle(_ needle: String) {
-    guard state.searchNeedle != needle else { return }
-    state.searchNeedle = needle
+    if state.searchNeedle != needle {
+      state.searchNeedle = needle
+    }
     findPasteboard.clearContents()
     _ = findPasteboard.setString(needle, forType: .string)
   }

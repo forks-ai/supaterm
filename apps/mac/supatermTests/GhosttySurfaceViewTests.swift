@@ -794,7 +794,7 @@ struct GhosttySurfaceViewTests {
 
   @Test
   @MainActor
-  func appearingSearchOverlayRestoresNeedleMissedDuringActivation() async throws {
+  func activationRestoresNeedleBeforeSearchOverlayAppears() async throws {
     initializeGhosttyForTests()
 
     let pasteboard = makeFindPasteboard("before")
@@ -811,7 +811,8 @@ struct GhosttySurfaceViewTests {
       name: NSApplication.didBecomeActiveNotification,
       object: NSApplication.shared
     )
-    #expect(surface.bridge.state.searchNeedle == "before")
+    #expect(surface.bridge.state.searchNeedle == "after")
+    #expect(surface.bridge.state.searchSelectionRequestCount == 1)
 
     let window = NSWindow(
       contentRect: NSRect(x: 0, y: 0, width: 400, height: 300),
@@ -835,6 +836,43 @@ struct GhosttySurfaceViewTests {
     #expect(await searchFieldHasValue(searchField, value: "after"))
     #expect(surface.bridge.state.searchNeedle == "after")
     #expect(surface.bridge.state.searchSelectionRequestCount == 1)
+  }
+
+  @Test
+  @MainActor
+  func appearingSearchOverlayKeepsItsNeedleWithoutActivation() async throws {
+    initializeGhosttyForTests()
+
+    let pasteboard = makeFindPasteboard("other-tab")
+    let surface = GhosttySurfaceView(
+      runtime: GhosttyRuntime(),
+      tabID: UUID(),
+      workingDirectory: nil,
+      context: GHOSTTY_SURFACE_CONTEXT_TAB,
+      findPasteboard: pasteboard
+    )
+    surface.bridge.state.searchNeedle = "this-tab"
+    let window = NSWindow(
+      contentRect: NSRect(x: 0, y: 0, width: 400, height: 300),
+      styleMask: [.titled],
+      backing: .buffered,
+      defer: false
+    )
+    let container = NSView(frame: window.contentView?.bounds ?? .zero)
+    let overlay = NSHostingView(rootView: GhosttySurfaceSearchOverlay(surfaceView: surface))
+    surface.frame = container.bounds
+    overlay.frame = container.bounds
+    window.contentView = container
+    container.addSubview(surface)
+    container.addSubview(overlay)
+    defer {
+      surface.closeSurface()
+      window.contentView = nil
+    }
+
+    let searchField = try await searchField(in: container)
+    #expect(await searchFieldHasValue(searchField, value: "this-tab"))
+    #expect(surface.bridge.state.searchNeedle == "this-tab")
   }
 
   @Test

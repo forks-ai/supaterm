@@ -90,6 +90,20 @@ struct GhosttySurfaceBridgeTests {
   }
 
   @Test
+  func repeatedExplicitSearchReassertsFindPasteboardNeedle() {
+    let pasteboard = makeFindPasteboard("other")
+    let bridge = GhosttySurfaceBridge(findPasteboard: pasteboard)
+    bridge.state.searchNeedle = "same"
+
+    withStartSearchAction(needle: "same") { action in
+      #expect(bridge.handleAction(target: ghosttySurfaceTarget(), action: action) == false)
+    }
+
+    #expect(bridge.state.searchNeedle == "same")
+    #expect(pasteboard.string(forType: .string) == "same")
+  }
+
+  @Test
   func changedSearchNeedleWritesFindPasteboard() {
     let pasteboard = makeFindPasteboard()
     let bridge = GhosttySurfaceBridge(findPasteboard: pasteboard)
