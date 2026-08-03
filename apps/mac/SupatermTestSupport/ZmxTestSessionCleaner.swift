@@ -9,6 +9,7 @@ nonisolated enum ZmxTestCleanupError: Error, CustomStringConvertible {
   case processDidNotExit(Int32)
   case processIdentityUnavailable(Int32)
   case processSignalFailed(processID: Int32, signal: Int32, errorCode: Int32)
+  case directoryRemains(String)
   case sessionsRemain([String])
 
   var description: String {
@@ -23,6 +24,8 @@ nonisolated enum ZmxTestCleanupError: Error, CustomStringConvertible {
       return "process \(processID) identity is unavailable"
     case .processSignalFailed(let processID, let signal, let errorCode):
       return "signal \(signal) failed for process \(processID) with error \(errorCode)"
+    case .directoryRemains(let path):
+      return "zmx directory remains: \(path)"
     case .sessionsRemain(let sessionIDs):
       return "zmx sessions remain: \(sessionIDs.joined(separator: ", "))"
     }
@@ -191,6 +194,13 @@ nonisolated struct ZmxTestWorkspace: Sendable {
     }
     try cleaner.cleanup()
     try Self.removeIfPresent(zmxDirectory)
+    try removeStateAfterAppCleanup()
+  }
+
+  func removeStateAfterAppCleanup() throws {
+    guard !FileManager.default.fileExists(atPath: zmxDirectory.path) else {
+      throw ZmxTestCleanupError.directoryRemains(zmxDirectory.path)
+    }
     try Self.removeIfPresent(stateHome)
   }
 

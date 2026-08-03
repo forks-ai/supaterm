@@ -79,6 +79,7 @@ class SupatermUITestCase: XCTestCase {
         "SUPATERM_STATE_HOME": stateHome.path,
         "SUPATERM_VERBOSE_LOGGING": "1",
         ZmxEnvironment.directoryKey: workspace.zmxDirectory.path,
+        ZmxEnvironment.testCleanupOnQuitKey: "1",
       ]
       app.launch()
       app.activate()
@@ -88,12 +89,24 @@ class SupatermUITestCase: XCTestCase {
 
     addTeardownBlock {
       let stopped = await MainActor.run {
-        app.terminate()
+        let quit = SupatermUITestIdentifier.MenuItemIdentifier.quitTerminatingSessions
+        let appMenu = app.menuBars.menuBarItems[quit.menuTitle]
+        if app.state != .notRunning, appMenu.waitForExistence(timeout: 3) {
+          appMenu.click()
+          let quitItem = app.menuItems.matching(identifier: quit.rawValue).firstMatch
+          if quitItem.waitForExistence(timeout: 3) {
+            quitItem.click()
+          } else {
+            app.terminate()
+          }
+        } else if app.state != .notRunning {
+          app.terminate()
+        }
         return app.wait(for: .notRunning, timeout: 10)
       }
       XCTAssertTrue(stopped)
       guard stopped else { return }
-      try workspace.cleanup()
+      try workspace.removeStateAfterAppCleanup()
     }
   }
 

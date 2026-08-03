@@ -245,7 +245,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
     self.terminatesSessionsForNextQuit = false
     let bypassesConfirmationForNextQuit = self.bypassesConfirmationForNextQuit
     self.bypassesConfirmationForNextQuit = false
-    let terminatesSessionsOnQuit = terminatesSessionsForNextQuit || supatermSettings.terminatesSessionsOnQuit
+    let testZmxDirectory = Self.testZmxCleanupDirectory()
+    let terminatesSessionsOnQuit =
+      terminatesSessionsForNextQuit || supatermSettings.terminatesSessionsOnQuit || testZmxDirectory != nil
     let terminationPlan = Self.terminationPlan(
       hasVisibleAppWindows: NSApp.windows.contains(where: \.isVisible),
       bypassesQuitConfirmation: terminatesSessionsForNextQuit
@@ -265,6 +267,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
       Task { @MainActor in
         await terminalWindowRegistry.terminateTerminalSessionsAndWait()
         await terminalWindowRegistry.terminateAllZmxSessionsAndWait()
+        if let testZmxDirectory {
+          try? FileManager.default.removeItem(atPath: testZmxDirectory)
+        }
         NSApp.reply(toApplicationShouldTerminate: true)
       }
       return .terminateLater
@@ -603,6 +608,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
     case .quitTerminatingSessions:
       return TerminationPlan(reply: .terminateNow, terminatesSessions: true)
     }
+  }
+
+  static func testZmxCleanupDirectory(
+    environment: [String: String] = ProcessInfo.processInfo.environment
+  ) -> String? {
+    guard environment[ZmxEnvironment.testCleanupOnQuitKey] == "1" else { return nil }
+    return SupatermSocketPath.normalized(environment[ZmxEnvironment.directoryKey])
   }
 
   struct ToggleVisibilityState {

@@ -59,6 +59,7 @@ public nonisolated enum ZmxEnvironment {
   public static let directoryKey = "ZMX_DIR"
   public static let sessionKey = "ZMX_SESSION"
   public static let sessionPrefixKey = "ZMX_SESSION_PREFIX"
+  public static let testCleanupOnQuitKey = "SUPATERM_TEST_ZMX_CLEANUP_ON_QUIT"
 }
 
 public nonisolated struct ZmxClient: Sendable {

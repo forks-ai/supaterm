@@ -304,6 +304,33 @@ struct ZmxTestSessionCleanerTests {
     #expect(!FileManager.default.fileExists(atPath: abandonedStateHome.path))
   }
 
+  @Test
+  func stateCleanupRequiresTheAppToRemoveItsZmxDirectory() throws {
+    let stateHome = FileManager.default.temporaryDirectory
+      .appendingPathComponent(UUID().uuidString, isDirectory: true)
+    let workspace = try ZmxTestWorkspace(
+      stateHome: stateHome,
+      instanceName: "ui-\(UUID().uuidString)",
+      zmxExecutableURL: URL(fileURLWithPath: "/usr/bin/true")
+    )
+    try FileManager.default.createDirectory(
+      at: workspace.zmxDirectory,
+      withIntermediateDirectories: true
+    )
+    defer {
+      try? FileManager.default.removeItem(at: workspace.zmxDirectory)
+      try? FileManager.default.removeItem(at: stateHome)
+    }
+
+    #expect(throws: ZmxTestCleanupError.self) {
+      try workspace.removeStateAfterAppCleanup()
+    }
+
+    try FileManager.default.removeItem(at: workspace.zmxDirectory)
+    try workspace.removeStateAfterAppCleanup()
+    #expect(!FileManager.default.fileExists(atPath: stateHome.path))
+  }
+
   private var zmxExecutableURL: URL {
     Bundle(for: ZmxTestBundleToken.self).bundleURL
       .deletingLastPathComponent()

@@ -91,6 +91,21 @@ struct AppDelegateTests {
   }
 
   @Test
+  func testZmxCleanupRequiresTheFlagAndDirectory() {
+    #expect(
+      AppDelegate.testZmxCleanupDirectory(environment: [
+        ZmxEnvironment.testCleanupOnQuitKey: "1",
+        ZmxEnvironment.directoryKey: "/tmp/test-zmx",
+      ]) == "/tmp/test-zmx"
+    )
+    #expect(
+      AppDelegate.testZmxCleanupDirectory(environment: [
+        ZmxEnvironment.directoryKey: "/tmp/test-zmx"
+      ]) == nil
+    )
+  }
+
+  @Test
   func terminationPlanConfirmsWhenSessionsTerminateByDefault() {
     let plan = AppDelegate.terminationPlan(
       hasVisibleAppWindows: true,
