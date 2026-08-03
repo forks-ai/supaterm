@@ -214,6 +214,70 @@ struct TerminalAgentEventTranslatorTests {
   }
 
   @Test
+  func claudeStopReconcilesChildrenAgainstBackgroundTasks() throws {
+    let request = try request(
+      agent: .claude,
+      json: #"""
+        {
+          "session_id": "claude-1",
+          "hook_event_name": "Stop",
+          "last_assistant_message": "Spawned.",
+          "background_tasks": [
+            { "id": "child-live", "type": "subagent", "status": "running" },
+            { "id": "child-done", "type": "subagent", "status": "completed" },
+            { "id": "task-1", "type": "shell", "status": "running" }
+          ],
+          "session_crons": []
+        }
+        """#
+    )
+
+    #expect(
+      TerminalAgentEventTranslator.events(for: request).map(\.action) == [
+        .subagentsReconciled(liveSubagentIDs: ["child-live"]),
+        .turnContinuesInBackground,
+      ]
+    )
+  }
+
+  @Test
+  func claudeStopWithoutBackgroundTasksSkipsReconciliation() throws {
+    let request = try request(
+      agent: .claude,
+      json: #"{"session_id":"claude-1","hook_event_name":"Stop","last_assistant_message":"Done"}"#
+    )
+
+    #expect(
+      TerminalAgentEventTranslator.events(for: request).map(\.action) == [
+        .turnCompleted(message: "Done")
+      ]
+    )
+  }
+
+  @Test
+  func claudeStopWithDrainedBackgroundTasksReconcilesToNoChildren() throws {
+    let request = try request(
+      agent: .claude,
+      json: #"""
+        {
+          "session_id": "claude-1",
+          "hook_event_name": "Stop",
+          "last_assistant_message": "Done",
+          "background_tasks": [],
+          "session_crons": []
+        }
+        """#
+    )
+
+    #expect(
+      TerminalAgentEventTranslator.events(for: request).map(\.action) == [
+        .subagentsReconciled(liveSubagentIDs: []),
+        .turnCompleted(message: "Done"),
+      ]
+    )
+  }
+
+  @Test
   func codexLifecycleHasSharedSemantics() throws {
     let events = [
       #"{"session_id":"codex-1","hook_event_name":"SessionStart","transcript_path":"/tmp/codex.jsonl"}"#,

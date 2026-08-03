@@ -86,6 +86,35 @@ enum ClaudeHookFixtures {
     }
     """
 
+  static let stopWithRunningSubagent = """
+    {
+      "session_id": "\(sessionID)",
+      "transcript_path": "\(transcriptPath)",
+      "cwd": "\(cwd)",
+      "permission_mode": "acceptEdits",
+      "hook_event_name": "Stop",
+      "stop_hook_active": false,
+      "last_assistant_message": "Background agent started.",
+      "background_tasks": [
+        {
+          "id": "child-live",
+          "type": "subagent",
+          "status": "running",
+          "description": "Review PR",
+          "agent_type": "general-purpose"
+        },
+        {
+          "id": "task-1",
+          "type": "shell",
+          "status": "running",
+          "description": "Build",
+          "command": "make build"
+        }
+      ],
+      "session_crons": []
+    }
+    """
+
   static let stopWithPendingCron = """
     {
       "session_id": "\(sessionID)",
