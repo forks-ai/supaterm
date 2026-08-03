@@ -2,13 +2,6 @@ name: ci
 
 on:
   workflow_call: {}
-  workflow_dispatch:
-    inputs:
-      ui_shards:
-        description: UI test shard count
-        required: false
-        default: "5"
-        type: string
   merge_group:
     branches:
       - main
@@ -31,21 +24,21 @@ on:
       - main
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}-${{ inputs.ui_shards || 'default' }}
+  group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 permissions:
   contents: read
-  id-token: write
 
 env:
   MISE_HTTP_TIMEOUT: 120
   MISE_GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+  TUIST_TOKEN: ${{ secrets.TUIST_TOKEN }}
 
 jobs:
   changes:
     name: changes
-    runs-on: depot-ubuntu-latest
+    runs-on: ubuntu-latest
     outputs:
       graph: ${{ steps.changes.outputs.graph }}
       mac: ${{ steps.changes.outputs.mac }}
@@ -106,7 +99,7 @@ jobs:
     name: swiftlint
     needs: changes
     if: needs.changes.outputs.mac == 'true'
-    runs-on: depot-ubuntu-latest
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
       - uses: jdx/mise-action@v4
@@ -121,7 +114,7 @@ jobs:
     name: mac-test
     needs: changes
     if: needs.changes.outputs.mac == 'true'
-    runs-on: depot-macos-26
+    runs-on: macos-26
     steps:
       - uses: actions/checkout@v6
         with:
@@ -135,7 +128,7 @@ jobs:
     name: mac-test-e2e
     needs: changes
     if: needs.changes.outputs.mac == 'true'
-    runs-on: depot-macos-26
+    runs-on: macos-26
     steps:
       - uses: actions/checkout@v6
         with:
@@ -155,7 +148,7 @@ jobs:
     name: mac-test-ui-build
     needs: changes
     if: needs.changes.outputs.mac == 'true'
-    runs-on: depot-macos-26
+    runs-on: macos-26
     timeout-minutes: 60
     outputs:
       matrix: ${{ steps.build.outputs.matrix }}
@@ -169,7 +162,7 @@ jobs:
       - run: make mac-tuist-install
       - run: make -C apps/mac build-ghostty build-zmx build-ap
       - id: build
-        run: mise exec -- tuist test supatermUITests --build-only --shard-total "${{ inputs.ui_shards || '5' }}" --shard-granularity suite
+        run: mise exec -- tuist test supatermUITests --build-only --shard-total 5 --shard-granularity suite
         working-directory: apps/mac
       - uses: actions/upload-artifact@v6
         with:
@@ -185,7 +178,7 @@ jobs:
     if: >-
       needs.mac_test_ui_build.result == 'success' &&
       toJSON(fromJSON(needs.mac_test_ui_build.outputs.matrix || '{"shard":[]}').shard) != '[]'
-    runs-on: depot-macos-26
+    runs-on: macos-26
     timeout-minutes: 60
     strategy:
       fail-fast: false
@@ -214,7 +207,7 @@ jobs:
       - mac_test_ui_build
       - mac_test_ui
     if: needs.mac_test_ui.result == 'success'
-    runs-on: depot-macos-26
+    runs-on: macos-26
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v6
@@ -254,7 +247,7 @@ jobs:
       - mac_test_ui_build
       - mac_test_ui
       - mac_test_ui_results
-    runs-on: depot-ubuntu-latest
+    runs-on: ubuntu-latest
     env:
       MAC: ${{ needs.changes.outputs.mac }}
       SWIFTLINT: ${{ needs.swiftlint.result }}
@@ -282,7 +275,7 @@ jobs:
       - changes
       - required_checks
     if: github.event_name == 'push' && github.ref_type == 'branch' && github.ref_name == 'main' && needs.changes.outputs.graph == 'true'
-    runs-on: depot-macos-26
+    runs-on: macos-26
     steps:
       - uses: actions/checkout@v6
         with:

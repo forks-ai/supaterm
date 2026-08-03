@@ -37,7 +37,7 @@ concurrency:
 
 jobs:
   docs:
-    runs-on: depot-ubuntu-latest
+    runs-on: ubuntu-latest
     permissions:
       contents: read
     steps:

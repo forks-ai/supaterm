@@ -83,16 +83,13 @@ End-to-end commands:
 
 ```bash
 make mac-test-e2e       # Run socket-driven E2E tests against the real app
-make mac-test-ui        # Run UI tests against the real app
 ```
 
 E2E tests in `apps/mac/supatermE2E` spawn their own `supaterm.app` with a fresh instance name, state home, and `ZMX_DIR`, then control it through the `sp` socket protocol. They never attach to a running development or user instance.
 
-UI tests in `apps/mac/supatermUITests` launch an isolated app through XCTest and exercise user-visible behavior. They run through the `supatermUITests` scheme locally and in the `mac-test-ui` GitHub workflow.
+UI tests in `apps/mac/supatermUITests` control the shared macOS desktop, input focus, and pasteboards. Never run them locally. Always run them on CI
 
 Use `$SUPATERM_CLI_PATH` inside Supaterm panes to call the Debug CLI injected by the running app instead of an installed `sp`:
-
-Note: Avoid running UI test locally, run it on CI instead.
 
 ```bash
 "$SUPATERM_CLI_PATH" diagnostic
