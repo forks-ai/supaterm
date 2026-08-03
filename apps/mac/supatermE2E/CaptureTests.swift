@@ -32,7 +32,13 @@ extension SupatermE2ESuite {
         try await app.waitForShellPrompt(space.pane)
 
         try app.type("echo \(marker)\n", into: space.pane)
-        try await app.waitForCapture(space.pane, contains: marker)
+        try await app.waitUntil("the marker output and next shell prompt render") {
+          let lines = try app.capture(space.pane)
+            .split(separator: "\n", omittingEmptySubsequences: false)
+          guard let outputIndex = lines.lastIndex(of: Substring(marker)) else { return false }
+          return lines[lines.index(after: outputIndex)...]
+            .contains { !$0.trimmingCharacters(in: .whitespaces).isEmpty }
+        }
 
         let visible = try app.capture(space.pane)
         let visibleTail = try app.capture(space.pane, lines: 5)
