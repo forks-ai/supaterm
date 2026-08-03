@@ -4,6 +4,19 @@ on:
   workflow_call: {}
   workflow_dispatch:
     inputs:
+      scope:
+        description: Jobs to run
+        type: choice
+        options:
+          - all
+          - ui
+        default: all
+        required: true
+      ui_test:
+        description: Exact UI test identifier; empty runs the full suite
+        type: string
+        default: ""
+        required: false
       ui_shards:
         description: UI test shard count
         required: false
@@ -31,7 +44,7 @@ on:
       - main
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}-${{ inputs.ui_shards || 'default' }}
+  group: ${{ github.workflow }}-${{ github.ref }}-${{ inputs.scope == 'ui' && github.run_id || inputs.ui_shards || 'default' }}
   cancel-in-progress: true
 
 permissions:
@@ -41,6 +54,7 @@ permissions:
 env:
   MISE_HTTP_TIMEOUT: 120
   MISE_GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+  TUIST_TEST_TEST_TARGETS: ${{ inputs.ui_test }}
 
 jobs:
   changes:
@@ -61,7 +75,20 @@ jobs:
           EVENT_NAME: ${{ github.event_name }}
           HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
           REF_TYPE: ${{ github.ref_type }}
+          REF_NAME: ${{ github.ref_name }}
+          SCOPE: ${{ inputs.scope }}
+          UI_TEST: ${{ inputs.ui_test }}
         run: |
+          if [ "$SCOPE" != ui ] && [ -n "$UI_TEST" ]; then
+            echo "ui_test requires scope=ui" >&2
+            exit 1
+          fi
+
+          if [ "$SCOPE" = ui ] && [ "$REF_NAME" = main ]; then
+            echo "UI-only runs require a branch other than main" >&2
+            exit 1
+          fi
+
           if [ "$REF_TYPE" = tag ]; then
             echo "graph=false" >> "$GITHUB_OUTPUT"
             echo "mac=true" >> "$GITHUB_OUTPUT"
@@ -105,7 +132,7 @@ jobs:
   swiftlint:
     name: swiftlint
     needs: changes
-    if: needs.changes.outputs.mac == 'true'
+    if: needs.changes.outputs.mac == 'true' && inputs.scope != 'ui'
     runs-on: depot-ubuntu-latest
     steps:
       - uses: actions/checkout@v6
@@ -120,7 +147,7 @@ jobs:
   mac_test:
     name: mac-test
     needs: changes
-    if: needs.changes.outputs.mac == 'true'
+    if: needs.changes.outputs.mac == 'true' && inputs.scope != 'ui'
     runs-on: depot-macos-26
     steps:
       - uses: actions/checkout@v6
@@ -134,7 +161,7 @@ jobs:
   mac_test_e2e:
     name: mac-test-e2e
     needs: changes
-    if: needs.changes.outputs.mac == 'true'
+    if: needs.changes.outputs.mac == 'true' && inputs.scope != 'ui'
     runs-on: depot-macos-26
     steps:
       - uses: actions/checkout@v6
@@ -169,7 +196,7 @@ jobs:
       - run: make mac-tuist-install
       - run: make -C apps/mac build-ghostty build-zmx build-ap
       - id: build
-        run: mise exec -- tuist test supatermUITests --build-only --shard-total "${{ inputs.ui_shards || '5' }}" --shard-granularity suite
+        run: mise exec -- tuist test supatermUITests --build-only --shard-total "${{ inputs.ui_test && 1 || inputs.ui_shards || '5' }}" --shard-granularity suite
         working-directory: apps/mac
       - uses: actions/upload-artifact@v6
         with:
@@ -245,7 +272,7 @@ jobs:
 
   required_checks:
     name: required-checks
-    if: always()
+    if: always() && inputs.scope != 'ui'
     needs:
       - changes
       - swiftlint
