@@ -115,15 +115,6 @@ struct SplitView<L: View, R: View>: View {
   enum Direction: Codable {
     case horizontal
     case vertical
-
-    var dividerPointerStyle: PointerStyle {
-      switch self {
-      case .horizontal:
-        return .columnResize
-      case .vertical:
-        return .rowResize
-      }
-    }
   }
 
   private struct SplitDivider: View {
@@ -141,7 +132,16 @@ struct SplitView<L: View, R: View>: View {
           .fill(color)
           .frame(width: visibleWidth, height: visibleHeight)
       }
-      .pointerStyle(direction.dividerPointerStyle)
+      .pointerStyle(pointerStyle)
+    }
+
+    private var pointerStyle: PointerStyle {
+      switch direction {
+      case .horizontal:
+        return .columnResize
+      case .vertical:
+        return .rowResize
+      }
     }
 
     private var visibleWidth: CGFloat? {
