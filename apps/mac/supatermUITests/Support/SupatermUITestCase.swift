@@ -14,7 +14,13 @@ class SupatermUITestCase: XCTestCase {
   private(set) var app: XCUIApplication!
 
   private static var productsDirectory: URL {
-    Bundle(for: SupatermUITestCase.self).bundleURL.deletingLastPathComponent()
+    var runnerURL = Bundle(for: SupatermUITestCase.self).bundleURL
+    while runnerURL.pathExtension != "app" {
+      let parent = runnerURL.deletingLastPathComponent()
+      precondition(parent != runnerURL, "UI test bundle is not inside a runner app")
+      runnerURL = parent
+    }
+    return runnerURL.deletingLastPathComponent()
   }
 
   private static var zmxExecutableURL: URL {

@@ -129,6 +129,7 @@ final class SupatermE2EApp: @unchecked Sendable {
     process.standardError = log
     try process.run()
     self.process = process
+    try workspace.recordAppProcessID(process.processIdentifier)
     socketPath =
       SupatermSocketPath.managedSocketURL(
         instanceName: instanceName,
