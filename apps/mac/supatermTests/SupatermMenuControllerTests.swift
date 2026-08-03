@@ -1,6 +1,7 @@
 import AppKit
 import Carbon.HIToolbox
 import ComposableArchitecture
+import GhosttyKit
 import Sharing
 import SupatermCLIShared
 import SupatermSettingsFeature
@@ -100,6 +101,50 @@ struct SupatermMenuControllerTests {
         "app.supabit.supaterm.help.submitGitHubIssue",
       ]
     )
+  }
+
+  @Test
+  func copyMenuValidationUsesFocusedSurfaceSelection() throws {
+    initializeGhosttyForTests()
+
+    let app = NSApplication.shared
+    let previousMainMenu = app.mainMenu
+    let selection = MenuSelectionTextSource()
+    let surface = GhosttySurfaceView(
+      runtime: GhosttyRuntime(),
+      tabID: UUID(),
+      workingDirectory: nil,
+      context: GHOSTTY_SURFACE_CONTEXT_TAB,
+      selectionReader: { _ in selection.value }
+    )
+    let window = NSWindow(
+      contentRect: NSRect(x: 0, y: 0, width: 400, height: 300),
+      styleMask: [.titled],
+      backing: .buffered,
+      defer: false
+    )
+    let controller = SupatermMenuController(registry: TerminalWindowRegistry())
+    defer {
+      app.mainMenu = previousMainMenu
+      surface.closeSurface()
+      window.contentView = nil
+      window.orderOut(nil)
+    }
+
+    window.contentView = surface
+    window.makeKeyAndOrderFront(nil)
+    window.makeFirstResponder(surface)
+    controller.install()
+
+    let editMenu = try #require(app.mainMenu?.items.first { $0.title == "Edit" }?.submenu)
+    let copyItem = try #require(editMenu.items.first { $0.title == "Copy" })
+    try #require(copyItem.target == nil)
+    try #require(window.firstResponder === surface)
+
+    #expect(!surface.validateMenuItem(copyItem))
+
+    selection.value = "selected text"
+    #expect(surface.validateMenuItem(copyItem))
   }
 
   @Test
@@ -1217,6 +1262,11 @@ struct SupatermMenuControllerTests {
       }
     }
   }
+}
+
+@MainActor
+private final class MenuSelectionTextSource {
+  var value: String?
 }
 
 @MainActor
