@@ -2,7 +2,7 @@ import XCTest
 
 final class SidebarChromeUITests: SupatermUITestCase {
   @MainActor
-  func testNewTabStaysPinnedWhileScrollingAndCreatesSelectedTab() async throws {
+  func testNewTabPinsOnlyWhileInlineRowIsHiddenAndCreatesSelectedTab() async throws {
     let terminal = mainTerminal
     terminal.click()
     await requireInitialSidebarTab()
@@ -28,10 +28,16 @@ final class SidebarChromeUITests: SupatermUITestCase {
     let didRevealFirstTab = await wait(for: firstTab) { $0.isHittable }
     XCTAssertTrue(didRevealFirstTab)
 
-    let newTab = try require(
+    let pinnedNewTab = try require(
       sidebarPinnedControl(SupatermUITestIdentifier.Accessibility.sidebarNewTab)
     )
-    let pinnedFrame = newTab.frame
+    let inlineNewTab = outline.buttons.matching(
+      identifier: SupatermUITestIdentifier.Accessibility.sidebarNewTab
+    ).firstMatch
+    let didPinNewTab = await wait(for: pinnedNewTab) {
+      $0.isHittable && !inlineNewTab.isHittable
+    }
+    XCTAssertTrue(didPinNewTab)
     let lastTab = sidebarTabRows.element(boundBy: tabCount - 1)
     for _ in 0..<3 {
       outline.swipeUp()
@@ -42,15 +48,13 @@ final class SidebarChromeUITests: SupatermUITestCase {
     }
     XCTAssertTrue(didScroll)
 
-    let didKeepNewTabPinned = await wait(for: newTab) {
-      $0.isHittable && abs($0.frame.minY - pinnedFrame.minY) < 2
-    }
-    XCTAssertTrue(didKeepNewTabPinned)
+    let didRevealInlineNewTab = await wait(for: inlineNewTab) { $0.isHittable }
+    XCTAssertTrue(didRevealInlineNewTab)
 
-    newTab.click()
+    inlineNewTab.click()
 
-    let didCreatePinnedTab = await waitForSidebarElementCount(sidebarTabRows, equals: tabCount + 1)
-    XCTAssertTrue(didCreatePinnedTab)
+    let didCreateTab = await waitForSidebarElementCount(sidebarTabRows, equals: tabCount + 1)
+    XCTAssertTrue(didCreateTab)
     let createdTab = sidebarTabRows.element(boundBy: tabCount)
     let didSelectCreatedTab = await wait(for: createdTab) { $0.isSelected }
     XCTAssertTrue(didSelectCreatedTab)
