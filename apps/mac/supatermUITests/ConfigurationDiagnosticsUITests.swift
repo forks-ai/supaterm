@@ -28,6 +28,7 @@ final class ConfigurationDiagnosticsUITests: SupatermUITestCase {
       withIntermediateDirectories: true
     )
     try Data("definitely-invalid-key = nope\n".utf8).write(to: configURL)
+    app.launchEnvironment["XDG_CONFIG_HOME"] = stateHome.path
     try relaunch()
 
     return try require(app.windows["Configuration Errors"], timeout: 30)

@@ -93,7 +93,6 @@ struct SettingsAboutView: View {
               .font(.headline)
               .textSelection(.enabled)
               .accessibilityIdentifier("settings.about.version")
-              .accessibilityValue(versionText)
 
               HStack(spacing: 12) {
                 Button("Check for Updates") {
