@@ -69,17 +69,19 @@ struct ZmxTestSessionCleanerTests {
     let deadStateHome = temporaryDirectory.appendingPathComponent("supaterm-ui-dead", isDirectory: true)
     let liveStateHome = temporaryDirectory.appendingPathComponent("supaterm-ui-live", isDirectory: true)
     try FileManager.default.createDirectory(at: deadStateHome, withIntermediateDirectories: true)
-    try FileManager.default.createDirectory(at: liveStateHome, withIntermediateDirectories: true)
     defer { try? FileManager.default.removeItem(at: temporaryDirectory) }
-    try writeOwner(ZmxTestWorkspace.Owner(runnerProcessID: 10, appProcess: nil), to: deadStateHome)
-    try writeOwner(ZmxTestWorkspace.Owner(runnerProcessID: 20, appProcess: nil), to: liveStateHome)
+    try writeOwner(ZmxTestWorkspace.Owner(runnerProcess: deadProcess, appProcess: nil), to: deadStateHome)
+    _ = try ZmxTestWorkspace(
+      stateHome: liveStateHome,
+      instanceName: "ui-live",
+      zmxExecutableURL: URL(fileURLWithPath: "/usr/bin/true")
+    )
     let cleanedInstances = Mutex([String]())
 
     try ZmxTestWorkspace.reapAbandoned(
       in: temporaryDirectory,
       stateHomePrefix: "supaterm-ui-",
       instanceNamePrefix: "ui-",
-      processIsRunning: { $0 == 20 },
       cleanupInstance: { instanceName in
         cleanedInstances.withLock { $0.append(instanceName) }
       }
@@ -107,13 +109,15 @@ struct ZmxTestSessionCleanerTests {
     )
     try workspace.recordApp(process)
     let owner = try readOwner(from: stateHome)
-    try writeOwner(ZmxTestWorkspace.Owner(runnerProcessID: .max, appProcess: owner.appProcess), to: stateHome)
+    try writeOwner(
+      ZmxTestWorkspace.Owner(runnerProcess: deadProcess, appProcess: owner.appProcess),
+      to: stateHome
+    )
 
     try ZmxTestWorkspace.reapAbandoned(
       in: temporaryDirectory,
       stateHomePrefix: "supaterm-ui-",
       instanceNamePrefix: "ui-",
-      processIsRunning: { _ in false },
       cleanupInstance: { _ in }
     )
 
@@ -136,7 +140,7 @@ struct ZmxTestSessionCleanerTests {
       startTimeMicroseconds: .max
     )
     try writeOwner(
-      ZmxTestWorkspace.Owner(runnerProcessID: .max, appProcess: appProcess),
+      ZmxTestWorkspace.Owner(runnerProcess: deadProcess, appProcess: appProcess),
       to: stateHome
     )
 
@@ -144,7 +148,6 @@ struct ZmxTestSessionCleanerTests {
       in: temporaryDirectory,
       stateHomePrefix: "supaterm-ui-",
       instanceNamePrefix: "ui-",
-      processIsRunning: { _ in false },
       cleanupInstance: { _ in }
     )
 
@@ -173,7 +176,32 @@ struct ZmxTestSessionCleanerTests {
     let stateHome = temporaryDirectory.appendingPathComponent("supaterm-ui-dead", isDirectory: true)
     try FileManager.default.createDirectory(at: stateHome, withIntermediateDirectories: true)
     defer { try? FileManager.default.removeItem(at: temporaryDirectory) }
-    try writeOwner(ZmxTestWorkspace.Owner(runnerProcessID: .max, appProcess: nil), to: stateHome)
+    try writeOwner(ZmxTestWorkspace.Owner(runnerProcess: deadProcess, appProcess: nil), to: stateHome)
+    let claim = try ZmxTestWorkspace.claim(stateHome, reaperProcess: deadProcess)
+    let claimedStateHome = try #require(claim)
+    let cleanedInstances = Mutex([String]())
+
+    try ZmxTestWorkspace.reapAbandoned(
+      in: temporaryDirectory,
+      stateHomePrefix: "supaterm-ui-",
+      instanceNamePrefix: "ui-",
+      cleanupInstance: { instanceName in
+        cleanedInstances.withLock { $0.append(instanceName) }
+      }
+    )
+
+    #expect(cleanedInstances.withLock { $0 } == ["ui-dead"])
+    #expect(!FileManager.default.fileExists(atPath: claimedStateHome.path))
+  }
+
+  @Test
+  func activeClaimIsNotReaped() throws {
+    let temporaryDirectory = FileManager.default.temporaryDirectory
+      .appendingPathComponent(UUID().uuidString, isDirectory: true)
+    let stateHome = temporaryDirectory.appendingPathComponent("supaterm-ui-dead", isDirectory: true)
+    try FileManager.default.createDirectory(at: stateHome, withIntermediateDirectories: true)
+    defer { try? FileManager.default.removeItem(at: temporaryDirectory) }
+    try writeOwner(ZmxTestWorkspace.Owner(runnerProcess: deadProcess, appProcess: nil), to: stateHome)
     let claim = try ZmxTestWorkspace.claim(stateHome)
     let claimedStateHome = try #require(claim)
     let cleanedInstances = Mutex([String]())
@@ -182,14 +210,13 @@ struct ZmxTestSessionCleanerTests {
       in: temporaryDirectory,
       stateHomePrefix: "supaterm-ui-",
       instanceNamePrefix: "ui-",
-      processIsRunning: { _ in false },
       cleanupInstance: { instanceName in
         cleanedInstances.withLock { $0.append(instanceName) }
       }
     )
 
-    #expect(cleanedInstances.withLock { $0 } == ["ui-dead"])
-    #expect(!FileManager.default.fileExists(atPath: claimedStateHome.path))
+    #expect(cleanedInstances.withLock { $0 }.isEmpty)
+    #expect(FileManager.default.fileExists(atPath: claimedStateHome.path))
   }
 
   @Test
@@ -256,7 +283,7 @@ struct ZmxTestSessionCleanerTests {
     )
     try FileManager.default.createDirectory(at: abandonedStateHome, withIntermediateDirectories: true)
     try writeOwner(
-      ZmxTestWorkspace.Owner(runnerProcessID: .max, appProcess: nil),
+      ZmxTestWorkspace.Owner(runnerProcess: deadProcess, appProcess: nil),
       to: abandonedStateHome
     )
     try ZmxTestWorkspace.reapAbandoned(
@@ -272,6 +299,14 @@ struct ZmxTestSessionCleanerTests {
     Bundle(for: ZmxTestBundleToken.self).bundleURL
       .deletingLastPathComponent()
       .appendingPathComponent("supaterm.app/Contents/Helpers/zmx")
+  }
+
+  private var deadProcess: ZmxTestWorkspace.ProcessIdentity {
+    ZmxTestWorkspace.ProcessIdentity(
+      processID: .max,
+      startTimeSeconds: .max,
+      startTimeMicroseconds: .max
+    )
   }
 
   private func writeOwner(_ owner: ZmxTestWorkspace.Owner, to stateHome: URL) throws {

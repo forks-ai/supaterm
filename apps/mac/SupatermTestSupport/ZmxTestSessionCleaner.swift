@@ -157,7 +157,7 @@ nonisolated struct ZmxTestWorkspace: Sendable {
   }
 
   struct Owner: Codable, Sendable {
-    let runnerProcessID: Int32
+    let runnerProcess: ProcessIdentity
     let appProcess: ProcessIdentity?
   }
 
@@ -167,16 +167,14 @@ nonisolated struct ZmxTestWorkspace: Sendable {
   init(stateHome: URL, instanceName: String, zmxExecutableURL: URL) throws {
     self.stateHome = stateHome
     cleaner = ZmxTestSessionCleaner(executableURL: zmxExecutableURL, instanceName: instanceName)
+    let runnerProcess = try Self.requiredProcessIdentity(processID: getpid())
     try FileManager.default.createDirectory(at: stateHome, withIntermediateDirectories: true)
-    try writeOwner(Owner(runnerProcessID: getpid(), appProcess: nil))
+    try writeOwner(Owner(runnerProcess: runnerProcess, appProcess: nil))
   }
 
   func recordApp(_ process: Process) throws {
-    let processID = process.processIdentifier
-    guard let appProcess = Self.processIdentity(processID: processID) else {
-      throw ZmxTestCleanupError.processIdentityUnavailable(processID)
-    }
-    try writeOwner(Owner(runnerProcessID: getpid(), appProcess: appProcess))
+    let appProcess = try Self.requiredProcessIdentity(processID: process.processIdentifier)
+    try writeOwner(Owner(runnerProcess: readOwner().runnerProcess, appProcess: appProcess))
   }
 
   func cleanup() throws {
@@ -211,7 +209,6 @@ nonisolated struct ZmxTestWorkspace: Sendable {
       in: temporaryDirectory,
       stateHomePrefix: stateHomePrefix,
       instanceNamePrefix: instanceNamePrefix,
-      processIsRunning: processIsRunning,
       cleanupInstance: { instanceName in
         try ZmxTestSessionCleaner(
           executableURL: zmxExecutableURL,
@@ -225,7 +222,6 @@ nonisolated struct ZmxTestWorkspace: Sendable {
     in temporaryDirectory: URL,
     stateHomePrefix: String,
     instanceNamePrefix: String,
-    processIsRunning: (Int32) -> Bool,
     cleanupInstance: (String) throws -> Void
   ) throws {
     let fileManager = FileManager.default
@@ -237,6 +233,9 @@ nonisolated struct ZmxTestWorkspace: Sendable {
     for stateHome in urls.sorted(by: { $0.lastPathComponent < $1.lastPathComponent }) {
       let name = stateHome.lastPathComponent
       guard name.hasPrefix(stateHomePrefix) else { continue }
+      if let reaperProcess = claimOwner(from: name), processMatches(reaperProcess) {
+        continue
+      }
       guard (try? stateHome.resourceValues(forKeys: [.isDirectoryKey]).isDirectory) == true else {
         continue
       }
@@ -244,7 +243,7 @@ nonisolated struct ZmxTestWorkspace: Sendable {
       guard
         let data = try? Data(contentsOf: ownerURL),
         let owner = try? JSONDecoder().decode(Owner.self, from: data),
-        !processIsRunning(owner.runnerProcessID)
+        !processMatches(owner.runnerProcess)
       else {
         continue
       }
@@ -267,9 +266,15 @@ nonisolated struct ZmxTestWorkspace: Sendable {
     }
   }
 
-  static func claim(_ stateHome: URL, fileManager: FileManager = .default) throws -> URL? {
+  static func claim(
+    _ stateHome: URL,
+    reaperProcess: ProcessIdentity? = nil,
+    fileManager: FileManager = .default
+  ) throws -> URL? {
+    let reaperProcess = try reaperProcess ?? requiredProcessIdentity(processID: getpid())
     let claimedStateHome = stateHome.deletingLastPathComponent().appendingPathComponent(
-      "\(stateHome.lastPathComponent)\(claimMarker)\(UUID().uuidString)",
+      "\(stateHome.lastPathComponent)\(claimMarker)\(reaperProcess.processID)-"
+        + "\(reaperProcess.startTimeSeconds)-\(reaperProcess.startTimeMicroseconds)-" + UUID().uuidString,
       isDirectory: true
     )
     do {
@@ -280,10 +285,22 @@ nonisolated struct ZmxTestWorkspace: Sendable {
     }
   }
 
-  private static func processIsRunning(_ processID: Int32) -> Bool {
-    guard processID > 0 else { return false }
-    if kill(processID, 0) == 0 { return true }
-    return errno == EPERM
+  private static func claimOwner(from name: String) -> ProcessIdentity? {
+    guard let markerRange = name.range(of: claimMarker, options: .backwards) else { return nil }
+    let fields = name[markerRange.upperBound...].split(separator: "-", maxSplits: 3)
+    guard
+      fields.count == 4,
+      let processID = Int32(fields[0]),
+      let startTimeSeconds = UInt64(fields[1]),
+      let startTimeMicroseconds = UInt64(fields[2])
+    else {
+      return nil
+    }
+    return ProcessIdentity(
+      processID: processID,
+      startTimeSeconds: startTimeSeconds,
+      startTimeMicroseconds: startTimeMicroseconds
+    )
   }
 
   private static func terminateProcess(_ process: ProcessIdentity) throws {
@@ -307,6 +324,13 @@ nonisolated struct ZmxTestWorkspace: Sendable {
 
   private static func processMatches(_ process: ProcessIdentity) -> Bool {
     processIdentity(processID: process.processID) == process
+  }
+
+  private static func requiredProcessIdentity(processID: Int32) throws -> ProcessIdentity {
+    guard let process = processIdentity(processID: processID) else {
+      throw ZmxTestCleanupError.processIdentityUnavailable(processID)
+    }
+    return process
   }
 
   private static func processIdentity(processID: Int32) -> ProcessIdentity? {
