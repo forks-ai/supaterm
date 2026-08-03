@@ -278,6 +278,20 @@ struct GhosttySurfaceBridgeTests {
   }
 
   @Test
+  func nonvisibleSurfaceClearsHoveredLink() {
+    let bridge = GhosttySurfaceBridge()
+    let target = ghostty_target_s(tag: GHOSTTY_TARGET_SURFACE, target: ghostty_target_u())
+
+    withMouseOverLinkAction(url: "https://supaterm.com/docs") { action in
+      _ = bridge.handleAction(target: target, action: action)
+    }
+
+    bridge.clearMouseOverLink()
+
+    #expect(bridge.state.mouseOverLink == nil)
+  }
+
+  @Test
   func unhealthyRendererExposesRendererUnavailableFailure() {
     let bridge = GhosttySurfaceBridge()
     let target = ghostty_target_s(tag: GHOSTTY_TARGET_SURFACE, target: ghostty_target_u())

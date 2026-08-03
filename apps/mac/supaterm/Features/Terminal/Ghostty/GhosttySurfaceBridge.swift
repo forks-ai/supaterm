@@ -136,6 +136,11 @@ final class GhosttySurfaceBridge {
       NSAccessibility.post(element: surfaceView, notification: .titleChanged)
     }
   }
+
+  func clearMouseOverLink() {
+    state.mouseOverLink = nil
+  }
+
   func handleAction(target _: ghostty_target_s, action: ghostty_action_s) -> Bool {
     if action.tag == GHOSTTY_ACTION_SELECTION_CHANGED {
       surfaceView?.selectionDidChange()

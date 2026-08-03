@@ -1,3 +1,5 @@
+import Carbon.HIToolbox
+import CoreGraphics
 import XCTest
 
 final class HoverLinkUITests: SupatermUITestCase {
@@ -6,16 +8,26 @@ final class HoverLinkUITests: SupatermUITestCase {
     let terminal = mainTerminal
     terminal.click()
 
-    let link = "https://supaterm.com/docs/hover-link"
-    app.typeText("clear; printf '\(link)\\n'")
+    let link = "https://supaterm.com/docs/terminal/hovered-link-feedback-for-split-pane-regression"
+    app.typeText("clear; printf '\\033[999B\(link)'; sleep 300")
     app.typeKey(.return, modifierFlags: [])
     let linkAppeared = await wait(for: terminal, timeout: .seconds(30)) {
       ($0.value as? String)?.contains(link) == true
     }
     XCTAssertTrue(linkAppeared)
 
+    let commandKeyDown = try commandKeyEvent(keyDown: true)
+    let commandKeyUp = try commandKeyEvent(keyDown: false)
+    commandKeyDown.post(tap: .cghidEventTap)
+    defer { commandKeyUp.post(tap: .cghidEventTap) }
+
     terminal.coordinate(withNormalizedOffset: .zero)
-      .withOffset(CGVector(dx: 48, dy: 12))
+      .withOffset(
+        CGVector(
+          dx: terminal.frame.width * 0.6,
+          dy: terminal.frame.height - 12
+        )
+      )
       .hover()
 
     let banner = element(SupatermUITestIdentifier.Accessibility.hoveredLink)
@@ -33,5 +45,17 @@ final class HoverLinkUITests: SupatermUITestCase {
     }
     XCTAssertTrue(movedToTrailingEdge)
     XCTAssertLessThanOrEqual(abs(banner.frame.maxX - terminal.frame.maxX), 4)
+  }
+
+  private func commandKeyEvent(keyDown: Bool) throws -> CGEvent {
+    let event = try XCTUnwrap(
+      CGEvent(
+        keyboardEventSource: nil,
+        virtualKey: CGKeyCode(kVK_Command),
+        keyDown: keyDown
+      )
+    )
+    event.flags = keyDown ? .maskCommand : []
+    return event
   }
 }

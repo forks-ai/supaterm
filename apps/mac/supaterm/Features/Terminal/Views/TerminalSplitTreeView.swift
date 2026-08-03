@@ -370,6 +370,7 @@ struct TerminalSplitTreeView: View {
             cancelNotificationPulse()
           }
           .onDisappear {
+            surfaceView.bridge.clearMouseOverLink()
             cancelNotificationPulse()
           }
       }
