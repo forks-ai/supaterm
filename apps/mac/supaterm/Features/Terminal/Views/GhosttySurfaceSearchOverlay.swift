@@ -7,6 +7,8 @@ struct GhosttySurfaceSearchOverlay: View {
   let surfaceView: GhosttySurfaceView
   @Bindable var state: GhosttySurfaceState
 
+  private let deferFocusRequest: @MainActor () async -> Void
+
   @Environment(\.accessibilityReduceMotion) private var reduceMotion
   @State private var searchText: String
   @State private var corner: GhosttySearchCorner = .topRight
@@ -18,8 +20,14 @@ struct GhosttySurfaceSearchOverlay: View {
 
   private let overlayPadding: CGFloat = 8
 
-  init(surfaceView: GhosttySurfaceView) {
+  init(
+    surfaceView: GhosttySurfaceView,
+    deferFocusRequest: @escaping @MainActor () async -> Void = {
+      await Task.yield()
+    }
+  ) {
     self.surfaceView = surfaceView
+    self.deferFocusRequest = deferFocusRequest
     self._state = Bindable(surfaceView.bridge.state)
     self._searchText = State(initialValue: surfaceView.bridge.state.searchNeedle ?? "")
   }
@@ -121,8 +129,7 @@ struct GhosttySurfaceSearchOverlay: View {
       .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: corner.alignment)
       .onAppear {
         restoreSearchNeedleOnAppear()
-        focusSearchFieldIfNeeded()
-        selectSearchNeedleIfNeeded()
+        updateSearchFieldOnAppear()
       }
       .onChange(of: searchText) { _, newValue in
         searchNeedleDidChange(newValue)
@@ -226,10 +233,7 @@ struct GhosttySurfaceSearchOverlay: View {
 
   private func focusSearchFieldIfNeeded() {
     guard surfaceView.consumeSearchFocusRequest(state.searchFocusCount) else { return }
-    Task { @MainActor in
-      await Task.yield()
-      searchFocusRequest += 1
-    }
+    deferSearchFieldFocus(selectingNeedle: false)
   }
 
   private func selectSearchNeedleIfNeeded() {
@@ -237,6 +241,30 @@ struct GhosttySurfaceSearchOverlay: View {
       surfaceView.consumeSearchSelectionRequest(state.searchSelectionRequestCount)
     else { return }
     searchSelectionRequest += 1
+  }
+
+  private func updateSearchFieldOnAppear() {
+    let shouldFocus = surfaceView.consumeSearchFocusRequest(state.searchFocusCount)
+    let shouldSelect = surfaceView.consumeSearchSelectionRequest(
+      state.searchSelectionRequestCount
+    )
+    if shouldFocus {
+      deferSearchFieldFocus(selectingNeedle: shouldSelect)
+      return
+    }
+    if shouldSelect {
+      searchSelectionRequest += 1
+    }
+  }
+
+  private func deferSearchFieldFocus(selectingNeedle: Bool) {
+    Task { @MainActor in
+      await deferFocusRequest()
+      searchFocusRequest += 1
+      if selectingNeedle {
+        searchSelectionRequest += 1
+      }
+    }
   }
 
   private func centerPosition(
