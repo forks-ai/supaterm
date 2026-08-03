@@ -2,6 +2,15 @@ import Foundation
 import XCTest
 
 class SupatermUITestCase: XCTestCase {
+  @MainActor
+  private final class UICondition {
+    let evaluate: () -> Bool
+
+    init(_ evaluate: @escaping () -> Bool) {
+      self.evaluate = evaluate
+    }
+  }
+
   private(set) var app: XCUIApplication!
 
   @MainActor
@@ -137,15 +146,24 @@ class SupatermUITestCase: XCTestCase {
     timeout: Duration = .seconds(10),
     until condition: @escaping () -> Bool
   ) async -> Bool {
+    guard !condition() else { return true }
+
     let components = timeout.components
     let seconds =
       TimeInterval(components.seconds)
       + TimeInterval(components.attoseconds) / 1e18
-    let expectation = XCTNSPredicateExpectation(
-      predicate: NSPredicate { _, _ in condition() },
-      object: nil
-    )
-    return await XCTWaiter.fulfillment(of: [expectation], timeout: seconds) == .completed
+    let condition = UICondition(condition)
+    let expectation = XCTestExpectation(description: "UI state")
+    let timer = Timer(timeInterval: 0.1, repeats: true) { timer in
+      let isSatisfied = MainActor.assumeIsolated { condition.evaluate() }
+      guard isSatisfied else { return }
+      timer.invalidate()
+      expectation.fulfill()
+    }
+    RunLoop.main.add(timer, forMode: .common)
+    let result = await XCTWaiter.fulfillment(of: [expectation], timeout: seconds)
+    timer.invalidate()
+    return result == .completed
   }
 
   @MainActor
