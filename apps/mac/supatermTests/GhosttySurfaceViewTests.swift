@@ -744,6 +744,108 @@ struct GhosttySurfaceViewTests {
 
   @Test
   @MainActor
+  func restoredFindNeedleIsSelectedAndKeepsSearchFocusOnActivation() async throws {
+    initializeGhosttyForTests()
+
+    let pasteboard = makeFindPasteboard("restored")
+    let surface = GhosttySurfaceView(
+      runtime: GhosttyRuntime(),
+      tabID: UUID(),
+      workingDirectory: nil,
+      context: GHOSTTY_SURFACE_CONTEXT_TAB,
+      findPasteboard: pasteboard
+    )
+    withStartSearchAction(needle: "") { action in
+      _ = surface.bridge.handleAction(target: searchSurfaceTarget(), action: action)
+    }
+    let window = NSWindow(
+      contentRect: NSRect(x: 0, y: 0, width: 400, height: 300),
+      styleMask: [.titled],
+      backing: .buffered,
+      defer: false
+    )
+    let container = NSView(frame: window.contentView?.bounds ?? .zero)
+    let overlay = NSHostingView(rootView: GhosttySurfaceSearchOverlay(surfaceView: surface))
+    surface.frame = container.bounds
+    overlay.frame = container.bounds
+    window.contentView = container
+    container.addSubview(surface)
+    container.addSubview(overlay)
+    window.makeKeyAndOrderFront(nil)
+    defer {
+      surface.closeSurface()
+      window.contentView = nil
+      window.orderOut(nil)
+    }
+
+    let searchField = try await searchField(in: container)
+    #expect(await searchFieldHasSelectedValue(searchField, value: "restored"))
+    #expect(
+      window.firstResponder === searchField || window.firstResponder === searchField.currentEditor()
+    )
+
+    replaceFindPasteboard(pasteboard, with: "activated")
+    NotificationCenter.default.post(
+      name: NSApplication.didBecomeActiveNotification,
+      object: NSApplication.shared
+    )
+
+    #expect(await searchFieldHasSelectedValue(searchField, value: "activated"))
+    #expect(surface.bridge.state.searchNeedle == "activated")
+    #expect(
+      window.firstResponder === searchField || window.firstResponder === searchField.currentEditor()
+    )
+  }
+
+  @Test
+  @MainActor
+  func restoredFindNeedleDoesNotStealSurfaceFocus() async throws {
+    initializeGhosttyForTests()
+
+    let pasteboard = makeFindPasteboard()
+    let surface = GhosttySurfaceView(
+      runtime: GhosttyRuntime(),
+      tabID: UUID(),
+      workingDirectory: nil,
+      context: GHOSTTY_SURFACE_CONTEXT_TAB,
+      findPasteboard: pasteboard
+    )
+    surface.bridge.state.searchNeedle = "before"
+    let window = NSWindow(
+      contentRect: NSRect(x: 0, y: 0, width: 400, height: 300),
+      styleMask: [.titled],
+      backing: .buffered,
+      defer: false
+    )
+    let container = NSView(frame: window.contentView?.bounds ?? .zero)
+    let overlay = NSHostingView(rootView: GhosttySurfaceSearchOverlay(surfaceView: surface))
+    surface.frame = container.bounds
+    overlay.frame = container.bounds
+    window.contentView = container
+    container.addSubview(surface)
+    container.addSubview(overlay)
+    window.makeFirstResponder(surface)
+    defer {
+      surface.closeSurface()
+      window.contentView = nil
+    }
+    _ = try await searchField(in: container)
+
+    replaceFindPasteboard(pasteboard, with: "after")
+    NotificationCenter.default.post(
+      name: NSApplication.didBecomeActiveNotification,
+      object: NSApplication.shared
+    )
+    for _ in 0..<20 where surface.bridge.state.searchNeedle != "after" {
+      await Task.yield()
+    }
+
+    #expect(surface.bridge.state.searchNeedle == "after")
+    #expect(window.firstResponder === surface)
+  }
+
+  @Test
+  @MainActor
   func surfaceActivityRequiresSurfaceFirstResponder() throws {
     initializeGhosttyForTests()
 
@@ -1164,6 +1266,51 @@ private func findSearchField(in root: NSView) -> NSTextField? {
     }
   }
   return nil
+}
+
+@MainActor
+private func searchFieldHasSelectedValue(_ field: NSTextField, value: String) async -> Bool {
+  for _ in 0..<20 {
+    if field.stringValue == value,
+      field.currentEditor()?.selectedRange == NSRange(location: 0, length: value.utf16.count)
+    {
+      return true
+    }
+    await Task.yield()
+  }
+  return false
+}
+
+@MainActor
+private func withStartSearchAction<T>(
+  needle: String?,
+  _ body: (ghostty_action_s) -> T
+) -> T {
+  var action = ghostty_action_s(tag: GHOSTTY_ACTION_START_SEARCH, action: ghostty_action_u())
+  guard let needle else { return body(action) }
+  return needle.withCString { pointer in
+    action.action.start_search.needle = pointer
+    return body(action)
+  }
+}
+
+private func searchSurfaceTarget() -> ghostty_target_s {
+  ghostty_target_s(tag: GHOSTTY_TARGET_SURFACE, target: ghostty_target_u())
+}
+
+@MainActor
+private func makeFindPasteboard(_ string: String? = nil) -> NSPasteboard {
+  let pasteboard = NSPasteboard(name: NSPasteboard.Name("supaterm-find-\(UUID().uuidString)"))
+  replaceFindPasteboard(pasteboard, with: string)
+  return pasteboard
+}
+
+@MainActor
+private func replaceFindPasteboard(_ pasteboard: NSPasteboard, with string: String?) {
+  pasteboard.clearContents()
+  if let string {
+    _ = pasteboard.setString(string, forType: .string)
+  }
 }
 
 @MainActor

@@ -97,6 +97,7 @@ func ghosttyInputChunks(_ text: String) -> [GhosttyInputChunk] {
 @MainActor
 final class GhosttySurfaceBridge {
   let state = GhosttySurfaceState()
+  private let findPasteboard: NSPasteboard
   var surface: ghostty_surface_t?
   weak var surfaceView: GhosttySurfaceView?
   var onTitleChange: ((String) -> Void)?
@@ -118,6 +119,10 @@ final class GhosttySurfaceBridge {
   var onDesktopNotification: ((String, String) -> Void)?
   var onStateChange: (() -> Void)?
   private var progressResetTask: Task<Void, Never>?
+
+  init(findPasteboard: NSPasteboard = NSPasteboard(name: .find)) {
+    self.findPasteboard = findPasteboard
+  }
 
   deinit {
     progressResetTask?.cancel()
@@ -557,9 +562,10 @@ final class GhosttySurfaceBridge {
     case GHOSTTY_ACTION_START_SEARCH:
       let needle = string(from: action.action.start_search.needle) ?? ""
       if !needle.isEmpty {
-        state.searchNeedle = needle
+        setSearchNeedle(needle)
       } else if state.searchNeedle == nil {
         state.searchNeedle = ""
+        restoreSearchNeedle()
       }
       state.searchTotal = nil
       state.searchSelected = nil
@@ -590,6 +596,23 @@ final class GhosttySurfaceBridge {
     state.searchNeedle = nil
     state.searchTotal = nil
     state.searchSelected = nil
+  }
+
+  func setSearchNeedle(_ needle: String) {
+    guard state.searchNeedle != needle else { return }
+    state.searchNeedle = needle
+    findPasteboard.clearContents()
+    _ = findPasteboard.setString(needle, forType: .string)
+  }
+
+  func restoreSearchNeedle() {
+    guard
+      let currentNeedle = state.searchNeedle,
+      let pasteboardNeedle = findPasteboard.string(forType: .string),
+      pasteboardNeedle != currentNeedle
+    else { return }
+    state.searchNeedle = pasteboardNeedle
+    state.searchSelectionRequestCount += 1
   }
 
   private func handleSizeAndKey(_ action: ghostty_action_s) -> Bool {
