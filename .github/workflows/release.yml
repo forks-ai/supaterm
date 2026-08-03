@@ -14,7 +14,6 @@ jobs:
     uses: ./.github/workflows/ci.yml
     permissions:
       contents: read
-      id-token: write
     secrets: inherit
 
   build:
@@ -22,13 +21,13 @@ jobs:
     needs: [checks]
     permissions:
       contents: write
-      id-token: write
     outputs:
       build-number: ${{ steps.build-number.outputs.build-number }}
     env:
       RELEASE_TAG: ${{ github.ref_name }}
       MISE_HTTP_TIMEOUT: 120
       MISE_GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      TUIST_TOKEN: ${{ secrets.TUIST_TOKEN }}
       DEVELOPER_ID_CERT_P12: ${{ secrets.DEVELOPER_ID_CERT_P12 }}
       DEVELOPER_ID_CERT_PASSWORD: ${{ secrets.DEVELOPER_ID_CERT_PASSWORD }}
       DEVELOPER_ID_IDENTITY: ${{ secrets.DEVELOPER_ID_IDENTITY }}

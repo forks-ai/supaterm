@@ -22,12 +22,12 @@ jobs:
     runs-on: macos-26
     permissions:
       contents: read
-      id-token: write
     outputs:
       build-number: ${{ steps.build-number.outputs.build-number }}
     env:
       MISE_HTTP_TIMEOUT: 120
       MISE_GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      TUIST_TOKEN: ${{ secrets.TUIST_TOKEN }}
       DEVELOPER_ID_CERT_P12: ${{ secrets.DEVELOPER_ID_CERT_P12 }}
       DEVELOPER_ID_CERT_PASSWORD: ${{ secrets.DEVELOPER_ID_CERT_PASSWORD }}
       DEVELOPER_ID_IDENTITY: ${{ secrets.DEVELOPER_ID_IDENTITY }}

@@ -9,6 +9,7 @@ CLOUDFLARE_ACCOUNT_ID = { provider = "onepass", value = "op://Supaterm/Supaterm 
 CLOUDFLARE_API_TOKEN = { provider = "onepass", value = "op://Supaterm/Supaterm Environment/CLOUDFLARE_API_TOKEN" }
 POSTHOG_CLI_API_KEY = { provider = "onepass", value = "op://Supaterm/Supaterm Environment/POSTHOG_CLI_API_KEY" }
 POSTHOG_CLI_PROJECT_ID = { provider = "onepass", value = "op://Supaterm/Supaterm Environment/POSTHOG_CLI_PROJECT_ID" }
+TUIST_TOKEN = { provider = "onepass", value = "op://Supaterm/Supaterm Environment/TUIST_TOKEN" }
 SPARKLE_PRIVATE_KEY = { provider = "onepass", value = "op://Supaterm/Supaterm Environment/SPARKLE_PRIVATE_KEY" }
 DEVELOPER_ID_CERT_P12 = { provider = "onepass", value = "op://Supaterm/Supaterm Environment/DEVELOPER_ID_CERT_P12" }
 DEVELOPER_ID_CERT_PASSWORD = { provider = "onepass", value = "op://Supaterm/Supaterm Environment/DEVELOPER_ID_CERT_PASSWORD" }
