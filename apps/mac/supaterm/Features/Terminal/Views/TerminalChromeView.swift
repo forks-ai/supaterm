@@ -142,48 +142,23 @@ struct TerminalFloatingSidebarShell<Content: View>: View {
     content
       .padding(TerminalFloatingSidebarShellMetrics.contentInset)
       .background {
-        TerminalFloatingSidebarBackground(palette: palette)
+        palette.windowBackgroundTint
+          .background {
+            BlurEffectView(material: .popover, blendingMode: .withinWindow)
+          }
       }
-      .modifier(TerminalFloatingSidebarSurfaceModifier(palette: palette))
-      .modifier(TerminalFloatingSidebarShadowModifier(palette: palette))
-  }
-}
-
-private struct TerminalFloatingSidebarBackground: View {
-  let palette: Palette
-
-  var body: some View {
-    palette.windowBackgroundTint
-      .background {
-        BlurEffectView(material: .popover, blendingMode: .withinWindow)
-      }
-  }
-}
-
-private struct TerminalFloatingSidebarSurfaceModifier: ViewModifier {
-  let palette: Palette
-
-  func body(content: Content) -> some View {
-    content
       .compositingGroup()
       .clipShape(TerminalFloatingSidebarShellMetrics.shape)
       .overlay {
         TerminalFloatingSidebarShellMetrics.shape
           .stroke(palette.floatingSidebarBorder, lineWidth: TerminalFloatingSidebarShellMetrics.borderWidth)
       }
-  }
-}
-
-private struct TerminalFloatingSidebarShadowModifier: ViewModifier {
-  let palette: Palette
-
-  func body(content: Content) -> some View {
-    content.shadow(
-      color: palette.shadow,
-      radius: TerminalFloatingSidebarShellMetrics.shadowRadius,
-      x: 0,
-      y: TerminalFloatingSidebarShellMetrics.shadowYOffset
-    )
+      .shadow(
+        color: palette.shadow,
+        radius: TerminalFloatingSidebarShellMetrics.shadowRadius,
+        x: 0,
+        y: TerminalFloatingSidebarShellMetrics.shadowYOffset
+      )
   }
 }
 

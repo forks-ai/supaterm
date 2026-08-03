@@ -205,16 +205,12 @@ private struct SidebarResizeInteractionView: NSViewRepresentable {
 
   func makeNSView(context: Context) -> SidebarResizeInteractionNSView {
     let view = SidebarResizeInteractionNSView()
-    update(view)
+    view.onInput = onInput
     return view
   }
 
   func updateNSView(_ nsView: SidebarResizeInteractionNSView, context: Context) {
-    update(nsView)
-  }
-
-  private func update(_ view: SidebarResizeInteractionNSView) {
-    view.onInput = onInput
+    nsView.onInput = onInput
   }
 }
 
