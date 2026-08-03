@@ -274,7 +274,6 @@ private final class SidebarResizeInteractionNSView: NSView {
     switch recognizer.state {
     case .began:
       onInput?(.began)
-      onInput?(.changed(delta: translationX(for: recognizer)))
     case .changed:
       onInput?(.changed(delta: translationX(for: recognizer)))
     case .ended:

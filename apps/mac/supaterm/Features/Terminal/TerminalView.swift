@@ -309,26 +309,10 @@ struct TerminalView: View {
     }
   }
 
-  private func collapseSidebar() {
-    TerminalMotion.animate(.spring(response: 0.2, dampingFraction: 1.0), reduceMotion: reduceMotion) {
-      _ = store.send(.collapseSidebarButtonTapped)
-    }
-  }
-
   private func sendSidebarResizeInput(
     _ input: TerminalSidebarResizeInput,
     totalWidth: CGFloat
   ) {
-    let send = {
-      _ = store.send(.sidebarResizeInput(input, totalWidth: totalWidth))
-    }
-    switch input {
-    case .ended, .cancelled:
-      TerminalMotion.animate(.spring(response: 0.25, dampingFraction: 0.82), reduceMotion: reduceMotion) {
-        send()
-      }
-    case .began, .changed, .doubleClicked:
-      send()
-    }
+    _ = store.send(.sidebarResizeInput(input, totalWidth: totalWidth))
   }
 }

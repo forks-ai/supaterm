@@ -26,7 +26,7 @@ struct TerminalSplitMetricsTests {
   }
 
   @Test
-  func dragElasticityRemainsControlledBeyondWidthBounds() {
+  func dragWidthStaysWithinFractionBounds() {
     let lowerBound = TerminalSidebarResizeState(startingWidth: 144, delta: -48)
     let upperBound = TerminalSidebarResizeState(startingWidth: 432, delta: 48)
 
@@ -35,21 +35,21 @@ struct TerminalSplitMetricsTests {
         preferredWidth: 144,
         resizeState: lowerBound,
         totalWidth: 1_440
-      ) == 120
+      ) == 144
     )
     #expect(
       TerminalSidebarWidthPolicy.displayedWidth(
         preferredWidth: 432,
         resizeState: upperBound,
         totalWidth: 1_440
-      ) == 456
+      ) == 432
     )
     #expect(
       TerminalSidebarWidthPolicy.displayedWidth(
         preferredWidth: 144,
         resizeState: TerminalSidebarResizeState(startingWidth: 144, delta: -10_000),
         totalWidth: 1_440
-      ) > 96
+      ) == 144
     )
   }
 
@@ -64,7 +64,7 @@ struct TerminalSplitMetricsTests {
   }
 
   @Test
-  func elasticReleaseSettlesAtBound() {
+  func releaseKeepsBoundedWidth() {
     let upper = TerminalSidebarResizeState(startingWidth: 432, delta: 100)
 
     #expect(
@@ -72,7 +72,7 @@ struct TerminalSplitMetricsTests {
         preferredWidth: 432,
         resizeState: upper,
         totalWidth: 1_440
-      ) > 432
+      ) == 432
     )
     #expect(TerminalSidebarWidthPolicy.settledWidth(for: upper, totalWidth: 1_440) == 432)
   }

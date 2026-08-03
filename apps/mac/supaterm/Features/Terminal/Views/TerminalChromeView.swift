@@ -30,7 +30,6 @@ enum TerminalSidebarWidthPolicy {
   static let defaultFraction: CGFloat = 0.2
   static let interactionStripWidth: CGFloat = 8
   static let maximumFraction: CGFloat = 0.3
-  static let maximumElasticOvershoot: CGFloat = 48
   static let minimumFraction: CGFloat = 0.1
 
   static func defaultWidth(for totalWidth: CGFloat) -> CGFloat {
@@ -49,7 +48,7 @@ enum TerminalSidebarWidthPolicy {
     guard let resizeState else {
       return resolvedWidth(preferredWidth: preferredWidth, totalWidth: totalWidth)
     }
-    return elasticWidth(for: resizeState.startingWidth + resizeState.delta, totalWidth: totalWidth)
+    return settledWidth(for: resizeState, totalWidth: totalWidth)
   }
 
   static func resizeState(
@@ -84,21 +83,6 @@ enum TerminalSidebarWidthPolicy {
   static func widthRange(for totalWidth: CGFloat) -> ClosedRange<CGFloat> {
     let totalWidth = Swift.max(totalWidth, 0)
     return (totalWidth * minimumFraction)...(totalWidth * maximumFraction)
-  }
-
-  private static func elasticWidth(for width: CGFloat, totalWidth: CGFloat) -> CGFloat {
-    let range = widthRange(for: totalWidth)
-    if width < range.lowerBound {
-      return range.lowerBound - elasticDistance(range.lowerBound - width)
-    }
-    if width > range.upperBound {
-      return range.upperBound + elasticDistance(width - range.upperBound)
-    }
-    return width
-  }
-
-  private static func elasticDistance(_ distance: CGFloat) -> CGFloat {
-    maximumElasticOvershoot * distance / (maximumElasticOvershoot + distance)
   }
 }
 
