@@ -1,5 +1,3 @@
-import Carbon.HIToolbox
-import CoreGraphics
 import XCTest
 
 final class HoverLinkUITests: SupatermUITestCase {
@@ -16,19 +14,16 @@ final class HoverLinkUITests: SupatermUITestCase {
     }
     XCTAssertTrue(linkAppeared)
 
-    let commandKeyDown = try commandKeyEvent(keyDown: true)
-    let commandKeyUp = try commandKeyEvent(keyDown: false)
-    commandKeyDown.post(tap: .cghidEventTap)
-    defer { commandKeyUp.post(tap: .cghidEventTap) }
-
-    terminal.coordinate(withNormalizedOffset: .zero)
-      .withOffset(
-        CGVector(
-          dx: terminal.frame.width * 0.6,
-          dy: terminal.frame.height - 12
+    XCUIElement.perform(withKeyModifiers: .command) {
+      terminal.coordinate(withNormalizedOffset: .zero)
+        .withOffset(
+          CGVector(
+            dx: terminal.frame.width * 0.6,
+            dy: terminal.frame.height - 12
+          )
         )
-      )
-      .hover()
+        .hover()
+    }
 
     let banner = element(SupatermUITestIdentifier.Accessibility.hoveredLink)
     try require(banner)
@@ -39,23 +34,13 @@ final class HoverLinkUITests: SupatermUITestCase {
     XCTAssertLessThanOrEqual(abs(leadingFrame.minX - terminal.frame.minX), 4)
     XCTAssertLessThanOrEqual(abs(leadingFrame.maxY - terminal.frame.maxY), 4)
 
-    banner.hover()
+    XCUIElement.perform(withKeyModifiers: .command) {
+      banner.hover()
+    }
     let movedToTrailingEdge = await wait(for: banner) {
       $0.exists && $0.frame.minX > leadingFrame.minX + 20
     }
     XCTAssertTrue(movedToTrailingEdge)
     XCTAssertLessThanOrEqual(abs(banner.frame.maxX - terminal.frame.maxX), 4)
-  }
-
-  private func commandKeyEvent(keyDown: Bool) throws -> CGEvent {
-    let event = try XCTUnwrap(
-      CGEvent(
-        keyboardEventSource: nil,
-        virtualKey: CGKeyCode(kVK_Command),
-        keyDown: keyDown
-      )
-    )
-    event.flags = keyDown ? .maskCommand : []
-    return event
   }
 }
