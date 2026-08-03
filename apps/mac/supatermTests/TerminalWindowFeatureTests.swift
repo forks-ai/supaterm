@@ -676,7 +676,7 @@ struct TerminalWindowFeatureTests {
   func commandPaletteQueryChangedUpdatesDraftAndResetsSelection() async {
     let snapshot = makeCommandPaletteSnapshot()
     let rows = TerminalCommandPalettePresentation.rows(from: snapshot)
-    let visibleRows = TerminalCommandPalettePresentation.visibleRows(in: rows, query: "switch")
+    let matches = TerminalCommandPalettePresentation.matches(in: rows, query: "switch")
     var initialState = TerminalWindowFeature.State()
     initialState.commandPalette = TerminalCommandPaletteState(
       selectedRowID: rows[1].id
@@ -690,7 +690,7 @@ struct TerminalWindowFeatureTests {
 
     await store.send(.commandPaletteQueryChanged("switch")) {
       $0.commandPalette?.query = "switch"
-      $0.commandPalette?.selectedRowID = visibleRows.first?.id
+      $0.commandPalette?.selectedRowID = matches.first?.id
     }
   }
 
@@ -698,11 +698,11 @@ struct TerminalWindowFeatureTests {
   func commandPaletteSelectionMovedClampsToFilteredRows() async {
     let snapshot = makeCommandPaletteSnapshot()
     let rows = TerminalCommandPalettePresentation.rows(from: snapshot)
-    let visibleRows = TerminalCommandPalettePresentation.visibleRows(in: rows, query: "switch")
+    let matches = TerminalCommandPalettePresentation.matches(in: rows, query: "switch")
     var initialState = TerminalWindowFeature.State()
     initialState.commandPalette = TerminalCommandPaletteState(
       query: "switch",
-      selectedRowID: visibleRows.first?.id
+      selectedRowID: matches.first?.id
     )
 
     let store = TestStore(initialState: initialState) {
@@ -712,10 +712,10 @@ struct TerminalWindowFeatureTests {
     }
 
     await store.send(.commandPaletteSelectionMoved(99)) {
-      $0.commandPalette?.selectedRowID = visibleRows.last?.id
+      $0.commandPalette?.selectedRowID = matches.last?.id
     }
     await store.send(.commandPaletteSelectionMoved(-99)) {
-      $0.commandPalette?.selectedRowID = visibleRows.first?.id
+      $0.commandPalette?.selectedRowID = matches.first?.id
     }
   }
 
