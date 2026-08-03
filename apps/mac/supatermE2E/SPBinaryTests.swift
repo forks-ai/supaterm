@@ -36,6 +36,20 @@ extension SupatermE2ESuite {
         #expect(diagnosticReport.socket.path == app.socketPath)
         #expect(diagnosticReport.socket.requestSucceeded)
         #expect(diagnosticReport.app?.summary.paneCount ?? 0 > 0)
+        let debugPane = try #require(try app.debugPane(space.tab.paneID))
+        let spPane = try #require(
+          diagnosticReport.app?.windows
+            .flatMap(\.spaces)
+            .flatMap(\.flattenedTabs)
+            .flatMap(\.panes)
+            .first { $0.id == space.tab.paneID }
+        )
+        #expect(debugPane.foregroundProcessGroupID != nil)
+        #expect(debugPane.ttyName?.hasPrefix("/dev/") == true)
+        #expect(spPane.foregroundProcessGroupID == debugPane.foregroundProcessGroupID)
+        #expect(spPane.ttyName == debugPane.ttyName)
+        let debugProcessGroupID = try #require(debugPane.foregroundProcessGroupID)
+        let debugTTYName = try #require(debugPane.ttyName)
 
         let diagnosticPlain = try requireSuccessfulSPResult(
           try runner.run(
@@ -45,6 +59,9 @@ extension SupatermE2ESuite {
           )
         )
         #expect(diagnosticPlain.stdout.contains("request succeeded: yes"))
+        let processGroupLine = "foreground process group: \(debugProcessGroupID)"
+        #expect(diagnosticPlain.stdout.contains(processGroupLine))
+        #expect(diagnosticPlain.stdout.contains("tty: \(debugTTYName)"))
 
         let instances = try requireSuccessfulSPResult(
           try runner.run(["instance", "ls", "--json"], cwd: space.directory)

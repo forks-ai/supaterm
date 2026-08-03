@@ -565,7 +565,9 @@ struct SPCommandTests {
                           lastCommandExitCode: nil,
                           lastCommandDurationMs: nil,
                           lastChildExitCode: nil,
-                          lastChildExitTimeMs: nil
+                          lastChildExitTimeMs: nil,
+                          foregroundProcessGroupID: nil,
+                          ttyName: nil
                         )
                       ]
                     )

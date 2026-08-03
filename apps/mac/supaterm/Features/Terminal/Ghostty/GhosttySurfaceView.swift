@@ -5,6 +5,7 @@ import GhosttyKit
 import QuartzCore
 import SupatermCLIShared
 import SupatermSupport
+import System
 
 final class GhosttySurfaceView: NSView, Identifiable {
   typealias SurfaceFactory = (
@@ -65,6 +66,9 @@ final class GhosttySurfaceView: NSView, Identifiable {
   private let context: ghostty_surface_context_e
   private let managesWindowAppearance: Bool
   private let applicationAndWindowAreActive: (NSWindow) -> Bool
+  private let selectionReader: @MainActor (ghostty_surface_t) -> String?
+  private let accessibilitySelectionNotifier: @MainActor (GhosttySurfaceView) -> Void
+  private let accessibilitySelectionSleep: @Sendable (Duration) async throws -> Void
   private var trackingArea: NSTrackingArea?
   private var lastBackingSize: CGSize = .zero
   private var lastPerformKeyEvent: TimeInterval?
@@ -79,6 +83,7 @@ final class GhosttySurfaceView: NSView, Identifiable {
   private var lastSurfaceFocus: Bool?
   private var eventMonitor: Any?
   private var notificationObservers: [NSObjectProtocol] = []
+  private var accessibilitySelectionTask: Task<Void, Never>?
   private var prevPressureStage: Int = 0
   private var suppressNextLeftMouseUp = false
   private lazy var cachedScreenContents = CachedValue<String>(duration: .milliseconds(500)) {
@@ -140,17 +145,16 @@ final class GhosttySurfaceView: NSView, Identifiable {
   private static let dropTypes: Set<NSPasteboard.PasteboardType> = [
     .string,
     .fileURL,
-    .URL,
     .supatermPNGImage,
     .supatermTIFFImage,
   ]
 
   static func normalizedWorkingDirectoryPath(_ path: String) -> String {
-    var normalized = path
-    while normalized.count > 1 && normalized.hasSuffix("/") {
-      normalized.removeLast()
-    }
-    return normalized
+    FilePath(path).string
+  }
+
+  static func acceptsDropTypes(_ types: [NSPasteboard.PasteboardType]) -> Bool {
+    !Set(types).isDisjoint(with: dropTypes)
   }
 
   static func accessibilityLine(for index: Int, in content: String) -> Int {
@@ -280,6 +284,13 @@ final class GhosttySurfaceView: NSView, Identifiable {
     applicationAndWindowAreActive: @escaping (NSWindow) -> Bool = {
       NSApp.isActive && $0.isKeyWindow
     },
+    selectionReader: @escaping @MainActor (ghostty_surface_t) -> String? = GhosttySurfaceView.readSelection,
+    accessibilitySelectionNotifier: @escaping @MainActor (GhosttySurfaceView) -> Void = {
+      NSAccessibility.post(element: $0, notification: .selectedTextChanged)
+    },
+    accessibilitySelectionSleep: @escaping @Sendable (Duration) async throws -> Void = {
+      try await ContinuousClock().sleep(for: $0)
+    },
     surfaceFactory: SurfaceFactory = { app, config in
       ghostty_surface_new(app, config)
     }
@@ -299,6 +310,9 @@ final class GhosttySurfaceView: NSView, Identifiable {
     self.context = context
     self.managesWindowAppearance = managesWindowAppearance
     self.applicationAndWindowAreActive = applicationAndWindowAreActive
+    self.selectionReader = selectionReader
+    self.accessibilitySelectionNotifier = accessibilitySelectionNotifier
+    self.accessibilitySelectionSleep = accessibilitySelectionSleep
     let initialWorkingDirectoryPath: String?
     if let workingDirectory {
       let path = Self.normalizedWorkingDirectoryPath(
@@ -357,6 +371,8 @@ final class GhosttySurfaceView: NSView, Identifiable {
   }
 
   func closeSurface() {
+    accessibilitySelectionTask?.cancel()
+    accessibilitySelectionTask = nil
     clearNotificationObservers()
     if let surface {
       if let surfaceRef {
@@ -369,6 +385,40 @@ final class GhosttySurfaceView: NSView, Identifiable {
       lastOcclusion = nil
       lastSurfaceFocus = nil
     }
+  }
+
+  var processIdentity: TerminalPaneProcessIdentity {
+    guard let surface else {
+      return TerminalPaneProcessIdentity(foregroundProcessGroupID: nil, ttyName: nil)
+    }
+    return Self.processIdentity(
+      foregroundProcessGroupID: { ghostty_surface_foreground_pid(surface) },
+      ttyName: { ghostty_surface_tty_name(surface) }
+    )
+  }
+
+  static func processIdentity(
+    foregroundProcessGroupID: () -> UInt64,
+    ttyName: () -> ghostty_string_s,
+    freeString: (ghostty_string_s) -> Void = ghostty_string_free
+  ) -> TerminalPaneProcessIdentity {
+    let rawProcessGroupID = foregroundProcessGroupID()
+    let processGroupID = rawProcessGroupID == 0 ? nil : Int32(exactly: rawProcessGroupID)
+    let rawTTYName = string(consuming: ttyName(), freeString: freeString)
+    return TerminalPaneProcessIdentity(
+      foregroundProcessGroupID: processGroupID,
+      ttyName: rawTTYName.isEmpty ? nil : rawTTYName
+    )
+  }
+
+  private static func string(
+    consuming value: ghostty_string_s,
+    freeString: (ghostty_string_s) -> Void
+  ) -> String {
+    defer { freeString(value) }
+    guard let pointer = value.ptr else { return "" }
+    let data = Data(bytes: pointer, count: Int(value.len))
+    return String(data: data, encoding: .utf8) ?? ""
   }
 
   func confirmClipboardRead(
@@ -623,11 +673,20 @@ final class GhosttySurfaceView: NSView, Identifiable {
 
   override func accessibilitySelectedText() -> String? {
     guard let surface else { return nil }
-    var text = ghostty_text_s()
-    guard ghostty_surface_read_selection(surface, &text) else { return nil }
-    defer { ghostty_surface_free_text(surface, &text) }
-    let value = String(cString: text.text)
-    return value.isEmpty ? nil : value
+    guard let selection = selectionReader(surface), !selection.isEmpty else { return nil }
+    return selection
+  }
+
+  func selectionDidChange() {
+    guard surface != nil else { return }
+    accessibilitySelectionTask?.cancel()
+    let sleep = accessibilitySelectionSleep
+    accessibilitySelectionTask = Task { [weak self] in
+      try? await sleep(.milliseconds(100))
+      guard !Task.isCancelled, let self, self.surface != nil else { return }
+      self.accessibilitySelectionNotifier(self)
+      self.accessibilitySelectionTask = nil
+    }
   }
 
   override func accessibilityNumberOfCharacters() -> Int {
@@ -697,8 +756,12 @@ final class GhosttySurfaceView: NSView, Identifiable {
 
   func captureText(
     scope: SupatermCapturePaneScope,
-    lines: Int?
+    lines: TerminalCapturePaneRequest.LineCount?
   ) -> String? {
+    if scope == .scrollback, let lines {
+      return readTextTail(lines: lines.value)
+    }
+
     let text =
       switch scope {
       case .scrollback:
@@ -712,11 +775,19 @@ final class GhosttySurfaceView: NSView, Identifiable {
           bottomRightTag: GHOSTTY_POINT_VIEWPORT
         )
       }
-    guard let text else { return nil }
-    guard let lines, lines > 0 else { return text }
+    guard let text, let lines else { return text }
+    let lineCount = Int(lines.value)
     let components = text.components(separatedBy: .newlines)
-    guard components.count > lines else { return text }
-    return components.suffix(lines).joined(separator: "\n")
+    guard components.count > lineCount else { return text }
+    return components.suffix(lineCount).joined(separator: "\n")
+  }
+
+  private func readTextTail(lines: UInt32) -> String? {
+    guard let surface else { return nil }
+    var text = ghostty_text_s()
+    guard ghostty_surface_read_text_tail(surface, lines, &text) else { return nil }
+    defer { ghostty_surface_free_text(surface, &text) }
+    return String(cString: text.text)
   }
 
   private func readText(
@@ -1462,10 +1533,7 @@ final class GhosttySurfaceView: NSView, Identifiable {
       return nil
     }
 
-    return Self.contextMenu(
-      hasSelection: ghostty_surface_has_selection(surface),
-      target: self
-    )
+    return Self.contextMenu(hasSelection: accessibilitySelectedText() != nil, target: self)
   }
 
   @MainActor
@@ -1619,6 +1687,13 @@ final class GhosttySurfaceView: NSView, Identifiable {
 
   @IBAction override func selectAll(_ sender: Any?) {
     performBindingAction("select_all")
+  }
+
+  private static func readSelection(_ surface: ghostty_surface_t) -> String? {
+    var text = ghostty_text_s()
+    guard ghostty_surface_read_selection(surface, &text) else { return nil }
+    defer { ghostty_surface_free_text(surface, &text) }
+    return String(cString: text.text)
   }
 
   @discardableResult
@@ -1879,28 +1954,12 @@ final class GhosttySurfaceView: NSView, Identifiable {
 extension GhosttySurfaceView {
   override func draggingEntered(_ sender: any NSDraggingInfo) -> NSDragOperation {
     guard let types = sender.draggingPasteboard.types else { return [] }
-    if Set(types).isDisjoint(with: Self.dropTypes) {
-      return []
-    }
-    return .copy
+    return Self.acceptsDropTypes(types) ? .copy : []
   }
 
   override func performDragOperation(_ sender: any NSDraggingInfo) -> Bool {
     let pasteboard = sender.draggingPasteboard
-    let content: String?
-    if let url = pasteboard.string(forType: .URL) {
-      content = NSPasteboard.ghosttyEscape(url)
-    } else if let urls = pasteboard.readObjects(forClasses: [NSURL.self]) as? [URL],
-      !urls.isEmpty
-    {
-      content = urls.map { NSPasteboard.ghosttyEscape($0.path) }.joined(separator: " ")
-    } else if let str = pasteboard.string(forType: .string) {
-      content = str
-    } else {
-      content = pasteboard.writeImageToTempFile()
-    }
-
-    guard let content else { return false }
+    guard let content = pasteboard.getOpinionatedStringContents() else { return false }
     Task { @MainActor in
       self.insertText(content, replacementRange: NSRange(location: 0, length: 0))
     }
@@ -2053,7 +2112,7 @@ extension GhosttySurfaceView: NSServicesMenuRequestor {
       && (sendType == nil || sendable.contains(sendType!))
     {
       if let sendType, sendableRequiresSelection.contains(sendType) {
-        if surface == nil || !ghostty_surface_has_selection(surface) {
+        if accessibilitySelectedText() == nil {
           return super.validRequestor(forSendType: sendType, returnType: returnType)
         }
       }
@@ -2063,12 +2122,9 @@ extension GhosttySurfaceView: NSServicesMenuRequestor {
   }
 
   func writeSelection(to pboard: NSPasteboard, types: [NSPasteboard.PasteboardType]) -> Bool {
-    guard let surface else { return false }
-    var text = ghostty_text_s()
-    guard ghostty_surface_read_selection(surface, &text) else { return false }
-    defer { ghostty_surface_free_text(surface, &text) }
+    guard let selection = accessibilitySelectedText() else { return false }
     pboard.declareTypes([.string], owner: nil)
-    pboard.setString(String(cString: text.text), forType: .string)
+    pboard.setString(selection, forType: .string)
     return true
   }
 
@@ -2081,6 +2137,13 @@ extension GhosttySurfaceView: NSServicesMenuRequestor {
     }
     recordUserInput()
     return true
+  }
+}
+
+extension GhosttySurfaceView: NSMenuItemValidation {
+  func validateMenuItem(_ item: NSMenuItem) -> Bool {
+    guard item.action == #selector(copy(_:)) else { return true }
+    return accessibilitySelectedText() != nil
   }
 }
 
@@ -2207,6 +2270,11 @@ final class GhosttySurfaceScrollView: NSView {
 
   func updateSurfaceSize() {
     synchronizeCoreSurface()
+    needsLayout = true
+  }
+
+  func invalidateLayout(ifSizeDiffersFrom size: CGSize) {
+    guard bounds.size != size else { return }
     needsLayout = true
   }
 

@@ -132,6 +132,10 @@ final class GhosttySurfaceBridge {
     }
   }
   func handleAction(target _: ghostty_target_s, action: ghostty_action_s) -> Bool {
+    if action.tag == GHOSTTY_ACTION_SELECTION_CHANGED {
+      surfaceView?.selectionDidChange()
+      return false
+    }
     if let handled = handleAppAction(action) { return handled }
     if let handled = handleSplitAction(action) { return handled }
     if let handled = handleTabAction(action) { return handled }
@@ -563,9 +567,7 @@ final class GhosttySurfaceBridge {
       return true
 
     case GHOSTTY_ACTION_END_SEARCH:
-      state.searchNeedle = nil
-      state.searchTotal = nil
-      state.searchSelected = nil
+      endSearch()
       return true
 
     case GHOSTTY_ACTION_SEARCH_TOTAL:
@@ -581,6 +583,13 @@ final class GhosttySurfaceBridge {
     default:
       return false
     }
+  }
+
+  private func endSearch() {
+    surfaceView?.requestFocus()
+    state.searchNeedle = nil
+    state.searchTotal = nil
+    state.searchSelected = nil
   }
 
   private func handleSizeAndKey(_ action: ghostty_action_s) -> Bool {

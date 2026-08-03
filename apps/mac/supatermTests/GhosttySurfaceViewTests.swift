@@ -1,5 +1,7 @@
 import AppKit
 import Carbon.HIToolbox
+import Clocks
+import Darwin
 import GhosttyKit
 import SwiftUI
 import Testing
@@ -98,6 +100,36 @@ struct GhosttySurfaceViewTests {
 
   @Test
   @MainActor
+  func deferredGeometryResizeInvalidatesWrapperLayout() {
+    initializeGhosttyForTests()
+
+    let surfaceView = GhosttySurfaceView(
+      runtime: GhosttyRuntime(),
+      tabID: UUID(),
+      workingDirectory: nil,
+      context: GHOSTTY_SURFACE_CONTEXT_TAB
+    )
+    let wrapper = GhosttySurfaceScrollView(surfaceView: surfaceView)
+    wrapper.frame.size = CGSize(width: 800, height: 600)
+    wrapper.layoutSubtreeIfNeeded()
+
+    wrapper.needsLayout = false
+    wrapper.invalidateLayout(ifSizeDiffersFrom: wrapper.bounds.size)
+    #expect(!wrapper.needsLayout)
+
+    wrapper.invalidateLayout(ifSizeDiffersFrom: CGSize(width: 900, height: 700))
+    #expect(wrapper.needsLayout)
+  }
+
+  @Test
+  func dragTypesExcludeGenericURLs() {
+    #expect(GhosttySurfaceView.acceptsDropTypes([.fileURL]))
+    #expect(GhosttySurfaceView.acceptsDropTypes([.string]))
+    #expect(!GhosttySurfaceView.acceptsDropTypes([.URL]))
+  }
+
+  @Test
+  @MainActor
   func failedSurfaceCreationPublishesFailure() {
     initializeGhosttyForTests()
 
@@ -116,6 +148,309 @@ struct GhosttySurfaceViewTests {
     #expect(creationCount == 1)
     #expect(surfaceView.surface == nil)
     #expect(surfaceView.bridge.state.failure == .surfaceCreationFailed)
+  }
+
+  @Test
+  @MainActor
+  func selectionChangesNotifyCurrentAccessibilityTextAfterDebounce() async {
+    initializeGhosttyForTests()
+
+    let clock = TestClock()
+    let selection = SelectionTextSource()
+    var selectionReadCount = 0
+    var notifiedSelections: [String?] = []
+    let surfaceView = GhosttySurfaceView(
+      runtime: GhosttyRuntime(),
+      tabID: UUID(),
+      workingDirectory: nil,
+      context: GHOSTTY_SURFACE_CONTEXT_TAB,
+      selectionReader: { _ in
+        selectionReadCount += 1
+        return selection.value
+      },
+      accessibilitySelectionNotifier: {
+        notifiedSelections.append($0.accessibilitySelectedText())
+      },
+      accessibilitySelectionSleep: {
+        try await clock.sleep(for: $0)
+      }
+    )
+    defer { surfaceView.closeSurface() }
+
+    selection.value = "first"
+    #expect(surfaceView.bridge.handleAction(target: selectionTarget(), action: selectionChangedAction()) == false)
+    #expect(selectionReadCount == 0)
+    await advanceClock(clock, by: .milliseconds(100))
+    #expect(notifiedSelections == ["first"])
+
+    selection.value = "second"
+    #expect(surfaceView.accessibilitySelectedText() == "second")
+    #expect(surfaceView.bridge.handleAction(target: selectionTarget(), action: selectionChangedAction()) == false)
+    await advanceClock(clock, by: .milliseconds(100))
+    #expect(notifiedSelections == ["first", "second"])
+
+    selection.value = nil
+    #expect(surfaceView.bridge.handleAction(target: selectionTarget(), action: selectionChangedAction()) == false)
+    await advanceClock(clock, by: .milliseconds(100))
+    #expect(notifiedSelections == ["first", "second", nil])
+  }
+
+  @Test
+  @MainActor
+  func rapidSelectionChangesProduceOneNotification() async {
+    initializeGhosttyForTests()
+
+    let clock = TestClock()
+    var notificationCount = 0
+    let surfaceView = GhosttySurfaceView(
+      runtime: GhosttyRuntime(),
+      tabID: UUID(),
+      workingDirectory: nil,
+      context: GHOSTTY_SURFACE_CONTEXT_TAB,
+      accessibilitySelectionNotifier: { _ in notificationCount += 1 },
+      accessibilitySelectionSleep: { try await clock.sleep(for: $0) }
+    )
+    defer { surfaceView.closeSurface() }
+
+    for _ in 0..<6 {
+      _ = surfaceView.bridge.handleAction(
+        target: selectionTarget(),
+        action: selectionChangedAction()
+      )
+      await advanceClock(clock, by: .milliseconds(75))
+      #expect(notificationCount == 0)
+    }
+
+    _ = surfaceView.bridge.handleAction(
+      target: selectionTarget(),
+      action: selectionChangedAction()
+    )
+    await advanceClock(clock, by: .milliseconds(99))
+    #expect(notificationCount == 0)
+    await advanceClock(clock, by: .milliseconds(1))
+    #expect(notificationCount == 1)
+  }
+
+  @Test
+  @MainActor
+  func closingSurfaceCancelsPendingSelectionNotification() async {
+    initializeGhosttyForTests()
+
+    let clock = TestClock()
+    var notificationCount = 0
+    let surfaceView = GhosttySurfaceView(
+      runtime: GhosttyRuntime(),
+      tabID: UUID(),
+      workingDirectory: nil,
+      context: GHOSTTY_SURFACE_CONTEXT_TAB,
+      accessibilitySelectionNotifier: { _ in notificationCount += 1 },
+      accessibilitySelectionSleep: { try await clock.sleep(for: $0) }
+    )
+
+    _ = surfaceView.bridge.handleAction(
+      target: selectionTarget(),
+      action: selectionChangedAction()
+    )
+    surfaceView.closeSurface()
+    _ = surfaceView.bridge.handleAction(
+      target: selectionTarget(),
+      action: selectionChangedAction()
+    )
+    await advanceClock(clock, by: .milliseconds(100))
+
+    #expect(notificationCount == 0)
+    #expect(surfaceView.accessibilitySelectedText() == nil)
+  }
+
+  @Test
+  @MainActor
+  func selectionChangeWithoutAccessibilityObserverIsHarmless() async {
+    initializeGhosttyForTests()
+
+    let clock = TestClock()
+    let surfaceView = GhosttySurfaceView(
+      runtime: GhosttyRuntime(),
+      tabID: UUID(),
+      workingDirectory: nil,
+      context: GHOSTTY_SURFACE_CONTEXT_TAB,
+      selectionReader: { _ in "selected text" },
+      accessibilitySelectionSleep: { try await clock.sleep(for: $0) }
+    )
+    defer { surfaceView.closeSurface() }
+
+    _ = surfaceView.bridge.handleAction(
+      target: selectionTarget(),
+      action: selectionChangedAction()
+    )
+    await advanceClock(clock, by: .milliseconds(100))
+
+    #expect(surfaceView.accessibilitySelectedText() == "selected text")
+  }
+
+  @Test
+  @MainActor
+  func copyAndServicesReadAccessibilitySelection() {
+    initializeGhosttyForTests()
+
+    let selection = SelectionTextSource()
+    let surfaceView = GhosttySurfaceView(
+      runtime: GhosttyRuntime(),
+      tabID: UUID(),
+      workingDirectory: nil,
+      context: GHOSTTY_SURFACE_CONTEXT_TAB,
+      selectionReader: { _ in selection.value }
+    )
+    defer { surfaceView.closeSurface() }
+    let copyItem = NSMenuItem(
+      title: "Copy",
+      action: #selector(GhosttySurfaceView.copy(_:)),
+      keyEquivalent: ""
+    )
+
+    #expect(!surfaceView.validateMenuItem(copyItem))
+    selection.value = ""
+    #expect(!surfaceView.validateMenuItem(copyItem))
+    selection.value = "selected text"
+    #expect(surfaceView.validateMenuItem(copyItem))
+    #expect(surfaceView.accessibilitySelectedText() == "selected text")
+
+    let pasteboard = NSPasteboard(name: NSPasteboard.Name(UUID().uuidString))
+    #expect(surfaceView.writeSelection(to: pasteboard, types: [.string]))
+    #expect(pasteboard.string(forType: .string) == "selected text")
+  }
+
+  @Test
+  func unavailableProcessIdentityNormalizesZeroPIDAndEmptyTTY() {
+    var freeCount = 0
+    let identity = GhosttySurfaceView.processIdentity(
+      foregroundProcessGroupID: { 0 },
+      ttyName: { ghostty_string_s(ptr: nil, len: 0, sentinel: false) },
+      freeString: { _ in freeCount += 1 }
+    )
+
+    #expect(identity.foregroundProcessGroupID == nil)
+    #expect(identity.ttyName == nil)
+    #expect(freeCount == 1)
+  }
+
+  @Test
+  func processIdentityReadsAndFreesOwnedTTY() {
+    let bytes = Array("/dev/ttys001".utf8CString)
+    let pointer = UnsafeMutablePointer<CChar>.allocate(capacity: bytes.count)
+    pointer.initialize(from: bytes, count: bytes.count)
+    var freeCount = 0
+
+    let identity = GhosttySurfaceView.processIdentity(
+      foregroundProcessGroupID: { 42 },
+      ttyName: {
+        ghostty_string_s(
+          ptr: UnsafePointer(pointer),
+          len: UInt(bytes.count - 1),
+          sentinel: true
+        )
+      },
+      freeString: { value in
+        #expect(value.ptr == UnsafePointer(pointer))
+        pointer.deallocate()
+        freeCount += 1
+      }
+    )
+
+    #expect(
+      identity
+        == TerminalPaneProcessIdentity(
+          foregroundProcessGroupID: 42,
+          ttyName: "/dev/ttys001"
+        )
+    )
+    #expect(freeCount == 1)
+  }
+
+  @Test
+  func processIdentityReadsFreshValues() {
+    var nextProcessID: UInt64 = 40
+    var freeCount = 0
+    let readIdentity = {
+      GhosttySurfaceView.processIdentity(
+        foregroundProcessGroupID: {
+          nextProcessID += 1
+          return nextProcessID
+        },
+        ttyName: { ghostty_string_s(ptr: nil, len: 0, sentinel: false) },
+        freeString: { _ in freeCount += 1 }
+      )
+    }
+
+    #expect(readIdentity().foregroundProcessGroupID == 41)
+    #expect(readIdentity().foregroundProcessGroupID == 42)
+    #expect(freeCount == 2)
+  }
+
+  @Test
+  @MainActor
+  func liveProcessIdentityOwnsEachTTYRead() async throws {
+    initializeGhosttyForTests()
+
+    let surfaceView = GhosttySurfaceView(
+      runtime: GhosttyRuntime(),
+      tabID: UUID(),
+      workingDirectory: nil,
+      context: GHOSTTY_SURFACE_CONTEXT_TAB
+    )
+    defer { surfaceView.closeSurface() }
+
+    let identity = try #require(
+      try await waitForProcessIdentity(surfaceView, attempts: 100) { $0.ttyName != nil }
+    )
+    #expect(identity.ttyName?.hasPrefix("/dev/") == true)
+    for _ in 0..<1_000 {
+      #expect(surfaceView.processIdentity.ttyName?.hasPrefix("/dev/") == true)
+    }
+  }
+
+  @Test
+  @MainActor
+  func liveProcessIdentityTracksShellForegroundChildAndExit() async throws {
+    initializeGhosttyForTests()
+
+    let host = TerminalHostState(runtime: GhosttyRuntime(), zmxClient: .noop, zmxSessionsEnabled: false)
+    host.ensureInitialTab(focusing: false)
+    let surface = try #require(host.selectedSurfaceView)
+    defer { surface.closeSurface() }
+
+    let shell = try #require(
+      try await waitForProcessIdentity(surface) {
+        $0.foregroundProcessGroupID != nil && $0.ttyName != nil
+      }
+    )
+    let shellProcessGroupID = try #require(shell.foregroundProcessGroupID)
+    #expect(host.paneForegroundProcessGroupID(for: surface.id) == shellProcessGroupID)
+
+    let directory = FileManager.default.temporaryDirectory
+      .appendingPathComponent("supaterm-process-identity-\(UUID().uuidString)", isDirectory: true)
+    try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+    defer { try? FileManager.default.removeItem(at: directory) }
+    let childPIDURL = directory.appendingPathComponent("child.pid")
+    surface.bridge.submitText(
+      "/bin/sh -c 'ps -o pgid= -p $$ > \(childPIDURL.path); exec /bin/sleep 120'"
+    )
+
+    let foregroundChildProcessGroupID = try #require(try await waitForProcessID(at: childPIDURL))
+    let child = try #require(
+      try await waitForProcessIdentity(surface) {
+        $0.foregroundProcessGroupID == foregroundChildProcessGroupID
+      }
+    )
+    #expect(child.ttyName == shell.ttyName)
+
+    #expect(Darwin.kill(-foregroundChildProcessGroupID, SIGTERM) == 0)
+    let postExit = try #require(
+      try await waitForProcessIdentity(surface) {
+        $0.foregroundProcessGroupID != foregroundChildProcessGroupID
+      }
+    )
+    #expect(postExit.foregroundProcessGroupID != foregroundChildProcessGroupID)
+    #expect(postExit.ttyName == shell.ttyName)
   }
 
   @Test
@@ -409,6 +744,100 @@ struct GhosttySurfaceViewTests {
 
   @Test
   @MainActor
+  func surfaceActivityRequiresSurfaceFirstResponder() throws {
+    initializeGhosttyForTests()
+
+    let surface = GhosttySurfaceView(
+      runtime: GhosttyRuntime(),
+      tabID: UUID(),
+      workingDirectory: nil,
+      context: GHOSTTY_SURFACE_CONTEXT_TAB
+    )
+    let window = NSWindow(
+      contentRect: NSRect(x: 0, y: 0, width: 400, height: 300),
+      styleMask: [.titled],
+      backing: .buffered,
+      defer: false
+    )
+    let textField = NSTextField(frame: NSRect(x: 0, y: 0, width: 120, height: 24))
+    let container = NSView(frame: window.contentView?.bounds ?? .zero)
+    surface.frame = container.bounds
+    container.addSubview(surface)
+    container.addSubview(textField)
+    window.contentView = container
+    defer {
+      surface.closeSurface()
+      window.contentView = nil
+    }
+
+    window.makeFirstResponder(surface)
+    try #require(window.firstResponder === surface)
+    #expect(
+      TerminalHostState.surfaceActivity(
+        isSelectedTab: true,
+        windowIsVisible: true,
+        windowIsKey: true,
+        focusedSurfaceID: surface.id,
+        surface: surface
+      ).isFocused
+    )
+
+    window.makeFirstResponder(textField)
+    #expect(
+      !TerminalHostState.surfaceActivity(
+        isSelectedTab: true,
+        windowIsVisible: true,
+        windowIsKey: true,
+        focusedSurfaceID: surface.id,
+        surface: surface
+      ).isFocused
+    )
+  }
+
+  @Test
+  @MainActor
+  func endSearchActionRestoresSurfaceFocusAndClearsState() throws {
+    initializeGhosttyForTests()
+
+    let surface = GhosttySurfaceView(
+      runtime: GhosttyRuntime(),
+      tabID: UUID(),
+      workingDirectory: nil,
+      context: GHOSTTY_SURFACE_CONTEXT_TAB
+    )
+    let window = NSWindow(
+      contentRect: NSRect(x: 0, y: 0, width: 400, height: 300),
+      styleMask: [.titled],
+      backing: .buffered,
+      defer: false
+    )
+    let textField = NSTextField(frame: NSRect(x: 0, y: 0, width: 120, height: 24))
+    let container = NSView(frame: window.contentView?.bounds ?? .zero)
+    surface.frame = container.bounds
+    container.addSubview(surface)
+    container.addSubview(textField)
+    window.contentView = container
+    defer {
+      surface.closeSurface()
+      window.contentView = nil
+    }
+    surface.bridge.state.searchNeedle = "needle"
+    surface.bridge.state.searchTotal = 2
+    surface.bridge.state.searchSelected = 1
+    window.makeFirstResponder(textField)
+    let target = ghostty_target_s(tag: GHOSTTY_TARGET_SURFACE, target: ghostty_target_u())
+    let action = ghostty_action_s(tag: GHOSTTY_ACTION_END_SEARCH, action: ghostty_action_u())
+
+    #expect(surface.bridge.handleAction(target: target, action: action) == false)
+
+    #expect(window.firstResponder === surface)
+    #expect(surface.bridge.state.searchNeedle == nil)
+    #expect(surface.bridge.state.searchTotal == nil)
+    #expect(surface.bridge.state.searchSelected == nil)
+  }
+
+  @Test
+  @MainActor
   func syncFocusRestoresSurfaceFirstResponderFromPassiveWindowView() async throws {
     initializeGhosttyForTests()
 
@@ -627,6 +1056,19 @@ private func keyDownEvent(
   )
 }
 
+private func selectionTarget() -> ghostty_target_s {
+  ghostty_target_s(tag: GHOSTTY_TARGET_SURFACE, target: ghostty_target_u())
+}
+
+private func selectionChangedAction() -> ghostty_action_s {
+  ghostty_action_s(tag: GHOSTTY_ACTION_SELECTION_CHANGED, action: ghostty_action_u())
+}
+
+@MainActor
+private final class SelectionTextSource {
+  var value: String?
+}
+
 private final class FocusableWrapperView: NSView {
   override var acceptsFirstResponder: Bool { true }
 }
@@ -720,6 +1162,35 @@ private func findSearchField(in root: NSView) -> NSTextField? {
     if let field = findSearchField(in: subview) {
       return field
     }
+  }
+  return nil
+}
+
+@MainActor
+private func waitForProcessIdentity(
+  _ surface: GhosttySurfaceView,
+  attempts: Int = 300,
+  matching predicate: (TerminalPaneProcessIdentity) -> Bool
+) async throws -> TerminalPaneProcessIdentity? {
+  for _ in 0..<attempts {
+    let identity = surface.processIdentity
+    if predicate(identity) {
+      return identity
+    }
+    try await Task.sleep(for: .milliseconds(10))
+  }
+  return nil
+}
+
+private func waitForProcessID(at url: URL) async throws -> Int32? {
+  for _ in 0..<300 {
+    if let value = try? String(contentsOf: url, encoding: .utf8)
+      .trimmingCharacters(in: .whitespacesAndNewlines),
+      let processID = Int32(value)
+    {
+      return processID
+    }
+    try await Task.sleep(for: .milliseconds(10))
   }
   return nil
 }
