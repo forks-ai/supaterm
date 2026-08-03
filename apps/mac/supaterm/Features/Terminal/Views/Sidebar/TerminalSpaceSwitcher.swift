@@ -44,17 +44,23 @@ struct TerminalWindowHeader: View {
   let terminal: TerminalHostState
 
   var body: some View {
-    HStack(alignment: .top, spacing: TerminalWindowHeaderMetrics.spacing) {
-      WindowTrafficLights()
-      TerminalSpaceSwitcher(
-        store: store,
-        palette: palette,
-        spaces: terminal.spaces,
-        selectedSpaceID: terminal.displayedSpaceID
-      )
-      .padding(.top, TerminalWindowHeaderMetrics.switcherTopPadding)
+    HStack(alignment: .top, spacing: 0) {
+      HStack(alignment: .top, spacing: TerminalWindowHeaderMetrics.spacing) {
+        WindowTrafficLights()
+        TerminalSpaceSwitcher(
+          store: store,
+          palette: palette,
+          spaces: terminal.spaces,
+          selectedSpaceID: terminal.displayedSpaceID
+        )
+        .padding(.top, TerminalWindowHeaderMetrics.switcherTopPadding)
+      }
+      .fixedSize()
+
+      WindowDragSurface()
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
-    .fixedSize()
+    .frame(height: TerminalSidebarLayout.scrollViewportTopInset, alignment: .topLeading)
   }
 }
 
