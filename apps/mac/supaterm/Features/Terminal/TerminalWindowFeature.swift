@@ -530,7 +530,7 @@ struct TerminalWindowFeature {
             )
             return sendCommand(.sessionDidChange)
           }
-        case .cancelled:
+        case .failed:
           state.sidebarResizeState = nil
         }
         return .none

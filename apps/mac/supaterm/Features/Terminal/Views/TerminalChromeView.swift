@@ -7,82 +7,6 @@ enum TerminalSplitMetrics {
   nonisolated static let dividerVisibleSize: CGFloat = 1
   nonisolated static let dividerInvisibleSize: CGFloat = 6
   nonisolated static let dividerHitboxSize: CGFloat = dividerVisibleSize + dividerInvisibleSize
-
-  static func resizeStripOffset(for sidebarWidth: CGFloat) -> CGFloat {
-    Swift.max(0, sidebarWidth - TerminalSidebarWidthPolicy.interactionStripWidth)
-  }
-}
-
-struct TerminalSidebarResizeState: Equatable {
-  let startingWidth: CGFloat
-  var delta: CGFloat
-}
-
-enum TerminalSidebarResizeInput: Equatable {
-  case began
-  case changed(delta: CGFloat)
-  case ended
-  case cancelled
-}
-
-enum TerminalSidebarWidthPolicy {
-  static let defaultFraction: CGFloat = 0.2
-  static let interactionStripWidth: CGFloat = 8
-  static let maximumFraction: CGFloat = 0.3
-  static let minimumFraction: CGFloat = 0.1
-
-  static func defaultWidth(for totalWidth: CGFloat) -> CGFloat {
-    Swift.max(totalWidth, 0) * defaultFraction
-  }
-
-  static func resolvedWidth(preferredWidth: CGFloat?, totalWidth: CGFloat) -> CGFloat {
-    settledWidth(for: preferredWidth ?? defaultWidth(for: totalWidth), totalWidth: totalWidth)
-  }
-
-  static func displayedWidth(
-    preferredWidth: CGFloat?,
-    resizeState: TerminalSidebarResizeState?,
-    totalWidth: CGFloat
-  ) -> CGFloat {
-    guard let resizeState else {
-      return resolvedWidth(preferredWidth: preferredWidth, totalWidth: totalWidth)
-    }
-    return settledWidth(for: resizeState, totalWidth: totalWidth)
-  }
-
-  static func resizeState(
-    preferredWidth: CGFloat?,
-    totalWidth: CGFloat
-  ) -> TerminalSidebarResizeState {
-    TerminalSidebarResizeState(
-      startingWidth: resolvedWidth(preferredWidth: preferredWidth, totalWidth: totalWidth),
-      delta: 0
-    )
-  }
-
-  static func shouldCollapse(
-    resizeState: TerminalSidebarResizeState,
-    totalWidth: CGFloat
-  ) -> Bool {
-    resizeState.startingWidth + resizeState.delta < widthRange(for: totalWidth).lowerBound
-  }
-
-  static func settledWidth(
-    for resizeState: TerminalSidebarResizeState,
-    totalWidth: CGFloat
-  ) -> CGFloat {
-    settledWidth(for: resizeState.startingWidth + resizeState.delta, totalWidth: totalWidth)
-  }
-
-  static func settledWidth(for width: CGFloat, totalWidth: CGFloat) -> CGFloat {
-    let range = widthRange(for: totalWidth)
-    return Swift.min(Swift.max(width, range.lowerBound), range.upperBound)
-  }
-
-  static func widthRange(for totalWidth: CGFloat) -> ClosedRange<CGFloat> {
-    let totalWidth = Swift.max(totalWidth, 0)
-    return (totalWidth * minimumFraction)...(totalWidth * maximumFraction)
-  }
 }
 
 enum TerminalChromeMetrics {
@@ -163,12 +87,6 @@ struct TerminalFloatingSidebarShell<Content: View>: View {
 }
 
 extension View {
-  func terminalPaneChrome(palette: Palette) -> some View {
-    self
-      .modifier(TerminalPaneSurfaceModifier(stroke: palette.detailStroke))
-      .padding(TerminalChromeMetrics.paneInset)
-  }
-
   func terminalDetailPaneChrome(palette: Palette) -> some View {
     self
       .modifier(
@@ -241,44 +159,138 @@ enum WindowTrafficLightMetrics {
   static let buttonSpacing: CGFloat = 9
   static let edgePadding: CGFloat = 19
   static let symbolSize: CGFloat = 8
+
+  static var clusterWidth: CGFloat {
+    edgePadding + buttonSize * 3 + buttonSpacing * 2
+  }
 }
 
-struct WindowTrafficLights: View {
+struct WindowTrafficLights: NSViewRepresentable {
   @Environment(\.accessibilityReduceMotion) private var reduceMotion
-  @State private var isHovering = false
 
-  var body: some View {
-    HStack(spacing: WindowTrafficLightMetrics.buttonSpacing) {
-      ForEach(TrafficLight.allCases, id: \.self) { light in
-        Button(
-          action: { light.perform() },
-          label: {
-            Circle()
-              .fill(light.color)
-              .frame(
-                width: WindowTrafficLightMetrics.buttonSize,
-                height: WindowTrafficLightMetrics.buttonSize
-              )
-              .overlay {
-                if isHovering {
-                  Image(systemName: light.symbol)
-                    .font(.system(size: WindowTrafficLightMetrics.symbolSize, weight: .black))
-                    .foregroundStyle(.black.opacity(0.55))
-                    .accessibilityHidden(true)
-                }
-              }
-          }
-        )
-        .buttonStyle(.plain)
-        .accessibilityLabel(light.accessibilityLabel)
-      }
+  func makeNSView(context: Context) -> WindowTrafficLightsView {
+    WindowTrafficLightsView(reduceMotion: reduceMotion)
+  }
+
+  func updateNSView(_ nsView: WindowTrafficLightsView, context: Context) {
+    nsView.reduceMotion = reduceMotion
+  }
+}
+
+final class WindowTrafficLightsView: WindowDragSurfaceView {
+  var reduceMotion: Bool
+
+  private let buttons: [TrafficLightButton]
+
+  init(reduceMotion: Bool) {
+    self.reduceMotion = reduceMotion
+    buttons = TrafficLight.allCases.map { TrafficLightButton(light: $0) }
+    super.init(frame: .zero)
+    buttons.forEach { addSubview($0) }
+    addTrackingArea(
+      NSTrackingArea(
+        rect: .zero,
+        options: [.activeInKeyWindow, .inVisibleRect, .mouseEnteredAndExited],
+        owner: self
+      )
+    )
+  }
+
+  @available(*, unavailable)
+  required init?(coder: NSCoder) {
+    nil
+  }
+
+  override func layout() {
+    super.layout()
+    for (index, button) in buttons.enumerated() {
+      button.frame = CGRect(
+        x: WindowTrafficLightMetrics.edgePadding
+          + CGFloat(index)
+          * (WindowTrafficLightMetrics.buttonSize + WindowTrafficLightMetrics.buttonSpacing),
+        y: bounds.height
+          - WindowTrafficLightMetrics.edgePadding
+          - WindowTrafficLightMetrics.buttonSize,
+        width: WindowTrafficLightMetrics.buttonSize,
+        height: WindowTrafficLightMetrics.buttonSize
+      )
     }
-    .padding([.top, .leading], WindowTrafficLightMetrics.edgePadding)
-    .onHover { hovering in
-      TerminalMotion.animate(.easeInOut(duration: 0.1), reduceMotion: reduceMotion) {
-        isHovering = hovering
-      }
+  }
+
+  override func hitTest(_ point: NSPoint) -> NSView? {
+    guard bounds.contains(point) else { return nil }
+    for button in buttons where button.frame.contains(point) {
+      return button
     }
+    return self
+  }
+
+  override func mouseEntered(with event: NSEvent) {
+    setHovered(true)
+  }
+
+  override func mouseExited(with event: NSEvent) {
+    setHovered(false)
+  }
+
+  private func setHovered(_ hovered: Bool) {
+    NSAnimationContext.runAnimationGroup { context in
+      context.duration = reduceMotion ? 0 : 0.1
+      buttons.forEach { $0.setSymbolVisible(hovered) }
+    }
+  }
+}
+
+private final class TrafficLightButton: NSButton {
+  private let light: TrafficLight
+  private let symbolView: NSImageView
+
+  init(light: TrafficLight) {
+    self.light = light
+    symbolView = NSImageView(
+      image: NSImage(
+        systemSymbolName: light.symbol,
+        accessibilityDescription: nil
+      ) ?? NSImage()
+    )
+    super.init(frame: .zero)
+    isBordered = false
+    wantsLayer = true
+    layer?.backgroundColor = light.color.cgColor
+    layer?.cornerRadius = WindowTrafficLightMetrics.buttonSize / 2
+    symbolView.contentTintColor = .black.withAlphaComponent(0.55)
+    symbolView.imageScaling = .scaleProportionallyDown
+    symbolView.alphaValue = 0
+    symbolView.setAccessibilityElement(false)
+    addSubview(symbolView)
+    target = self
+    action = #selector(performAction)
+    setAccessibilityLabel(light.accessibilityLabel)
+  }
+
+  @available(*, unavailable)
+  required init?(coder: NSCoder) {
+    nil
+  }
+
+  override func layout() {
+    super.layout()
+    symbolView.frame = bounds.insetBy(
+      dx: (bounds.width - WindowTrafficLightMetrics.symbolSize) / 2,
+      dy: (bounds.height - WindowTrafficLightMetrics.symbolSize) / 2
+    )
+  }
+
+  override func hitTest(_ point: NSPoint) -> NSView? {
+    bounds.contains(point) ? self : nil
+  }
+
+  func setSymbolVisible(_ visible: Bool) {
+    symbolView.animator().alphaValue = visible ? 1 : 0
+  }
+
+  @objc private func performAction() {
+    light.perform()
   }
 }
 
@@ -287,14 +299,14 @@ private enum TrafficLight: CaseIterable {
   case minimize
   case zoom
 
-  var color: Color {
+  var color: NSColor {
     switch self {
     case .close:
-      Color(red: 1, green: 0.37, blue: 0.34)
+      NSColor(red: 1, green: 0.37, blue: 0.34, alpha: 1)
     case .minimize:
-      Color(red: 1, green: 0.74, blue: 0.18)
+      NSColor(red: 1, green: 0.74, blue: 0.18, alpha: 1)
     case .zoom:
-      Color(red: 0.16, green: 0.8, blue: 0.33)
+      NSColor(red: 0.16, green: 0.8, blue: 0.33, alpha: 1)
     }
   }
 

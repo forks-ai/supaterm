@@ -127,7 +127,7 @@ struct TerminalSidebarTabRow: View {
   @State private var isPressed = false
   @State private var isCloseHovering = false
 
-  private var selectionStyle: TerminalSidebarTabSelectionStyle {
+  private var selectionStyle: SelectableRowSelection {
     selectionState.style(for: tab.id, primaryTabID: terminal.selectedTabID)
   }
 
@@ -191,13 +191,13 @@ struct TerminalSidebarTabRow: View {
     .frame(maxWidth: .infinity)
     .background {
       rowAppearance.fill(
-        selection: rowSelection,
+        selection: selectionStyle,
         isPressed: isPressed,
         isHovering: isHovering
       )
       .modifier(
         SelectableRowChrome(
-          selection: rowSelection,
+          selection: selectionStyle,
           cornerRadius: TerminalSidebarLayout.tabRowCornerRadius,
           appearance: rowAppearance,
           showsSelectionEdge: true,
@@ -227,7 +227,7 @@ struct TerminalSidebarTabRow: View {
         Button(action: close) {
           Image(systemName: "xmark")
             .font(.system(size: 12, weight: .heavy))
-            .foregroundStyle(isSelected ? palette.selectedText : palette.sidebarTabRow.title)
+            .foregroundStyle(isSelected ? palette.selectedText : palette.selectableRow.title)
             .frame(
               width: TerminalSidebarLayout.tabTrailingAccessorySize,
               height: TerminalSidebarLayout.tabTrailingAccessorySize
@@ -380,17 +380,6 @@ struct TerminalSidebarTabRow: View {
 
   private var rowAppearance: SelectableRowButtonStyle.ResolvedAppearance {
     SelectableRowButtonStyle.Appearance.sidebar.resolve(palette: palette)
-  }
-
-  private var rowSelection: SelectableRowButtonStyle.Selection {
-    switch selectionStyle {
-    case .none:
-      .none
-    case .primary:
-      .primary
-    case .secondary:
-      .secondary
-    }
   }
 
   private var animatedPresentation: AnimatedPresentation {

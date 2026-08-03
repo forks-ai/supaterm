@@ -84,17 +84,35 @@ struct WindowDragSurfaceTests {
 
     let blankPoint = NSPoint(x: header.bounds.maxX - 2, y: header.bounds.midY)
     let leftBlankPoint = NSPoint(x: 2, y: header.bounds.midY)
+    let trafficLightCenterY =
+      header.bounds.height
+      - WindowTrafficLightMetrics.edgePadding
+      - WindowTrafficLightMetrics.buttonSize / 2
+    let trafficLightGapPoint = NSPoint(
+      x: WindowTrafficLightMetrics.edgePadding
+        + WindowTrafficLightMetrics.buttonSize
+        + WindowTrafficLightMetrics.buttonSpacing / 2,
+      y: trafficLightCenterY
+    )
+    let switcherGapPoint = NSPoint(
+      x: WindowTrafficLightMetrics.clusterWidth + TerminalWindowHeaderMetrics.spacing / 2,
+      y: header.bounds.midY
+    )
+    let trafficLightBottomPoint = NSPoint(
+      x: WindowTrafficLightMetrics.edgePadding + WindowTrafficLightMetrics.buttonSize / 2,
+      y: 2
+    )
     let controlPoint = NSPoint(
       x: WindowTrafficLightMetrics.edgePadding + WindowTrafficLightMetrics.buttonSize / 2,
-      y: header.isFlipped
-        ? WindowTrafficLightMetrics.edgePadding + WindowTrafficLightMetrics.buttonSize / 2
-        : header.bounds.height - WindowTrafficLightMetrics.edgePadding
-          - WindowTrafficLightMetrics.buttonSize / 2
+      y: trafficLightCenterY
     )
     let control = try #require(header.hitTest(controlPoint))
 
     #expect(header.hitTest(blankPoint) is WindowDragSurfaceView)
     #expect(header.hitTest(leftBlankPoint) is WindowDragSurfaceView)
+    #expect(header.hitTest(trafficLightGapPoint) is WindowDragSurfaceView)
+    #expect(header.hitTest(switcherGapPoint) is WindowDragSurfaceView)
+    #expect(header.hitTest(trafficLightBottomPoint) is WindowDragSurfaceView)
     #expect(!(control is WindowDragSurfaceView))
   }
 }

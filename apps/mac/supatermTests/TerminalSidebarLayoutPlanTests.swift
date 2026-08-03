@@ -322,7 +322,6 @@ struct TerminalSidebarLayoutPlanTests {
     )
     #expect(plan.semanticTarget(at: divider.midY)?.path == .pinnedEnd)
     #expect(plan.semanticTarget(at: trailingTarget.frame.minY + 1)?.path == .trailingRoot)
-    #expect(!plan.items.contains { $0.id == .newTab })
     #expect(
       !plan.semanticTargets.contains {
         $0.path == .rootBoundary(index: 0, affinity: .after)

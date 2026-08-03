@@ -107,7 +107,7 @@ final class TerminalSidebarPinnedControlView: TerminalSidebarHostingContainerVie
   }
 
   @available(*, unavailable)
-  required init?(coder: NSCoder) { fatalError("init(coder:) is unavailable") }
+  required init?(coder: NSCoder) { nil }
 
   override func draggingEntered(_ sender: any NSDraggingInfo) -> NSDragOperation {
     onDraggingUpdated?(sender) ?? []

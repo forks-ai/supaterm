@@ -45,8 +45,17 @@ struct TerminalWindowHeader: View {
 
   var body: some View {
     HStack(alignment: .top, spacing: 0) {
-      HStack(alignment: .top, spacing: TerminalWindowHeaderMetrics.spacing) {
+      HStack(alignment: .top, spacing: 0) {
         WindowTrafficLights()
+          .frame(
+            width: WindowTrafficLightMetrics.clusterWidth,
+            height: TerminalSidebarLayout.scrollViewportTopInset
+          )
+
+        WindowDragSurface()
+          .frame(width: TerminalWindowHeaderMetrics.spacing)
+          .frame(maxHeight: .infinity)
+
         TerminalSpaceSwitcher(
           store: store,
           palette: palette,
@@ -54,21 +63,14 @@ struct TerminalWindowHeader: View {
           selectedSpaceID: terminal.displayedSpaceID
         )
         .padding(.top, TerminalWindowHeaderMetrics.switcherTopPadding)
+        .frame(height: TerminalSidebarLayout.scrollViewportTopInset, alignment: .top)
       }
-      .fixedSize()
+      .fixedSize(horizontal: true, vertical: false)
 
       WindowDragSurface()
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
     .frame(height: TerminalSidebarLayout.scrollViewportTopInset, alignment: .topLeading)
-    .overlay(alignment: .leading) {
-      WindowDragSurface()
-        .frame(width: WindowTrafficLightMetrics.edgePadding)
-    }
-    .overlay(alignment: .top) {
-      WindowDragSurface()
-        .frame(height: TerminalWindowHeaderMetrics.switcherTopPadding)
-    }
   }
 }
 

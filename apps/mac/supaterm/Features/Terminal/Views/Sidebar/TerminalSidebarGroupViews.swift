@@ -105,12 +105,6 @@ final class TerminalSidebarGroupHoverState {
   }
 }
 
-enum TerminalSidebarTabSelectionStyle: Equatable {
-  case none
-  case primary
-  case secondary
-}
-
 @MainActor
 @Observable
 final class TerminalSidebarTabSelectionState {
@@ -119,7 +113,7 @@ final class TerminalSidebarTabSelectionState {
   func style(
     for tabID: TerminalTabID,
     primaryTabID: TerminalTabID?
-  ) -> TerminalSidebarTabSelectionStyle {
+  ) -> SelectableRowSelection {
     if tabID == primaryTabID { return .primary }
     return secondaryTabIDs.contains(tabID) ? .secondary : .none
   }

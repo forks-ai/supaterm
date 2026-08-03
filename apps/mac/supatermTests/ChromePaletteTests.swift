@@ -345,7 +345,7 @@ struct ChromePaletteTests {
   }
 
   private func expectSidebarTabRowTokens(_ palette: Palette, isDark: Bool) {
-    let row = palette.sidebarTabRow
+    let row = palette.selectableRow
     let ink = isDark ? Color.white : .black
     let primarySelection = isDark ? Color.black : Color.white
     expectSameColor(

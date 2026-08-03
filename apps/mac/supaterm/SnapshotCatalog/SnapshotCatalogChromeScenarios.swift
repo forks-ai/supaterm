@@ -116,7 +116,7 @@ private struct PaletteTokenSheetSnapshotFixture: View {
   }
 
   private func tokens(for palette: Palette) -> [TokenSwatch] {
-    let sidebarTabRow = palette.sidebarTabRow
+    let sidebarTabRow = palette.selectableRow
     let semanticTokens = [
       TokenSwatch(name: "backgroundIlluminationStart", color: palette.backgroundIlluminationStartValue.color),
       TokenSwatch(name: "backgroundIlluminationStop", color: palette.backgroundIlluminationStopValue.color),

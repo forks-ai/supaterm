@@ -6,7 +6,6 @@ enum TerminalSidebarEntryID: Hashable {
   case tab(TerminalTabID)
   case group(TerminalTabGroupID)
   case pinDivider
-  case newTab
 }
 
 enum TerminalSidebarRootContent: Equatable {
@@ -141,7 +140,7 @@ struct TerminalSidebarOutline: Equatable {
       source = .tabs(tabIDs)
     case .group(let id):
       source = .group(id)
-    case .pinDivider, .newTab:
+    case .pinDivider:
       return nil
     }
     return TerminalSidebarDragPayload(

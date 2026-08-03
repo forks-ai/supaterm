@@ -114,7 +114,7 @@ struct TerminalSidebarTabSummaryView: View {
       VStack(alignment: .leading, spacing: 2) {
         Text(tab.title)
           .font(.system(size: 12, weight: .medium))
-          .foregroundStyle(isSelected ? palette.selectedText : palette.sidebarTabRow.title)
+          .foregroundStyle(isSelected ? palette.selectedText : palette.selectableRow.title)
           .lineLimit(1)
           .truncationMode(Self.titleTruncationMode(tab.title))
           .frame(maxWidth: .infinity, alignment: .leading)

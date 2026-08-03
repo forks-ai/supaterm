@@ -63,7 +63,7 @@ struct TerminalSplitView: View {
 
       if !isSidebarCollapsed {
         SidebarResizeHandle(onInput: onResizeInput)
-          .offset(x: TerminalSplitMetrics.resizeStripOffset(for: currentSidebarWidth))
+          .offset(x: TerminalSidebarWidthPolicy.stripOffset(for: currentSidebarWidth))
       }
     }
     .coordinateSpace(name: TerminalCoordinateSpace.split)
@@ -147,7 +147,7 @@ struct FloatingSidebarOverlay: View {
 
       if isVisible {
         SidebarResizeHandle(onInput: onResizeInput)
-          .offset(x: TerminalSplitMetrics.resizeStripOffset(for: floatingWidth))
+          .offset(x: TerminalSidebarWidthPolicy.stripOffset(for: floatingWidth))
           .zIndex(2)
       }
     }
@@ -214,6 +214,26 @@ private struct SidebarResizeInteractionView: NSViewRepresentable {
   }
 }
 
+enum SidebarResizeGestureRouting {
+  static func input(
+    for state: NSGestureRecognizer.State,
+    delta: CGFloat
+  ) -> TerminalSidebarResizeInput? {
+    switch state {
+    case .began:
+      .began
+    case .changed:
+      .changed(delta: delta)
+    case .ended, .cancelled:
+      .ended
+    case .failed:
+      .failed
+    default:
+      nil
+    }
+  }
+}
+
 private final class SidebarResizeInteractionNSView: NSView {
   var onInput: ((TerminalSidebarResizeInput) -> Void)?
   private var trackingArea: NSTrackingArea?
@@ -226,7 +246,7 @@ private final class SidebarResizeInteractionNSView: NSView {
 
   @available(*, unavailable)
   required init?(coder: NSCoder) {
-    fatalError("init(coder:) has not been implemented")
+    nil
   }
 
   override var mouseDownCanMoveWindow: Bool {
@@ -263,17 +283,11 @@ private final class SidebarResizeInteractionNSView: NSView {
   }
 
   @objc private func handlePan(_ recognizer: NSPanGestureRecognizer) {
-    switch recognizer.state {
-    case .began:
-      onInput?(.began)
-    case .changed:
-      onInput?(.changed(delta: translationX(for: recognizer)))
-    case .ended:
-      onInput?(.ended)
-    case .cancelled, .failed:
-      onInput?(.cancelled)
-    default:
-      break
+    if let input = SidebarResizeGestureRouting.input(
+      for: recognizer.state,
+      delta: translationX(for: recognizer)
+    ) {
+      onInput?(input)
     }
   }
 

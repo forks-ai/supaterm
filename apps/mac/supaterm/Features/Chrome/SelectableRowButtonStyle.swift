@@ -1,13 +1,13 @@
 import SupaTheme
 import SwiftUI
 
-struct SelectableRowButtonStyle: ButtonStyle {
-  enum Selection: Equatable {
-    case none
-    case primary
-    case secondary
-  }
+enum SelectableRowSelection: Equatable {
+  case none
+  case primary
+  case secondary
+}
 
+struct SelectableRowButtonStyle: ButtonStyle {
   enum Appearance {
     case standard(restFill: Color)
     case sidebar
@@ -26,13 +26,13 @@ struct SelectableRowButtonStyle: ButtonStyle {
         )
       case .sidebar:
         ResolvedAppearance(
-          primarySelectionFill: palette.sidebarTabRow.primarySelectionFill,
-          secondarySelectionFill: palette.sidebarTabRow.secondarySelectionFill,
-          pressedFill: palette.sidebarTabRow.pressedFill,
-          hoverFill: palette.sidebarTabRow.hoverFill,
-          restFill: palette.sidebarTabRow.restFill,
+          primarySelectionFill: palette.selectableRow.primarySelectionFill,
+          secondarySelectionFill: palette.selectableRow.secondarySelectionFill,
+          pressedFill: palette.selectableRow.pressedFill,
+          hoverFill: palette.selectableRow.hoverFill,
+          restFill: palette.selectableRow.restFill,
           selectedStroke: AnyShapeStyle(palette.sidebarTabRowSelectedEdge),
-          selectedShadow: palette.sidebarTabRow.shadow
+          selectedShadow: palette.selectableRow.shadow
         )
       }
     }
@@ -48,7 +48,7 @@ struct SelectableRowButtonStyle: ButtonStyle {
     let selectedShadow: Color
 
     func fill(
-      selection: Selection,
+      selection: SelectableRowSelection,
       isPressed: Bool,
       isHovering: Bool
     ) -> Color {
@@ -68,7 +68,7 @@ struct SelectableRowButtonStyle: ButtonStyle {
   }
 
   let palette: Palette
-  let selection: Selection
+  let selection: SelectableRowSelection
   let isHovering: Bool
   let cornerRadius: CGFloat
   let appearance: Appearance
@@ -125,14 +125,14 @@ enum SelectableRowShadowMetrics {
 struct SelectableRowChrome: ViewModifier {
   @Environment(\.colorScheme) private var colorScheme
 
-  let selection: SelectableRowButtonStyle.Selection
+  let selection: SelectableRowSelection
   let cornerRadius: CGFloat
   let appearance: SelectableRowButtonStyle.ResolvedAppearance
   let showsSelectionEdge: Bool
   let showsSelectionShadow: Bool
 
   init(
-    selection: SelectableRowButtonStyle.Selection,
+    selection: SelectableRowSelection,
     cornerRadius: CGFloat,
     appearance: SelectableRowButtonStyle.ResolvedAppearance,
     showsSelectionEdge: Bool,

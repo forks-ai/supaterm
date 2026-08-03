@@ -1,0 +1,940 @@
+import AppKit
+import ComposableArchitecture
+import SwiftUI
+
+@MainActor
+final class TerminalSidebarDragController {
+  struct Content {
+    let outline: TerminalSidebarOutline
+    let selectedTabID: TerminalTabID?
+    let rows: [TerminalSidebarEntryID: TerminalSidebarRowPresentation]
+    let context: TerminalSidebarRowContext
+    let motionPolicy: TerminalSidebarMotionPolicy
+    let canBeginDrag: Bool
+    let swipe: SpaceSwipeController?
+    let groupBackgroundViews: [TerminalTabGroupID: TerminalSidebarGroupBackgroundView]
+  }
+
+  struct Host {
+    let content: () -> Content?
+    let indexPath: (TerminalSidebarEntryID) -> IndexPath?
+    let entryID: (IndexPath) -> TerminalSidebarEntryID?
+    let invalidateLayout: () -> Void
+    let reconcileCompletedDrop: () -> Void
+    let hasPendingUpdate: () -> Bool
+    let didFinish: () -> Void
+    let setHoveredGroupID: (TerminalTabGroupID?) -> Void
+  }
+
+  enum OutlineDisposition {
+    case inactive
+    case unchanged
+    case queue
+    case queueAndReconcile
+    case replaceAndCancel(reason: String)
+  }
+
+  private struct PendingDrag {
+    let entryID: TerminalSidebarEntryID
+    let origin: CGPoint
+    let selectedTabIDs: [TerminalTabID]
+    let defersSelection: Bool
+  }
+
+  private struct DragSourceGeometry {
+    let itemByID: [TerminalSidebarEntryID: TerminalSidebarLayoutPlan.Item]
+    let fanAnchorIndex: Int?
+    let frame: CGRect
+  }
+
+  private struct ActiveDrag {
+    let payload: TerminalSidebarDragPayload
+    let liftedEntryIDs: [TerminalSidebarEntryID]
+    var coordinator: TerminalSidebarDragCoordinator
+    var target: TerminalSidebarDropPlan?
+  }
+
+  var performDrop: ((TerminalSidebarDropCommand) -> TerminalSidebarDropReceipt?)?
+
+  private let collectionView: TerminalSidebarCollectionView
+  private let collectionLayout: TerminalSidebarCollectionLayout
+  private let scrollView: TerminalSidebarScrollView
+  private let host: Host
+  private var pendingDrag: PendingDrag?
+  private var activeDrag: ActiveDrag?
+  private var isDraggingOverPinnedControl = false
+
+  private lazy var layoutAnimator = TerminalSidebarLayoutAnimator(
+    collectionView: collectionView,
+    layout: collectionLayout,
+    onFrame: { [weak self] in self?.host.invalidateLayout() }
+  )
+  private lazy var autoscrollController = TerminalSidebarDragAutoscrollController(
+    collectionView: collectionView,
+    scrollView: scrollView,
+    onScroll: { [weak self] pointerY in self?.updateDropTargetAfterAutoscroll(pointerY: pointerY) }
+  )
+  private lazy var dragPresentation = TerminalSidebarDragPresentation(
+    collectionView: collectionView
+  )
+  lazy var pinnedControl = TerminalSidebarPinnedControlHost(
+    draggingUpdated: { [weak self] info in
+      self?.draggingUpdatedAtPinnedControl(info) ?? []
+    },
+    draggingExited: { [weak self] in self?.draggingExited() },
+    draggingEnded: { [weak self] in self?.nativeDraggingEnded(source: "pinnedControl") },
+    prepareForDragOperation: { [weak self] info in
+      self?.prepareForDragOperation(info) == true
+    },
+    performDragOperation: { [weak self] info in
+      self?.performDragOperation(info) == true
+    }
+  )
+
+  init(
+    collectionView: TerminalSidebarCollectionView,
+    collectionLayout: TerminalSidebarCollectionLayout,
+    scrollView: TerminalSidebarScrollView,
+    host: Host
+  ) {
+    self.collectionView = collectionView
+    self.collectionLayout = collectionLayout
+    self.scrollView = scrollView
+    self.host = host
+    collectionView.onRowMouseDown = { [weak self] entryID, event in
+      self?.rowMouseDown(entryID: entryID, event: event) == true
+    }
+    collectionView.onRowMouseDragged = { [weak self] entryID, event in
+      self?.rowMouseDragged(entryID: entryID, event: event) == true
+    }
+    collectionView.onRowMouseUp = { [weak self] entryID, event in
+      self?.rowMouseUp(entryID: entryID, event: event) == true
+    }
+    collectionView.onDraggingUpdated = { [weak self] info in
+      self?.draggingUpdated(info) ?? []
+    }
+    collectionView.onDraggingExited = { [weak self] in self?.draggingExited() }
+    collectionView.onDraggingEnded = { [weak self] in
+      self?.nativeDraggingEnded(source: "destination")
+    }
+    collectionView.onPrepareForDragOperation = { [weak self] info in
+      self?.prepareForDragOperation(info) == true
+    }
+    collectionView.onPerformDragOperation = { [weak self] info in
+      self?.performDragOperation(info) == true
+    }
+    collectionView.onDraggingSessionMoved = { [weak self] point in
+      self?.draggingSessionMoved(to: point)
+    }
+    collectionView.onDraggingSessionEnded = { [weak self] _, _ in
+      self?.nativeDraggingEnded(source: "source")
+    }
+  }
+
+  var isActive: Bool { activeDrag != nil }
+  var liftedGroupID: TerminalTabGroupID? { dragPresentation.groupID }
+  var operationID: TerminalTabMoveOperationID? { activeDrag?.payload.operationID }
+
+  func disposition(
+    for incoming: TerminalSidebarOutline,
+    applied: TerminalSidebarOutline,
+    canApplyUpdate: Bool
+  ) -> OutlineDisposition {
+    guard let activeDrag else { return .inactive }
+    guard canApplyUpdate else { return .queue }
+    switch activeDrag.coordinator.phase {
+    case .tracking:
+      guard incoming.topologyStamp == activeDrag.payload.topologyStamp else {
+        return .replaceAndCancel(reason: "sourceTopologyChanged")
+      }
+      guard incoming == applied else {
+        return .replaceAndCancel(reason: "sourceSnapshotMismatch")
+      }
+      return .unchanged
+    case .frozen, .awaitingNativeEnd, .awaitingSnapshot:
+      return .queueAndReconcile
+    case .settling, .finished:
+      return .queue
+    }
+  }
+
+  func snapshotDisposition(
+    for outline: TerminalSidebarOutline
+  ) -> TerminalSidebarDragCoordinator.SnapshotDisposition? {
+    activeDrag?.coordinator.snapshotDisposition(for: outline)
+  }
+
+  func recordSnapshot(
+    _ acceptance: TerminalSidebarDragCoordinator.SnapshotAcceptance,
+    outline: TerminalSidebarOutline
+  ) {
+    guard var activeDrag else { return }
+    let settlement = activeDrag.coordinator.recordSnapshot(acceptance)
+    self.activeDrag = activeDrag
+    logDrag(
+      "sidebar.drag.snapshotSettlement",
+      fields: operationFields(activeDrag.payload.operationID)
+        + topologyFields(outline.topologyStamp)
+        + ["outcome=\(acceptance)"]
+    )
+    if let settlement {
+      guard let content = host.content() else {
+        finishDragging()
+        return
+      }
+      beginSettlement(settlement, content: content)
+    } else if host.hasPendingUpdate() {
+      host.reconcileCompletedDrop()
+    }
+  }
+
+  func cancelTopologyChange(
+    reason: String,
+    operationID: TerminalTabMoveOperationID? = nil
+  ) {
+    guard var activeDrag, operationID == nil || activeDrag.payload.operationID == operationID else {
+      return
+    }
+    let settlement = activeDrag.coordinator.cancel(topologyChanged: true)
+    self.activeDrag = activeDrag
+    logCancel(reason: reason, operationID: activeDrag.payload.operationID)
+    if let settlement {
+      guard let content = host.content() else {
+        finishDragging()
+        return
+      }
+      beginSettlement(settlement, content: content)
+    }
+  }
+
+  func stopDropTargetPresentation() {
+    autoscrollController.stop()
+    layoutAnimator.finish()
+    collectionLayout.dragDropState = nil
+    activeDrag?.target = nil
+    isDraggingOverPinnedControl = false
+    dragPresentation.resetHapticTarget()
+    host.invalidateLayout()
+  }
+
+  func setLiveScrolling(_ value: Bool) {
+    autoscrollController.setLiveScrolling(value)
+  }
+
+  private func rowMouseDown(entryID: TerminalSidebarEntryID, event: NSEvent) -> Bool {
+    guard activeDrag == nil, let content = host.content() else { return false }
+    let consumesClick = if case .tab = entryID { true } else { false }
+    guard content.canBeginDrag else {
+      selectPressedTab(entryID, modifiers: event.modifierFlags, content: content)
+      return consumesClick
+    }
+    guard let payload = content.outline.dragPayload(for: entryID) else {
+      selectPressedTab(entryID, modifiers: event.modifierFlags, content: content)
+      return consumesClick
+    }
+    if case .group(let groupID) = payload.source, content.context.renameState.groupID == groupID {
+      return consumesClick
+    }
+    guard
+      let indexPath = host.indexPath(entryID),
+      let attributes = collectionLayout.layoutAttributesForItem(at: indexPath)
+    else {
+      selectPressedTab(entryID, modifiers: event.modifierFlags, content: content)
+      return consumesClick
+    }
+    let location = collectionView.convert(event.locationInWindow, from: nil)
+    guard attributes.frame.contains(location) else {
+      selectPressedTab(entryID, modifiers: event.modifierFlags, content: content)
+      return consumesClick
+    }
+    let selection = tabPressSelection(
+      entryID: entryID,
+      modifiers: event.modifierFlags,
+      content: content
+    )
+    pendingDrag = PendingDrag(
+      entryID: entryID,
+      origin: location,
+      selectedTabIDs: selection.selectedTabIDs,
+      defersSelection: selection.defersSelection
+    )
+    switch entryID {
+    case .group:
+      return true
+    case .tab:
+      return true
+    case .pinDivider:
+      return false
+    }
+  }
+
+  private func rowMouseDragged(entryID: TerminalSidebarEntryID, event: NSEvent) -> Bool {
+    guard let pendingDrag, pendingDrag.entryID == entryID else { return false }
+    let location = collectionView.convert(event.locationInWindow, from: nil)
+    switch TerminalSidebarDragActivation.decision(
+      origin: pendingDrag.origin,
+      location: location
+    ) {
+    case .pending:
+      return false
+    case .begin:
+      self.pendingDrag = nil
+      guard let content = host.content() else { return false }
+      let beganDragging = beginDragging(
+        entryID: entryID,
+        event: event,
+        pointer: location,
+        selectedTabIDs: pendingDrag.selectedTabIDs,
+        content: content
+      )
+      if !beganDragging {
+        resolveDeferredSelection(pendingDrag, content: content)
+      }
+      return beganDragging
+    }
+  }
+
+  private func rowMouseUp(entryID: TerminalSidebarEntryID, event _: NSEvent) -> Bool {
+    let consumes = activeDrag != nil && pendingDrag?.entryID == nil
+    guard let pendingDrag, pendingDrag.entryID == entryID else { return consumes }
+    self.pendingDrag = nil
+    guard let content = host.content() else { return consumes }
+    switch entryID {
+    case .group(let groupID):
+      content.context.actions.toggleGroupCollapsed(groupID)
+      return true
+    case .tab:
+      resolveDeferredSelection(pendingDrag, content: content)
+      return true
+    case .pinDivider:
+      return consumes
+    }
+  }
+
+  private func selectTab(
+    _ tabID: TerminalTabID,
+    modifiers: NSEvent.ModifierFlags,
+    content: Content
+  ) {
+    let modifiers = modifiers.intersection([.command, .shift])
+    guard !modifiers.isEmpty else {
+      content.context.tabSelectionState.clear()
+      _ = content.context.store.send(.tabSelected(tabID))
+      return
+    }
+    applyModifiedSelection(tabID: tabID, modifiers: modifiers, content: content)
+  }
+
+  private func selectPressedTab(
+    _ entryID: TerminalSidebarEntryID,
+    modifiers: NSEvent.ModifierFlags,
+    content: Content
+  ) {
+    guard case .tab(let tabID) = entryID else { return }
+    selectTab(tabID, modifiers: modifiers, content: content)
+  }
+
+  private func tabPressSelection(
+    entryID: TerminalSidebarEntryID,
+    modifiers: NSEvent.ModifierFlags,
+    content: Content
+  ) -> (selectedTabIDs: [TerminalTabID], defersSelection: Bool) {
+    guard case .tab(let tabID) = entryID else { return ([], false) }
+    let selectedTabIDs = content.context.tabSelectionState.orderedTabIDs(
+      primaryTabID: content.selectedTabID,
+      outline: content.outline
+    )
+    switch TerminalSidebarTabPressDecision.resolve(
+      tabID: tabID,
+      modifiers: modifiers,
+      selectedTabIDs: selectedTabIDs
+    ) {
+    case .applySelection:
+      selectTab(tabID, modifiers: modifiers, content: content)
+      return (
+        content.context.tabSelectionState.contextualTabIDs(
+          for: tabID,
+          primaryTabID: content.selectedTabID,
+          outline: content.outline
+        ),
+        false
+      )
+    case .deferSelection(let selectedTabIDs):
+      return (selectedTabIDs, true)
+    }
+  }
+
+  private func resolveDeferredSelection(_ pendingDrag: PendingDrag, content: Content) {
+    guard pendingDrag.defersSelection, case .tab(let tabID) = pendingDrag.entryID else { return }
+    selectTab(tabID, modifiers: [], content: content)
+  }
+
+  private func applyModifiedSelection(
+    tabID: TerminalTabID,
+    modifiers: NSEvent.ModifierFlags,
+    content: Content
+  ) {
+    guard let selectedTabID = content.selectedTabID else {
+      content.context.tabSelectionState.clear()
+      _ = content.context.store.send(.tabSelected(tabID))
+      return
+    }
+    if modifiers.contains(.shift) {
+      content.context.tabSelectionState.selectRange(
+        to: tabID,
+        primaryTabID: selectedTabID,
+        outline: content.outline,
+        additive: modifiers.contains(.command)
+      )
+    } else {
+      content.context.tabSelectionState.toggle(tabID, primaryTabID: selectedTabID)
+    }
+  }
+
+  private func beginDragging(
+    entryID: TerminalSidebarEntryID,
+    event: NSEvent,
+    pointer: CGPoint,
+    selectedTabIDs: [TerminalTabID],
+    content: Content
+  ) -> Bool {
+    guard content.canBeginDrag, content.swipe?.isTracking != true else { return false }
+    if case .group = entryID {
+      content.context.tabSelectionState.clear()
+    }
+    guard
+      let payload = content.outline.dragPayload(
+        for: entryID,
+        selectedTabIDs: selectedTabIDs
+      )
+    else { return false }
+    let liftedEntryIDs = content.outline.liftedEntryIDs(for: payload.source)
+    host.setHoveredGroupID(nil)
+    content.context.groupHeaderHoverState.set(nil)
+    guard
+      let geometry = dragSourceGeometry(
+        payload: payload,
+        liftedEntryIDs: liftedEntryIDs,
+        anchorEntryID: entryID
+      ),
+      let liftedRows = liftRows(liftedEntryIDs, itemByID: geometry.itemByID, content: content)
+    else { return false }
+    activeDrag = ActiveDrag(
+      payload: payload,
+      liftedEntryIDs: liftedEntryIDs,
+      coordinator: TerminalSidebarDragCoordinator(payload: payload),
+      target: nil
+    )
+    content.swipe?.isRowDragActive = true
+    let screenPoint = screenPoint(for: event)
+    collectionLayout.dragDropState = TerminalSidebarDragDropState(
+      draggingItemIDs: liftedEntryIDs,
+      target: nil
+    )
+    dragPresentation.begin(
+      TerminalSidebarDragPresentation.Lift(
+        rows: liftedRows,
+        groupBackground: liftedGroupBackground(for: payload.source, content: content),
+        fanAnchorIndex: geometry.fanAnchorIndex,
+        sourceFrame: geometry.frame,
+        hotspot: CGPoint(x: pointer.x - geometry.frame.minX, y: pointer.y - geometry.frame.minY),
+        screenPoint: screenPoint,
+        timestamp: event.timestamp
+      ),
+      motionPolicy: content.motionPolicy
+    )
+    host.invalidateLayout()
+    logDrag(
+      "sidebar.drag.activation",
+      fields: activeFields(payload) + [
+        "sourceMinY=\(coordinate(geometry.frame.minY))",
+        "sourceMaxY=\(coordinate(geometry.frame.maxY))",
+      ]
+    )
+    beginNativeDraggingSession(payload: payload, frame: geometry.frame, event: event)
+    return true
+  }
+
+  private func dragSourceGeometry(
+    payload: TerminalSidebarDragPayload,
+    liftedEntryIDs: [TerminalSidebarEntryID],
+    anchorEntryID: TerminalSidebarEntryID
+  ) -> DragSourceGeometry? {
+    let sourceIDs = Set(liftedEntryIDs)
+    let sourceItems = collectionLayout.plan.items.filter {
+      sourceIDs.contains($0.id) && $0.frame.height > 0
+    }
+    guard sourceItems.count == liftedEntryIDs.count else { return nil }
+    let itemByID = Dictionary(uniqueKeysWithValues: sourceItems.map { ($0.id, $0) })
+    switch payload.source {
+    case .tabs:
+      guard
+        let anchorIndex = liftedEntryIDs.firstIndex(of: anchorEntryID),
+        let anchorFrame = itemByID[anchorEntryID]?.frame
+      else { return nil }
+      return DragSourceGeometry(
+        itemByID: itemByID,
+        fanAnchorIndex: anchorIndex,
+        frame: TerminalSidebarLiveDragGeometry.fanFrame(
+          anchorFrame: anchorFrame,
+          rowHeights: liftedEntryIDs.compactMap { itemByID[$0]?.frame.height },
+          anchorIndex: anchorIndex
+        )
+      )
+    case .group:
+      guard
+        let frame = sourceItems.map(\.frame).reduce(
+          Optional<CGRect>.none,
+          { $0?.union($1) ?? $1 }
+        )
+      else { return nil }
+      return DragSourceGeometry(itemByID: itemByID, fanAnchorIndex: nil, frame: frame)
+    }
+  }
+
+  private func liftRows(
+    _ entryIDs: [TerminalSidebarEntryID],
+    itemByID: [TerminalSidebarEntryID: TerminalSidebarLayoutPlan.Item],
+    content: Content
+  ) -> [TerminalSidebarLiftedRow]? {
+    var liftedRows: [TerminalSidebarLiftedRow] = []
+    for entryID in entryIDs {
+      guard let sourceItem = itemByID[entryID] else {
+        liftedRows.forEach { $0.restore() }
+        return nil
+      }
+      if let indexPath = host.indexPath(entryID),
+        let item = collectionView.item(at: indexPath) as? TerminalSidebarCollectionItem,
+        let lifted = item.liftHostedView(sourceFrame: sourceItem.frame)
+      {
+        liftedRows.append(lifted)
+        continue
+      }
+      guard let presentation = content.rows[entryID] else {
+        liftedRows.forEach { $0.restore() }
+        return nil
+      }
+      let hostedView = NSHostingView(
+        rootView: TerminalSidebarHostedRow(
+          presentation: presentation,
+          context: content.context
+        )
+      )
+      hostedView.frame.size = sourceItem.frame.size
+      liftedRows.append(
+        TerminalSidebarLiftedRow(
+          hostedView: hostedView,
+          sourceFrame: sourceItem.frame,
+          restore: {}
+        )
+      )
+    }
+    return liftedRows
+  }
+
+  private func liftedGroupBackground(
+    for source: TerminalSidebarDragSource,
+    content: Content
+  ) -> TerminalSidebarLiftedGroupBackground? {
+    guard
+      case .group(let groupID) = source,
+      let view = content.groupBackgroundViews[groupID]
+    else {
+      return nil
+    }
+    return TerminalSidebarLiftedGroupBackground(id: groupID, view: view, sourceFrame: view.frame)
+  }
+
+  private func beginNativeDraggingSession(
+    payload: TerminalSidebarDragPayload,
+    frame: CGRect,
+    event: NSEvent
+  ) {
+    let pasteboardItem = NSPasteboardItem()
+    pasteboardItem.setString(
+      payload.operationID.rawValue.uuidString,
+      forType: .terminalSidebarOutlineItem
+    )
+    let draggingItem = NSDraggingItem(pasteboardWriter: pasteboardItem)
+    draggingItem.setDraggingFrame(frame, contents: nil)
+    let session = collectionView.beginDraggingSession(
+      with: [draggingItem],
+      event: event,
+      source: collectionView
+    )
+    session.draggingFormation = .none
+    session.animatesToStartingPositionsOnCancelOrFail = false
+  }
+
+  private func draggingUpdated(_ info: any NSDraggingInfo) -> NSDragOperation {
+    guard
+      info.draggingSource as AnyObject? === collectionView,
+      let activeDrag,
+      case .tracking = activeDrag.coordinator.phase,
+      let content = host.content()
+    else { return [] }
+    isDraggingOverPinnedControl = false
+    let location = collectionView.convert(info.draggingLocation, from: nil)
+    autoscrollController.update(pointerY: location.y)
+    updateDropTarget(pointerY: location.y, content: content)
+    guard self.activeDrag?.target != nil else { return [] }
+    info.numberOfValidItemsForDrop = 1
+    return .move
+  }
+
+  private func draggingUpdatedAtPinnedControl(_ info: any NSDraggingInfo) -> NSDragOperation {
+    guard
+      info.draggingSource as AnyObject? === collectionView,
+      let activeDrag,
+      case .tracking = activeDrag.coordinator.phase,
+      let content = host.content()
+    else { return [] }
+    isDraggingOverPinnedControl = true
+    autoscrollController.update(
+      pointerY: TerminalSidebarPinnedDropRouting.autoscrollPointerY(
+        in: collectionView.visibleRect
+      )
+    )
+    updatePinnedNewTabDropTarget(content: content)
+    guard activeDrag.target != nil else { return [] }
+    info.numberOfValidItemsForDrop = 1
+    return .move
+  }
+
+  private func draggingExited() {
+    isDraggingOverPinnedControl = false
+    autoscrollController.stop()
+    guard
+      let activeDrag,
+      case .tracking = activeDrag.coordinator.phase,
+      let content = host.content()
+    else { return }
+    setDropTarget(nil, pointerY: nil, content: content)
+  }
+
+  private func prepareForDragOperation(_ info: any NSDraggingInfo) -> Bool {
+    guard
+      info.draggingSource as AnyObject? === collectionView,
+      var activeDrag,
+      let target = activeDrag.target,
+      activeDrag.coordinator.freeze(target) != nil
+    else { return false }
+    self.activeDrag = activeDrag
+    autoscrollController.stop()
+    logDrag(
+      "sidebar.drag.freeze",
+      fields: activeFields(activeDrag.payload) + targetFields(target)
+    )
+    return true
+  }
+
+  private func performDragOperation(_ info: any NSDraggingInfo) -> Bool {
+    guard
+      info.draggingSource as AnyObject? === collectionView,
+      var activeDrag,
+      let command = activeDrag.coordinator.command,
+      let plan = activeDrag.coordinator.frozenPlan
+    else { return false }
+    logDrag(
+      "sidebar.drag.transactionRequest",
+      fields: activeFields(activeDrag.payload) + targetFields(plan)
+    )
+    let receipt = performDrop?(command)
+    guard activeDrag.coordinator.complete(receipt) else { return false }
+    self.activeDrag = activeDrag
+    if let receipt {
+      logDrag(
+        "sidebar.drag.receiptSuccess",
+        fields: activeFields(activeDrag.payload) + [
+          "receiptRevision=\(receipt.topologyRevision)",
+          "deletedGroupCount=\(receipt.deletedEmptyGroupIDs.count)",
+        ]
+      )
+    } else {
+      logDrag(
+        "sidebar.drag.receiptRejection",
+        fields: activeFields(activeDrag.payload) + ["reason=transactionRejected"]
+      )
+    }
+    host.reconcileCompletedDrop()
+    return receipt != nil
+  }
+
+  private func draggingSessionMoved(to screenPoint: NSPoint) {
+    guard let activeDrag else { return }
+    switch activeDrag.coordinator.phase {
+    case .settling, .finished: return
+    case .tracking, .frozen, .awaitingNativeEnd, .awaitingSnapshot: break
+    }
+    dragPresentation.move(to: screenPoint)
+  }
+
+  private func nativeDraggingEnded(source: String) {
+    pendingDrag = nil
+    isDraggingOverPinnedControl = false
+    autoscrollController.stop()
+    guard var activeDrag else { return }
+    let previousPhase = activeDrag.coordinator.phase
+    let settlement = activeDrag.coordinator.nativeEnded()
+    self.activeDrag = activeDrag
+    switch previousPhase {
+    case .tracking, .frozen:
+      logCancel(
+        reason: "nativeEndedWithoutReceipt.\(source)",
+        operationID: activeDrag.payload.operationID
+      )
+    case .awaitingNativeEnd(_, nil, _):
+      logCancel(
+        reason: "transactionRejected.\(source)",
+        operationID: activeDrag.payload.operationID
+      )
+    case .awaitingNativeEnd, .awaitingSnapshot, .settling, .finished:
+      break
+    }
+    if let settlement {
+      guard let content = host.content() else {
+        finishDragging()
+        return
+      }
+      beginSettlement(settlement, content: content)
+    }
+  }
+
+  private func updateDropTarget(pointerY: CGFloat, content: Content) {
+    guard let activeDrag, case .tracking = activeDrag.coordinator.phase else { return }
+    let semanticTarget = collectionLayout.dropTargetMap.semanticTarget(at: pointerY)
+    let target = semanticTarget.flatMap {
+      TerminalSidebarDropPlanner.plan(
+        payload: activeDrag.payload,
+        path: $0.path,
+        outline: content.outline
+      )
+    }
+    setDropTarget(target, pointerY: pointerY, content: content)
+  }
+
+  private func updateDropTargetAfterAutoscroll(pointerY: CGFloat) {
+    guard let content = host.content() else { return }
+    if isDraggingOverPinnedControl {
+      updatePinnedNewTabDropTarget(content: content)
+    } else {
+      updateDropTarget(pointerY: pointerY, content: content)
+    }
+  }
+
+  private func updatePinnedNewTabDropTarget(content: Content) {
+    guard let activeDrag, case .tracking = activeDrag.coordinator.phase else { return }
+    let target = TerminalSidebarPinnedDropRouting.target(
+      payload: activeDrag.payload,
+      outline: content.outline
+    )
+    setDropTarget(target, pointerY: nil, content: content)
+  }
+
+  private func setDropTarget(
+    _ target: TerminalSidebarDropPlan?,
+    pointerY: CGFloat?,
+    content: Content
+  ) {
+    guard var activeDrag else { return }
+    let changed = activeDrag.target != target
+    if changed {
+      activeDrag.target = target
+      self.activeDrag = activeDrag
+      logDrag(
+        "sidebar.drag.targetTransition",
+        fields: activeFields(activeDrag.payload)
+          + ["pointerY=\(pointerY.map(coordinate) ?? "nil")"]
+          + (target.map(targetFields) ?? ["semanticTarget=none"])
+      )
+      layoutAnimator.animate(enabled: content.motionPolicy.targetInterpolation) {
+        collectionLayout.dragDropState = TerminalSidebarDragDropState(
+          draggingItemIDs: activeDrag.liftedEntryIDs,
+          target: target
+        )
+      }
+    }
+    dragPresentation.updateHapticTarget(target?.path)
+    if changed { host.invalidateLayout() }
+  }
+
+  private func beginSettlement(
+    _ settlement: TerminalSidebarDragCoordinator.Settlement,
+    content: Content
+  ) {
+    guard let activeDrag else { return }
+    switch settlement {
+    case .accepted:
+      settleDragging(accepted: true, content: content)
+    case .superseded:
+      finishDragging()
+    case .rejected(let topologyChanged):
+      if topologyChanged {
+        finishDragging()
+      } else {
+        logCancel(reason: "dropRejected", operationID: activeDrag.payload.operationID)
+        settleDragging(accepted: false, content: content)
+      }
+    }
+  }
+
+  private func settleDragging(accepted: Bool, content: Content) {
+    guard activeDrag != nil, let sourceFrame = dragPresentation.sourceFrame else {
+      finishDragging()
+      return
+    }
+    autoscrollController.stop()
+    layoutAnimator.finish()
+    let destination = accepted ? settlementFrame(sourceFrame: sourceFrame) : sourceFrame
+    dragPresentation.settle(
+      TerminalSidebarDragPresentation.Settlement(
+        targetFrame: destination,
+        rippleFocusFrame: collectionLayout.plan.dropPlaceholderFrame ?? destination,
+        accepted: accepted,
+        motionPolicy: content.motionPolicy,
+        rippleCandidates: accepted ? rippleCandidates(content: content) : []
+      )
+    ) { [weak self] in
+      self?.finishDragging()
+    }
+  }
+
+  private func settlementFrame(sourceFrame: CGRect) -> CGRect {
+    if let placeholder = collectionLayout.plan.dropPlaceholderFrame {
+      return CGRect(
+        x: placeholder.minX,
+        y: placeholder.midY - sourceFrame.height / 2,
+        width: sourceFrame.width,
+        height: sourceFrame.height
+      )
+    }
+    if let groupID = collectionLayout.plan.highlightedGroupID,
+      let frame = collectionLayout.plan.groups.first(where: { $0.id == groupID })?.frame
+    {
+      return frame
+    }
+    return sourceFrame
+  }
+
+  private func rippleCandidates(
+    content: Content
+  ) -> [TerminalSidebarDragPresentation.RippleCandidate] {
+    let draggedIDs = Set(activeDrag?.liftedEntryIDs ?? [])
+    let itemFrames = Dictionary(
+      uniqueKeysWithValues: collectionLayout.plan.items.map { ($0.id, $0.frame) }
+    )
+    let candidates = collectionView.visibleItems().compactMap {
+      item -> TerminalSidebarDragPresentation.RippleCandidate? in
+      guard
+        let item = item as? TerminalSidebarCollectionItem,
+        let indexPath = collectionView.indexPath(for: item),
+        let id = host.entryID(indexPath),
+        !draggedIDs.contains(id),
+        let frame = itemFrames[id],
+        frame.height > 0,
+        let presentation = content.rows[id]
+      else { return nil }
+      switch presentation {
+      case .tab, .group: break
+      case .pinDivider, .newTab: return nil
+      }
+      item.view.wantsLayer = true
+      guard let layer = item.view.layer else { return nil }
+      return TerminalSidebarDragPresentation.RippleCandidate(
+        layer: layer,
+        frame: frame,
+        center: CGPoint(x: item.view.bounds.midX, y: item.view.bounds.midY)
+      )
+    }
+    return candidates
+  }
+
+  private func finishDragging() {
+    dragPresentation.finish()
+    collectionLayout.dragDropState = nil
+    activeDrag?.coordinator.finish()
+    activeDrag = nil
+    pendingDrag = nil
+    isDraggingOverPinnedControl = false
+    host.content()?.swipe?.isRowDragActive = false
+    host.invalidateLayout()
+    host.didFinish()
+  }
+
+  private func screenPoint(for event: NSEvent) -> CGPoint {
+    guard let window = event.window else { return NSEvent.mouseLocation }
+    return window.convertPoint(toScreen: event.locationInWindow)
+  }
+
+  private func logDrag(_ event: String, fields: [String]) {
+    SupatermLog.verbose(SupatermLog.sidebarDrag, event, fields: fields)
+  }
+
+  private func activeFields(_ payload: TerminalSidebarDragPayload) -> [String] {
+    operationFields(payload.operationID) + [
+      "source=\(dragName(payload.source))",
+      "sourceIDs=\(payload.source.itemIDs.map(rootID).joined(separator: ","))",
+      "sourceSpace=\(SupatermLog.uuid(payload.topologyStamp.spaceID.rawValue))",
+      "sourceRevision=\(payload.topologyStamp.revision)",
+    ]
+  }
+
+  private func topologyFields(_ stamp: TerminalSidebarTopologyStamp?) -> [String] {
+    guard let stamp else { return ["space=nil", "revision=0"] }
+    return [
+      "space=\(SupatermLog.uuid(stamp.spaceID.rawValue))",
+      "revision=\(stamp.revision)",
+    ]
+  }
+
+  private func operationFields(_ operationID: TerminalTabMoveOperationID) -> [String] {
+    ["operationID=\(SupatermLog.uuid(operationID.rawValue))"]
+  }
+
+  private func targetFields(_ plan: TerminalSidebarDropPlan) -> [String] {
+    ["semanticTarget=\(semanticPath(plan.path))", "destination=\(destination(plan.destination))"]
+  }
+
+  private func logCancel(reason: String, operationID: TerminalTabMoveOperationID) {
+    logDrag(
+      "sidebar.drag.cancel",
+      fields: operationFields(operationID) + ["reason=\(reason)"]
+    )
+  }
+
+  private func dragName(_ value: TerminalSidebarDragSource) -> String {
+    switch value {
+    case .tabs: "tabs"
+    case .group: "group"
+    }
+  }
+
+  private func rootID(_ id: TerminalTabRootItemID) -> String {
+    switch id {
+    case .tab(let id): "tab:\(SupatermLog.uuid(id.rawValue))"
+    case .group(let id): "group:\(SupatermLog.uuid(id.rawValue))"
+    }
+  }
+
+  private func semanticPath(_ path: TerminalSidebarSemanticPath) -> String {
+    switch path {
+    case .rootItem(let index): "rootItem:\(index)"
+    case .rootBoundary(let index, let affinity): "rootBoundary:\(index):\(affinity)"
+    case .group(let id, let index): "group:\(SupatermLog.uuid(id.rawValue)):\(index)"
+    case .pinnedEnd: "pinnedEnd"
+    case .trailingRoot: "trailingRoot"
+    }
+  }
+
+  private func destination(_ destination: TerminalSidebarDropDestination) -> String {
+    switch destination {
+    case .root(let isPinned, let index): "root:\(isPinned):\(index)"
+    case .group(let id, let index): "group:\(SupatermLog.uuid(id.rawValue)):\(index)"
+    }
+  }
+
+  private func coordinate(_ value: CGFloat) -> String {
+    String(format: "%.1f", Double(value))
+  }
+
+}
