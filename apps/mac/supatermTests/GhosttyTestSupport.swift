@@ -37,6 +37,37 @@ func initializeGhosttyForTests() {
   _ = ghosttyInitializedForTests
 }
 
+@MainActor
+func makeFindPasteboard(_ string: String? = nil) -> NSPasteboard {
+  let pasteboard = NSPasteboard(name: NSPasteboard.Name("supaterm-find-\(UUID().uuidString)"))
+  replaceFindPasteboard(pasteboard, with: string)
+  return pasteboard
+}
+
+@MainActor
+func replaceFindPasteboard(_ pasteboard: NSPasteboard, with string: String?) {
+  pasteboard.clearContents()
+  if let string {
+    _ = pasteboard.setString(string, forType: .string)
+  }
+}
+
+func withStartSearchAction<T>(
+  needle: String?,
+  _ body: (ghostty_action_s) -> T
+) -> T {
+  var action = ghostty_action_s(tag: GHOSTTY_ACTION_START_SEARCH, action: ghostty_action_u())
+  guard let needle else { return body(action) }
+  return needle.withCString { pointer in
+    action.action.start_search.needle = pointer
+    return body(action)
+  }
+}
+
+func ghosttySurfaceTarget() -> ghostty_target_s {
+  ghostty_target_s(tag: GHOSTTY_TARGET_SURFACE, target: ghostty_target_u())
+}
+
 func makeGhosttyRuntime(
   _ config: String,
   applicationIsActive: () -> Bool = { NSApp.isActive },

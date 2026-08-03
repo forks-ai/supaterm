@@ -120,12 +120,12 @@ struct GhosttySurfaceSearchOverlay: View {
       }
       .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: corner.alignment)
       .onAppear {
+        restoreSearchNeedleOnAppear()
         focusSearchFieldIfNeeded()
         selectSearchNeedleIfNeeded()
-        scheduleSearch(searchText)
       }
       .onChange(of: searchText) { _, newValue in
-        scheduleSearch(newValue)
+        searchNeedleDidChange(newValue)
       }
       .onChange(of: state.searchNeedle) { _, newValue in
         guard let newValue else { return }
@@ -172,7 +172,7 @@ struct GhosttySurfaceSearchOverlay: View {
   private func scheduleSearch(_ needle: String) {
     searchTask?.cancel()
     if needle.isEmpty || needle.count >= 3 {
-      emitSearch(needle)
+      performSearch(needle)
       return
     }
 
@@ -184,13 +184,17 @@ struct GhosttySurfaceSearchOverlay: View {
         return
       }
       guard !Task.isCancelled else { return }
-      emitSearch(text)
+      performSearch(text)
     }
   }
 
-  private func emitSearch(_ needle: String) {
-    surfaceView.bridge.setSearchNeedle(needle)
+  private func performSearch(_ needle: String) {
     surfaceView.performBindingAction("search:\(needle)")
+  }
+
+  private func searchNeedleDidChange(_ needle: String) {
+    surfaceView.bridge.setSearchNeedle(needle)
+    scheduleSearch(needle)
   }
 
   private func navigateSearch(_ direction: GhosttySearchDirection) {
@@ -206,7 +210,18 @@ struct GhosttySurfaceSearchOverlay: View {
     guard let searchTask else { return }
     searchTask.cancel()
     self.searchTask = nil
-    emitSearch(searchText)
+    surfaceView.bridge.setSearchNeedle(searchText)
+    performSearch(searchText)
+  }
+
+  private func restoreSearchNeedleOnAppear() {
+    surfaceView.bridge.restoreSearchNeedle()
+    let needle = state.searchNeedle ?? searchText
+    if needle == searchText {
+      searchNeedleDidChange(needle)
+    } else {
+      searchText = needle
+    }
   }
 
   private func focusSearchFieldIfNeeded() {
@@ -338,12 +353,11 @@ private struct GhosttySearchField: NSViewRepresentable {
       window.makeFirstResponder(nsView)
     }
 
-    guard
-      context.coordinator.selectionRequest != selectionRequest,
-      let editor = nsView.currentEditor()
-    else { return }
+    guard context.coordinator.selectionRequest != selectionRequest else { return }
     context.coordinator.selectionRequest = selectionRequest
-    editor.selectedRange = NSRange(location: 0, length: nsView.stringValue.utf16.count)
+    if let editor = nsView.currentEditor() {
+      editor.selectedRange = NSRange(location: 0, length: nsView.stringValue.utf16.count)
+    }
   }
 
   final class Coordinator: NSObject, NSTextFieldDelegate {
