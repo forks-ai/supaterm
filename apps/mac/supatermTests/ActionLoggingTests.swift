@@ -77,7 +77,7 @@ struct ActionLoggingTests {
   func noisyActionLabelsStayLocalOnly() {
     let events = [
       terminalEvent(for: .commandPaletteQueryChanged("secret")),
-      terminalEvent(for: .sidebarFractionChanged(0.42)),
+      terminalEvent(for: .sidebarResizeInput(.changed(delta: 42), totalWidth: 1_440)),
       terminalEvent(for: .spaceEditorTextChanged("secret")),
       terminalEvent(for: .windowActivityChanged(.inactive)),
     ]

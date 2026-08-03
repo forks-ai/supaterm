@@ -12,39 +12,18 @@ struct TerminalSplitView: View {
   let terminal: TerminalHostState
   let totalWidth: CGFloat
   let isSidebarCollapsed: Bool
-  @Binding var sidebarFraction: CGFloat
-  let minFraction: CGFloat
-  let maxFraction: CGFloat
-  let onHide: () -> Void
+  let sidebarWidth: CGFloat?
+  let sidebarResizeState: TerminalSidebarResizeState?
+  let onResizeInput: (TerminalSidebarResizeInput) -> Void
   let dismissReleaseAnnouncement: () -> Void
 
-  @State private var dragFraction: CGFloat?
-
   var body: some View {
-    let effectiveFraction = TerminalSplitMetrics.clampedFraction(
-      dragFraction ?? sidebarFraction,
-      minFraction: minFraction,
-      maxFraction: maxFraction
+    let currentSidebarWidth = TerminalSidebarWidthPolicy.displayedWidth(
+      preferredWidth: sidebarWidth,
+      resizeState: sidebarResizeState,
+      totalWidth: totalWidth
     )
-    let isCollapsePreviewActive = TerminalSplitMetrics.isCollapsePreviewActive(
-      dragFraction: dragFraction,
-      minFraction: minFraction
-    )
-    let handleFraction = TerminalSplitMetrics.handleFraction(
-      dragFraction: dragFraction,
-      committedFraction: effectiveFraction,
-      maxFraction: maxFraction
-    )
-    let currentSidebarWidth = TerminalSplitMetrics.sidebarWidth(
-      for: totalWidth,
-      fraction: effectiveFraction
-    )
-    let handleWidth = TerminalSplitMetrics.sidebarWidth(
-      for: totalWidth,
-      fraction: handleFraction
-    )
-    let visualSidebarCollapsed = isSidebarCollapsed || isCollapsePreviewActive
-    let visibleSidebarWidth = visualSidebarCollapsed ? 0 : currentSidebarWidth
+    let visibleSidebarWidth = isSidebarCollapsed ? 0 : currentSidebarWidth
 
     ZStack(alignment: .leading) {
       HStack(spacing: 0) {
@@ -54,18 +33,18 @@ struct TerminalSplitView: View {
           releaseAnnouncement: releaseAnnouncement,
           palette: palette,
           terminal: terminal,
-          isPagingActive: !visualSidebarCollapsed,
+          isPagingActive: !isSidebarCollapsed,
           dismissReleaseAnnouncement: dismissReleaseAnnouncement
         )
         .frame(width: currentSidebarWidth)
         .frame(maxHeight: .infinity)
-        .offset(x: visualSidebarCollapsed ? -(currentSidebarWidth + 12) : 0)
+        .offset(x: isSidebarCollapsed ? -(currentSidebarWidth + 12) : 0)
         .frame(width: visibleSidebarWidth, alignment: .leading)
         .mask(alignment: .leading) {
           Rectangle()
             .padding(.trailing, -TerminalChromeMetrics.paneInset)
         }
-        .allowsHitTesting(!visualSidebarCollapsed)
+        .allowsHitTesting(!isSidebarCollapsed)
 
         if let selectedTabID = terminal.selectedTabID {
           TerminalDetailView(
@@ -83,15 +62,8 @@ struct TerminalSplitView: View {
       }
 
       if !isSidebarCollapsed {
-        SidebarResizeHandle(
-          totalWidth: totalWidth,
-          sidebarFraction: $sidebarFraction,
-          dragFraction: $dragFraction,
-          minFraction: minFraction,
-          maxFraction: maxFraction,
-          onHide: onHide
-        )
-        .offset(x: TerminalSplitMetrics.resizeHandleOffset(for: handleWidth))
+        SidebarResizeHandle(onInput: onResizeInput)
+          .offset(x: TerminalSplitMetrics.resizeStripOffset(for: currentSidebarWidth))
       }
     }
     .coordinateSpace(name: TerminalCoordinateSpace.split)
@@ -137,25 +109,20 @@ struct FloatingSidebarOverlay: View {
   let palette: Palette
   let terminal: TerminalHostState
   let totalWidth: CGFloat
-  @Binding var sidebarFraction: CGFloat
+  let sidebarWidth: CGFloat?
+  let sidebarResizeState: TerminalSidebarResizeState?
   @Binding var isVisible: Bool
-  let minFraction: CGFloat
-  let maxFraction: CGFloat
+  let onResizeInput: (TerminalSidebarResizeInput) -> Void
   let dismissReleaseAnnouncement: () -> Void
 
   @Environment(\.accessibilityReduceMotion) private var reduceMotion
-  @State private var dragFraction: CGFloat?
   @State private var hidesAfterPaging = false
 
   var body: some View {
-    let effectiveFraction = TerminalSplitMetrics.clampedFraction(
-      dragFraction ?? sidebarFraction,
-      minFraction: minFraction,
-      maxFraction: maxFraction
-    )
-    let floatingWidth = TerminalSplitMetrics.sidebarWidth(
-      for: totalWidth,
-      fraction: effectiveFraction
+    let floatingWidth = TerminalSidebarWidthPolicy.displayedWidth(
+      preferredWidth: sidebarWidth,
+      resizeState: sidebarResizeState,
+      totalWidth: totalWidth
     )
 
     ZStack(alignment: .leading) {
@@ -180,15 +147,9 @@ struct FloatingSidebarOverlay: View {
       }
 
       if isVisible {
-        SidebarResizeHandle(
-          totalWidth: totalWidth,
-          sidebarFraction: $sidebarFraction,
-          dragFraction: $dragFraction,
-          minFraction: minFraction,
-          maxFraction: maxFraction
-        )
-        .offset(x: TerminalSplitMetrics.resizeHandleOffset(for: floatingWidth))
-        .zIndex(2)
+        SidebarResizeHandle(onInput: onResizeInput)
+          .offset(x: TerminalSplitMetrics.resizeStripOffset(for: floatingWidth))
+          .zIndex(2)
       }
     }
     .coordinateSpace(name: TerminalCoordinateSpace.floatingSidebar)
@@ -231,50 +192,17 @@ struct FloatingSidebarOverlay: View {
 }
 
 private struct SidebarResizeHandle: View {
-  let totalWidth: CGFloat
-  @Binding var sidebarFraction: CGFloat
-  @Binding var dragFraction: CGFloat?
-  let minFraction: CGFloat
-  let maxFraction: CGFloat
-  var onHide: (() -> Void)?
+  let onInput: (TerminalSidebarResizeInput) -> Void
 
   var body: some View {
-    SidebarResizeInteractionView(
-      onDragChanged: updateDragFraction(for:),
-      onDragEnded: commitDragFraction(for:)
-    )
-    .frame(width: TerminalSplitMetrics.resizeHandleWidth)
-    .frame(maxHeight: .infinity)
-  }
-
-  private func updateDragFraction(for locationX: CGFloat) {
-    dragFraction = TerminalSplitMetrics.rawFraction(
-      for: locationX,
-      totalWidth: totalWidth
-    )
-  }
-
-  private func commitDragFraction(for locationX: CGFloat) {
-    let rawFraction = TerminalSplitMetrics.rawFraction(
-      for: locationX,
-      totalWidth: totalWidth
-    )
-    if let onHide, rawFraction < minFraction {
-      onHide()
-    } else {
-      sidebarFraction = TerminalSplitMetrics.clampedFraction(
-        rawFraction,
-        minFraction: minFraction,
-        maxFraction: maxFraction
-      )
-    }
-    dragFraction = nil
+    SidebarResizeInteractionView(onInput: onInput)
+      .frame(width: TerminalSidebarWidthPolicy.interactionStripWidth)
+      .frame(maxHeight: .infinity)
   }
 }
 
 private struct SidebarResizeInteractionView: NSViewRepresentable {
-  let onDragChanged: (CGFloat) -> Void
-  let onDragEnded: (CGFloat) -> Void
+  let onInput: (TerminalSidebarResizeInput) -> Void
 
   func makeNSView(context: Context) -> SidebarResizeInteractionNSView {
     let view = SidebarResizeInteractionNSView()
@@ -287,15 +215,27 @@ private struct SidebarResizeInteractionView: NSViewRepresentable {
   }
 
   private func update(_ view: SidebarResizeInteractionNSView) {
-    view.onDragChanged = onDragChanged
-    view.onDragEnded = onDragEnded
+    view.onInput = onInput
   }
 }
 
 private final class SidebarResizeInteractionNSView: NSView {
-  var onDragChanged: ((CGFloat) -> Void)?
-  var onDragEnded: ((CGFloat) -> Void)?
+  var onInput: ((TerminalSidebarResizeInput) -> Void)?
   private var trackingArea: NSTrackingArea?
+
+  override init(frame frameRect: NSRect) {
+    super.init(frame: frameRect)
+    let pan = NSPanGestureRecognizer(target: self, action: #selector(handlePan))
+    let doubleClick = NSClickGestureRecognizer(target: self, action: #selector(handleDoubleClick))
+    doubleClick.numberOfClicksRequired = 2
+    addGestureRecognizer(pan)
+    addGestureRecognizer(doubleClick)
+  }
+
+  @available(*, unavailable)
+  required init?(coder: NSCoder) {
+    fatalError("init(coder:) has not been implemented")
+  }
 
   override var mouseDownCanMoveWindow: Bool {
     false
@@ -330,31 +270,29 @@ private final class SidebarResizeInteractionNSView: NSView {
     NSCursor.resizeLeftRight.set()
   }
 
-  override func mouseDown(with event: NSEvent) {
-    sendDragChanged(for: event)
+  @objc private func handlePan(_ recognizer: NSPanGestureRecognizer) {
+    switch recognizer.state {
+    case .began:
+      onInput?(.began)
+      onInput?(.changed(delta: translationX(for: recognizer)))
+    case .changed:
+      onInput?(.changed(delta: translationX(for: recognizer)))
+    case .ended:
+      onInput?(.ended)
+    case .cancelled, .failed:
+      onInput?(.cancelled)
+    default:
+      break
+    }
   }
 
-  override func mouseDragged(with event: NSEvent) {
-    sendDragChanged(for: event)
+  @objc private func handleDoubleClick(_ recognizer: NSClickGestureRecognizer) {
+    guard recognizer.state == .ended else { return }
+    onInput?(.doubleClicked)
   }
 
-  override func mouseUp(with event: NSEvent) {
-    sendDragEnded(for: event)
-  }
-
-  private func sendDragChanged(for event: NSEvent) {
-    guard let locationX = locationX(for: event) else { return }
-    onDragChanged?(locationX)
-  }
-
-  private func sendDragEnded(for event: NSEvent) {
-    guard let locationX = locationX(for: event) else { return }
-    onDragEnded?(locationX)
-  }
-
-  private func locationX(for event: NSEvent) -> CGFloat? {
-    guard let contentView = window?.contentView else { return nil }
-    return contentView.convert(event.locationInWindow, from: nil).x
+  private func translationX(for recognizer: NSPanGestureRecognizer) -> CGFloat {
+    recognizer.translation(in: window?.contentView).x
   }
 }
 

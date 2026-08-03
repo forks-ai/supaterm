@@ -4,7 +4,7 @@ import SupaTheme
 import SupatermCLIShared
 
 nonisolated struct TerminalSessionCatalog: Equatable, Codable, Sendable {
-  static let currentVersion = 9
+  static let currentVersion = 10
   static let `default` = Self(windows: [])
 
   let version: Int
@@ -117,15 +117,18 @@ nonisolated struct TerminalWindowSession: Equatable, Codable, Sendable {
   var displayedSpaceID: TerminalSpaceID
   var spaces: [TerminalSpaceSession]
   var frame: TerminalWindowFrame?
+  var sidebarWidth: Double?
 
   init(
     displayedSpaceID: TerminalSpaceID,
     spaces: [TerminalSpaceSession],
-    frame: TerminalWindowFrame? = nil
+    frame: TerminalWindowFrame? = nil,
+    sidebarWidth: Double? = nil
   ) {
     self.displayedSpaceID = displayedSpaceID
     self.spaces = spaces
     self.frame = frame
+    self.sidebarWidth = sidebarWidth
   }
 
   var displayedSpace: TerminalSpaceSession? {
@@ -173,7 +176,8 @@ nonisolated struct TerminalWindowSession: Equatable, Codable, Sendable {
     return TerminalWindowSession(
       displayedSpaceID: seenSpaceIDs.contains(displayedSpaceID) ? displayedSpaceID : firstSpaceID,
       spaces: prunedSpaces,
-      frame: frame
+      frame: frame,
+      sidebarWidth: sidebarWidth
     )
   }
 }

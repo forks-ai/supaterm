@@ -74,8 +74,6 @@ private struct SpaceSwitcherHoverSnapshotFixture: View {
 private struct TerminalChromeSnapshotFixture: View {
   let appearance: SnapshotAppearance
 
-  @State private var sidebarFraction: CGFloat = 0.36
-
   private var palette: Palette {
     Palette(colorScheme: appearance.colorScheme)
   }
@@ -89,10 +87,9 @@ private struct TerminalChromeSnapshotFixture: View {
       terminal: SidebarChromeSnapshotContext.selectedGroupTerminal,
       totalWidth: 760,
       isSidebarCollapsed: false,
-      sidebarFraction: $sidebarFraction,
-      minFraction: 0.1,
-      maxFraction: 0.5,
-      onHide: {},
+      sidebarWidth: 228,
+      sidebarResizeState: nil,
+      onResizeInput: { _ in },
       dismissReleaseAnnouncement: {}
     )
     .environment(SidebarChromeSnapshotContext.commandHold)

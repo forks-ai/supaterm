@@ -85,7 +85,8 @@ struct TerminalWindowFeature {
     var hiddenAgentPanelSurfaceIDs: Set<UUID> = []
     var pendingCloseRequest: PendingCloseRequest?
     var pendingSpaceDeleteRequest: TerminalSpaceDeleteRequest?
-    var sidebarFraction: CGFloat = 0.2
+    var sidebarResizeState: TerminalSidebarResizeState?
+    var sidebarWidth: CGFloat?
     var spaceEditor: TerminalSpaceEditorState?
     var windowID: ObjectIdentifier?
   }
@@ -185,7 +186,7 @@ struct TerminalWindowFeature {
     case selectSpaceMenuItemSelected(Int)
     case sidebarTabSplitRequested(surfaceID: UUID, direction: SupatermPaneDirection)
     case setGroupColorRequested(TerminalTabGroupID, ThemeTint)
-    case sidebarFractionChanged(CGFloat)
+    case sidebarResizeInput(TerminalSidebarResizeInput, totalWidth: CGFloat)
     case splitOperationRequested(tabID: TerminalTabID, operation: TerminalSplitTreeView.Operation)
     case tabSelected(TerminalTabID)
     case task
@@ -398,6 +399,7 @@ struct TerminalWindowFeature {
       case .collapseSidebarButtonTapped:
         state.isFloatingSidebarVisible = false
         state.isSidebarCollapsed = true
+        state.sidebarResizeState = nil
         return .none
 
       case .floatingSidebarVisibilityChanged(let isVisible):
@@ -510,8 +512,36 @@ struct TerminalWindowFeature {
       case .setGroupColorRequested(let groupID, let color):
         return sendCommand(.setGroupColor(groupID, color))
 
-      case .sidebarFractionChanged(let fraction):
-        state.sidebarFraction = fraction
+      case .sidebarResizeInput(let input, let totalWidth):
+        switch input {
+        case .began:
+          state.sidebarResizeState = TerminalSidebarWidthPolicy.resizeState(
+            preferredWidth: state.sidebarWidth,
+            totalWidth: totalWidth
+          )
+        case .changed(let delta):
+          state.sidebarResizeState?.delta = delta
+        case .ended:
+          guard let resizeState = state.sidebarResizeState else { return .none }
+          state.sidebarResizeState = nil
+          if TerminalSidebarWidthPolicy.shouldCollapse(
+            resizeState: resizeState,
+            totalWidth: totalWidth
+          ) {
+            state.isFloatingSidebarVisible = false
+            state.isSidebarCollapsed = true
+          } else {
+            state.sidebarWidth = TerminalSidebarWidthPolicy.settledWidth(
+              for: resizeState,
+              totalWidth: totalWidth
+            )
+          }
+        case .cancelled:
+          state.sidebarResizeState = nil
+        case .doubleClicked:
+          state.sidebarResizeState = nil
+          state.sidebarWidth = nil
+        }
         return .none
 
       case .splitOperationRequested(let tabID, let operation):
@@ -602,6 +632,7 @@ struct TerminalWindowFeature {
       case .toggleSidebarButtonTapped:
         state.isFloatingSidebarVisible = false
         state.isSidebarCollapsed.toggle()
+        state.sidebarResizeState = nil
         return .none
 
       case .confirmationCancelButtonTapped:

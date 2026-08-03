@@ -932,7 +932,9 @@ struct TerminalWindowRegistryTests {
       secondHost.handleCommand(.ensureInitialTab(focusing: false, startupCommand: nil))
       secondHost.handleCommand(.createTab(inheritingFromSurfaceID: nil))
 
-      let firstStore = Store(initialState: AppFeature.State()) {
+      var firstState = AppFeature.State()
+      firstState.terminal.sidebarWidth = 348
+      let firstStore = Store(initialState: firstState) {
         AppFeature()
       }
       let secondStore = Store(initialState: AppFeature.State()) {
@@ -972,6 +974,7 @@ struct TerminalWindowRegistryTests {
           == [firstHost.displayedSpaceID, secondHost.displayedSpaceID]
       )
       #expect(snapshot.windows[0].frame == TerminalWindowFrame(firstFrame))
+      #expect(snapshot.windows[0].sidebarWidth == 348)
       #expect(snapshot.windows[0].displayedSpace?.tabs.count == 1)
       #expect(snapshot.windows[1].frame == TerminalWindowFrame(secondFrame))
       #expect(snapshot.windows[1].displayedSpace?.tabs.count == 2)

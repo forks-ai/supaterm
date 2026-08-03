@@ -120,7 +120,8 @@ struct TerminalWindowControllerTests {
             tabs: []
           )
         ],
-        frame: TerminalWindowFrame(frame)
+        frame: TerminalWindowFrame(frame),
+        sidebarWidth: 336
       )
       let controller = TerminalWindowController(
         runtime: GhosttyRuntime(applicationIsActive: { false }),
@@ -138,6 +139,7 @@ struct TerminalWindowControllerTests {
 
       #expect(controller.window?.frame == frame.constrained(to: visibleFrame))
       #expect(controller.terminal.visibleTabs.count == 1)
+      #expect(controller.store.terminal.sidebarWidth == 336)
     }
   }
 

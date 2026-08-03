@@ -932,6 +932,78 @@ struct TerminalWindowFeatureTests {
   }
 
   @Test
+  func sidebarResizeLifecycleCancelsWithoutChangingSavedWidth() async {
+    var initialState = TerminalWindowFeature.State()
+    initialState.sidebarWidth = 320
+    let store = TestStore(initialState: initialState) {
+      TerminalWindowFeature()
+    }
+
+    await store.send(.sidebarResizeInput(.began, totalWidth: 1_440)) {
+      $0.sidebarResizeState = TerminalSidebarResizeState(startingWidth: 320, delta: 0)
+    }
+    await store.send(.sidebarResizeInput(.changed(delta: -160), totalWidth: 1_440)) {
+      $0.sidebarResizeState?.delta = -160
+    }
+    await store.send(.sidebarResizeInput(.cancelled, totalWidth: 1_440)) {
+      $0.sidebarResizeState = nil
+    }
+  }
+
+  @Test
+  func sidebarResizeEndCommitsWidthFromDefault() async {
+    let store = TestStore(initialState: TerminalWindowFeature.State()) {
+      TerminalWindowFeature()
+    }
+
+    await store.send(.sidebarResizeInput(.began, totalWidth: 1_440)) {
+      $0.sidebarResizeState = TerminalSidebarResizeState(startingWidth: 288, delta: 0)
+    }
+    await store.send(.sidebarResizeInput(.changed(delta: 72), totalWidth: 1_440)) {
+      $0.sidebarResizeState?.delta = 72
+    }
+    await store.send(.sidebarResizeInput(.ended, totalWidth: 1_440)) {
+      $0.sidebarResizeState = nil
+      $0.sidebarWidth = 360
+    }
+  }
+
+  @Test
+  func sidebarResizeEndCollapsesOnlyAfterBelowMinimumRelease() async {
+    var initialState = TerminalWindowFeature.State()
+    initialState.sidebarWidth = 320
+    let store = TestStore(initialState: initialState) {
+      TerminalWindowFeature()
+    }
+
+    await store.send(.sidebarResizeInput(.began, totalWidth: 1_440)) {
+      $0.sidebarResizeState = TerminalSidebarResizeState(startingWidth: 320, delta: 0)
+    }
+    await store.send(.sidebarResizeInput(.changed(delta: -177), totalWidth: 1_440)) {
+      $0.sidebarResizeState?.delta = -177
+    }
+    await store.send(.sidebarResizeInput(.ended, totalWidth: 1_440)) {
+      $0.isSidebarCollapsed = true
+      $0.sidebarResizeState = nil
+    }
+  }
+
+  @Test
+  func sidebarResizeDoubleClickResetsToComputedDefault() async {
+    var initialState = TerminalWindowFeature.State()
+    initialState.sidebarResizeState = TerminalSidebarResizeState(startingWidth: 320, delta: 24)
+    initialState.sidebarWidth = 320
+    let store = TestStore(initialState: initialState) {
+      TerminalWindowFeature()
+    }
+
+    await store.send(.sidebarResizeInput(.doubleClicked, totalWidth: 1_440)) {
+      $0.sidebarResizeState = nil
+      $0.sidebarWidth = nil
+    }
+  }
+
+  @Test
   func windowIdentifierChangedStoresWindowID() async {
     let windowID = ObjectIdentifier(NSObject())
 
