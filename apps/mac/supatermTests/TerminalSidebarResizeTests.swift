@@ -100,7 +100,7 @@ struct TerminalSidebarResizeTests {
   func accessibilityActionsResizeFromCurrentWidth() {
     let handle = SidebarResizeInteractionNSView()
     var inputs: [TerminalSidebarResizeInput] = []
-    handle.width = 320
+    handle.sidebarWidth = 320
     handle.onInput = { inputs.append($0) }
 
     #expect(handle.accessibilityValue() as? NSNumber == NSNumber(value: 320))

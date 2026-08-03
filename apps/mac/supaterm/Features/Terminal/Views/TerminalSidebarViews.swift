@@ -62,7 +62,7 @@ struct TerminalSplitView: View {
       }
 
       if !isSidebarCollapsed {
-        SidebarResizeHandle(width: currentSidebarWidth, onInput: onResizeInput)
+        SidebarResizeHandle(sidebarWidth: currentSidebarWidth, onInput: onResizeInput)
           .offset(x: TerminalSidebarWidthPolicy.stripOffset(for: currentSidebarWidth))
       }
     }
@@ -146,7 +146,7 @@ struct FloatingSidebarOverlay: View {
       }
 
       if isVisible {
-        SidebarResizeHandle(width: floatingWidth, onInput: onResizeInput)
+        SidebarResizeHandle(sidebarWidth: floatingWidth, onInput: onResizeInput)
           .offset(x: TerminalSidebarWidthPolicy.stripOffset(for: floatingWidth))
           .zIndex(2)
       }
@@ -191,29 +191,29 @@ struct FloatingSidebarOverlay: View {
 }
 
 private struct SidebarResizeHandle: View {
-  let width: CGFloat
+  let sidebarWidth: CGFloat
   let onInput: (TerminalSidebarResizeInput) -> Void
 
   var body: some View {
-    SidebarResizeInteractionView(width: width, onInput: onInput)
+    SidebarResizeInteractionView(sidebarWidth: sidebarWidth, onInput: onInput)
       .frame(width: TerminalSidebarWidthPolicy.interactionStripWidth)
       .frame(maxHeight: .infinity)
   }
 }
 
 private struct SidebarResizeInteractionView: NSViewRepresentable {
-  let width: CGFloat
+  let sidebarWidth: CGFloat
   let onInput: (TerminalSidebarResizeInput) -> Void
 
   func makeNSView(context: Context) -> SidebarResizeInteractionNSView {
     let view = SidebarResizeInteractionNSView()
-    view.width = width
+    view.sidebarWidth = sidebarWidth
     view.onInput = onInput
     return view
   }
 
   func updateNSView(_ nsView: SidebarResizeInteractionNSView, context: Context) {
-    nsView.width = width
+    nsView.sidebarWidth = sidebarWidth
     nsView.onInput = onInput
   }
 }
@@ -241,7 +241,7 @@ enum SidebarResizeGestureRouting {
 }
 
 final class SidebarResizeInteractionNSView: NSView {
-  var width: CGFloat = 0
+  var sidebarWidth: CGFloat = 0
   var onInput: ((TerminalSidebarResizeInput) -> Void)?
   private var trackingArea: NSTrackingArea?
 
@@ -273,12 +273,12 @@ final class SidebarResizeInteractionNSView: NSView {
   }
 
   override func accessibilityValue() -> Any? {
-    NSNumber(value: Double(width))
+    NSNumber(value: Double(sidebarWidth))
   }
 
   override func setAccessibilityValue(_ accessibilityValue: Any?) {
     guard let value = accessibilityValue as? NSNumber else { return }
-    resize(by: CGFloat(truncating: value) - width)
+    resize(by: CGFloat(truncating: value) - sidebarWidth)
   }
 
   override func accessibilityPerformIncrement() -> Bool {
