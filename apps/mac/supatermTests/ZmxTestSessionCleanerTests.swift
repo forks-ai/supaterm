@@ -8,19 +8,20 @@ struct ZmxTestSessionCleanerTests {
   @Test
   func cleanupKillsOnlySessionsForItsInstance() throws {
     let instanceName = "ui-cleanup"
+    let directory = FileManager.default.temporaryDirectory.path
     let instancePrefix = ZmxSessionID.namespacePrefix(
       environment: [SupatermCLIEnvironment.instanceNameKey: instanceName]
     )
     let ownSessionIDs = ["\(instancePrefix)first", "\(instancePrefix)second"]
     let otherSessionID = "spt-other-third"
     let calls = Mutex([[String]]())
-    let cleaner = ZmxTestSessionCleaner(instanceName: instanceName, directory: "/tmp/test-zmx") {
+    let cleaner = ZmxTestSessionCleaner(instanceName: instanceName, directory: directory) {
       arguments, environment in
       let callCount = calls.withLock { calls in
         calls.append(arguments)
         return calls.count
       }
-      #expect(environment[ZmxEnvironment.directoryKey] == "/tmp/test-zmx")
+      #expect(environment[ZmxEnvironment.directoryKey] == directory)
       #expect(environment[ZmxEnvironment.sessionKey]?.isEmpty == true)
       #expect(environment[ZmxEnvironment.sessionPrefixKey]?.isEmpty == true)
       if arguments == ["ls", "--short"], callCount == 1 {
@@ -56,7 +57,7 @@ struct ZmxTestSessionCleanerTests {
     let sessionID = "\(instancePrefix)session"
     let cleaner = ZmxTestSessionCleaner(
       instanceName: instanceName,
-      directory: "/tmp/test-zmx"
+      directory: FileManager.default.temporaryDirectory.path
     ) { arguments, _ in
       arguments.first == "ls" ? sessionID : ""
     }
@@ -64,6 +65,24 @@ struct ZmxTestSessionCleanerTests {
     #expect(throws: ZmxTestCleanupError.self) {
       try cleaner.cleanup()
     }
+  }
+
+  @Test
+  func cleanupSkipsMissingDirectory() throws {
+    let calls = Mutex([[String]]())
+    let directory = FileManager.default.temporaryDirectory
+      .appendingPathComponent(UUID().uuidString, isDirectory: true)
+    let cleaner = ZmxTestSessionCleaner(
+      instanceName: "ui-missing",
+      directory: directory.path
+    ) { arguments, _ in
+      calls.withLock { $0.append(arguments) }
+      return ""
+    }
+
+    try cleaner.cleanup()
+
+    #expect(calls.withLock { $0 }.isEmpty)
   }
 
   @Test
@@ -196,6 +215,26 @@ struct ZmxTestSessionCleanerTests {
 
     #expect(cleanedInstances.withLock { $0 } == ["ui-dead"])
     #expect(!FileManager.default.fileExists(atPath: claimedStateHome.path))
+  }
+
+  @Test
+  func repeatedClaimReplacesPriorMetadata() throws {
+    let temporaryDirectory = FileManager.default.temporaryDirectory
+      .appendingPathComponent(UUID().uuidString, isDirectory: true)
+    let stateHome = temporaryDirectory.appendingPathComponent("supaterm-ui-dead", isDirectory: true)
+    try FileManager.default.createDirectory(at: stateHome, withIntermediateDirectories: true)
+    defer { try? FileManager.default.removeItem(at: temporaryDirectory) }
+
+    let firstClaim = try #require(
+      try ZmxTestWorkspace.claim(stateHome, reaperProcess: deadProcess)
+    )
+    let secondClaim = try #require(
+      try ZmxTestWorkspace.claim(firstClaim, reaperProcess: deadProcess)
+    )
+
+    #expect(
+      secondClaim.lastPathComponent.components(separatedBy: ZmxTestWorkspace.claimMarker).count == 2
+    )
   }
 
   @Test

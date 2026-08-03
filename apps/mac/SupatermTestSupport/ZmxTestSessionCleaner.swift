@@ -54,6 +54,7 @@ nonisolated struct ZmxTestSessionCleaner: Sendable {
   }
 
   func cleanup() throws {
+    guard FileManager.default.fileExists(atPath: directory) else { return }
     let sessionIDs = try listSessions()
     guard !sessionIDs.isEmpty else { return }
 
@@ -292,8 +293,11 @@ nonisolated struct ZmxTestWorkspace: Sendable {
     fileManager: FileManager = .default
   ) throws -> URL? {
     let reaperProcess = try reaperProcess ?? requiredProcessIdentity(processID: getpid())
+    let name = stateHome.lastPathComponent
+    let baseEnd = name.range(of: claimMarker)?.lowerBound ?? name.endIndex
+    let baseName = name[..<baseEnd]
     let claimedStateHome = stateHome.deletingLastPathComponent().appendingPathComponent(
-      "\(stateHome.lastPathComponent)\(claimMarker)\(reaperProcess.processID)-"
+      "\(baseName)\(claimMarker)\(reaperProcess.processID)-"
         + "\(reaperProcess.startTimeSeconds)-\(reaperProcess.startTimeMicroseconds)-" + UUID().uuidString,
       isDirectory: true
     )

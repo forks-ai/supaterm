@@ -201,6 +201,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
     )
     globalKeybindManager.disable()
     socketStore.send(.shutdown)
+    if let testZmxDirectory = Self.testZmxCleanupDirectory() {
+      try? FileManager.default.removeItem(atPath: testZmxDirectory)
+    }
   }
 
   func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
@@ -267,9 +270,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
       Task { @MainActor in
         await terminalWindowRegistry.terminateTerminalSessionsAndWait()
         await terminalWindowRegistry.terminateAllZmxSessionsAndWait()
-        if let testZmxDirectory {
-          try? FileManager.default.removeItem(atPath: testZmxDirectory)
-        }
         NSApp.reply(toApplicationShouldTerminate: true)
       }
       return .terminateLater

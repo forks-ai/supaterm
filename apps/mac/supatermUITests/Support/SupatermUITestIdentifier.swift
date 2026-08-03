@@ -44,7 +44,6 @@ enum SupatermUITestIdentifier {
   enum MenuItemIdentifier: String {
     case about = "app.supabit.supaterm.app.about"
     case checkForUpdates = "app.supabit.supaterm.app.checkForUpdates"
-    case quitTerminatingSessions = "app.supabit.supaterm.app.quitTerminatingSessions"
     case settings = "app.supabit.supaterm.app.settings"
     case newWindow = "app.supabit.supaterm.file.newWindow"
     case newTab = "app.supabit.supaterm.file.newTab"

@@ -79,7 +79,6 @@ class SupatermUITestCase: XCTestCase {
         "SUPATERM_STATE_HOME": stateHome.path,
         "SUPATERM_VERBOSE_LOGGING": "1",
         ZmxEnvironment.directoryKey: workspace.zmxDirectory.path,
-        ZmxEnvironment.testCleanupOnQuitKey: "1",
       ]
       app.launch()
       app.activate()
@@ -88,21 +87,27 @@ class SupatermUITestCase: XCTestCase {
     self.app = app
 
     addTeardownBlock {
-      let stopped = await MainActor.run {
-        let quit = SupatermUITestIdentifier.MenuItemIdentifier.quitTerminatingSessions
-        let appMenu = app.menuBars.menuBarItems[quit.menuTitle]
-        if app.state != .notRunning, appMenu.waitForExistence(timeout: 3) {
-          appMenu.click()
-          let quitItem = app.menuItems.matching(identifier: quit.rawValue).firstMatch
-          if quitItem.waitForExistence(timeout: 3) {
-            quitItem.click()
-          } else {
-            app.terminate()
-          }
-        } else if app.state != .notRunning {
+      let stopped = await MainActor.run { () -> Bool in
+        if app.state != .notRunning {
           app.terminate()
+          guard app.wait(for: .notRunning, timeout: 10) else { return false }
         }
-        return app.wait(for: .notRunning, timeout: 10)
+        let cleanupApp = XCUIApplication()
+        cleanupApp.launchArguments = app.launchArguments
+        cleanupApp.launchEnvironment = app.launchEnvironment
+        cleanupApp.launchEnvironment[ZmxEnvironment.testCleanupOnQuitKey] = "1"
+        cleanupApp.launch()
+        cleanupApp.activate()
+        guard cleanupApp.wait(for: .runningForeground, timeout: 30) else { return false }
+        guard cleanupApp.textViews.firstMatch.waitForExistence(timeout: 30) else { return false }
+        cleanupApp.typeKey("q", modifierFlags: .command)
+        let quitDialog = cleanupApp.descendants(matching: .any)
+          .matching(identifier: SupatermUITestIdentifier.Accessibility.dialogQuit)
+          .firstMatch
+        if quitDialog.waitForExistence(timeout: 3) {
+          cleanupApp.typeKey(.return, modifierFlags: [])
+        }
+        return cleanupApp.wait(for: .notRunning, timeout: 30)
       }
       XCTAssertTrue(stopped)
       guard stopped else { return }
