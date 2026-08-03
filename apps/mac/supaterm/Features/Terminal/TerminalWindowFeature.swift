@@ -158,7 +158,6 @@ struct TerminalWindowFeature {
     case closeTabRequested(TerminalTabID)
     case closeTabsRequested([TerminalTabID])
     case closeTabsBelowRequested(TerminalTabID)
-    case collapseSidebarButtonTapped
     case floatingSidebarVisibilityChanged(Bool)
     case agentPanelCopyText(String)
     case agentPanelForkSessionRequested(
@@ -396,12 +395,6 @@ struct TerminalWindowFeature {
         state.confirmationRequest = confirmationRequest(for: .closeAllWindows(windowIDs))
         return .none
 
-      case .collapseSidebarButtonTapped:
-        state.isFloatingSidebarVisible = false
-        state.isSidebarCollapsed = true
-        state.sidebarResizeState = nil
-        return .none
-
       case .floatingSidebarVisibilityChanged(let isVisible):
         state.isFloatingSidebarVisible = isVisible
         return .none
@@ -535,12 +528,10 @@ struct TerminalWindowFeature {
               for: resizeState,
               totalWidth: totalWidth
             )
+            return sendCommand(.sessionDidChange)
           }
         case .cancelled:
           state.sidebarResizeState = nil
-        case .doubleClicked:
-          state.sidebarResizeState = nil
-          state.sidebarWidth = nil
         }
         return .none
 

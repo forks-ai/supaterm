@@ -23,7 +23,6 @@ enum TerminalSidebarResizeInput: Equatable {
   case changed(delta: CGFloat)
   case ended
   case cancelled
-  case doubleClicked
 }
 
 enum TerminalSidebarWidthPolicy {
@@ -141,6 +140,7 @@ struct TerminalFloatingSidebarShell<Content: View>: View {
 
   var body: some View {
     content
+      .padding(TerminalFloatingSidebarShellMetrics.contentInset)
       .background {
         TerminalFloatingSidebarBackground(palette: palette)
       }
@@ -171,7 +171,6 @@ private struct TerminalFloatingSidebarSurfaceModifier: ViewModifier {
         TerminalFloatingSidebarShellMetrics.shape
           .stroke(palette.floatingSidebarBorder, lineWidth: TerminalFloatingSidebarShellMetrics.borderWidth)
       }
-      .padding(TerminalFloatingSidebarShellMetrics.contentInset)
   }
 }
 

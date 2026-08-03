@@ -82,11 +82,8 @@ struct WindowDragSurfaceTests {
     window.contentView = header
     header.layoutSubtreeIfNeeded()
 
-    let surface = try #require(firstDescendant(of: WindowDragSurfaceView.self, in: header))
-    let blankPoint = header.convert(
-      NSPoint(x: surface.bounds.maxX - 1, y: surface.bounds.midY),
-      from: surface
-    )
+    let blankPoint = NSPoint(x: header.bounds.maxX - 2, y: header.bounds.midY)
+    let leftBlankPoint = NSPoint(x: 2, y: header.bounds.midY)
     let controlPoint = NSPoint(
       x: WindowTrafficLightMetrics.edgePadding + WindowTrafficLightMetrics.buttonSize / 2,
       y: header.isFlipped
@@ -96,19 +93,8 @@ struct WindowDragSurfaceTests {
     )
     let control = try #require(header.hitTest(controlPoint))
 
-    #expect(header.hitTest(blankPoint) === surface)
-    #expect(control !== surface)
-  }
-
-  private func firstDescendant<T: NSView>(of type: T.Type, in view: NSView) -> T? {
-    if let view = view as? T {
-      return view
-    }
-    for subview in view.subviews {
-      if let descendant = firstDescendant(of: type, in: subview) {
-        return descendant
-      }
-    }
-    return nil
+    #expect(header.hitTest(blankPoint) is WindowDragSurfaceView)
+    #expect(header.hitTest(leftBlankPoint) is WindowDragSurfaceView)
+    #expect(!(control is WindowDragSurfaceView))
   }
 }

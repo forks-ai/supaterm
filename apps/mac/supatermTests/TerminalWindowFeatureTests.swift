@@ -952,8 +952,11 @@ struct TerminalWindowFeatureTests {
 
   @Test
   func sidebarResizeEndCommitsWidthFromDefault() async {
+    let recorder = TerminalCommandRecorder()
     let store = TestStore(initialState: TerminalWindowFeature.State()) {
       TerminalWindowFeature()
+    } withDependencies: {
+      $0.terminalClient.send = { recorder.record($0) }
     }
 
     await store.send(.sidebarResizeInput(.began, totalWidth: 1_440)) {
@@ -966,6 +969,7 @@ struct TerminalWindowFeatureTests {
       $0.sidebarResizeState = nil
       $0.sidebarWidth = 360
     }
+    #expect(recorder.commands == [.sessionDidChange])
   }
 
   @Test
@@ -985,21 +989,6 @@ struct TerminalWindowFeatureTests {
     await store.send(.sidebarResizeInput(.ended, totalWidth: 1_440)) {
       $0.isSidebarCollapsed = true
       $0.sidebarResizeState = nil
-    }
-  }
-
-  @Test
-  func sidebarResizeDoubleClickResetsToComputedDefault() async {
-    var initialState = TerminalWindowFeature.State()
-    initialState.sidebarResizeState = TerminalSidebarResizeState(startingWidth: 320, delta: 24)
-    initialState.sidebarWidth = 320
-    let store = TestStore(initialState: initialState) {
-      TerminalWindowFeature()
-    }
-
-    await store.send(.sidebarResizeInput(.doubleClicked, totalWidth: 1_440)) {
-      $0.sidebarResizeState = nil
-      $0.sidebarWidth = nil
     }
   }
 

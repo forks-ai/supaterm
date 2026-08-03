@@ -370,6 +370,8 @@ final class TerminalHostState {
 
   func handleCommand(_ command: TerminalClient.Command) {
     switch command {
+    case .sessionDidChange:
+      sessionDidChange()
     case .closeSurface,
       .closeGroup,
       .closeTab,

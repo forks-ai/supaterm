@@ -61,6 +61,14 @@ struct TerminalWindowHeader: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
     .frame(height: TerminalSidebarLayout.scrollViewportTopInset, alignment: .topLeading)
+    .overlay(alignment: .leading) {
+      WindowDragSurface()
+        .frame(width: WindowTrafficLightMetrics.edgePadding)
+    }
+    .overlay(alignment: .top) {
+      WindowDragSurface()
+        .frame(height: TerminalWindowHeaderMetrics.switcherTopPadding)
+    }
   }
 }
 

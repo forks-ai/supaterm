@@ -136,7 +136,6 @@ struct FloatingSidebarOverlay: View {
           width: floatingWidth,
           dismissReleaseAnnouncement: dismissReleaseAnnouncement
         )
-        .frame(width: floatingWidth)
         .terminalTransition(.move(edge: .leading), reduceMotion: reduceMotion)
         .zIndex(1)
       }
@@ -226,10 +225,7 @@ private final class SidebarResizeInteractionNSView: NSView {
   override init(frame frameRect: NSRect) {
     super.init(frame: frameRect)
     let pan = NSPanGestureRecognizer(target: self, action: #selector(handlePan))
-    let doubleClick = NSClickGestureRecognizer(target: self, action: #selector(handleDoubleClick))
-    doubleClick.numberOfClicksRequired = 2
     addGestureRecognizer(pan)
-    addGestureRecognizer(doubleClick)
   }
 
   @available(*, unavailable)
@@ -285,11 +281,6 @@ private final class SidebarResizeInteractionNSView: NSView {
     }
   }
 
-  @objc private func handleDoubleClick(_ recognizer: NSClickGestureRecognizer) {
-    guard recognizer.state == .ended else { return }
-    onInput?(.doubleClicked)
-  }
-
   private func translationX(for recognizer: NSPanGestureRecognizer) -> CGFloat {
     recognizer.translation(in: window?.contentView).x
   }
@@ -315,8 +306,8 @@ private struct FloatingSidebarView: View {
         isPagingActive: true,
         dismissReleaseAnnouncement: dismissReleaseAnnouncement
       )
-      .frame(width: width)
     }
+    .frame(width: width)
   }
 }
 
