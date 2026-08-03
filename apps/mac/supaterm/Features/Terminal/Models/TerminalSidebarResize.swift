@@ -13,6 +13,7 @@ enum TerminalSidebarResizeInput: Equatable {
 }
 
 enum TerminalSidebarWidthPolicy {
+  static let accessibilityStep: CGFloat = 16
   static let defaultFraction: CGFloat = 0.2
   static let interactionStripWidth: CGFloat = 8
   static let maximumFraction: CGFloat = 0.3

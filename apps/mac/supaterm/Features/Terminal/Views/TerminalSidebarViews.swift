@@ -62,7 +62,7 @@ struct TerminalSplitView: View {
       }
 
       if !isSidebarCollapsed {
-        SidebarResizeHandle(onInput: onResizeInput)
+        SidebarResizeHandle(width: currentSidebarWidth, onInput: onResizeInput)
           .offset(x: TerminalSidebarWidthPolicy.stripOffset(for: currentSidebarWidth))
       }
     }
@@ -146,7 +146,7 @@ struct FloatingSidebarOverlay: View {
       }
 
       if isVisible {
-        SidebarResizeHandle(onInput: onResizeInput)
+        SidebarResizeHandle(width: floatingWidth, onInput: onResizeInput)
           .offset(x: TerminalSidebarWidthPolicy.stripOffset(for: floatingWidth))
           .zIndex(2)
       }
@@ -191,50 +191,57 @@ struct FloatingSidebarOverlay: View {
 }
 
 private struct SidebarResizeHandle: View {
+  let width: CGFloat
   let onInput: (TerminalSidebarResizeInput) -> Void
 
   var body: some View {
-    SidebarResizeInteractionView(onInput: onInput)
+    SidebarResizeInteractionView(width: width, onInput: onInput)
       .frame(width: TerminalSidebarWidthPolicy.interactionStripWidth)
       .frame(maxHeight: .infinity)
   }
 }
 
 private struct SidebarResizeInteractionView: NSViewRepresentable {
+  let width: CGFloat
   let onInput: (TerminalSidebarResizeInput) -> Void
 
   func makeNSView(context: Context) -> SidebarResizeInteractionNSView {
     let view = SidebarResizeInteractionNSView()
+    view.width = width
     view.onInput = onInput
     return view
   }
 
   func updateNSView(_ nsView: SidebarResizeInteractionNSView, context: Context) {
+    nsView.width = width
     nsView.onInput = onInput
   }
 }
 
 enum SidebarResizeGestureRouting {
-  static func input(
+  static func inputs(
     for state: NSGestureRecognizer.State,
     delta: CGFloat
-  ) -> TerminalSidebarResizeInput? {
+  ) -> [TerminalSidebarResizeInput] {
     switch state {
     case .began:
-      .began
+      [.began]
     case .changed:
-      .changed(delta: delta)
-    case .ended, .cancelled:
-      .ended
+      [.changed(delta: delta)]
+    case .ended:
+      [.changed(delta: delta), .ended]
+    case .cancelled:
+      [.ended]
     case .failed:
-      .failed
+      [.failed]
     default:
-      nil
+      []
     }
   }
 }
 
-private final class SidebarResizeInteractionNSView: NSView {
+final class SidebarResizeInteractionNSView: NSView {
+  var width: CGFloat = 0
   var onInput: ((TerminalSidebarResizeInput) -> Void)?
   private var trackingArea: NSTrackingArea?
 
@@ -257,8 +264,31 @@ private final class SidebarResizeInteractionNSView: NSView {
     false
   }
 
+  override func acceptsFirstMouse(for event: NSEvent?) -> Bool {
+    true
+  }
+
   override func hitTest(_ point: NSPoint) -> NSView? {
     bounds.contains(point) ? self : nil
+  }
+
+  override func accessibilityValue() -> Any? {
+    NSNumber(value: Double(width))
+  }
+
+  override func setAccessibilityValue(_ accessibilityValue: Any?) {
+    guard let value = accessibilityValue as? NSNumber else { return }
+    resize(by: CGFloat(truncating: value) - width)
+  }
+
+  override func accessibilityPerformIncrement() -> Bool {
+    resize(by: TerminalSidebarWidthPolicy.accessibilityStep)
+    return true
+  }
+
+  override func accessibilityPerformDecrement() -> Bool {
+    resize(by: -TerminalSidebarWidthPolicy.accessibilityStep)
+    return true
   }
 
   override func updateTrackingAreas() {
@@ -287,12 +317,19 @@ private final class SidebarResizeInteractionNSView: NSView {
   }
 
   @objc private func handlePan(_ recognizer: NSPanGestureRecognizer) {
-    if let input = SidebarResizeGestureRouting.input(
+    let inputs = SidebarResizeGestureRouting.inputs(
       for: recognizer.state,
       delta: translationX(for: recognizer)
-    ) {
+    )
+    for input in inputs {
       onInput?(input)
     }
+  }
+
+  private func resize(by delta: CGFloat) {
+    onInput?(.began)
+    onInput?(.changed(delta: delta))
+    onInput?(.ended)
   }
 
   private func translationX(for recognizer: NSPanGestureRecognizer) -> CGFloat {

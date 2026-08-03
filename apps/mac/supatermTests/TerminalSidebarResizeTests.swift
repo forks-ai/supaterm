@@ -81,9 +81,43 @@ struct TerminalSidebarResizeTests {
   }
 
   @Test
-  func cancelledGestureSettlesAndFailedGestureAborts() {
-    #expect(SidebarResizeGestureRouting.input(for: .cancelled, delta: 72) == .ended)
-    #expect(SidebarResizeGestureRouting.input(for: .failed, delta: 72) == .failed)
+  func gestureEndCommitsFinalTranslation() {
+    #expect(
+      SidebarResizeGestureRouting.inputs(for: .ended, delta: 72) == [
+        .changed(delta: 72), .ended,
+      ]
+    )
+    #expect(SidebarResizeGestureRouting.inputs(for: .cancelled, delta: 72) == [.ended])
+    #expect(SidebarResizeGestureRouting.inputs(for: .failed, delta: 72) == [.failed])
+  }
+
+  @Test
+  func resizeHandleAcceptsFirstMouse() {
+    #expect(SidebarResizeInteractionNSView().acceptsFirstMouse(for: nil))
+  }
+
+  @Test
+  func accessibilityActionsResizeFromCurrentWidth() {
+    let handle = SidebarResizeInteractionNSView()
+    var inputs: [TerminalSidebarResizeInput] = []
+    handle.width = 320
+    handle.onInput = { inputs.append($0) }
+
+    #expect(handle.accessibilityValue() as? NSNumber == NSNumber(value: 320))
+    #expect(handle.accessibilityPerformIncrement())
+    #expect(
+      inputs == [.began, .changed(delta: TerminalSidebarWidthPolicy.accessibilityStep), .ended]
+    )
+
+    inputs = []
+    #expect(handle.accessibilityPerformDecrement())
+    #expect(
+      inputs == [.began, .changed(delta: -TerminalSidebarWidthPolicy.accessibilityStep), .ended]
+    )
+
+    inputs = []
+    handle.setAccessibilityValue(NSNumber(value: 280))
+    #expect(inputs == [.began, .changed(delta: -40), .ended])
   }
 
   @Test
