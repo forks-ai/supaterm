@@ -4,12 +4,25 @@ import SwiftUI
 
 struct ChromeBackgroundView: NSViewRepresentable {
   let palette: Palette
+  let material: NSVisualEffectView.Material
+  let blendingMode: NSVisualEffectView.BlendingMode
+
+  init(
+    palette: Palette,
+    material: NSVisualEffectView.Material = .underWindowBackground,
+    blendingMode: NSVisualEffectView.BlendingMode = .behindWindow
+  ) {
+    self.palette = palette
+    self.material = material
+    self.blendingMode = blendingMode
+  }
 
   func makeNSView(context: Context) -> ChromeBackgroundNSView {
-    ChromeBackgroundNSView()
+    ChromeBackgroundNSView(material: material, blendingMode: blendingMode)
   }
 
   func updateNSView(_ nsView: ChromeBackgroundNSView, context: Context) {
+    nsView.configureBackdrop(material: material, blendingMode: blendingMode)
     nsView.apply(palette)
   }
 }
@@ -24,10 +37,12 @@ final class ChromeBackgroundNSView: NSView {
 
   private var appliedTint: ThemeTint?
 
-  init() {
+  init(
+    material: NSVisualEffectView.Material = .underWindowBackground,
+    blendingMode: NSVisualEffectView.BlendingMode = .behindWindow
+  ) {
     super.init(frame: .zero)
-    effectView.material = .underWindowBackground
-    effectView.blendingMode = .behindWindow
+    configureBackdrop(material: material, blendingMode: blendingMode)
     effectView.state = .followsWindowActiveState
     effectView.isEmphasized = true
     baseRampView.alphaValue = Self.themeTintOpacity
@@ -38,6 +53,14 @@ final class ChromeBackgroundNSView: NSView {
       subview.autoresizingMask = [.width, .height]
       addSubview(subview)
     }
+  }
+
+  func configureBackdrop(
+    material: NSVisualEffectView.Material,
+    blendingMode: NSVisualEffectView.BlendingMode
+  ) {
+    effectView.material = material
+    effectView.blendingMode = blendingMode
   }
 
   @available(*, unavailable)
