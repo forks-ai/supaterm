@@ -2,7 +2,7 @@ import Foundation
 import XCTest
 
 final class SessionRestoreUITests: SupatermUITestCase {
-  private static let sessionCatalogVersion = 9
+  private static let sessionCatalogVersion = 10
 
   @MainActor
   func testSelectedPinnedTabStaysSelectedAfterRelaunch() async throws {
