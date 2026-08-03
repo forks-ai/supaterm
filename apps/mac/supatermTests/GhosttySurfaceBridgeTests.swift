@@ -262,6 +262,22 @@ struct GhosttySurfaceBridgeTests {
   }
 
   @Test
+  func mouseOverLinkActionSetsAndClearsHoveredLink() {
+    let bridge = GhosttySurfaceBridge()
+    let target = ghostty_target_s(tag: GHOSTTY_TARGET_SURFACE, target: ghostty_target_u())
+
+    withMouseOverLinkAction(url: "https://supaterm.com/docs") { action in
+      #expect(bridge.handleAction(target: target, action: action) == false)
+      #expect(bridge.state.mouseOverLink == "https://supaterm.com/docs")
+    }
+
+    withMouseOverLinkAction(url: "") { action in
+      #expect(bridge.handleAction(target: target, action: action) == false)
+      #expect(bridge.state.mouseOverLink == nil)
+    }
+  }
+
+  @Test
   func unhealthyRendererExposesRendererUnavailableFailure() {
     let bridge = GhosttySurfaceBridge()
     let target = ghostty_target_s(tag: GHOSTTY_TARGET_SURFACE, target: ghostty_target_u())
@@ -304,4 +320,20 @@ struct GhosttySurfaceBridgeTests {
     return body(action)
   }
 
+  private func withMouseOverLinkAction<T>(
+    url: String,
+    _ body: (ghostty_action_s) -> T
+  ) -> T {
+    var action = ghostty_action_s(tag: GHOSTTY_ACTION_MOUSE_OVER_LINK, action: ghostty_action_u())
+    guard let pointer = strdup(url) else {
+      Issue.record("strdup failed")
+      return body(action)
+    }
+    defer {
+      free(pointer)
+    }
+    action.action.mouse_over_link.url = UnsafePointer(pointer)
+    action.action.mouse_over_link.len = strlen(pointer)
+    return body(action)
+  }
 }
