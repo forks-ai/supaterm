@@ -31,9 +31,7 @@ final class ConfigurationDiagnosticsUITests: SupatermUITestCase {
     app.launchEnvironment["XDG_CONFIG_HOME"] = stateHome.path
     try relaunch()
 
-    let diagnosticsWindow = try require(app.windows["Configuration Errors"], timeout: 30)
-    diagnosticsWindow.click()
-    return diagnosticsWindow
+    return try require(app.windows["Configuration Errors"], timeout: 30)
   }
 
   @MainActor

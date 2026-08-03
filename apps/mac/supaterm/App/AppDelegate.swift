@@ -129,7 +129,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
   func applicationDidFinishLaunching(_ notification: Notification) {
     NSWindow.allowsAutomaticWindowTabbing = false
     installConfigurationDiagnosticsObserver()
-    refreshConfigurationDiagnostics()
     NSApp.servicesProvider = serviceProvider
     UNUserNotificationCenter.current().delegate = self
     menuController.install()
@@ -139,6 +138,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
       DemoSeed.seedCatalogs()
     #endif
     restoreWindowsAtLaunch()
+    refreshConfigurationDiagnostics()
     #if SUPATERM_DEMO
       DemoSeed.decorate(windowControllers.values.map(\.terminal))
     #endif

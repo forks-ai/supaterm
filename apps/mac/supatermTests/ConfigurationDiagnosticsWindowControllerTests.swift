@@ -35,6 +35,7 @@ struct ConfigDiagnosticsWindowControllerTests {
     #expect(window.styleMask.contains(.miniaturizable))
     #expect(window.styleMask.contains(.resizable))
     #expect(window.level == .popUpMenu)
+    #expect(window.canBecomeKey)
     #expect(window.tabbingMode == .disallowed)
     #expect(!window.isReleasedWhenClosed)
     #expect(!window.isRestorable)
