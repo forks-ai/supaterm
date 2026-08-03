@@ -744,6 +744,313 @@ struct GhosttySurfaceViewTests {
 
   @Test
   @MainActor
+  func shortSearchNeedleWritesFindPasteboardBeforeDebouncedSearch() async throws {
+    initializeGhosttyForTests()
+
+    let pasteboard = makeFindPasteboard("")
+    let surface = GhosttySurfaceView(
+      runtime: GhosttyRuntime(),
+      tabID: UUID(),
+      workingDirectory: nil,
+      context: GHOSTTY_SURFACE_CONTEXT_TAB,
+      findPasteboard: pasteboard
+    )
+    surface.bridge.state.searchNeedle = ""
+    let window = NSWindow(
+      contentRect: NSRect(x: 0, y: 0, width: 400, height: 300),
+      styleMask: [.titled],
+      backing: .buffered,
+      defer: false
+    )
+    let container = NSView(frame: window.contentView?.bounds ?? .zero)
+    let overlay = NSHostingView(rootView: GhosttySurfaceSearchOverlay(surfaceView: surface))
+    surface.frame = container.bounds
+    overlay.frame = container.bounds
+    window.contentView = container
+    container.addSubview(surface)
+    container.addSubview(overlay)
+    defer {
+      surface.closeSurface()
+      window.contentView = nil
+    }
+
+    let searchField = try await searchField(in: container)
+    searchField.stringValue = "ab"
+    searchField.delegate?.controlTextDidChange?(
+      Notification(name: NSControl.textDidChangeNotification, object: searchField)
+    )
+    for _ in 0..<20 where pasteboard.string(forType: .string) != "ab" {
+      await Task.yield()
+    }
+
+    #expect(surface.bridge.state.searchNeedle == "ab")
+    #expect(pasteboard.string(forType: .string) == "ab")
+
+    replaceFindPasteboard(pasteboard, with: "other-app")
+    try await Task.sleep(for: .milliseconds(350))
+
+    #expect(pasteboard.string(forType: .string) == "other-app")
+  }
+
+  @Test
+  @MainActor
+  func activationRestoresNeedleBeforeSearchOverlayAppears() async throws {
+    initializeGhosttyForTests()
+
+    let pasteboard = makeFindPasteboard("before")
+    let surface = GhosttySurfaceView(
+      runtime: GhosttyRuntime(),
+      tabID: UUID(),
+      workingDirectory: nil,
+      context: GHOSTTY_SURFACE_CONTEXT_TAB,
+      findPasteboard: pasteboard
+    )
+    surface.bridge.state.searchNeedle = "before"
+    replaceFindPasteboard(pasteboard, with: "after")
+    NotificationCenter.default.post(
+      name: NSApplication.didBecomeActiveNotification,
+      object: NSApplication.shared
+    )
+    #expect(surface.bridge.state.searchNeedle == "after")
+    #expect(surface.bridge.state.searchSelectionRequestCount == 1)
+
+    let window = NSWindow(
+      contentRect: NSRect(x: 0, y: 0, width: 400, height: 300),
+      styleMask: [.titled],
+      backing: .buffered,
+      defer: false
+    )
+    let container = NSView(frame: window.contentView?.bounds ?? .zero)
+    let overlay = NSHostingView(rootView: GhosttySurfaceSearchOverlay(surfaceView: surface))
+    surface.frame = container.bounds
+    overlay.frame = container.bounds
+    window.contentView = container
+    container.addSubview(surface)
+    container.addSubview(overlay)
+    defer {
+      surface.closeSurface()
+      window.contentView = nil
+    }
+
+    let searchField = try await searchField(in: container)
+    #expect(await searchFieldHasValue(searchField, value: "after"))
+    #expect(surface.bridge.state.searchNeedle == "after")
+    #expect(surface.bridge.state.searchSelectionRequestCount == 1)
+  }
+
+  @Test
+  @MainActor
+  func appearingSearchOverlayKeepsItsNeedleWithoutActivation() async throws {
+    initializeGhosttyForTests()
+
+    let pasteboard = makeFindPasteboard("other-tab")
+    let surface = GhosttySurfaceView(
+      runtime: GhosttyRuntime(),
+      tabID: UUID(),
+      workingDirectory: nil,
+      context: GHOSTTY_SURFACE_CONTEXT_TAB,
+      findPasteboard: pasteboard
+    )
+    surface.bridge.state.searchNeedle = "this-tab"
+    let window = NSWindow(
+      contentRect: NSRect(x: 0, y: 0, width: 400, height: 300),
+      styleMask: [.titled],
+      backing: .buffered,
+      defer: false
+    )
+    let container = NSView(frame: window.contentView?.bounds ?? .zero)
+    let overlay = NSHostingView(rootView: GhosttySurfaceSearchOverlay(surfaceView: surface))
+    surface.frame = container.bounds
+    overlay.frame = container.bounds
+    window.contentView = container
+    container.addSubview(surface)
+    container.addSubview(overlay)
+    defer {
+      surface.closeSurface()
+      window.contentView = nil
+    }
+
+    let searchField = try await searchField(in: container)
+    #expect(await searchFieldHasValue(searchField, value: "this-tab"))
+    #expect(surface.bridge.state.searchNeedle == "this-tab")
+  }
+
+  @Test
+  @MainActor
+  func restoredFindNeedleIsSelectedAndKeepsSearchFocusOnActivation() async throws {
+    initializeGhosttyForTests()
+
+    let pasteboard = makeFindPasteboard("restored")
+    let surface = GhosttySurfaceView(
+      runtime: GhosttyRuntime(),
+      tabID: UUID(),
+      workingDirectory: nil,
+      context: GHOSTTY_SURFACE_CONTEXT_TAB,
+      findPasteboard: pasteboard
+    )
+    withStartSearchAction(needle: "") { action in
+      _ = surface.bridge.handleAction(target: ghosttySurfaceTarget(), action: action)
+    }
+    let window = NSWindow(
+      contentRect: NSRect(x: 0, y: 0, width: 400, height: 300),
+      styleMask: [.titled],
+      backing: .buffered,
+      defer: false
+    )
+    let container = NSView(frame: window.contentView?.bounds ?? .zero)
+    let overlay = NSHostingView(rootView: GhosttySurfaceSearchOverlay(surfaceView: surface))
+    surface.frame = container.bounds
+    overlay.frame = container.bounds
+    window.contentView = container
+    container.addSubview(surface)
+    container.addSubview(overlay)
+    window.makeKeyAndOrderFront(nil)
+    defer {
+      surface.closeSurface()
+      window.contentView = nil
+      window.orderOut(nil)
+    }
+
+    let searchField = try await searchField(in: container)
+    #expect(await searchFieldHasSelectedValue(searchField, value: "restored"))
+    #expect(
+      window.firstResponder === searchField || window.firstResponder === searchField.currentEditor()
+    )
+
+    replaceFindPasteboard(pasteboard, with: "activated")
+    NotificationCenter.default.post(
+      name: NSApplication.didBecomeActiveNotification,
+      object: NSApplication.shared
+    )
+
+    #expect(await searchFieldHasSelectedValue(searchField, value: "activated"))
+    #expect(surface.bridge.state.searchNeedle == "activated")
+    #expect(
+      window.firstResponder === searchField || window.firstResponder === searchField.currentEditor()
+    )
+  }
+
+  @Test
+  @MainActor
+  func firstSearchSelectsRestoredNeedleAfterIntermediateRender() async throws {
+    initializeGhosttyForTests()
+
+    let pasteboard = makeFindPasteboard("restored")
+    let surface = GhosttySurfaceView(
+      runtime: GhosttyRuntime(),
+      tabID: UUID(),
+      workingDirectory: nil,
+      context: GHOSTTY_SURFACE_CONTEXT_TAB,
+      findPasteboard: pasteboard
+    )
+    withStartSearchAction(needle: "") { action in
+      _ = surface.bridge.handleAction(target: ghosttySurfaceTarget(), action: action)
+    }
+    let window = SearchSelectionWindow(
+      contentRect: NSRect(x: 0, y: 0, width: 400, height: 300),
+      styleMask: [.titled],
+      backing: .buffered,
+      defer: false
+    )
+    let container = NSView(frame: window.contentView?.bounds ?? .zero)
+    surface.frame = container.bounds
+    window.contentView = container
+    container.addSubview(surface)
+    window.makeKeyAndOrderFront(nil)
+    _ = window.makeFirstResponder(surface)
+    defer {
+      surface.closeSurface()
+      window.contentView = nil
+      window.orderOut(nil)
+    }
+    try #require(window.firstResponder === surface)
+
+    let focusDeferral = SearchFocusDeferral()
+    let overlay = NSHostingView(
+      rootView: GhosttySurfaceSearchOverlay(
+        surfaceView: surface,
+        deferFocusRequest: {
+          await focusDeferral.wait()
+        }
+      )
+    )
+    overlay.frame = container.bounds
+    container.addSubview(overlay)
+    let searchField = try await searchField(in: container)
+    for _ in 0..<20 where !focusDeferral.isWaiting {
+      await Task.yield()
+    }
+    try #require(focusDeferral.isWaiting)
+    surface.bridge.state.searchTotal = 1
+    try await Task.sleep(for: .milliseconds(50))
+    container.layoutSubtreeIfNeeded()
+
+    #expect(searchField.currentEditor() == nil)
+    focusDeferral.resume()
+    #expect(await searchFieldHasSelectedValue(searchField, value: "restored"))
+  }
+
+  @Test
+  @MainActor
+  func restoredFindNeedleWithoutEditorDoesNotStealFocusOrSelectLater() async throws {
+    initializeGhosttyForTests()
+
+    let pasteboard = makeFindPasteboard("before")
+    let surface = GhosttySurfaceView(
+      runtime: GhosttyRuntime(),
+      tabID: UUID(),
+      workingDirectory: nil,
+      context: GHOSTTY_SURFACE_CONTEXT_TAB,
+      findPasteboard: pasteboard
+    )
+    surface.bridge.state.searchNeedle = "before"
+    let window = NSWindow(
+      contentRect: NSRect(x: 0, y: 0, width: 400, height: 300),
+      styleMask: [.titled],
+      backing: .buffered,
+      defer: false
+    )
+    let container = NSView(frame: window.contentView?.bounds ?? .zero)
+    let overlay = NSHostingView(rootView: GhosttySurfaceSearchOverlay(surfaceView: surface))
+    surface.frame = container.bounds
+    overlay.frame = container.bounds
+    window.contentView = container
+    container.addSubview(surface)
+    container.addSubview(overlay)
+    window.makeFirstResponder(surface)
+    defer {
+      surface.closeSurface()
+      window.contentView = nil
+    }
+    let searchField = try await searchField(in: container)
+
+    replaceFindPasteboard(pasteboard, with: "after")
+    NotificationCenter.default.post(
+      name: NSApplication.didBecomeActiveNotification,
+      object: NSApplication.shared
+    )
+    for _ in 0..<20 where surface.bridge.state.searchNeedle != "after" {
+      await Task.yield()
+    }
+
+    #expect(surface.bridge.state.searchNeedle == "after")
+    #expect(window.firstResponder === surface)
+
+    #expect(await searchFieldHasValue(searchField, value: "after"))
+    #expect(searchField.currentEditor() == nil)
+    window.makeFirstResponder(searchField)
+    let editor = try #require(searchField.currentEditor())
+    let caret = NSRange(location: searchField.stringValue.utf16.count, length: 0)
+    editor.selectedRange = caret
+    surface.bridge.state.searchTotal = 1
+    await Task.yield()
+    await Task.yield()
+
+    #expect(editor.selectedRange == caret)
+  }
+
+  @Test
+  @MainActor
   func surfaceActivityRequiresSurfaceFirstResponder() throws {
     initializeGhosttyForTests()
 
@@ -1164,6 +1471,61 @@ private func findSearchField(in root: NSView) -> NSTextField? {
     }
   }
   return nil
+}
+
+@MainActor
+private final class SearchFocusDeferral {
+  private var continuation: CheckedContinuation<Void, Never>?
+
+  var isWaiting: Bool {
+    continuation != nil
+  }
+
+  func wait() async {
+    await withCheckedContinuation { continuation in
+      self.continuation = continuation
+    }
+  }
+
+  func resume() {
+    continuation?.resume()
+    continuation = nil
+  }
+}
+
+@MainActor
+private final class SearchSelectionWindow: NSWindow {
+  override func makeFirstResponder(_ responder: NSResponder?) -> Bool {
+    let didChange = super.makeFirstResponder(responder)
+    if didChange, let field = responder as? NSTextField {
+      field.currentEditor()?.selectedRange = NSRange(location: field.stringValue.utf16.count, length: 0)
+    }
+    return didChange
+  }
+}
+
+@MainActor
+private func searchFieldHasSelectedValue(_ field: NSTextField, value: String) async -> Bool {
+  for _ in 0..<20 {
+    if field.stringValue == value,
+      field.currentEditor()?.selectedRange == NSRange(location: 0, length: value.utf16.count)
+    {
+      return true
+    }
+    await Task.yield()
+  }
+  return false
+}
+
+@MainActor
+private func searchFieldHasValue(_ field: NSTextField, value: String) async -> Bool {
+  for _ in 0..<20 {
+    if field.stringValue == value {
+      return true
+    }
+    await Task.yield()
+  }
+  return false
 }
 
 @MainActor

@@ -123,6 +123,7 @@ final class GhosttyRuntime {
       ) { [weak self] _ in
         MainActor.assumeIsolated {
           self?.setAppFocus(true)
+          self?.restoreSearchNeedles()
         }
       })
     observers.append(
@@ -180,6 +181,12 @@ final class GhosttyRuntime {
   func setAppFocus(_ focused: Bool) {
     if let app {
       ghostty_app_set_focus(app, focused)
+    }
+  }
+
+  private func restoreSearchNeedles() {
+    for ref in surfaceRefs {
+      Self.surfaceBridge(fromSurface: ref.surface)?.restoreSearchNeedle()
     }
   }
 

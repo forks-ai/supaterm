@@ -75,6 +75,7 @@ final class GhosttySurfaceView: NSView, Identifiable {
   private var currentCursor: NSCursor = .iBeam
   private var focused = false
   private var handledSearchFocusCount = 0
+  private var handledSearchSelectionRequestCount = 0
   private var markedText = NSMutableAttributedString()
   private var keyTextAccumulator: [String]?
   private var cellSize: CGSize = .zero
@@ -291,13 +292,14 @@ final class GhosttySurfaceView: NSView, Identifiable {
     accessibilitySelectionSleep: @escaping @Sendable (Duration) async throws -> Void = {
       try await ContinuousClock().sleep(for: $0)
     },
+    findPasteboard: NSPasteboard = NSPasteboard(name: .find),
     surfaceFactory: SurfaceFactory = { app, config in
       ghostty_surface_new(app, config)
     }
   ) {
     self.runtime = runtime
     self.id = id
-    self.bridge = GhosttySurfaceBridge()
+    self.bridge = GhosttySurfaceBridge(findPasteboard: findPasteboard)
     self.environmentVariables = Self.supatermEnvironmentVariables(
       surfaceID: id,
       tabID: tabID,
@@ -1367,6 +1369,12 @@ final class GhosttySurfaceView: NSView, Identifiable {
   func consumeSearchFocusRequest(_ count: Int) -> Bool {
     guard count > handledSearchFocusCount else { return false }
     handledSearchFocusCount = count
+    return true
+  }
+
+  func consumeSearchSelectionRequest(_ count: Int) -> Bool {
+    guard count > handledSearchSelectionRequestCount else { return false }
+    handledSearchSelectionRequestCount = count
     return true
   }
 
