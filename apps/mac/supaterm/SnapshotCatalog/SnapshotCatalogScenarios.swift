@@ -523,13 +523,19 @@ extension SnapshotCatalog {
       "query",
       title: "Filtered query",
       state: TerminalCommandPaletteState(query: "update", selectedRowID: "update:restart"),
-      rows: commandPaletteRows.filter { $0.searchableText.lowercased().contains("update") }
+      rows: commandPaletteRows
+    ),
+    commandPaletteScenario(
+      "word-initial-query",
+      title: "Word initial query",
+      state: TerminalCommandPaletteState(query: "ntw", selectedRowID: "terminal:new-tab-window"),
+      rows: commandPaletteRows
     ),
     commandPaletteScenario(
       "empty",
       title: "No matches",
       state: TerminalCommandPaletteState(query: "zzzzz"),
-      rows: []
+      rows: commandPaletteRows
     ),
     commandPaletteScenario(
       "command-held",
@@ -1105,7 +1111,7 @@ private struct TerminalSidebarUpdateSnapshotFixture: View {
 private struct CommandPaletteSnapshotFixture: View {
   let appearance: SnapshotAppearance
   let state: TerminalCommandPaletteState
-  let rows: [TerminalCommandPaletteRow]
+  let matches: [TerminalCommandPaletteMatch]
   let commandHeld: Bool
 
   private var palette: Palette {
@@ -1123,7 +1129,7 @@ private struct CommandPaletteSnapshotFixture: View {
       TerminalCommandPaletteOverlay(
         palette: palette,
         state: state,
-        rows: rows,
+        matches: matches,
         onActivate: {},
         onClose: {},
         onQueryChange: { _ in },
@@ -1351,7 +1357,7 @@ extension SnapshotCatalog {
         CommandPaletteSnapshotFixture(
           appearance: appearance,
           state: state,
-          rows: rows,
+          matches: TerminalCommandPalettePresentation.matches(in: rows, query: state.query),
           commandHeld: commandHeld
         )
       )
@@ -1448,6 +1454,17 @@ extension SnapshotCatalog {
         emphasis: false,
         shortcut: "⌘D",
         command: .ghosttyBindingAction("new_split:right")
+      ),
+      TerminalCommandPaletteRow(
+        id: "terminal:new-tab-window",
+        title: "New Tab in Window",
+        subtitle: "Terminal",
+        description: nil,
+        leadingIcon: "macwindow.badge.plus",
+        badge: nil,
+        emphasis: false,
+        shortcut: "⌘N",
+        command: .ghosttyBindingAction("new_window")
       ),
     ]
   }
