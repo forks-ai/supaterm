@@ -7,6 +7,7 @@ nonisolated enum ZmxTestCleanupError: Error, CustomStringConvertible {
   case commandFailed(arguments: [String], status: Int32, stderr: String)
   case commandTimedOut(arguments: [String])
   case processDidNotExit(Int32)
+  case processIdentityUnavailable(Int32)
   case processSignalFailed(processID: Int32, signal: Int32, errorCode: Int32)
   case sessionsRemain([String])
 
@@ -18,6 +19,8 @@ nonisolated enum ZmxTestCleanupError: Error, CustomStringConvertible {
       return "zmx \(arguments.joined(separator: " ")) timed out"
     case .processDidNotExit(let processID):
       return "process \(processID) did not exit"
+    case .processIdentityUnavailable(let processID):
+      return "process \(processID) identity is unavailable"
     case .processSignalFailed(let processID, let signal, let errorCode):
       return "signal \(signal) failed for process \(processID) with error \(errorCode)"
     case .sessionsRemain(let sessionIDs):
@@ -145,10 +148,17 @@ nonisolated struct ZmxTestSessionCleaner: Sendable {
 
 nonisolated struct ZmxTestWorkspace: Sendable {
   static let ownerFilename = ".supaterm-test-owner"
+  static let claimMarker = ".supaterm-test-reap-"
+
+  struct ProcessIdentity: Codable, Equatable, Sendable {
+    let processID: Int32
+    let startTimeSeconds: UInt64
+    let startTimeMicroseconds: UInt64
+  }
 
   struct Owner: Codable, Sendable {
     let runnerProcessID: Int32
-    let appProcessID: Int32?
+    let appProcess: ProcessIdentity?
   }
 
   private let stateHome: URL
@@ -158,16 +168,20 @@ nonisolated struct ZmxTestWorkspace: Sendable {
     self.stateHome = stateHome
     cleaner = ZmxTestSessionCleaner(executableURL: zmxExecutableURL, instanceName: instanceName)
     try FileManager.default.createDirectory(at: stateHome, withIntermediateDirectories: true)
-    try writeOwner(Owner(runnerProcessID: getpid(), appProcessID: nil))
+    try writeOwner(Owner(runnerProcessID: getpid(), appProcess: nil))
   }
 
-  func recordAppProcessID(_ processID: Int32) throws {
-    try writeOwner(Owner(runnerProcessID: getpid(), appProcessID: processID))
+  func recordApp(_ process: Process) throws {
+    let processID = process.processIdentifier
+    guard let appProcess = Self.processIdentity(processID: processID) else {
+      throw ZmxTestCleanupError.processIdentityUnavailable(processID)
+    }
+    try writeOwner(Owner(runnerProcessID: getpid(), appProcess: appProcess))
   }
 
   func cleanup() throws {
-    if let processID = try readOwner().appProcessID {
-      try Self.terminateProcess(processID)
+    if let appProcess = try readOwner().appProcess {
+      try Self.terminateProcess(appProcess)
     }
     try cleaner.cleanup()
     if FileManager.default.fileExists(atPath: stateHome.path) {
@@ -234,11 +248,13 @@ nonisolated struct ZmxTestWorkspace: Sendable {
       else {
         continue
       }
-      let suffix = name.dropFirst(stateHomePrefix.count)
+      let suffixWithClaims = name.dropFirst(stateHomePrefix.count)
+      let suffixEnd = suffixWithClaims.range(of: claimMarker)?.lowerBound ?? suffixWithClaims.endIndex
+      let suffix = suffixWithClaims[..<suffixEnd]
       guard let claimedStateHome = try claim(stateHome, fileManager: fileManager) else { continue }
       do {
-        if let appProcessID = owner.appProcessID {
-          try terminateProcess(appProcessID)
+        if let appProcess = owner.appProcess {
+          try terminateProcess(appProcess)
         }
         try cleanupInstance(instanceNamePrefix + suffix)
         try fileManager.removeItem(at: claimedStateHome)
@@ -253,7 +269,7 @@ nonisolated struct ZmxTestWorkspace: Sendable {
 
   static func claim(_ stateHome: URL, fileManager: FileManager = .default) throws -> URL? {
     let claimedStateHome = stateHome.deletingLastPathComponent().appendingPathComponent(
-      ".supaterm-test-reap-\(UUID().uuidString)",
+      "\(stateHome.lastPathComponent)\(claimMarker)\(UUID().uuidString)",
       isDirectory: true
     )
     do {
@@ -270,22 +286,40 @@ nonisolated struct ZmxTestWorkspace: Sendable {
     return errno == EPERM
   }
 
-  private static func terminateProcess(_ processID: Int32) throws {
-    guard processIsRunning(processID) else { return }
-    try send(SIGTERM, to: processID)
-    if waitForExit(processID, timeout: 5) { return }
-    try send(SIGKILL, to: processID)
-    guard waitForExit(processID, timeout: 2) else {
-      throw ZmxTestCleanupError.processDidNotExit(processID)
+  private static func terminateProcess(_ process: ProcessIdentity) throws {
+    guard processMatches(process) else { return }
+    try send(SIGTERM, to: process.processID)
+    if waitForExit(process, timeout: 5) { return }
+    guard processMatches(process) else { return }
+    try send(SIGKILL, to: process.processID)
+    guard waitForExit(process, timeout: 2) else {
+      throw ZmxTestCleanupError.processDidNotExit(process.processID)
     }
   }
 
-  private static func waitForExit(_ processID: Int32, timeout: TimeInterval) -> Bool {
+  private static func waitForExit(_ process: ProcessIdentity, timeout: TimeInterval) -> Bool {
     let deadline = Date().addingTimeInterval(timeout)
-    while processIsRunning(processID), Date() < deadline {
+    while processMatches(process), Date() < deadline {
       Thread.sleep(forTimeInterval: 0.05)
     }
-    return !processIsRunning(processID)
+    return !processMatches(process)
+  }
+
+  private static func processMatches(_ process: ProcessIdentity) -> Bool {
+    processIdentity(processID: process.processID) == process
+  }
+
+  private static func processIdentity(processID: Int32) -> ProcessIdentity? {
+    var info = proc_bsdinfo()
+    let size = MemoryLayout<proc_bsdinfo>.size
+    guard proc_pidinfo(processID, PROC_PIDTBSDINFO, 0, &info, Int32(size)) == Int32(size) else {
+      return nil
+    }
+    return ProcessIdentity(
+      processID: processID,
+      startTimeSeconds: info.pbi_start_tvsec,
+      startTimeMicroseconds: info.pbi_start_tvusec
+    )
   }
 
   private static func send(_ signal: Int32, to processID: Int32) throws {

@@ -89,8 +89,9 @@ class SupatermUITestCase: XCTestCase {
         app.terminate()
         return app.wait(for: .notRunning, timeout: 10)
       }
-      try workspace.cleanup()
       XCTAssertTrue(stopped)
+      guard stopped else { return }
+      try workspace.cleanup()
     }
   }
 
