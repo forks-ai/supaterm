@@ -1,4 +1,5 @@
 import AppKit
+import Carbon.HIToolbox
 import SwiftUI
 import Synchronization
 import Testing
@@ -35,6 +36,7 @@ struct ConfigDiagnosticsWindowControllerTests {
     #expect(window.styleMask.contains(.miniaturizable))
     #expect(window.styleMask.contains(.resizable))
     #expect(window.level == .popUpMenu)
+    #expect(window.canBecomeKey)
     #expect(window.tabbingMode == .disallowed)
     #expect(!window.isReleasedWhenClosed)
     #expect(!window.isRestorable)
@@ -93,6 +95,36 @@ struct ConfigDiagnosticsWindowControllerTests {
   }
 
   @Test
+  func escapePerformsCancelAction() throws {
+    let controller = ConfigurationDiagnosticsWindowController()
+    let window = try #require(controller.window)
+    defer { controller.close() }
+    controller.update(messages: ["unknown key"])
+
+    let handled = window.performKeyEquivalent(
+      with: try keyEvent("\u{1b}", keyCode: UInt16(kVK_Escape))
+    )
+
+    #expect(handled)
+    #expect(!window.isVisible)
+  }
+
+  @Test
+  func unrelatedKeyFallsThrough() throws {
+    let controller = ConfigurationDiagnosticsWindowController()
+    let window = try #require(controller.window)
+    defer { controller.close() }
+    controller.update(messages: ["unknown key"])
+
+    let handled = window.performKeyEquivalent(
+      with: try keyEvent("x", keyCode: UInt16(kVK_ANSI_X))
+    )
+
+    #expect(!handled)
+    #expect(window.isVisible)
+  }
+
+  @Test
   func reloadPostsRuntimeReloadRequestOnce() throws {
     let notificationCenter = NotificationCenter()
     let controller = ConfigurationDiagnosticsWindowController(
@@ -117,5 +149,49 @@ struct ConfigDiagnosticsWindowControllerTests {
     hostingController.rootView.onReload()
 
     #expect(reloadCount.withLock { $0 } == 1)
+  }
+
+  @Test
+  func returnPerformsDefaultAction() throws {
+    let notificationCenter = NotificationCenter()
+    let controller = ConfigurationDiagnosticsWindowController(
+      notificationCenter: notificationCenter
+    )
+    let window = try #require(controller.window)
+    defer { controller.close() }
+    let reloadCount = Mutex(0)
+    let observer = notificationCenter.addObserver(
+      forName: .ghosttyRuntimeReloadRequested,
+      object: nil,
+      queue: nil
+    ) { _ in
+      reloadCount.withLock { $0 += 1 }
+    }
+    defer { notificationCenter.removeObserver(observer) }
+    controller.update(messages: ["unknown key"])
+
+    let handled = window.performKeyEquivalent(
+      with: try keyEvent("\r", keyCode: UInt16(kVK_Return))
+    )
+
+    #expect(handled)
+    #expect(reloadCount.withLock { $0 } == 1)
+  }
+
+  private func keyEvent(_ characters: String, keyCode: UInt16) throws -> NSEvent {
+    try #require(
+      NSEvent.keyEvent(
+        with: .keyDown,
+        location: .zero,
+        modifierFlags: [],
+        timestamp: 0,
+        windowNumber: 0,
+        context: nil,
+        characters: characters,
+        charactersIgnoringModifiers: characters,
+        isARepeat: false,
+        keyCode: keyCode
+      )
+    )
   }
 }
