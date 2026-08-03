@@ -255,6 +255,21 @@ extension SupatermUITestCase {
   }
 
   @MainActor
+  func requireSidebarStructure(
+    _ expected: [SidebarRootExpectation],
+    file: StaticString = #filePath,
+    line: UInt = #line
+  ) async {
+    let didMatch = await waitForSidebarStructure(expected)
+    XCTAssertTrue(
+      didMatch,
+      "Expected \(expected); actual \(sidebarStructureDescription())",
+      file: file,
+      line: line
+    )
+  }
+
+  @MainActor
   func sidebarStructureDescription() -> String {
     sidebarStructuralRows.allElementsBoundByIndex.map {
       "\($0.identifier)=\(sidebarSemanticControl(for: $0).label)"
