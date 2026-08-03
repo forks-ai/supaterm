@@ -191,7 +191,7 @@ enum TerminalSidebarWarningBadgeStyle {
       ColorMath.composited(
         palette.warningFillValue,
         opacity: backgroundOpacity(isSelected: true),
-        over: palette.sidebarSelectedSurface(over: background)
+        over: palette.sidebarTabPrimarySurface(over: background)
       )
     }
   }

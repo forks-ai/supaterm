@@ -2,36 +2,45 @@ import SupaTheme
 import SwiftUI
 
 struct SelectableRowButtonStyle: ButtonStyle {
+  enum Selection: Equatable {
+    case none
+    case primary
+    case secondary
+  }
+
   enum Appearance {
     case standard(restFill: Color)
-    case sidebar(restFill: Color)
+    case sidebar
 
     func resolve(palette: Palette) -> ResolvedAppearance {
       switch self {
       case .standard(let restFill):
         ResolvedAppearance(
-          selectedFill: palette.selectedFill,
+          primarySelectionFill: palette.selectedFill,
+          secondarySelectionFill: palette.selectedFill,
           pressedFill: palette.pressedFill,
           hoverFill: palette.hoverFill,
           restFill: restFill,
           selectedStroke: AnyShapeStyle(palette.selectedStroke),
           selectedShadow: palette.selectedShadow
         )
-      case .sidebar(let restFill):
+      case .sidebar:
         ResolvedAppearance(
-          selectedFill: palette.sidebarSelectedFill,
-          pressedFill: palette.sidebarItemPressedFill,
-          hoverFill: palette.sidebarItemHoverFill,
-          restFill: restFill,
-          selectedStroke: AnyShapeStyle(palette.sidebarSelectedStroke),
-          selectedShadow: palette.sidebarSelectedShadow
+          primarySelectionFill: palette.sidebarTabRow.primarySelectionFill,
+          secondarySelectionFill: palette.sidebarTabRow.secondarySelectionFill,
+          pressedFill: palette.sidebarTabRow.pressedFill,
+          hoverFill: palette.sidebarTabRow.hoverFill,
+          restFill: palette.sidebarTabRow.restFill,
+          selectedStroke: AnyShapeStyle(palette.sidebarTabRowSelectedEdge),
+          selectedShadow: palette.sidebarTabRow.shadow
         )
       }
     }
   }
 
   struct ResolvedAppearance {
-    let selectedFill: Color
+    let primarySelectionFill: Color
+    let secondarySelectionFill: Color
     let pressedFill: Color
     let hoverFill: Color
     let restFill: Color
@@ -39,25 +48,27 @@ struct SelectableRowButtonStyle: ButtonStyle {
     let selectedShadow: Color
 
     func fill(
-      isSelected: Bool,
+      selection: Selection,
       isPressed: Bool,
       isHovering: Bool
     ) -> Color {
-      if isSelected {
-        return selectedFill
-      }
-      if isPressed {
+      switch selection {
+      case .primary:
+        return primarySelectionFill
+      case .secondary:
+        return secondarySelectionFill
+      case .none where isPressed:
         return pressedFill
-      }
-      if isHovering {
+      case .none where isHovering:
         return hoverFill
+      case .none:
+        return restFill
       }
-      return restFill
     }
   }
 
   let palette: Palette
-  let isSelected: Bool
+  let selection: Selection
   let isHovering: Bool
   let cornerRadius: CGFloat
   let appearance: Appearance
@@ -74,7 +85,7 @@ struct SelectableRowButtonStyle: ButtonStyle {
     showsSelectionShadow: Bool = true
   ) {
     self.palette = palette
-    self.isSelected = isSelected
+    selection = isSelected ? .primary : .none
     self.isHovering = isHovering
     self.cornerRadius = cornerRadius
     self.appearance = appearance
@@ -87,14 +98,14 @@ struct SelectableRowButtonStyle: ButtonStyle {
     configuration.label
       .background(
         resolvedAppearance.fill(
-          isSelected: isSelected,
+          selection: selection,
           isPressed: configuration.isPressed,
           isHovering: isHovering
         )
       )
       .modifier(
         SelectableRowChrome(
-          isSelected: isSelected,
+          selection: selection,
           cornerRadius: cornerRadius,
           appearance: resolvedAppearance,
           showsSelectionEdge: showsSelectionEdge,
@@ -114,20 +125,20 @@ enum SelectableRowShadowMetrics {
 struct SelectableRowChrome: ViewModifier {
   @Environment(\.colorScheme) private var colorScheme
 
-  let isSelected: Bool
+  let selection: SelectableRowButtonStyle.Selection
   let cornerRadius: CGFloat
   let appearance: SelectableRowButtonStyle.ResolvedAppearance
   let showsSelectionEdge: Bool
   let showsSelectionShadow: Bool
 
   init(
-    isSelected: Bool,
+    selection: SelectableRowButtonStyle.Selection,
     cornerRadius: CGFloat,
     appearance: SelectableRowButtonStyle.ResolvedAppearance,
     showsSelectionEdge: Bool,
     showsSelectionShadow: Bool = true
   ) {
-    self.isSelected = isSelected
+    self.selection = selection
     self.cornerRadius = cornerRadius
     self.appearance = appearance
     self.showsSelectionEdge = showsSelectionEdge
@@ -136,7 +147,7 @@ struct SelectableRowChrome: ViewModifier {
 
   func body(content: Content) -> some View {
     let shape = RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-    let hasEdge = isSelected && showsSelectionEdge
+    let hasEdge = selection == .primary && showsSelectionEdge
     let hasShadow = hasEdge && showsSelectionShadow
     content
       .compositingGroup()

@@ -90,6 +90,23 @@ extension SnapshotCatalog {
       )
     },
     scenario(
+      "rest",
+      group: "Sidebar Rows",
+      title: "Resting shell tab",
+      size: CGSize(width: 320, height: 72)
+    ) { appearance in
+      AnyView(
+        SidebarRowSnapshotFixture(
+          appearance: appearance,
+          item: SidebarRowSnapshotItem(
+            id: "10000000-0000-0000-0000-000000000008",
+            title: "supaterm - fish",
+            paneWorkingDirectories: [SnapshotFixtureValues.workspace()]
+          )
+        )
+      )
+    },
+    scenario(
       "basic-selected",
       group: "Sidebar Rows",
       title: "Selected shell tab",
@@ -101,7 +118,7 @@ extension SnapshotCatalog {
           item: SidebarRowSnapshotItem(
             id: "10000000-0000-0000-0000-000000000001",
             title: "supaterm - fish",
-            isSelected: true,
+            selection: .primary,
             paneWorkingDirectories: [SnapshotFixtureValues.workspace()]
           )
         )
@@ -124,6 +141,24 @@ extension SnapshotCatalog {
             paneWorkingDirectories: [SnapshotFixtureValues.workspace("apps/mac")],
             shortcutHint: "⌘2",
             showsShortcutHint: true
+          )
+        )
+      )
+    },
+    scenario(
+      "secondary-selection",
+      group: "Sidebar Rows",
+      title: "Secondary selected shell tab",
+      size: CGSize(width: 320, height: 72)
+    ) { appearance in
+      AnyView(
+        SidebarRowSnapshotFixture(
+          appearance: appearance,
+          item: SidebarRowSnapshotItem(
+            id: "10000000-0000-0000-0000-000000000007",
+            title: "supaterm - fish",
+            selection: .secondary,
+            paneWorkingDirectories: [SnapshotFixtureValues.workspace()]
           )
         )
       )
@@ -692,7 +727,7 @@ extension SnapshotCatalog {
 private struct SidebarRowSnapshotItem {
   let id: String
   let title: String
-  var isSelected = false
+  var selection: SelectableRowButtonStyle.Selection = .none
   var isPinned = false
   var isRowHovering = false
   var isPressed = false
@@ -711,6 +746,8 @@ private struct SidebarRowSnapshotItem {
       title: title
     )
   }
+
+  var isSelected: Bool { selection != .none }
 }
 
 private struct SidebarRowSnapshotFixture: View {
@@ -747,14 +784,14 @@ private struct SidebarRowSnapshotFixture: View {
     .frame(maxWidth: .infinity, alignment: .leading)
     .background(
       rowAppearance.fill(
-        isSelected: item.isSelected,
+        selection: item.selection,
         isPressed: item.isPressed,
         isHovering: item.isRowHovering
       )
     )
     .modifier(
       SelectableRowChrome(
-        isSelected: item.isSelected,
+        selection: item.selection,
         cornerRadius: TerminalSidebarLayout.tabRowCornerRadius,
         appearance: rowAppearance,
         showsSelectionEdge: true
@@ -765,7 +802,7 @@ private struct SidebarRowSnapshotFixture: View {
   }
 
   private var rowAppearance: SelectableRowButtonStyle.ResolvedAppearance {
-    SelectableRowButtonStyle.Appearance.sidebar(restFill: .clear).resolve(palette: palette)
+    SelectableRowButtonStyle.Appearance.sidebar.resolve(palette: palette)
   }
 }
 

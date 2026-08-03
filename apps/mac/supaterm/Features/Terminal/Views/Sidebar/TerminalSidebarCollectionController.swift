@@ -1231,7 +1231,7 @@ final class TerminalSidebarListController: NSViewController, NSCollectionViewDel
         in: item.frame,
         isGrouped: presentation.groupID != nil
       ),
-      color: context.palette.sidebarSelectedShadow,
+      color: context.palette.sidebarTabRow.shadow,
       alpha: item.alpha,
       isDark: context.palette.isDark
     )

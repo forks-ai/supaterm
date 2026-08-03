@@ -66,10 +66,10 @@ struct TerminalSidebarButtonStyle: ButtonStyle {
 
   private func background(isPressed: Bool) -> Color {
     if isPressed && isEnabled {
-      return palette.sidebarItemPressedFill
+      return palette.sidebarControlPressedFill
     }
     if isHovering && isEnabled {
-      return palette.sidebarItemHoverFill
+      return palette.sidebarControlHoverFill
     }
     return .clear
   }

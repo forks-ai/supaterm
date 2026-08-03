@@ -116,6 +116,7 @@ private struct PaletteTokenSheetSnapshotFixture: View {
   }
 
   private func tokens(for palette: Palette) -> [TokenSwatch] {
+    let sidebarTabRow = palette.sidebarTabRow
     let semanticTokens = [
       TokenSwatch(name: "backgroundIlluminationStart", color: palette.backgroundIlluminationStartValue.color),
       TokenSwatch(name: "backgroundIlluminationStop", color: palette.backgroundIlluminationStopValue.color),
@@ -139,11 +140,15 @@ private struct PaletteTokenSheetSnapshotFixture: View {
       TokenSwatch(name: "selectedShadow", color: palette.selectedShadow),
       TokenSwatch(name: "primaryText", color: palette.primaryText),
       TokenSwatch(name: "secondaryText", color: palette.secondaryText),
-      TokenSwatch(name: "sidebarTabTitle", color: palette.sidebarTabTitle),
-      TokenSwatch(name: "sidebarSelectedFill", color: palette.sidebarSelectedFill),
-      TokenSwatch(name: "sidebarSelectedStroke", color: palette.sidebarSelectedStroke),
-      TokenSwatch(name: "sidebarItemHoverFill", color: palette.sidebarItemHoverFill),
-      TokenSwatch(name: "sidebarItemPressedFill", color: palette.sidebarItemPressedFill),
+      TokenSwatch(name: "sidebarTabRowRest", color: sidebarTabRow.restFill),
+      TokenSwatch(name: "sidebarTabRowHover", color: sidebarTabRow.hoverFill),
+      TokenSwatch(name: "sidebarTabRowPressed", color: sidebarTabRow.pressedFill),
+      TokenSwatch(name: "sidebarTabRowPrimarySelection", color: sidebarTabRow.primarySelectionFill),
+      TokenSwatch(name: "sidebarTabRowSecondarySelection", color: sidebarTabRow.secondarySelectionFill),
+      TokenSwatch(name: "sidebarTabRowSelectedTitle", color: sidebarTabRow.selectedTitle),
+      TokenSwatch(name: "sidebarTabRowTitle", color: sidebarTabRow.title),
+      TokenSwatch(name: "sidebarTabRowSelectedEdge", color: palette.sidebarTabRowSelectedEdge),
+      TokenSwatch(name: "sidebarTabRowShadow", color: sidebarTabRow.shadow),
       TokenSwatch(name: "sidebarSeparator", color: palette.sidebarSeparator),
       TokenSwatch(name: "shadow", color: palette.shadow),
       TokenSwatch(name: "scrim", color: palette.scrim),

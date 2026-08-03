@@ -74,6 +74,43 @@ struct TerminalSidebarPointerTests {
     #expect(fixture.pointerEvents.mouseUpEventNumbers == [42, 44])
   }
 
+  @Test
+  func tabRowPressClearsWhenDraggingStarts() throws {
+    let collectionView = TerminalSidebarCollectionView(
+      frame: NSRect(x: 0, y: 0, width: 240, height: 60)
+    )
+    let tabID = TerminalTabID(rawValue: UUID())
+    let entryID = TerminalSidebarEntryID.tab(tabID)
+    var pressedStates: [Bool] = []
+    collectionView.onRowMouseDown = { id, _ in id == entryID }
+    collectionView.onRowMouseDragged = { id, _ in id == entryID }
+    let pointer = TerminalSidebarRowPointerNSView(entryID: entryID) {
+      pressedStates.append($0)
+    }
+    pointer.frame = collectionView.bounds
+    collectionView.addSubview(pointer)
+    let window = NSWindow(
+      contentRect: collectionView.frame,
+      styleMask: .borderless,
+      backing: .buffered,
+      defer: false
+    )
+    window.contentView = collectionView
+    defer { window.contentView = nil }
+
+    let mouseDown = try #require(
+      mouseEvent(.leftMouseDown, at: .zero, in: window, eventNumber: 1)
+    )
+    let mouseDragged = try #require(
+      mouseEvent(.leftMouseDragged, at: NSPoint(x: 8, y: 0), in: window, eventNumber: 2)
+    )
+
+    pointer.mouseDown(with: mouseDown)
+    #expect(pressedStates == [true])
+    pointer.mouseDragged(with: mouseDragged)
+    #expect(pressedStates == [true, false])
+  }
+
   private func fixture() async throws -> Fixture {
     let host = TerminalHostState(managesTerminalSurfaces: false)
     let manager = host.spaceManager.tabManager

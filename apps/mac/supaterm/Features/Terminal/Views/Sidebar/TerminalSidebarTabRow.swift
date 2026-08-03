@@ -124,14 +124,11 @@ struct TerminalSidebarTabRow: View {
 
   @Environment(\.accessibilityReduceMotion) private var reduceMotion
   @State private var isHovering = false
+  @State private var isPressed = false
   @State private var isCloseHovering = false
 
   private var selectionStyle: TerminalSidebarTabSelectionStyle {
     selectionState.style(for: tab.id, primaryTabID: terminal.selectedTabID)
-  }
-
-  private var isPrimarySelected: Bool {
-    selectionStyle == .primary
   }
 
   private var isSelected: Bool {
@@ -162,7 +159,7 @@ struct TerminalSidebarTabRow: View {
     let summary = TerminalSidebarTabSummaryView(
       tab: tab,
       palette: palette,
-      isSelected: isPrimarySelected,
+      isSelected: isSelected,
       isPinned: groupID == nil && rootIsPinned,
       notificationPreviewText: notificationPresentation?.previewText,
       paneWorkingDirectories: paneWorkingDirectories,
@@ -194,13 +191,13 @@ struct TerminalSidebarTabRow: View {
     .frame(maxWidth: .infinity)
     .background {
       rowAppearance.fill(
-        isSelected: isPrimarySelected,
-        isPressed: false,
+        selection: rowSelection,
+        isPressed: isPressed,
         isHovering: isHovering
       )
       .modifier(
         SelectableRowChrome(
-          isSelected: isPrimarySelected,
+          selection: rowSelection,
           cornerRadius: TerminalSidebarLayout.tabRowCornerRadius,
           appearance: rowAppearance,
           showsSelectionEdge: true,
@@ -216,7 +213,7 @@ struct TerminalSidebarTabRow: View {
       reduceMotion: reduceMotion
     )
     .overlay {
-      TerminalSidebarRowPointerView(entryID: .tab(tab.id))
+      TerminalSidebarRowPointerView(entryID: .tab(tab.id), isPressed: $isPressed)
     }
     .overlay(
       TerminalSidebarMiddleClickActionView(action: close)
@@ -230,7 +227,7 @@ struct TerminalSidebarTabRow: View {
         Button(action: close) {
           Image(systemName: "xmark")
             .font(.system(size: 12, weight: .heavy))
-            .foregroundStyle(isPrimarySelected ? palette.selectedText : palette.sidebarTabTitle)
+            .foregroundStyle(isSelected ? palette.selectedText : palette.sidebarTabRow.title)
             .frame(
               width: TerminalSidebarLayout.tabTrailingAccessorySize,
               height: TerminalSidebarLayout.tabTrailingAccessorySize
@@ -238,7 +235,7 @@ struct TerminalSidebarTabRow: View {
             .accessibilityHidden(true)
             .background(
               isCloseHovering
-                ? (isPrimarySelected ? palette.selectedPillFill : palette.unselectedFill)
+                ? (isSelected ? palette.selectedPillFill : palette.unselectedFill)
                 : .clear,
               in: RoundedRectangle(cornerRadius: 6, style: .continuous)
             )
@@ -382,9 +379,18 @@ struct TerminalSidebarTabRow: View {
   }
 
   private var rowAppearance: SelectableRowButtonStyle.ResolvedAppearance {
-    SelectableRowButtonStyle.Appearance.sidebar(
-      restFill: selectionStyle == .secondary ? palette.sidebarItemHoverFill : .clear
-    ).resolve(palette: palette)
+    SelectableRowButtonStyle.Appearance.sidebar.resolve(palette: palette)
+  }
+
+  private var rowSelection: SelectableRowButtonStyle.Selection {
+    switch selectionStyle {
+    case .none:
+      .none
+    case .primary:
+      .primary
+    case .secondary:
+      .secondary
+    }
   }
 
   private var animatedPresentation: AnimatedPresentation {

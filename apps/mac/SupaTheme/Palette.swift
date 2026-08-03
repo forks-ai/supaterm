@@ -1,5 +1,25 @@
 import SwiftUI
 
+public struct SidebarTabRowPalette {
+  public let restFillValue: ThemeColor
+  public let hoverFillValue: ThemeColor
+  public let pressedFillValue: ThemeColor
+  public let primarySelectionFillValue: ThemeColor
+  public let secondarySelectionFillValue: ThemeColor
+  public let selectedTitleValue: ThemeColor
+  public let titleValue: ThemeColor
+  public let shadowValue: ThemeColor
+
+  public var restFill: Color { restFillValue.color }
+  public var hoverFill: Color { hoverFillValue.color }
+  public var pressedFill: Color { pressedFillValue.color }
+  public var primarySelectionFill: Color { primarySelectionFillValue.color }
+  public var secondarySelectionFill: Color { secondarySelectionFillValue.color }
+  public var selectedTitle: Color { selectedTitleValue.color }
+  public var title: Color { titleValue.color }
+  public var shadow: Color { shadowValue.color }
+}
+
 public struct Palette {
   public let colorScheme: ColorScheme
   public let referencePalette: ReferencePalette
@@ -27,9 +47,6 @@ public struct Palette {
 
   public var isDark: Bool { colorScheme == .dark }
   private var surfaceSeed: ThemeColor { referencePalette.neutral.light }
-  private var sidebarItemInk: ThemeColor { isDark ? ThemeColor(hex: 0xFAFBFF) : ThemeColor(hex: 0x0E0F10) }
-  private var sidebarSelectedFillValue: ThemeColor { isDark ? ThemeColor(hex: 0x141414) : .white }
-  private var sidebarSelectedFillOpacity: Double { isDark ? 1 : 0.85 }
 
   public var chromeBackgroundBaseStartValue: ThemeColor { backgroundTopValue }
   public var chromeBackgroundBaseStopValue: ThemeColor { isDark ? backgroundBottomValue : backgroundTopValue }
@@ -56,25 +73,46 @@ public struct Palette {
   public var agentPanelBackground: Color { agentPanelBackgroundValue.color }
   public var detailStroke: Color { isDark ? Color.white.opacity(0.08) : Color.black.opacity(0.06) }
   public var detailShadow: Color { isDark ? .clear : Color.black.opacity(0.14) }
-  public var unselectedFill: Color { (isDark ? Color.white : .black).opacity(0.06) }
-  public var hoverFill: Color { Color.white.opacity(isDark ? 0.16 : 0.55) }
-  public var pressedFill: Color { Color.white.opacity(isDark ? 0.31 : 0.7) }
+  public var sidebarTabRow: SidebarTabRowPalette {
+    let ink = isDark ? ThemeColor.white : ThemeColor.black
+    let inverseInk = isDark ? ThemeColor.black : ThemeColor.white
+    return SidebarTabRowPalette(
+      restFillValue: ThemeColor(
+        red: ink.red,
+        green: ink.green,
+        blue: ink.blue,
+        alpha: 0.06
+      ),
+      hoverFillValue: ThemeColor(red: 1, green: 1, blue: 1, alpha: isDark ? 0.16 : 0.55),
+      pressedFillValue: ThemeColor(red: 1, green: 1, blue: 1, alpha: isDark ? 0.31 : 0.70),
+      primarySelectionFillValue: inverseInk,
+      secondarySelectionFillValue: ThemeColor(red: 1, green: 1, blue: 1, alpha: isDark ? 0.25 : 0.70),
+      selectedTitleValue: ink,
+      titleValue: ThemeColor(
+        red: ink.red,
+        green: ink.green,
+        blue: ink.blue,
+        alpha: isDark ? 0.78 : 0.68
+      ),
+      shadowValue: ThemeColor(
+        red: ink.red,
+        green: ink.green,
+        blue: ink.blue,
+        alpha: isDark ? 0.15 : 0.12
+      )
+    )
+  }
+  public var unselectedFill: Color { sidebarTabRow.restFill }
+  public var hoverFill: Color { sidebarTabRow.hoverFill }
+  public var pressedFill: Color { sidebarTabRow.pressedFill }
   public var selectedFillValue: ThemeColor { isDark ? ThemeColor(red: 0.04, green: 0.04, blue: 0.04) : .white }
   public var selectedFill: Color { selectedFillValue.color }
   public var selectedStrokeBright: Color { Color.white.opacity(isDark ? 0.35 : 0.98) }
   public var selectedStrokeDim: Color { Color.white.opacity(isDark ? 0.08 : 0.98) }
-  public var selectedShadow: Color { isDark ? Color.white.opacity(0.15) : Color.black.opacity(0.12) }
+  public var selectedShadow: Color { sidebarTabRow.shadow }
+  public var sidebarTabRowSelectedEdge: Color { isDark ? .clear : Color.white.opacity(0.98) }
   public var primaryText: Color { isDark ? Color.white.opacity(0.94) : Color.black.opacity(0.86) }
   public var secondaryText: Color { isDark ? Color.white.opacity(0.58) : Color.black.opacity(0.48) }
-  public var sidebarTabTitle: Color { (isDark ? Color.white : .black).opacity(isDark ? 0.78 : 0.68) }
-  public var sidebarSelectedFill: Color { sidebarSelectedFillValue.color.opacity(sidebarSelectedFillOpacity) }
-  public var sidebarDragPreviewFill: Color {
-    sidebarSelectedSurface(over: chromeBackgroundStartValue).color
-  }
-  public var sidebarSelectedStroke: Color { isDark ? .clear : Color.white.opacity(0.98) }
-  public var sidebarSelectedShadow: Color { selectedShadow }
-  public var sidebarItemHoverFill: Color { sidebarItemInk.color.opacity(isDark ? 0.15 : 0.1) }
-  public var sidebarItemPressedFill: Color { sidebarItemInk.color.opacity(0.065) }
   public var sidebarGroupNeutralHoverFillValue: ThemeColor {
     isDark
       ? ThemeColor(red: 1, green: 1, blue: 1, alpha: 0.10)
@@ -85,8 +123,14 @@ public struct Palette {
       ? ThemeColor(red: 1, green: 1, blue: 1, alpha: 0.10)
       : ThemeColor(red: 0, green: 0, blue: 0, alpha: 0.10)
   }
+  public var sidebarControlHoverFill: Color {
+    (isDark ? ThemeColor(hex: 0xFAFBFF).color : ThemeColor(hex: 0x0E0F10).color).opacity(isDark ? 0.15 : 0.10)
+  }
+  public var sidebarControlPressedFill: Color {
+    (isDark ? ThemeColor(hex: 0xFAFBFF).color : ThemeColor(hex: 0x0E0F10).color).opacity(0.065)
+  }
   public var sidebarSeparator: Color { (isDark ? Color.white : .black).opacity(0.15) }
-  public var selectedText: Color { isDark ? Color.white : .black }
+  public var selectedText: Color { sidebarTabRow.selectedTitle }
   public var shadow: Color { .black.opacity(isDark ? 0.28 : 0.08) }
   public var scrim: Color { Color.black.opacity(0.4) }
   public var overlayShadow: Color { Color.black.opacity(0.25) }
@@ -123,8 +167,8 @@ public struct Palette {
     )
   }
 
-  public func sidebarSelectedSurface(over background: ThemeColor) -> ThemeColor {
-    ColorMath.composited(sidebarSelectedFillValue, opacity: sidebarSelectedFillOpacity, over: background)
+  public func sidebarTabPrimarySurface(over background: ThemeColor) -> ThemeColor {
+    ColorMath.composited(sidebarTabRow.primarySelectionFillValue, opacity: 1, over: background)
   }
 
   public var referenceSwatches: [ThemeSwatch] {
