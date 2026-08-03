@@ -2,8 +2,17 @@ import XCTest
 
 final class HoverLinkUITests: SupatermUITestCase {
   @MainActor
-  func testHoveredLinkBannerMovesAwayFromPointer() async {
-    let terminal = mainTerminal
+  func testHoveredLinkBannerMovesAwayFromPointer() async throws {
+    _ = mainTerminal
+    try clickMenuItem(.splitDown)
+    let terminals = app.textViews
+    let didSplit = await wait(for: terminals.firstMatch, timeout: .seconds(30)) {
+      terminals.count == 2
+    }
+    XCTAssertTrue(didSplit)
+    let terminal = try XCTUnwrap(
+      terminals.allElementsBoundByIndex.min { $0.frame.midY < $1.frame.midY }
+    )
     terminal.click()
 
     let link = "https://supaterm.com/docs/terminal/hovered-link-feedback-for-split-pane-regression"
