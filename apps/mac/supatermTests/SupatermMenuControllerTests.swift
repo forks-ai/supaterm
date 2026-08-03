@@ -117,9 +117,9 @@ struct SupatermMenuControllerTests {
       context: GHOSTTY_SURFACE_CONTEXT_TAB,
       selectionReader: { _ in selection.value }
     )
-    let window = NSWindow(
+    let window = NSPanel(
       contentRect: NSRect(x: 0, y: 0, width: 400, height: 300),
-      styleMask: [.titled],
+      styleMask: [.titled, .nonactivatingPanel],
       backing: .buffered,
       defer: false
     )
@@ -139,12 +139,17 @@ struct SupatermMenuControllerTests {
     let editMenu = try #require(app.mainMenu?.items.first { $0.title == "Edit" }?.submenu)
     let copyItem = try #require(editMenu.items.first { $0.title == "Copy" })
     try #require(copyItem.target == nil)
-    try #require(window.firstResponder === surface)
+    try #require(app.keyWindow === window)
+    let copyAction = try #require(copyItem.action)
+    try #require(
+      app.target(forAction: copyAction, to: copyItem.target, from: copyItem) as AnyObject? === surface)
 
-    #expect(!surface.validateMenuItem(copyItem))
+    editMenu.update()
+    #expect(!copyItem.isEnabled)
 
     selection.value = "selected text"
-    #expect(surface.validateMenuItem(copyItem))
+    editMenu.update()
+    #expect(copyItem.isEnabled)
   }
 
   @Test
