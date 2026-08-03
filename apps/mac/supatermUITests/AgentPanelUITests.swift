@@ -36,9 +36,10 @@ final class AgentPanelUITests: SupatermUITestCase {
       $0.exists
     }
 
+    let copiedButton = agentPanel.buttons["Copied"]
     copyButton.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)).click()
 
-    await assertEventually(copyButton) { $0.label == "Copied" }
+    XCTAssertTrue(copiedButton.waitForExistence(timeout: 2))
     await assertEventually(copyButton) { $0.label == "Copy session ID" }
   }
 
