@@ -27,7 +27,6 @@
 
 - Issues are tracked on: https://linear.app/supaterm
 - Error reporting uses PostHog
-- Never run XCUITest or the `supatermUITests` scheme on the local Mac. Push the branch and use the UI-only GitHub Actions dispatch in `docs/development.md`.
 
 ## Agent skills
 
