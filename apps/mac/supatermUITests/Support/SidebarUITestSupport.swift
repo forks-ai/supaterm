@@ -109,6 +109,16 @@ extension SupatermUITestCase {
   }
 
   @MainActor
+  var sidebarTabOutline: XCUIElement {
+    element(SupatermUITestIdentifier.Accessibility.sidebarTabOutline)
+  }
+
+  @MainActor
+  var sidebarResizeHandle: XCUIElement {
+    element(SupatermUITestIdentifier.Accessibility.sidebarResizeHandle)
+  }
+
+  @MainActor
   func createGroup(named title: String, containing tabTitle: String) async throws {
     try clickSidebarContextMenuItem("Move to New Group", on: sidebarTabRow(named: tabTitle))
 

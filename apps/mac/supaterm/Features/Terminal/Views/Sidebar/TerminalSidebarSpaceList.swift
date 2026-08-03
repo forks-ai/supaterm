@@ -52,7 +52,6 @@ struct TerminalSidebarSpaceList: View {
       performDrop: performDrop
     )
     .frame(maxWidth: .infinity, maxHeight: .infinity)
-    .accessibilityIdentifier("sidebar.tab-outline")
   }
 
   private var rootItems: [TerminalTabRootItem] {

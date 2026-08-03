@@ -240,6 +240,10 @@ private final class SidebarResizeInteractionNSView: NSView {
 
   override init(frame frameRect: NSRect) {
     super.init(frame: frameRect)
+    setAccessibilityElement(true)
+    setAccessibilityIdentifier(TerminalSidebarAccessibilityIdentifier.resizeHandle)
+    setAccessibilityRole(.splitter)
+    setAccessibilityLabel("Resize Sidebar")
     let pan = NSPanGestureRecognizer(target: self, action: #selector(handlePan))
     addGestureRecognizer(pan)
   }

@@ -184,6 +184,10 @@ final class TerminalSidebarListController: NSViewController, NSCollectionViewDel
   private func configureHierarchy() {
     scrollView.drawsBackground = false
     scrollView.automaticallyAdjustsContentInsets = false
+    scrollView.setAccessibilityElement(true)
+    scrollView.setAccessibilityIdentifier(TerminalSidebarAccessibilityIdentifier.tabOutline)
+    scrollView.setAccessibilityRole(.scrollArea)
+    scrollView.setAccessibilityLabel("Tabs")
     view.addSubview(scrollView)
     view.addSubview(dragController.pinnedControl.view)
 

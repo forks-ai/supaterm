@@ -225,6 +225,10 @@ enum TerminalSidebarRowPresentation: Equatable {
 }
 
 enum TerminalSidebarAccessibilityIdentifier {
+  static let newTab = "sidebar.new-tab"
+  static let tabOutline = "sidebar.tab-outline"
+  static let resizeHandle = "sidebar.resize-handle"
+
   static func spaceDot(_ spaceID: TerminalSpaceID) -> String {
     "sidebar.space-dot.\(spaceID.rawValue.uuidString.lowercased())"
   }
@@ -244,7 +248,7 @@ enum TerminalSidebarAccessibilityIdentifier {
     case .tab(let row): tab(row.tab.id, groupID: row.groupID)
     case .group(let row): group(row.id)
     case .pinDivider: "sidebar.pin-divider"
-    case .newTab: "sidebar.new-tab"
+    case .newTab: newTab
     }
   }
 }
@@ -348,7 +352,7 @@ struct TerminalSidebarHostedRow: View {
         palette: context.palette,
         action: context.actions.newTab
       )
-      .accessibilityIdentifier("sidebar.new-tab")
+      .accessibilityIdentifier(TerminalSidebarAccessibilityIdentifier.newTab)
     }
   }
 }
