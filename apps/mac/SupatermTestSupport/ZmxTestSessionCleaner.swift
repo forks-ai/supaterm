@@ -9,7 +9,6 @@ nonisolated enum ZmxTestCleanupError: Error, CustomStringConvertible {
   case processDidNotExit(Int32)
   case processIdentityUnavailable(Int32)
   case processSignalFailed(processID: Int32, signal: Int32, errorCode: Int32)
-  case directoryRemains(String)
   case sessionsRemain([String])
 
   var description: String {
@@ -24,8 +23,6 @@ nonisolated enum ZmxTestCleanupError: Error, CustomStringConvertible {
       return "process \(processID) identity is unavailable"
     case .processSignalFailed(let processID, let signal, let errorCode):
       return "signal \(signal) failed for process \(processID) with error \(errorCode)"
-    case .directoryRemains(let path):
-      return "zmx directory remains: \(path)"
     case .sessionsRemain(let sessionIDs):
       return "zmx sessions remain: \(sessionIDs.joined(separator: ", "))"
     }
@@ -37,10 +34,16 @@ nonisolated struct ZmxTestSessionCleaner: Sendable {
 
   private let instancePrefix: String
   private let directory: String
+  private let terminatesProcesses: Bool
   private let run: Run
 
   init(executableURL: URL, instanceName: String, directory: String) {
-    self.init(instanceName: instanceName, directory: directory) { arguments, environment in
+    instancePrefix = ZmxSessionID.namespacePrefix(
+      environment: [SupatermCLIEnvironment.instanceNameKey: instanceName]
+    )
+    self.directory = directory
+    terminatesProcesses = true
+    run = { arguments, environment in
       try Self.run(executableURL: executableURL, arguments: arguments, environment: environment)
     }
   }
@@ -50,16 +53,25 @@ nonisolated struct ZmxTestSessionCleaner: Sendable {
       environment: [SupatermCLIEnvironment.instanceNameKey: instanceName]
     )
     self.directory = directory
+    terminatesProcesses = false
     self.run = run
   }
 
   func cleanup() throws {
+    if FileManager.default.fileExists(atPath: directory) {
+      let sessionIDs = try listSessions()
+      if !sessionIDs.isEmpty {
+        if terminatesProcesses {
+          for processID in try sessionChildProcessIDs() {
+            try ZmxTestWorkspace.terminateProcessGroup(processID: processID)
+          }
+        } else {
+          _ = try run(["kill"] + sessionIDs, environment)
+        }
+      }
+    }
+
     guard FileManager.default.fileExists(atPath: directory) else { return }
-    let sessionIDs = try listSessions()
-    guard !sessionIDs.isEmpty else { return }
-
-    _ = try run(["kill"] + sessionIDs, environment)
-
     let remainingSessionIDs = try listSessions()
     guard remainingSessionIDs.isEmpty else {
       throw ZmxTestCleanupError.sessionsRemain(remainingSessionIDs)
@@ -83,6 +95,28 @@ nonisolated struct ZmxTestSessionCleaner: Sendable {
       .split(whereSeparator: \.isNewline)
       .map { $0.trimmingCharacters(in: .whitespaces) }
       .filter { $0.hasPrefix(instancePrefix) }
+  }
+
+  private func sessionChildProcessIDs() throws -> [Int32] {
+    Self.sessionChildProcessIDs(
+      try run(["ls"], environment),
+      instancePrefix: instancePrefix
+    )
+  }
+
+  static func sessionChildProcessIDs(_ output: String, instancePrefix: String) -> [Int32] {
+    output.split(whereSeparator: \.isNewline).compactMap { line in
+      let fields = line.split(separator: "\t")
+      guard
+        let nameField = fields.first?.trimmingCharacters(in: .whitespaces),
+        nameField.hasPrefix("name=\(instancePrefix)"),
+        let pidField = fields.first(where: { $0.hasPrefix("pid=") }),
+        let processID = Int32(pidField.dropFirst("pid=".count))
+      else {
+        return nil
+      }
+      return processID
+    }
   }
 
   static func run(
@@ -195,13 +229,6 @@ nonisolated struct ZmxTestWorkspace: Sendable {
     }
     try cleaner.cleanup()
     try Self.removeIfPresent(zmxDirectory)
-    try removeStateAfterAppCleanup()
-  }
-
-  func removeStateAfterAppCleanup() throws {
-    guard !FileManager.default.fileExists(atPath: zmxDirectory.path) else {
-      throw ZmxTestCleanupError.directoryRemains(zmxDirectory.path)
-    }
     try Self.removeIfPresent(stateHome)
   }
 
@@ -341,7 +368,7 @@ nonisolated struct ZmxTestWorkspace: Sendable {
     }
   }
 
-  private static func terminateProcess(_ process: ProcessIdentity) throws {
+  static func terminateProcess(_ process: ProcessIdentity) throws {
     guard processMatches(process) else { return }
     try send(SIGTERM, to: process.processID)
     if waitForExit(process, timeout: 5) { return }
@@ -349,6 +376,24 @@ nonisolated struct ZmxTestWorkspace: Sendable {
     try send(SIGKILL, to: process.processID)
     guard waitForExit(process, timeout: 2) else {
       throw ZmxTestCleanupError.processDidNotExit(process.processID)
+    }
+  }
+
+  static func terminateProcessGroup(processID: Int32) throws {
+    let serverProcess = parentProcessIdentity(processID: processID)
+    try send(SIGHUP, toProcessGroup: processID)
+    if let serverProcess {
+      if waitForExit(serverProcess, timeout: 0.5) { return }
+    } else {
+      Thread.sleep(forTimeInterval: 0.5)
+    }
+    try send(SIGKILL, toProcessGroup: processID)
+    if let serverProcess {
+      guard waitForExit(serverProcess, timeout: 2) else {
+        throw ZmxTestCleanupError.processDidNotExit(serverProcess.processID)
+      }
+    } else {
+      Thread.sleep(forTimeInterval: 0.1)
     }
   }
 
@@ -360,7 +405,7 @@ nonisolated struct ZmxTestWorkspace: Sendable {
     return !processMatches(process)
   }
 
-  private static func processMatches(_ process: ProcessIdentity) -> Bool {
+  static func processMatches(_ process: ProcessIdentity) -> Bool {
     processIdentity(processID: process.processID) == process
   }
 
@@ -371,7 +416,7 @@ nonisolated struct ZmxTestWorkspace: Sendable {
     return process
   }
 
-  private static func processIdentity(processID: Int32) -> ProcessIdentity? {
+  static func processIdentity(processID: Int32) -> ProcessIdentity? {
     var info = proc_bsdinfo()
     let size = MemoryLayout<proc_bsdinfo>.size
     guard proc_pidinfo(processID, PROC_PIDTBSDINFO, 0, &info, Int32(size)) == Int32(size) else {
@@ -384,9 +429,28 @@ nonisolated struct ZmxTestWorkspace: Sendable {
     )
   }
 
+  static func parentProcessIdentity(processID: Int32) -> ProcessIdentity? {
+    var info = proc_bsdinfo()
+    let size = MemoryLayout<proc_bsdinfo>.size
+    guard proc_pidinfo(processID, PROC_PIDTBSDINFO, 0, &info, Int32(size)) == Int32(size) else {
+      return nil
+    }
+    return processIdentity(processID: Int32(info.pbi_ppid))
+  }
+
   private static func send(_ signal: Int32, to processID: Int32) throws {
     guard kill(processID, signal) != 0 else { return }
     guard errno != ESRCH else { return }
+    throw ZmxTestCleanupError.processSignalFailed(
+      processID: processID,
+      signal: signal,
+      errorCode: errno
+    )
+  }
+
+  private static func send(_ signal: Int32, toProcessGroup processID: Int32) throws {
+    guard kill(-processID, signal) != 0 else { return }
+    guard errno != ESRCH, errno != EPERM else { return }
     throw ZmxTestCleanupError.processSignalFailed(
       processID: processID,
       signal: signal,

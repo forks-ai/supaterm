@@ -86,6 +86,20 @@ struct ZmxTestSessionCleanerTests {
   }
 
   @Test
+  func sessionChildProcessIDsFilterByNamespace() {
+    let output = """
+        name=spt-instance-first\tpid=123\tclients=0
+        name=spt-other-second\tpid=456\tclients=0
+        name=spt-instance-third\terr=Timeout\tstatus=unreachable
+      """
+
+    #expect(
+      ZmxTestSessionCleaner.sessionChildProcessIDs(output, instancePrefix: "spt-instance-")
+        == [123]
+    )
+  }
+
+  @Test
   func reapAbandonedCleansOnlyWorkspacesWithoutLiveOwners() throws {
     let temporaryDirectory = FileManager.default.temporaryDirectory
       .appendingPathComponent(UUID().uuidString, isDirectory: true)
@@ -320,10 +334,24 @@ struct ZmxTestSessionCleanerTests {
       environment: ZmxTestSessionCleaner.environment(directory: workspace.zmxDirectory.path)
     )
     #expect(sessions.split(whereSeparator: \.isNewline).contains(Substring(sessionID)))
+    let processID = try #require(
+      ZmxTestSessionCleaner.sessionChildProcessIDs(
+        try ZmxTestSessionCleaner.run(
+          executableURL: zmxExecutableURL,
+          arguments: ["ls"],
+          environment: ZmxTestSessionCleaner.environment(directory: workspace.zmxDirectory.path)
+        ),
+        instancePrefix: ZmxSessionID.namespacePrefix(
+          environment: [SupatermCLIEnvironment.instanceNameKey: instanceName]
+        )
+      ).first
+    )
+    let process = try #require(ZmxTestWorkspace.parentProcessIdentity(processID: processID))
 
     try workspace.cleanup()
     #expect(!FileManager.default.fileExists(atPath: stateHome.path))
     #expect(!FileManager.default.fileExists(atPath: workspace.zmxDirectory.path))
+    #expect(!ZmxTestWorkspace.processMatches(process))
 
     let abandonedStateHome = temporaryDirectory.appendingPathComponent(
       "supaterm-ui-abandoned",
@@ -341,33 +369,6 @@ struct ZmxTestSessionCleanerTests {
       zmxExecutableURL: zmxExecutableURL
     )
     #expect(!FileManager.default.fileExists(atPath: abandonedStateHome.path))
-  }
-
-  @Test
-  func stateCleanupRequiresTheAppToRemoveItsZmxDirectory() throws {
-    let stateHome = FileManager.default.temporaryDirectory
-      .appendingPathComponent(UUID().uuidString, isDirectory: true)
-    let workspace = try ZmxTestWorkspace(
-      stateHome: stateHome,
-      instanceName: "ui-\(UUID().uuidString)",
-      zmxExecutableURL: URL(fileURLWithPath: "/usr/bin/true")
-    )
-    try FileManager.default.createDirectory(
-      at: workspace.zmxDirectory,
-      withIntermediateDirectories: true
-    )
-    defer {
-      try? FileManager.default.removeItem(at: workspace.zmxDirectory)
-      try? FileManager.default.removeItem(at: stateHome)
-    }
-
-    #expect(throws: ZmxTestCleanupError.self) {
-      try workspace.removeStateAfterAppCleanup()
-    }
-
-    try FileManager.default.removeItem(at: workspace.zmxDirectory)
-    try workspace.removeStateAfterAppCleanup()
-    #expect(!FileManager.default.fileExists(atPath: stateHome.path))
   }
 
   private var zmxExecutableURL: URL {

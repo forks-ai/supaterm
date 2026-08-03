@@ -63,6 +63,10 @@ class SupatermUITestCase: XCTestCase {
       instanceName: instanceName,
       zmxExecutableURL: Self.zmxExecutableURL
     )
+    try FileManager.default.createDirectory(
+      at: workspace.zmxDirectory,
+      withIntermediateDirectories: true
+    )
     let home = stateHome.appendingPathComponent("home", isDirectory: true)
     try FileManager.default.createDirectory(at: home, withIntermediateDirectories: true)
     try Data("0".utf8).write(to: stateHome.appendingPathComponent("launch-state.json"))
@@ -80,38 +84,24 @@ class SupatermUITestCase: XCTestCase {
         "SUPATERM_VERBOSE_LOGGING": "1",
         ZmxEnvironment.directoryKey: workspace.zmxDirectory.path,
       ]
-      app.launch()
-      app.activate()
       return app
     }
     self.app = app
 
     addTeardownBlock {
       let stopped = await MainActor.run { () -> Bool in
-        if app.state != .notRunning {
-          app.terminate()
-          guard app.wait(for: .notRunning, timeout: 10) else { return false }
-        }
-        let cleanupApp = XCUIApplication()
-        cleanupApp.launchArguments = app.launchArguments
-        cleanupApp.launchEnvironment = app.launchEnvironment
-        cleanupApp.launchEnvironment[ZmxEnvironment.testCleanupOnQuitKey] = "1"
-        cleanupApp.launch()
-        cleanupApp.activate()
-        guard cleanupApp.wait(for: .runningForeground, timeout: 30) else { return false }
-        guard cleanupApp.textViews.firstMatch.waitForExistence(timeout: 30) else { return false }
-        cleanupApp.typeKey("q", modifierFlags: .command)
-        let quitDialog = cleanupApp.descendants(matching: .any)
-          .matching(identifier: SupatermUITestIdentifier.Accessibility.dialogQuit)
-          .firstMatch
-        if quitDialog.waitForExistence(timeout: 3) {
-          cleanupApp.typeKey(.return, modifierFlags: [])
-        }
-        return cleanupApp.wait(for: .notRunning, timeout: 30)
+        guard app.state != .notRunning else { return true }
+        app.terminate()
+        return app.wait(for: .notRunning, timeout: 10)
       }
       XCTAssertTrue(stopped)
       guard stopped else { return }
-      try workspace.removeStateAfterAppCleanup()
+      try workspace.cleanup()
+    }
+
+    await MainActor.run {
+      app.launch()
+      app.activate()
     }
   }
 

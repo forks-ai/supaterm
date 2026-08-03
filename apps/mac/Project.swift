@@ -600,6 +600,7 @@ let project = Project(
       ],
       settings: .settings(
         base: [
+          "CODE_SIGN_ENTITLEMENTS": "supatermUITests.entitlements",
           "SWIFT_DEFAULT_ACTOR_ISOLATION": "nonisolated",
           "SWIFT_STRICT_CONCURRENCY": "complete",
         ],
