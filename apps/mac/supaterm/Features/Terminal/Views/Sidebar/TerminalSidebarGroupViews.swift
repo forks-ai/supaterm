@@ -380,13 +380,6 @@ private struct TerminalSidebarFooterButton: View {
     }
     .buttonStyle(TerminalSidebarButtonStyle(palette: palette, layout: .rect))
     .frame(height: TerminalSidebarLayout.pinnedControlHeight)
-    .overlay(alignment: .top) {
-      Rectangle()
-        .fill(palette.sidebarSeparator)
-        .frame(height: 1)
-        .padding(.horizontal, TerminalSidebarLayout.rowHorizontalPadding)
-        .accessibilityHidden(true)
-    }
   }
 }
 

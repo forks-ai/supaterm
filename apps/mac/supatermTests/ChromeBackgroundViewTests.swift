@@ -19,14 +19,6 @@ struct ChromeBackgroundViewTests {
   }
 
   @Test
-  func supportsFloatingSidebarBackdrop() {
-    let view = ChromeBackgroundNSView(material: .popover, blendingMode: .withinWindow)
-
-    #expect(view.effectView.material == .popover)
-    #expect(view.effectView.blendingMode == .withinWindow)
-  }
-
-  @Test
   func rampStopsInterpolatePerceptuallyAndHoldAfterRampEnd() {
     let start = ThemeColor(hex: 0x10141B)
     let stop = ThemeColor(hex: 0x2A3242)
