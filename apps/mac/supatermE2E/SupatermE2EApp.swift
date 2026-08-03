@@ -1,6 +1,7 @@
 import Darwin
 import Foundation
 import SupatermCLIShared
+import SupatermSupport
 
 @testable import SPCLI
 
@@ -77,6 +78,7 @@ final class SupatermE2EApp: @unchecked Sendable {
       "SUPATERM_VERBOSE_LOGGING": "1",
       "USER": NSUserName(),
       "XDG_RUNTIME_DIR": runtimeHome.path,
+      ZmxEnvironment.directoryKey: workspace.zmxDirectory.path,
       SupatermCLIEnvironment.instanceNameKey: instanceName,
       SupatermCLIEnvironment.stateHomeKey: stateHome.path,
     ]

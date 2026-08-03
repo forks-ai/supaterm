@@ -1,4 +1,5 @@
 import Foundation
+import SupatermSupport
 import XCTest
 
 class SupatermUITestCase: XCTestCase {
@@ -77,6 +78,7 @@ class SupatermUITestCase: XCTestCase {
         "SUPATERM_INSTANCE_NAME": instanceName,
         "SUPATERM_STATE_HOME": stateHome.path,
         "SUPATERM_VERBOSE_LOGGING": "1",
+        ZmxEnvironment.directoryKey: workspace.zmxDirectory.path,
       ]
       app.launch()
       app.activate()

@@ -71,6 +71,14 @@ struct ZmxClientTests {
   }
 
   @Test
+  func socketBudgetUsesConfiguredDirectory() {
+    #expect(
+      ZmxSocketBudget.socketDir(environment: [ZmxEnvironment.directoryKey: "/tmp/test-zmx"])
+        == "/tmp/test-zmx"
+    )
+  }
+
+  @Test
   func socketBudgetAcceptsShortTemporaryDirectory() {
     #expect(ZmxSocketBudget.probe() == nil)
   }

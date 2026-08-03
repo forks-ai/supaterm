@@ -33,18 +33,20 @@ nonisolated struct ZmxTestSessionCleaner: Sendable {
   typealias Run = @Sendable (_ arguments: [String], _ environment: [String: String]) throws -> String
 
   private let instancePrefix: String
+  private let directory: String
   private let run: Run
 
-  init(executableURL: URL, instanceName: String) {
-    self.init(instanceName: instanceName) { arguments, environment in
+  init(executableURL: URL, instanceName: String, directory: String) {
+    self.init(instanceName: instanceName, directory: directory) { arguments, environment in
       try Self.run(executableURL: executableURL, arguments: arguments, environment: environment)
     }
   }
 
-  init(instanceName: String, run: @escaping Run) {
+  init(instanceName: String, directory: String, run: @escaping Run) {
     instancePrefix = ZmxSessionID.namespacePrefix(
       environment: [SupatermCLIEnvironment.instanceNameKey: instanceName]
     )
+    self.directory = directory
     self.run = run
   }
 
@@ -61,12 +63,12 @@ nonisolated struct ZmxTestSessionCleaner: Sendable {
   }
 
   private var environment: [String: String] {
-    Self.environment
+    Self.environment(directory: directory)
   }
 
-  static var environment: [String: String] {
+  static func environment(directory: String) -> [String: String] {
     var environment = ProcessInfo.processInfo.environment
-    environment[ZmxEnvironment.directoryKey] = ZmxSocketBudget.socketDir()
+    environment[ZmxEnvironment.directoryKey] = directory
     environment[ZmxEnvironment.sessionKey] = ""
     environment[ZmxEnvironment.sessionPrefixKey] = ""
     return environment
@@ -163,10 +165,16 @@ nonisolated struct ZmxTestWorkspace: Sendable {
 
   private let stateHome: URL
   private let cleaner: ZmxTestSessionCleaner
+  let zmxDirectory: URL
 
   init(stateHome: URL, instanceName: String, zmxExecutableURL: URL) throws {
     self.stateHome = stateHome
-    cleaner = ZmxTestSessionCleaner(executableURL: zmxExecutableURL, instanceName: instanceName)
+    zmxDirectory = Self.zmxDirectory(instanceName: instanceName)
+    cleaner = ZmxTestSessionCleaner(
+      executableURL: zmxExecutableURL,
+      instanceName: instanceName,
+      directory: zmxDirectory.path
+    )
     let runnerProcess = try Self.requiredProcessIdentity(processID: getpid())
     try FileManager.default.createDirectory(at: stateHome, withIntermediateDirectories: true)
     try writeOwner(Owner(runnerProcess: runnerProcess, appProcess: nil))
@@ -182,9 +190,8 @@ nonisolated struct ZmxTestWorkspace: Sendable {
       try Self.terminateProcess(appProcess)
     }
     try cleaner.cleanup()
-    if FileManager.default.fileExists(atPath: stateHome.path) {
-      try FileManager.default.removeItem(at: stateHome)
-    }
+    try Self.removeIfPresent(zmxDirectory)
+    try Self.removeIfPresent(stateHome)
   }
 
   private var ownerURL: URL {
@@ -210,10 +217,13 @@ nonisolated struct ZmxTestWorkspace: Sendable {
       stateHomePrefix: stateHomePrefix,
       instanceNamePrefix: instanceNamePrefix,
       cleanupInstance: { instanceName in
+        let directory = zmxDirectory(instanceName: instanceName)
         try ZmxTestSessionCleaner(
           executableURL: zmxExecutableURL,
-          instanceName: instanceName
+          instanceName: instanceName,
+          directory: directory.path
         ).cleanup()
+        try removeIfPresent(directory)
       }
     )
   }
@@ -301,6 +311,20 @@ nonisolated struct ZmxTestWorkspace: Sendable {
       startTimeSeconds: startTimeSeconds,
       startTimeMicroseconds: startTimeMicroseconds
     )
+  }
+
+  private static func zmxDirectory(instanceName: String) -> URL {
+    let instanceHash = ZmxSessionID.instanceHash(
+      environment: [SupatermCLIEnvironment.instanceNameKey: instanceName]
+    )
+    return URL(fileURLWithPath: "/tmp", isDirectory: true)
+      .appendingPathComponent("spt-z-\(instanceHash)", isDirectory: true)
+  }
+
+  private static func removeIfPresent(_ url: URL) throws {
+    if FileManager.default.fileExists(atPath: url.path) {
+      try FileManager.default.removeItem(at: url)
+    }
   }
 
   private static func terminateProcess(_ process: ProcessIdentity) throws {

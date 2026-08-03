@@ -14,12 +14,13 @@ struct ZmxTestSessionCleanerTests {
     let ownSessionIDs = ["\(instancePrefix)first", "\(instancePrefix)second"]
     let otherSessionID = "spt-other-third"
     let calls = Mutex([[String]]())
-    let cleaner = ZmxTestSessionCleaner(instanceName: instanceName) { arguments, environment in
+    let cleaner = ZmxTestSessionCleaner(instanceName: instanceName, directory: "/tmp/test-zmx") {
+      arguments, environment in
       let callCount = calls.withLock { calls in
         calls.append(arguments)
         return calls.count
       }
-      #expect(environment[ZmxEnvironment.directoryKey] == ZmxSocketBudget.socketDir())
+      #expect(environment[ZmxEnvironment.directoryKey] == "/tmp/test-zmx")
       #expect(environment[ZmxEnvironment.sessionKey]?.isEmpty == true)
       #expect(environment[ZmxEnvironment.sessionPrefixKey]?.isEmpty == true)
       if arguments == ["ls", "--short"], callCount == 1 {
@@ -53,7 +54,10 @@ struct ZmxTestSessionCleanerTests {
       environment: [SupatermCLIEnvironment.instanceNameKey: instanceName]
     )
     let sessionID = "\(instancePrefix)session"
-    let cleaner = ZmxTestSessionCleaner(instanceName: instanceName) { arguments, _ in
+    let cleaner = ZmxTestSessionCleaner(
+      instanceName: instanceName,
+      directory: "/tmp/test-zmx"
+    ) { arguments, _ in
       arguments.first == "ls" ? sessionID : ""
     }
 
@@ -260,22 +264,27 @@ struct ZmxTestSessionCleanerTests {
       instanceName: instanceName,
       zmxExecutableURL: zmxExecutableURL
     )
-    let cleaner = ZmxTestSessionCleaner(executableURL: zmxExecutableURL, instanceName: instanceName)
+    let cleaner = ZmxTestSessionCleaner(
+      executableURL: zmxExecutableURL,
+      instanceName: instanceName,
+      directory: workspace.zmxDirectory.path
+    )
     defer { try? cleaner.cleanup() }
     _ = try ZmxTestSessionCleaner.run(
       executableURL: zmxExecutableURL,
       arguments: ["run", sessionID, "-d", "/bin/sleep", "60"],
-      environment: ZmxTestSessionCleaner.environment
+      environment: ZmxTestSessionCleaner.environment(directory: workspace.zmxDirectory.path)
     )
     let sessions = try ZmxTestSessionCleaner.run(
       executableURL: zmxExecutableURL,
       arguments: ["ls", "--short"],
-      environment: ZmxTestSessionCleaner.environment
+      environment: ZmxTestSessionCleaner.environment(directory: workspace.zmxDirectory.path)
     )
     #expect(sessions.split(whereSeparator: \.isNewline).contains(Substring(sessionID)))
 
     try workspace.cleanup()
     #expect(!FileManager.default.fileExists(atPath: stateHome.path))
+    #expect(!FileManager.default.fileExists(atPath: workspace.zmxDirectory.path))
 
     let abandonedStateHome = temporaryDirectory.appendingPathComponent(
       "supaterm-ui-abandoned",

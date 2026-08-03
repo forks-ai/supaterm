@@ -290,8 +290,10 @@ public nonisolated enum ZmxSocketBudget {
   public nonisolated static let sessionNameByteCount =
     ZmxSessionID.prefix.utf8.count + ZmxSessionID.instanceHashHexDigitCount + 1 + 36
 
-  public nonisolated static func socketDir() -> String {
-    "/tmp/zmx-\(getuid())"
+  public nonisolated static func socketDir(
+    environment: [String: String] = ProcessInfo.processInfo.environment
+  ) -> String {
+    environment[ZmxEnvironment.directoryKey] ?? "/tmp/zmx-\(getuid())"
   }
 
   public nonisolated static func probe() -> String? {
