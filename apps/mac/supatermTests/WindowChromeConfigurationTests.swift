@@ -44,6 +44,52 @@ struct WindowChromeConfigurationTests {
   }
 
   @Test
+  func hoverRevealsAGlyphCenteredInEveryTrafficLight() throws {
+    let window = NSWindow(
+      contentRect: NSRect(x: 0, y: 0, width: 1_440, height: 900),
+      styleMask: [.titled, .closable, .miniaturizable, .resizable],
+      backing: .buffered,
+      defer: false
+    )
+    let view = WindowTrafficLightsView(reduceMotion: true)
+    view.frame = NSRect(x: 0, y: 0, width: 100, height: 80)
+    window.contentView?.addSubview(view)
+    view.layoutSubtreeIfNeeded()
+
+    let buttons = view.subviews.compactMap { $0 as? NSButton }
+    let glyphs = view.subviews.compactMap { $0 as? NSImageView }
+    #expect(glyphs.count == buttons.count)
+    #expect(glyphs.allSatisfy { $0.image != nil })
+    #expect(glyphs.allSatisfy { $0.alphaValue == 0 })
+    #expect(
+      zip(buttons, glyphs).allSatisfy { button, glyph in
+        glyph.frame.midX == button.frame.midX && glyph.frame.midY == button.frame.midY
+          && glyph.frame.width == WindowTrafficLightMetrics.glyphSize
+      }
+    )
+
+    let hover = try #require(
+      NSEvent.enterExitEvent(
+        with: .mouseEntered,
+        location: .zero,
+        modifierFlags: [],
+        timestamp: 0,
+        windowNumber: window.windowNumber,
+        context: nil,
+        eventNumber: 0,
+        trackingNumber: 0,
+        userData: nil
+      )
+    )
+    view.mouseEntered(with: hover)
+    #expect(glyphs.allSatisfy { $0.alphaValue == 1 })
+    #expect(buttons.allSatisfy { $0.alphaValue == 1 })
+
+    view.mouseExited(with: hover)
+    #expect(glyphs.allSatisfy { $0.alphaValue == 0 })
+  }
+
+  @Test
   func trafficLightMetricsMatchUnifiedTitlebar() throws {
     let window = NSWindow(
       contentRect: NSRect(x: 0, y: 0, width: 1_440, height: 900),
