@@ -19,6 +19,7 @@ enum SupatermUITestIdentifier {
     static let dialogQuit = "dialog.quit"
     static let searchField = "terminal.search.field"
     static let searchMatchCount = "terminal.search.match-count"
+    static let hoveredLink = "terminal-hovered-link"
     static let clipboardConfirm = "terminal.clipboard-confirmation.confirm"
     static let clipboardCancel = "terminal.clipboard-confirmation.cancel"
   }

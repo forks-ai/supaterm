@@ -65,6 +65,7 @@ enum SnapshotCatalog {
     + terminalChromeScenarios
     + agentPanelScenarios
     + rendererFailureScenarios
+    + hoverLinkScenarios
     + updateScenarios
     + commandPaletteScenarios
     + dialogScenarios
