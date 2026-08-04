@@ -368,6 +368,7 @@ struct TerminalSidebarLayoutPlanTests {
   func separatorsAndNewTabSpanTheSidebarWidth() throws {
     let pinned = TerminalTabID()
     let regular = TerminalTabID()
+    let width: CGFloat = 220
     let plan = TerminalSidebarTestFixture.layoutPlan(
       outline: TerminalSidebarTestFixture.outline(
         roots: [
@@ -376,18 +377,18 @@ struct TerminalSidebarLayoutPlanTests {
         ],
         revision: 1
       ),
-      width: 220
+      width: width
     )
     let pinnedFrame = try #require(plan.items.first { $0.id == .tab(pinned) }?.frame)
     let dividerFrame = try #require(plan.items.first { $0.id == .pinDivider }?.frame)
     let newTabFrame = try #require(plan.items.first { $0.id == .newTab }?.frame)
 
     #expect(pinnedFrame.minX == TerminalSidebarLayout.visibleHorizontalInset)
-    #expect(pinnedFrame.width == 200)
+    #expect(width - pinnedFrame.maxX == TerminalSidebarLayout.visibleHorizontalInset)
     #expect(dividerFrame.minX == 0)
-    #expect(dividerFrame.width == 220)
+    #expect(dividerFrame.width == width)
     #expect(newTabFrame.minX == 0)
-    #expect(newTabFrame.width == 220)
+    #expect(newTabFrame.width == width)
   }
 
   @Test

@@ -41,6 +41,10 @@ private func expectSameColor(
   )
 }
 
+private func hueDelta(_ first: ColorMath.OKLCH, _ second: ColorMath.OKLCH) -> Double {
+  abs(atan2(sin(first.hue - second.hue), cos(first.hue - second.hue)))
+}
+
 @MainActor
 struct ChromePaletteTests {
   @Test func referenceAnchorsMatchExpectedValues() {
@@ -82,11 +86,68 @@ struct ChromePaletteTests {
     }
   }
 
+  @Test func lightSidebarPrimarySelectionBlendsTheWashIntoWhite() {
+    for tint in ThemeTint.chromatic {
+      let palette = Palette(colorScheme: .light, tint: tint)
+      for wash in [palette.chromeBackgroundStartValue, palette.chromeBackgroundStopValue] {
+        let surface = palette.sidebarTabPrimarySurface(over: wash)
+        let luminance = ColorMath.relativeLuminance(surface)
+        let tone = ColorMath.oklch(from: surface)
+        let washTone = ColorMath.oklch(from: wash)
+        #expect(
+          ColorMath.relativeLuminance(wash) < luminance && luminance < ColorMath.relativeLuminance(.white),
+          "surfaceBetweenWashAndWhite-\(tint.rawValue): \(surface) over \(wash)"
+        )
+        #expect(tone.chroma > 0, "surfaceChroma-\(tint.rawValue): \(surface)")
+        #expect(hueDelta(tone, washTone) < 0.05, "surfaceHue-\(tint.rawValue): \(hueDelta(tone, washTone))")
+        expectContrast(.black, surface, minimum: 4.5, token: "selectedTitle-\(tint.rawValue)")
+      }
+    }
+  }
+
   @Test func foregroundFollowsColorScheme() {
     expectSameColor(Palette(colorScheme: .light).primaryText, Color.black.opacity(0.86), "lightPrimaryText")
     expectSameColor(Palette(colorScheme: .dark).primaryText, Color.white.opacity(0.94), "darkPrimaryText")
     expectSameColor(Palette(colorScheme: .light).secondaryText, Color.black.opacity(0.48), "lightSecondaryText")
     expectSameColor(Palette(colorScheme: .dark).secondaryText, Color.white.opacity(0.58), "darkSecondaryText")
+  }
+
+  @Test func neutralSpaceTitleKeepsThePrimaryTextInk() {
+    for colorScheme in [ColorScheme.light, ColorScheme.dark] {
+      let palette = Palette(colorScheme: colorScheme)
+      expectSameThemeColor(palette.spaceTitleValue, palette.primaryTextValue, "spaceTitleValue")
+      expectSameColor(palette.spaceTitle, palette.primaryText, "spaceTitle")
+    }
+  }
+
+  @Test func chromaticSpaceTitleHoldsTheTintHueAtPrimaryTextContrast() {
+    for colorScheme in [ColorScheme.light, ColorScheme.dark] {
+      for tint in ThemeTint.chromatic {
+        let palette = Palette(colorScheme: colorScheme, tint: tint)
+        let background = palette.backgroundTopValue
+        let ink = palette.primaryTextValue
+        let title = ColorMath.oklch(from: palette.spaceTitleValue)
+        let anchor = ColorMath.oklch(from: tint.tone(in: .default).color(for: colorScheme))
+        expectContrast(
+          palette.spaceTitleValue,
+          background,
+          minimum: ColorMath.contrastRatio(
+            ColorMath.composited(ink, opacity: ink.alpha, over: background),
+            background
+          ),
+          token: "spaceTitle-\(colorScheme)-\(tint.rawValue)"
+        )
+        #expect(
+          hueDelta(title, anchor) < 0.01,
+          "spaceTitleHue-\(colorScheme)-\(tint.rawValue): \(hueDelta(title, anchor))"
+        )
+        #expect(title.chroma > 0.01, "spaceTitleChroma-\(colorScheme)-\(tint.rawValue): \(title.chroma)")
+        #expect(
+          colorScheme == .dark ? title.lightness > anchor.lightness : title.lightness < anchor.lightness,
+          "spaceTitleLightness-\(colorScheme)-\(tint.rawValue): \(title.lightness) vs \(anchor.lightness)"
+        )
+      }
+    }
   }
 
   @Test func chromaticTintsWashChromeSurfacesOnly() {
@@ -101,6 +162,67 @@ struct ChromePaletteTests {
           neutral.agentPanelBackgroundValue,
           "agentPanelBackground-\(tint.rawValue)"
         )
+      }
+    }
+  }
+
+  @Test func darkTintWashKeepsTheReferenceMix() {
+    for tint in ThemeTint.chromatic {
+      let palette = Palette(colorScheme: .dark, tint: tint)
+      let tone = tint.tone(in: .default).color(for: .dark)
+      expectSameThemeColor(
+        palette.backgroundTopValue,
+        ThemeColor(hex: 0x1F1F1F).mixed(with: tone, by: 0.17),
+        "darkBackgroundTop-\(tint.rawValue)"
+      )
+      expectSameThemeColor(
+        palette.backgroundBottomValue,
+        ThemeColor(hex: 0x161616).mixed(with: tone, by: 0.17),
+        "darkBackgroundBottom-\(tint.rawValue)"
+      )
+      expectSameThemeColor(
+        palette.chromeBackgroundStartValue,
+        palette.backgroundTopValue,
+        "darkChromeBackgroundStart-\(tint.rawValue)"
+      )
+      expectSameThemeColor(
+        palette.chromeBackgroundStopValue,
+        palette.backgroundBottomValue,
+        "darkChromeBackgroundStop-\(tint.rawValue)"
+      )
+    }
+  }
+
+  @Test func lightChromeRunsFromAChromaticTopToAPaleFooter() {
+    for tint in ThemeTint.chromatic {
+      let palette = Palette(colorScheme: .light, tint: tint)
+      let top = palette.chromeBackgroundStartValue
+      let footer = palette.chromeBackgroundStopValue
+      #expect(
+        ColorMath.oklch(from: top).chroma > ColorMath.oklch(from: footer).chroma,
+        "\(tint.rawValue) chroma"
+      )
+      #expect(ColorMath.oklch(from: footer).chroma > 0, "\(tint.rawValue) footer chroma")
+      #expect(
+        ColorMath.relativeLuminance(top) < ColorMath.relativeLuminance(footer),
+        "\(tint.rawValue) luminance"
+      )
+      #expect(
+        palette.backgroundIlluminationTopValue.alpha < palette.backgroundIlluminationBodyValue.alpha,
+        "\(tint.rawValue) body illumination"
+      )
+      #expect(
+        palette.backgroundIlluminationBodyValue.alpha < palette.backgroundIlluminationFooterValue.alpha,
+        "\(tint.rawValue) footer illumination"
+      )
+    }
+  }
+
+  @Test func neutralTintKeepsChromeSurfacesGray() {
+    for colorScheme in [ColorScheme.light, ColorScheme.dark] {
+      let palette = Palette(colorScheme: colorScheme)
+      for surface in [palette.chromeBackgroundStartValue, palette.chromeBackgroundStopValue] {
+        #expect(ColorMath.oklch(from: surface).chroma < 0.0001)
       }
     }
   }
@@ -303,43 +425,27 @@ struct ChromePaletteTests {
   }
 
   private func expectBackgroundLayerTokens(_ palette: Palette, isDark: Bool) {
-    let illuminationValue = ThemeColor.white
-    let illuminationStartOpacity = 0.35
-    let illuminationStopOpacity = 0.7
-    expectSameThemeColor(
-      palette.chromeBackgroundBaseStartValue,
-      palette.backgroundTopValue,
-      "chromeBackgroundBaseStartValue"
-    )
-    expectSameThemeColor(
-      palette.chromeBackgroundBaseStopValue,
-      isDark ? palette.backgroundBottomValue : palette.backgroundTopValue,
-      "chromeBackgroundBaseStopValue"
-    )
-    expectSameThemeColor(
-      palette.backgroundIlluminationStartValue,
-      ThemeColor(red: 1, green: 1, blue: 1, alpha: isDark ? 0 : illuminationStartOpacity),
-      "backgroundIlluminationStartValue"
-    )
-    expectSameThemeColor(
-      palette.backgroundIlluminationStopValue,
-      ThemeColor(red: 1, green: 1, blue: 1, alpha: isDark ? 0 : illuminationStopOpacity),
-      "backgroundIlluminationStopValue"
-    )
+    let illuminationOpacities = isDark ? [0, 0, 0] : [0.22, 0.36, 0.62]
+    let illuminations = [
+      palette.backgroundIlluminationTopValue,
+      palette.backgroundIlluminationBodyValue,
+      palette.backgroundIlluminationFooterValue,
+    ]
+    for (illumination, opacity) in zip(illuminations, illuminationOpacities) {
+      expectSameThemeColor(
+        illumination,
+        ThemeColor(red: 1, green: 1, blue: 1, alpha: opacity),
+        "backgroundIllumination-\(opacity)"
+      )
+    }
     expectSameThemeColor(
       palette.chromeBackgroundStartValue,
-      isDark
-        ? palette.backgroundTopValue
-        : ColorMath.composited(
-          illuminationValue, opacity: illuminationStartOpacity, over: palette.backgroundTopValue),
+      ColorMath.composited(.white, opacity: illuminationOpacities[0], over: palette.backgroundTopValue),
       "chromeBackgroundStartValue"
     )
     expectSameThemeColor(
       palette.chromeBackgroundStopValue,
-      isDark
-        ? palette.backgroundBottomValue
-        : ColorMath.composited(
-          illuminationValue, opacity: illuminationStopOpacity, over: palette.backgroundTopValue),
+      ColorMath.composited(.white, opacity: illuminationOpacities[2], over: palette.backgroundBottomValue),
       "chromeBackgroundStopValue"
     )
   }
@@ -347,7 +453,7 @@ struct ChromePaletteTests {
   private func expectSidebarTabRowTokens(_ palette: Palette, isDark: Bool) {
     let row = palette.selectableRow
     let ink = isDark ? Color.white : .black
-    let primarySelection = isDark ? Color.black : Color.white
+    let primarySelection = isDark ? Color.black : Color.white.opacity(0.88)
     expectSameColor(
       row.restFill,
       ink.opacity(0.06),
