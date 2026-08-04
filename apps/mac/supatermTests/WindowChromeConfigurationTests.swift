@@ -6,7 +6,45 @@ import Testing
 @MainActor
 struct WindowChromeConfigurationTests {
   @Test
-  func customTrafficLightMetricsMatchUnifiedTitlebar() throws {
+  func trafficLightsUseNativeWindowButtons() throws {
+    let window = NSWindow(
+      contentRect: NSRect(x: 0, y: 0, width: 1_440, height: 900),
+      styleMask: [.titled, .closable, .miniaturizable, .resizable],
+      backing: .buffered,
+      defer: false
+    )
+    let view = WindowTrafficLightsView(reduceMotion: true)
+    view.appearance = NSAppearance(named: .aqua)
+    view.frame = NSRect(x: 0, y: 0, width: 100, height: 80)
+    window.contentView?.addSubview(view)
+    view.layoutSubtreeIfNeeded()
+
+    let buttons = view.subviews.compactMap { $0 as? NSButton }
+    let expectedButtons = [
+      NSWindow.standardWindowButton(.closeButton, for: window.styleMask),
+      NSWindow.standardWindowButton(.miniaturizeButton, for: window.styleMask),
+      NSWindow.standardWindowButton(.zoomButton, for: window.styleMask),
+    ].compactMap { $0 }
+
+    #expect(buttons.count == 3)
+    #expect(
+      buttons.map { ObjectIdentifier(type(of: $0)) }
+        == expectedButtons.map { ObjectIdentifier(type(of: $0)) }
+    )
+    #expect(buttons.map(\.action) == expectedButtons.map(\.action))
+    #expect(buttons.allSatisfy { $0.alphaValue == 0.1 })
+    #expect(buttons[0].frame.minX == WindowTrafficLightMetrics.edgePadding)
+    #expect(buttons[0].frame.width == WindowTrafficLightMetrics.buttonSize)
+    #expect(buttons[1].frame.minX - buttons[0].frame.maxX == WindowTrafficLightMetrics.buttonSpacing)
+
+    view.appearance = NSAppearance(named: .darkAqua)
+    view.viewDidChangeEffectiveAppearance()
+
+    #expect(buttons.allSatisfy { $0.alphaValue == 0.33 })
+  }
+
+  @Test
+  func trafficLightMetricsMatchUnifiedTitlebar() throws {
     let window = NSWindow(
       contentRect: NSRect(x: 0, y: 0, width: 1_440, height: 900),
       styleMask: [.titled, .closable, .miniaturizable, .resizable],
