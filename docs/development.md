@@ -158,6 +158,15 @@ Supaterm keeps `ssh-env` in new terminal configs. When `ssh-env` or `ssh-terminf
 
 `sp ssh` owns the Supaterm route's portable `xterm-256color` default, SSH executable choice, terminal environment, and `SendEnv` rules. It does not pass `SetEnv`, so user SSH config keeps ownership of those values. Native Ghostty keeps its `+ssh` route and automatic terminfo installation, including when launched from a Supaterm pane. Supaterm does not rewrite existing terminal configs; users without either SSH feature keep their current behavior.
 
+## Session persistence
+
+State files under the Supaterm state root (`session.json`, `spaces.json`, `pinned-tabs.json`, `settings.toml`) hold user data. Breaking them destroys real user sessions.
+
+- Session persistence must never break. Every release must load every state file the previous release wrote.
+- Never bump a format version to discard old state. When the format changes, migrate the previous version to the current one. Purely additive optional fields need no version bump.
+- When persistence logic changes, add tests that decode a fixture of the previous shipped on-disk format and assert the migrated result. Keep one fixture per shipped version.
+- Treat any decode rejection of user state as a bug. A rejected `session.json` empties the layout silently, and the next launch reaps every zmx session the new catalog no longer references. There is no recovery after that.
+
 ## Marketing website
 
 Web targets run through `vp`; `mise install` installs it via the postinstall hook.
