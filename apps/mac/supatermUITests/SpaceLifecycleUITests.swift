@@ -19,17 +19,7 @@ final class SpaceLifecycleUITests: SupatermUITestCase {
     let didDisplayInitialSpace = await waitForDisplayedSpace(named: "Space 1")
     XCTAssertTrue(didDisplayInitialSpace)
 
-    let createdSpaceDot = spaceDot(named: "UI Space")
-    if !createdSpaceDot.isHittable {
-      let windowMenu = try require(app.menuBars.menuBarItems["Window"])
-      windowMenu.click()
-      try require(app.menuItems["Zoom"]).click()
-    }
-    let didMakeCreatedSpaceDotHittable = await wait(for: createdSpaceDot) {
-      $0.exists && $0.isHittable
-    }
-    XCTAssertTrue(didMakeCreatedSpaceDotHittable)
-    try require(createdSpaceDot).click()
+    app.typeKey("2", modifierFlags: .control)
 
     let didReturnToCreatedSpace = await waitForDisplayedSpace(named: "UI Space")
     XCTAssertTrue(didReturnToCreatedSpace)
