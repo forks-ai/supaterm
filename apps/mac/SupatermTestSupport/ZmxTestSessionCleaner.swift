@@ -94,9 +94,8 @@ nonisolated enum ZmxTestProcessTable {
     let argumentCount = Int(buffer.withUnsafeBytes { $0.loadUnaligned(as: Int32.self) })
     guard argumentCount >= 0 else { return [] }
 
-    let executablePath = buffer.prefix(byteCount).dropFirst(MemoryLayout<Int32>.size)
-    return
-      executablePath
+    return buffer.prefix(byteCount)
+      .dropFirst(MemoryLayout<Int32>.size)
       .drop { $0 != 0 }
       .drop { $0 == 0 }
       .split(separator: 0, omittingEmptySubsequences: false)

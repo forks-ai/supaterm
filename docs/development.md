@@ -158,7 +158,7 @@ Two rules keep the sweep off processes it does not own. Only a process named `zm
 
 Reaping only ever touches `apps/mac/.build/run-state`. Your own sessions in the default `/tmp/zmx-<uid>`, the sessions of `/Applications/supaterm.app`, and any run started with `SUPATERM_RUN_STATE_HOME` or `SUPATERM_RUN_ZMX_DIR` pointing outside that root are never reaped.
 
-`make mac-run-demo` reuses the fixed `run-state/demo` state home. Demo seeds its spaces, tabs, and panes on every launch, so the seeded layout is the same each time, but the state home is only wiped when no demo instance is already running — start a second demo app while one is up and it lands on the first one's state home.
+`make mac-run-demo` reuses the fixed `run-state/demo` state home, and the sweep only wipes it when no demo instance is already running. Demo rewrites its spaces, tabs, panes, `restoreTerminalLayoutEnabled`, `codingAgentsShowPanel`, and the acknowledged release version on every launch, so the demo you see is always freshly seeded; start a second demo app while one is up and only the state the seed never writes — the remaining settings, launch state, and coding-agent state — carries over from the first.
 
 Panes inherit Supaterm context from the running app:
 
