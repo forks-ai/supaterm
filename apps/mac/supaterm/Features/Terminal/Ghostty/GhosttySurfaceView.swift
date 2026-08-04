@@ -2181,10 +2181,10 @@ final class GhosttySurfaceScrollView: NSView {
     scrollView.contentView.clipsToBounds = false
     documentView = NSView(frame: .zero)
     scrollView.documentView = documentView
-    documentView.addSubview(surfaceView)
     super.init(frame: .zero)
     addSubview(scrollView)
     surfaceView.scrollWrapper = self
+    documentView.addSubview(surfaceView)
     refreshAppearance()
 
     scrollView.contentView.postsBoundsChangedNotifications = true
@@ -2266,8 +2266,13 @@ final class GhosttySurfaceScrollView: NSView {
 
   nonisolated override var safeAreaInsets: NSEdgeInsets { NSEdgeInsetsZero }
 
+  private var ownsSurface: Bool {
+    surfaceView.scrollWrapper === self
+  }
+
   override func layout() {
     super.layout()
+    guard ownsSurface else { return }
     scrollView.frame = bounds
     surfaceView.frame.size = scrollView.bounds.size
     documentView.frame.size.width = scrollView.bounds.width
@@ -2308,12 +2313,14 @@ final class GhosttySurfaceScrollView: NSView {
   }
 
   private func synchronizeSurfaceView() {
+    guard ownsSurface else { return }
     let visibleRect = scrollView.contentView.documentVisibleRect
     surfaceView.frame.origin = visibleRect.origin
   }
 
   private func synchronizeCoreSurface() {
     guard
+      ownsSurface,
       let contentSize = Self.reportedSurfaceSize(
         scrollContentSize: scrollView.contentSize,
         surfaceFrameSize: surfaceView.frame.size
@@ -2337,6 +2344,7 @@ final class GhosttySurfaceScrollView: NSView {
   }
 
   private func handleLiveScroll() {
+    guard ownsSurface else { return }
     let cellHeight = surfaceView.currentCellSize().height
     guard cellHeight > 0 else { return }
     let visibleRect = scrollView.contentView.documentVisibleRect

@@ -100,6 +100,73 @@ struct GhosttySurfaceViewTests {
 
   @Test
   @MainActor
+  func splitReparentResizesCoreSurface() throws {
+    initializeGhosttyForTests()
+
+    let surfaceView = GhosttySurfaceView(
+      runtime: GhosttyRuntime(),
+      tabID: UUID(),
+      workingDirectory: nil,
+      context: GHOSTTY_SURFACE_CONTEXT_TAB
+    )
+    defer { surfaceView.closeSurface() }
+    let surface = try #require(surfaceView.surface)
+
+    let window = NSWindow(
+      contentRect: NSRect(x: 0, y: 0, width: 1200, height: 800),
+      styleMask: [.titled],
+      backing: .buffered,
+      defer: false
+    )
+    defer { window.contentView = nil }
+
+    let fullWrapper = GhosttySurfaceScrollView(surfaceView: surfaceView)
+    fullWrapper.frame = NSRect(x: 0, y: 0, width: 1200, height: 800)
+    window.contentView?.addSubview(fullWrapper)
+    fullWrapper.layoutSubtreeIfNeeded()
+    let fullWidth = ghostty_surface_size(surface).width_px
+    try #require(fullWidth > 0)
+
+    let splitWrapper = GhosttySurfaceScrollView(surfaceView: surfaceView)
+    splitWrapper.invalidateLayout(ifSizeDiffersFrom: CGSize(width: 600, height: 800))
+    fullWrapper.removeFromSuperview()
+    splitWrapper.frame = NSRect(x: 0, y: 0, width: 600, height: 800)
+    window.contentView?.addSubview(splitWrapper)
+    splitWrapper.layoutSubtreeIfNeeded()
+
+    #expect(ghostty_surface_size(surface).width_px < fullWidth)
+  }
+
+  @Test
+  @MainActor
+  func defunctWrapperLayoutLeavesReparentedSurfaceAlone() {
+    initializeGhosttyForTests()
+
+    let surfaceView = GhosttySurfaceView(
+      runtime: GhosttyRuntime(),
+      tabID: UUID(),
+      workingDirectory: nil,
+      context: GHOSTTY_SURFACE_CONTEXT_TAB
+    )
+    defer { surfaceView.closeSurface() }
+
+    let defunctWrapper = GhosttySurfaceScrollView(surfaceView: surfaceView)
+    defunctWrapper.frame.size = CGSize(width: 1200, height: 800)
+    defunctWrapper.layoutSubtreeIfNeeded()
+
+    let splitWrapper = GhosttySurfaceScrollView(surfaceView: surfaceView)
+    splitWrapper.frame.size = CGSize(width: 600, height: 800)
+    splitWrapper.layoutSubtreeIfNeeded()
+    #expect(surfaceView.frame.size == CGSize(width: 600, height: 800))
+
+    defunctWrapper.needsLayout = true
+    defunctWrapper.layoutSubtreeIfNeeded()
+
+    #expect(surfaceView.frame.size == CGSize(width: 600, height: 800))
+  }
+
+  @Test
+  @MainActor
   func deferredGeometryResizeInvalidatesWrapperLayout() {
     initializeGhosttyForTests()
 
