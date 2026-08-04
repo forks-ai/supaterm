@@ -383,7 +383,7 @@ struct TerminalSidebarLayoutPlanTests {
     let newTabFrame = try #require(plan.items.first { $0.id == .newTab }?.frame)
 
     #expect(pinnedFrame.minX == TerminalSidebarLayout.visibleHorizontalInset)
-    #expect(pinnedFrame.width == 200)
+    #expect(220 - pinnedFrame.maxX == TerminalSidebarLayout.visibleHorizontalInset)
     #expect(dividerFrame.minX == 0)
     #expect(dividerFrame.width == 220)
     #expect(newTabFrame.minX == 0)
