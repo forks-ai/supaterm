@@ -68,6 +68,7 @@ make mac-generate       # Generate the Xcode workspace
 make mac-xcode-open     # Open the Xcode workspace
 make mac-build          # Debug build
 make mac-run            # Debug run with isolated ephemeral state
+make mac-reap-run-state # Kill zmx sessions and state left by finished runs
 make mac-inspect-dependencies # Check Tuist dependency graph hygiene
 ```
 
@@ -142,6 +143,18 @@ SUPATERM_RUN_INSTANCE_NAME=supaterm-dev SUPATERM_RUN_STATE_HOME=/tmp/supaterm-de
 - `SUPATERM_RUN_ZMX_DIR` becomes `ZMX_DIR` for the app process.
 
 All Makefile app launch targets set `SUPATERM_VERBOSE_LOGGING=1`, so development runs always emit verbose diagnostics.
+
+### Reaping finished runs
+
+A zmx session daemon detaches from the app that spawned it, so quitting a development run leaves its daemons behind. `make mac-run` and `make mac-run-demo` reap before they launch, and `make mac-reap-run-state` reaps without building anything:
+
+```bash
+make mac-reap-run-state
+```
+
+Reaping walks every state home under `apps/mac/.build/run-state`. A state home whose run still has a live `supaterm` process naming it in `SUPATERM_STATE_HOME` is left alone, so concurrent development runs survive each other. For every other state home, `apps/mac/scripts/reap-run-state.sh` kills each process group whose environment carries that run's `ZMX_DIR` and then deletes the directory. It reads the process table rather than the socket directory, because a daemon whose socket was unlinked keeps running and `zmx ls` no longer reports it.
+
+Reaping only ever touches `apps/mac/.build/run-state`. Your own sessions in the default `/tmp/zmx-<uid>`, the sessions of `/Applications/supaterm.app`, and any run started with `SUPATERM_RUN_STATE_HOME` or `SUPATERM_RUN_ZMX_DIR` pointing outside that root are never reaped.
 
 Panes inherit Supaterm context from the running app:
 
