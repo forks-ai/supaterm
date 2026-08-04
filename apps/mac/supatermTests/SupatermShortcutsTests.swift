@@ -1,5 +1,4 @@
 import Carbon.HIToolbox
-import SupatermCLIShared
 import SupatermSupport
 import SwiftUI
 import Testing

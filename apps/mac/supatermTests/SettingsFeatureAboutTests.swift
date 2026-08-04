@@ -4,7 +4,6 @@ import SupatermSupport
 import SupatermUpdateFeature
 import Testing
 
-@testable import SupatermCLIShared
 @testable import SupatermSettingsFeature
 
 @MainActor

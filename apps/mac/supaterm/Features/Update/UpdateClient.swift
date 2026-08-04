@@ -3,7 +3,6 @@ import ComposableArchitecture
 import Foundation
 import Sharing
 import Sparkle
-import SupatermCLIShared
 import SupatermSupport
 
 public enum UpdateUserAction: Equatable, Sendable {

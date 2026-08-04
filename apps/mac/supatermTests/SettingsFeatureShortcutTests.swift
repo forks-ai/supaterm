@@ -1,7 +1,6 @@
 import Carbon.HIToolbox
 import ComposableArchitecture
 import Sharing
-import SupatermCLIShared
 import SupatermSupport
 import Testing
 

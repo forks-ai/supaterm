@@ -4,7 +4,6 @@ import Observation
 import QuartzCore
 import Sharing
 import SupaTheme
-import SupatermCLIShared
 import SupatermSupport
 import SwiftUI
 

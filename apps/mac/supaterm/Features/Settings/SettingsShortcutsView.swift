@@ -1,7 +1,6 @@
 import AppKit
 import Carbon.HIToolbox
 import ComposableArchitecture
-import SupatermCLIShared
 import SupatermSupport
 import SwiftUI
 

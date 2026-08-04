@@ -1,5 +1,4 @@
 import ComposableArchitecture
-import SupatermCLIShared
 import SupatermSupport
 
 private enum UpdateFeatureCancelID {
