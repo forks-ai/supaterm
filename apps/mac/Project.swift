@@ -191,7 +191,6 @@ let project = Project(
         "supaterm/Features/Update",
       ],
       dependencies: [
-        .target(name: "SupatermCLIShared"),
         .target(name: "SupatermSupport"),
         .external(name: "ComposableArchitecture"),
         .external(name: "Sharing"),
