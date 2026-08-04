@@ -101,8 +101,7 @@ extension SocketRequestExecutor {
         try SupatermSettingsRegistry.reset(
           request,
           settings: .default,
-          path: SupatermStateRoot.settingsFileURL().path,
-          isLive: true
+          path: SupatermStateRoot.settingsFileURL().path
         ).result
       )
     case .settingsSet(let request):
@@ -110,8 +109,7 @@ extension SocketRequestExecutor {
         try SupatermSettingsRegistry.set(
           request,
           settings: .default,
-          path: SupatermStateRoot.settingsFileURL().path,
-          isLive: true
+          path: SupatermStateRoot.settingsFileURL().path
         ).result
       )
     case .settingsValidate:

@@ -35,8 +35,7 @@ struct SupatermSettingsCommandTests {
     let setEdit = try SupatermSettingsRegistry.set(
       SupatermSettingsSetRequest(key: "appearance.mode", value: "system"),
       settings: .default,
-      path: "/tmp/settings.toml",
-      isLive: true
+      path: "/tmp/settings.toml"
     )
 
     #expect(setEdit.settings.appearanceMode == .system)
@@ -47,8 +46,7 @@ struct SupatermSettingsCommandTests {
     let resetEdit = try SupatermSettingsRegistry.reset(
       SupatermSettingsResetRequest(key: "appearance.mode"),
       settings: setEdit.settings,
-      path: "/tmp/settings.toml",
-      isLive: true
+      path: "/tmp/settings.toml"
     )
 
     #expect(resetEdit.settings.appearanceMode == .dark)
@@ -76,8 +74,7 @@ struct SupatermSettingsCommandTests {
       _ = try SupatermSettingsRegistry.set(
         SupatermSettingsSetRequest(key: "appearance.mode", value: "sepia"),
         settings: .default,
-        path: "/tmp/settings.toml",
-        isLive: true
+        path: "/tmp/settings.toml"
       )
       Issue.record("Expected invalid enum value to throw.")
     } catch let error as SupatermSettingsCommandError {
@@ -91,8 +88,7 @@ struct SupatermSettingsCommandTests {
       _ = try SupatermSettingsRegistry.set(
         SupatermSettingsSetRequest(key: "logging.verbose_enabled", value: "yes"),
         settings: .default,
-        path: "/tmp/settings.toml",
-        isLive: true
+        path: "/tmp/settings.toml"
       )
       Issue.record("Expected invalid bool value to throw.")
     } catch let error as SupatermSettingsCommandError {

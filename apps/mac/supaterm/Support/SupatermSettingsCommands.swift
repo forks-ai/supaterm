@@ -157,16 +157,12 @@ public enum SupatermSettingsKey: String, CaseIterable, Codable, Equatable, Senda
     }
   }
 
-  public func mutationWarnings(isLive: Bool) -> [String] {
+  public func mutationWarnings() -> [String] {
     switch self {
     case .terminalZmxSessionsEnabled:
       return ["Restart Supaterm for zmx session changes to take effect."]
     case .notificationsSystemNotifications:
       return ["macOS notification permission may still be required."]
-    case .updatesChannel where !isLive:
-      return ["Update channel changes apply next time Supaterm starts."]
-    case .loggingVerboseEnabled where !isLive:
-      return ["Verbose logging changes apply next time Supaterm starts."]
     default:
       return []
     }
@@ -253,8 +249,7 @@ public enum SupatermSettingsRegistry {
   public static func set(
     _ request: SupatermSettingsSetRequest,
     settings: SupatermSettings,
-    path: String,
-    isLive: Bool
+    path: String
   ) throws -> (settings: SupatermSettings, result: SupatermSettingsMutationResult) {
     let key = try SupatermSettingsKey(path: request.key)
     let oldValue = key.value(in: settings)
@@ -270,7 +265,7 @@ public enum SupatermSettingsRegistry {
         value: value,
         defaultValue: key.defaultValue,
         isDefault: value == key.defaultValue,
-        warnings: oldValue == value ? [] : key.mutationWarnings(isLive: isLive)
+        warnings: oldValue == value ? [] : key.mutationWarnings()
       )
     )
   }
@@ -278,8 +273,7 @@ public enum SupatermSettingsRegistry {
   public static func reset(
     _ request: SupatermSettingsResetRequest,
     settings: SupatermSettings,
-    path: String,
-    isLive: Bool
+    path: String
   ) throws -> (settings: SupatermSettings, result: SupatermSettingsMutationResult) {
     let key = try SupatermSettingsKey(path: request.key)
     let oldValue = key.value(in: settings)
@@ -295,7 +289,7 @@ public enum SupatermSettingsRegistry {
         value: value,
         defaultValue: key.defaultValue,
         isDefault: true,
-        warnings: oldValue == value ? [] : key.mutationWarnings(isLive: isLive)
+        warnings: oldValue == value ? [] : key.mutationWarnings()
       )
     )
   }

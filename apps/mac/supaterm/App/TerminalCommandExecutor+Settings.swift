@@ -28,8 +28,7 @@ extension TerminalCommandExecutor {
     let edit = try SupatermSettingsRegistry.set(
       request,
       settings: supatermSettings,
-      path: SupatermStateRoot.settingsFileURL().path,
-      isLive: true
+      path: SupatermStateRoot.settingsFileURL().path
     )
     $supatermSettings.withLock {
       $0 = edit.settings
@@ -43,8 +42,7 @@ extension TerminalCommandExecutor {
     let edit = try SupatermSettingsRegistry.reset(
       request,
       settings: supatermSettings,
-      path: SupatermStateRoot.settingsFileURL().path,
-      isLive: true
+      path: SupatermStateRoot.settingsFileURL().path
     )
     $supatermSettings.withLock {
       $0 = edit.settings
