@@ -50,9 +50,6 @@ jobs:
               *.md)
                 continue
                 ;;
-            esac
-
-            case "$path" in
               .github/actions/setup-macos/* | .github/workflows/ci.yml | .gitmodules | apps/mac/* | integrations/supaterm-skills | Makefile | mise.toml)
                 mac=true
                 ;;
