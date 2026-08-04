@@ -105,6 +105,67 @@ struct ChromePaletteTests {
     }
   }
 
+  @Test func darkTintWashKeepsTheReferenceMix() {
+    for tint in ThemeTint.chromatic {
+      let palette = Palette(colorScheme: .dark, tint: tint)
+      let tone = tint.tone(in: .default).color(for: .dark)
+      expectSameThemeColor(
+        palette.backgroundTopValue,
+        ThemeColor(hex: 0x1F1F1F).mixed(with: tone, by: 0.17),
+        "darkBackgroundTop-\(tint.rawValue)"
+      )
+      expectSameThemeColor(
+        palette.backgroundBottomValue,
+        ThemeColor(hex: 0x161616).mixed(with: tone, by: 0.17),
+        "darkBackgroundBottom-\(tint.rawValue)"
+      )
+      expectSameThemeColor(
+        palette.chromeBackgroundStartValue,
+        palette.backgroundTopValue,
+        "darkChromeBackgroundStart-\(tint.rawValue)"
+      )
+      expectSameThemeColor(
+        palette.chromeBackgroundStopValue,
+        palette.backgroundBottomValue,
+        "darkChromeBackgroundStop-\(tint.rawValue)"
+      )
+    }
+  }
+
+  @Test func lightChromeRunsFromAChromaticTopToAPaleFooter() {
+    for tint in ThemeTint.chromatic {
+      let palette = Palette(colorScheme: .light, tint: tint)
+      let top = palette.chromeBackgroundStartValue
+      let footer = palette.chromeBackgroundStopValue
+      #expect(
+        ColorMath.oklch(from: top).chroma > ColorMath.oklch(from: footer).chroma,
+        "\(tint.rawValue) chroma"
+      )
+      #expect(ColorMath.oklch(from: footer).chroma > 0, "\(tint.rawValue) footer chroma")
+      #expect(
+        ColorMath.relativeLuminance(top) < ColorMath.relativeLuminance(footer),
+        "\(tint.rawValue) luminance"
+      )
+      #expect(
+        palette.backgroundIlluminationTopValue.alpha < palette.backgroundIlluminationBodyValue.alpha,
+        "\(tint.rawValue) body illumination"
+      )
+      #expect(
+        palette.backgroundIlluminationBodyValue.alpha < palette.backgroundIlluminationFooterValue.alpha,
+        "\(tint.rawValue) footer illumination"
+      )
+    }
+  }
+
+  @Test func neutralTintKeepsChromeSurfacesGray() {
+    for colorScheme in [ColorScheme.light, ColorScheme.dark] {
+      let palette = Palette(colorScheme: colorScheme)
+      for surface in [palette.chromeBackgroundStartValue, palette.chromeBackgroundStopValue] {
+        #expect(ColorMath.oklch(from: surface).chroma < 0.0001)
+      }
+    }
+  }
+
   @Test func retintingKeepsTheSchemeAndMatchesADirectlyBuiltPalette() {
     for colorScheme in [ColorScheme.light, ColorScheme.dark] {
       let palette = Palette(colorScheme: colorScheme, tint: .blue).tinted(.green)
@@ -303,43 +364,27 @@ struct ChromePaletteTests {
   }
 
   private func expectBackgroundLayerTokens(_ palette: Palette, isDark: Bool) {
-    let illuminationValue = ThemeColor.white
-    let illuminationStartOpacity = 0.35
-    let illuminationStopOpacity = 0.7
-    expectSameThemeColor(
-      palette.chromeBackgroundBaseStartValue,
-      palette.backgroundTopValue,
-      "chromeBackgroundBaseStartValue"
-    )
-    expectSameThemeColor(
-      palette.chromeBackgroundBaseStopValue,
-      isDark ? palette.backgroundBottomValue : palette.backgroundTopValue,
-      "chromeBackgroundBaseStopValue"
-    )
-    expectSameThemeColor(
-      palette.backgroundIlluminationStartValue,
-      ThemeColor(red: 1, green: 1, blue: 1, alpha: isDark ? 0 : illuminationStartOpacity),
-      "backgroundIlluminationStartValue"
-    )
-    expectSameThemeColor(
-      palette.backgroundIlluminationStopValue,
-      ThemeColor(red: 1, green: 1, blue: 1, alpha: isDark ? 0 : illuminationStopOpacity),
-      "backgroundIlluminationStopValue"
-    )
+    let illuminationOpacities = isDark ? [0, 0, 0] : [0.22, 0.36, 0.62]
+    let illuminations = [
+      palette.backgroundIlluminationTopValue,
+      palette.backgroundIlluminationBodyValue,
+      palette.backgroundIlluminationFooterValue,
+    ]
+    for (illumination, opacity) in zip(illuminations, illuminationOpacities) {
+      expectSameThemeColor(
+        illumination,
+        ThemeColor(red: 1, green: 1, blue: 1, alpha: opacity),
+        "backgroundIllumination-\(opacity)"
+      )
+    }
     expectSameThemeColor(
       palette.chromeBackgroundStartValue,
-      isDark
-        ? palette.backgroundTopValue
-        : ColorMath.composited(
-          illuminationValue, opacity: illuminationStartOpacity, over: palette.backgroundTopValue),
+      ColorMath.composited(.white, opacity: illuminationOpacities[0], over: palette.backgroundTopValue),
       "chromeBackgroundStartValue"
     )
     expectSameThemeColor(
       palette.chromeBackgroundStopValue,
-      isDark
-        ? palette.backgroundBottomValue
-        : ColorMath.composited(
-          illuminationValue, opacity: illuminationStopOpacity, over: palette.backgroundTopValue),
+      ColorMath.composited(.white, opacity: illuminationOpacities[2], over: palette.backgroundBottomValue),
       "chromeBackgroundStopValue"
     )
   }

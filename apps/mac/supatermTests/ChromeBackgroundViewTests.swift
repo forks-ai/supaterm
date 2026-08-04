@@ -42,6 +42,23 @@ struct ChromeBackgroundViewTests {
   }
 
   @Test
+  func illuminationStopsHoldTheBodyUntilTheFooterLift() {
+    let palette = Palette(colorScheme: .light, tint: .blue)
+
+    let stops = ChromeBackgroundRamp.illuminationStops(
+      top: palette.backgroundIlluminationTopValue,
+      body: palette.backgroundIlluminationBodyValue,
+      footer: palette.backgroundIlluminationFooterValue
+    )
+
+    #expect(stops.map(\.location) == [0, ChromeBackgroundRamp.footerStart, 1])
+    #expect(ChromeBackgroundRamp.footerStart > ChromeBackgroundRamp.rampEnd)
+    let alphas = stops.map(\.color.alpha)
+    #expect(alphas == alphas.sorted())
+    #expect(alphas[2] - alphas[1] > alphas[1] - alphas[0])
+  }
+
+  @Test
   func rampStopsInterpolateAlpha() {
     let start = ThemeColor(red: 1, green: 1, blue: 1, alpha: 0.35)
     let stop = ThemeColor(red: 1, green: 1, blue: 1, alpha: 0.7)
@@ -71,8 +88,8 @@ struct ChromeBackgroundViewTests {
 
     let baseColors = view.baseRampView.gradientLayer?.colors as? [CGColor]
     #expect(baseColors?.count == ChromeBackgroundRamp.sampleCount + 1)
-    #expect(baseColors?.first == palette.chromeBackgroundBaseStartValue.cgColor)
-    #expect(baseColors?.last == palette.chromeBackgroundBaseStopValue.cgColor)
+    #expect(baseColors?.first == palette.backgroundTopValue.cgColor)
+    #expect(baseColors?.last == palette.backgroundBottomValue.cgColor)
     #expect(view.baseRampView.gradientLayer?.locations?.first == 0)
     #expect(view.baseRampView.gradientLayer?.locations?.last == 1)
     #expect(abs(view.baseRampView.alphaValue - ChromeBackgroundNSView.themeTintOpacity) < 0.0001)
@@ -116,8 +133,8 @@ struct ChromeBackgroundViewTests {
     #expect(
       baseCrossfade?.fromValue as? [CGColor]
         == ChromeBackgroundRamp.stops(
-          from: outgoing.chromeBackgroundBaseStartValue,
-          to: outgoing.chromeBackgroundBaseStopValue
+          from: outgoing.backgroundTopValue,
+          to: outgoing.backgroundBottomValue
         ).map(\.color.cgColor)
     )
 
