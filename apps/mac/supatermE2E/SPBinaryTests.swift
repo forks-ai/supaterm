@@ -1115,7 +1115,6 @@ private struct TmuxE2E {
 private struct TmuxFixture {
   let newSession: UUID
   let createdWindow: UUID
-  let originalPane: UUID
   let splitPane: UUID
 }
 
@@ -1158,7 +1157,6 @@ private func createTmuxFixture(_ tmux: TmuxE2E) async throws -> TmuxFixture {
   return TmuxFixture(
     newSession: newSession,
     createdWindow: createdWindow,
-    originalPane: originalPane,
     splitPane: splitPane
   )
 }

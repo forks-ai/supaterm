@@ -1,5 +1,4 @@
 import Foundation
-import SupatermCLIShared
 import SupatermSupport
 import Synchronization
 import Testing

@@ -12,7 +12,7 @@ CURRENT_MAKEFILE_DIR := $(patsubst %/,%,$(dir $(CURRENT_MAKEFILE_PATH)))
 PROJECT_WORKSPACE := $(CURRENT_MAKEFILE_DIR)/supaterm.xcworkspace
 APP_SCHEME := supaterm
 MACOS_DESTINATION := platform=macOS,arch=$(shell uname -m)
-PERIPHERY_SCHEMES := supaterm supatermSnapshotCatalog
+PERIPHERY_SCHEMES := supaterm supatermSnapshotCatalog supatermE2E
 PERIPHERY_DERIVED_DATA_PATH := $(CURRENT_MAKEFILE_DIR)/.build/periphery-derived-data
 PERIPHERY_INDEX_STORE_PATH := $(PERIPHERY_DERIVED_DATA_PATH)/Index.noindex/DataStore
 LOGO_GENERATOR_SCHEME := SupaThemeLogoGenerator
