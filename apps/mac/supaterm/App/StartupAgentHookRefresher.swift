@@ -12,35 +12,17 @@ nonisolated struct StartupAgentHookRefresher {
   let logFailure: @Sendable (SupatermAgentKind, Error) -> Void
 
   static let live = StartupAgentHookRefresher(
-    operations: [
+    operations: SupatermAgentKind.allCases.map { agent in
       Operation(
-        agent: .claude,
+        agent: agent,
         integrationHealth: {
-          try ClaudeSettingsInstaller().integrationHealth()
+          try CodingAgentHookInstaller.live.integrationHealth(agent)
         },
         installSupatermHooks: {
-          try ClaudeSettingsInstaller().installSupatermHooks()
+          try CodingAgentHookInstaller.live.installSupatermHooks(agent)
         }
-      ),
-      Operation(
-        agent: .codex,
-        integrationHealth: {
-          try CodexSettingsInstaller().integrationHealth()
-        },
-        installSupatermHooks: {
-          try CodexSettingsInstaller().installSupatermHooks()
-        }
-      ),
-      Operation(
-        agent: .pi,
-        integrationHealth: {
-          try PiSettingsInstaller().integrationHealth()
-        },
-        installSupatermHooks: {
-          try PiSettingsInstaller().installSupatermPackage()
-        }
-      ),
-    ],
+      )
+    },
     logFailure: { agent, error in
       let message = "Failed to refresh \(agent.notificationTitle) hooks at launch."
       AppPostHog.captureException(

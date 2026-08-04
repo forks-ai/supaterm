@@ -10,7 +10,7 @@ public struct SupatermSkillSummary: Codable, Equatable, Sendable {
   }
 }
 
-public struct SupatermSkillFile: Equatable, Sendable {
+public struct SupatermSkillFile: Codable, Equatable, Sendable {
   public let path: String
   public let content: String
 
@@ -20,7 +20,7 @@ public struct SupatermSkillFile: Equatable, Sendable {
   }
 }
 
-public struct SupatermSkillContent: Equatable, Sendable {
+public struct SupatermSkillContent: Codable, Equatable, Sendable {
   public let name: String
   public let content: String
   public let files: [SupatermSkillFile]?
@@ -33,6 +33,40 @@ public struct SupatermSkillContent: Equatable, Sendable {
 }
 
 public struct SupatermSkillInstallResult: Codable, Equatable, Sendable {
+  public let path: String
+
+  public init(path: String) {
+    self.path = path
+  }
+}
+
+public struct SupatermSkillListResult: Codable, Equatable, Sendable {
+  public let skills: [SupatermSkillSummary]
+
+  public init(skills: [SupatermSkillSummary]) {
+    self.skills = skills
+  }
+}
+
+public struct SupatermSkillGetRequest: Codable, Equatable, Sendable {
+  public let name: String
+  public let full: Bool
+
+  public init(name: String, full: Bool = false) {
+    self.name = name
+    self.full = full
+  }
+}
+
+public struct SupatermSkillPathRequest: Codable, Equatable, Sendable {
+  public let name: String
+
+  public init(name: String) {
+    self.name = name
+  }
+}
+
+public struct SupatermSkillPathResult: Codable, Equatable, Sendable {
   public let path: String
 
   public init(path: String) {
@@ -314,12 +348,12 @@ public struct SupatermSkills {
   }
 }
 
-enum SupatermSkillsError: Error, Equatable, LocalizedError {
+public enum SupatermSkillsError: Error, Equatable, LocalizedError {
   case bundledSkillsUnavailable(String?)
   case invalidSkill(String)
   case skillNotFound(String)
 
-  var errorDescription: String? {
+  public var errorDescription: String? {
     switch self {
     case .bundledSkillsUnavailable(let path):
       guard let path else {

@@ -279,6 +279,14 @@ public struct SupatermSettingsResetRequest: Codable, Equatable, Sendable {
   }
 }
 
+public struct SupatermSettingsValidateRequest: Codable, Equatable, Sendable {
+  public let path: String?
+
+  public init(path: String? = nil) {
+    self.path = path
+  }
+}
+
 public struct SupatermSettingsListResult: Codable, Equatable, Sendable {
   public let path: String
   public let entries: [SupatermSettingsEntry]

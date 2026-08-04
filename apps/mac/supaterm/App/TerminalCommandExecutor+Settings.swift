@@ -53,6 +53,13 @@ extension TerminalCommandExecutor {
     return edit.result
   }
 
+  func settingsValidate(
+    _ request: SupatermSettingsValidateRequest,
+    validator: SupatermSettingsValidator = SupatermSettingsValidator()
+  ) -> SupatermSettingsValidationResult {
+    validator.validate(path: request.path.map { URL(fileURLWithPath: $0, isDirectory: false) })
+  }
+
   private func applySettingsSideEffects(
     key: SupatermSettingsKey,
     settings: SupatermSettings

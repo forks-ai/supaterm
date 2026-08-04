@@ -3,6 +3,27 @@ import SupatermCLIShared
 import SupatermTerminalCore
 
 extension SocketControlFeature {
+  func skillsErrorResponse(
+    _ error: SupatermSkillsError,
+    requestID: String
+  ) -> SupatermSocketResponse {
+    switch error {
+    case .skillNotFound:
+      return .error(
+        id: requestID,
+        code: "not_found",
+        message: error.localizedDescription
+      )
+
+    case .bundledSkillsUnavailable, .invalidSkill:
+      return .error(
+        id: requestID,
+        code: "internal_error",
+        message: error.localizedDescription
+      )
+    }
+  }
+
   func createTabErrorResponse(
     _ error: TerminalCreateTabError,
     requestID: String
