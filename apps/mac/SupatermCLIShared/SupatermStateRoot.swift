@@ -25,6 +25,28 @@ public enum SupatermStateRoot {
     .appendingPathComponent(name, isDirectory: false)
   }
 
+  public static func settingsFileURL(
+    homeDirectoryPath: String = NSHomeDirectory(),
+    environment: [String: String] = ProcessInfo.processInfo.environment
+  ) -> URL {
+    fileURL(
+      "settings.toml",
+      homeDirectoryPath: homeDirectoryPath,
+      environment: environment
+    )
+  }
+
+  public static func legacySettingsFileURL(
+    homeDirectoryPath: String = NSHomeDirectory(),
+    environment: [String: String] = ProcessInfo.processInfo.environment
+  ) -> URL {
+    fileURL(
+      "settings.json",
+      homeDirectoryPath: homeDirectoryPath,
+      environment: environment
+    )
+  }
+
   public static func stateHomeURL(
     environment: [String: String] = ProcessInfo.processInfo.environment
   ) -> URL? {

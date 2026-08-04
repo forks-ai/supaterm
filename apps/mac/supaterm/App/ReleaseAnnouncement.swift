@@ -220,8 +220,8 @@ nonisolated enum ReleaseAnnouncementStorage {
     environment: [String: String] = ProcessInfo.processInfo.environment
   ) -> Bool {
     let urls = [
-      SupatermSettings.defaultURL(homeDirectoryPath: homeDirectoryPath, environment: environment),
-      SupatermSettings.legacyURL(homeDirectoryPath: homeDirectoryPath, environment: environment),
+      SupatermStateRoot.settingsFileURL(homeDirectoryPath: homeDirectoryPath, environment: environment),
+      SupatermStateRoot.legacySettingsFileURL(homeDirectoryPath: homeDirectoryPath, environment: environment),
       TerminalSessionCatalog.defaultURL(homeDirectoryPath: homeDirectoryPath, environment: environment),
       TerminalSpaceCatalog.defaultURL(homeDirectoryPath: homeDirectoryPath, environment: environment),
     ]

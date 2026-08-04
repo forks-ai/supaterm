@@ -10,19 +10,35 @@ import Testing
 @testable import supaterm
 
 func makeStore(
-  updateDependencies: (inout DependencyValues) -> Void = { _ in }
+  updateDependencies: (inout DependencyValues) -> Void = { _ in },
+  executeApp: (
+    @MainActor @Sendable (SocketRequestExecutor.AppRequest) async throws -> SocketRequestExecutor.AppResult
+  )? = nil,
+  executeAgentIntegration: (
+    @MainActor @Sendable (
+      SocketRequestExecutor.AgentIntegrationRequest
+    ) async throws -> SocketRequestExecutor.AgentIntegrationResult
+  )? = nil
 ) -> TestStoreOf<SocketControlFeature> {
   TestStore(initialState: SocketControlFeature.State()) {
     SocketControlFeature()
   } withDependencies: {
     updateDependencies(&$0)
-    $0.socketRequestExecutor = .testing(terminalWindowsClient: $0.terminalWindowsClient)
+    $0.socketRequestExecutor = .testing(
+      terminalWindowsClient: $0.terminalWindowsClient,
+      executeApp: executeApp,
+      executeAgentIntegration: executeAgentIntegration
+    )
   }
 }
 
 extension SocketRequestExecutor {
   static func testing(
     terminalWindowsClient: TerminalWindowsClient,
+    executeApp: (@MainActor @Sendable (AppRequest) async throws -> AppResult)? = nil,
+    executeAgentIntegration: (
+      @MainActor @Sendable (AgentIntegrationRequest) async throws -> AgentIntegrationResult
+    )? = nil,
     executeTerminalTabGroup:
       @escaping @MainActor @Sendable (
         TerminalTabGroupRequest
@@ -31,7 +47,18 @@ extension SocketRequestExecutor {
       }
   ) -> Self {
     Self(
-      executeApp: { try await testingApp($0, terminalWindowsClient: terminalWindowsClient) },
+      executeApp: {
+        if let executeApp {
+          return try await executeApp($0)
+        }
+        return try await testingApp($0, terminalWindowsClient: terminalWindowsClient)
+      },
+      executeAgentIntegration: {
+        if let executeAgentIntegration {
+          return try await executeAgentIntegration($0)
+        }
+        return try await SocketRequestExecutor.liveValue.executeAgentIntegration($0)
+      },
       executeTerminalCreation: {
         try await testingCreation($0, terminalWindowsClient: terminalWindowsClient)
       },
@@ -58,14 +85,14 @@ extension SocketRequestExecutor {
         try SupatermSettingsRegistry.get(
           key: request.key,
           settings: .default,
-          path: SupatermSettings.defaultURL().path
+          path: SupatermStateRoot.settingsFileURL().path
         )
       )
     case .settingsList(let request):
       return .settingsList(
         SupatermSettingsRegistry.list(
           settings: .default,
-          path: SupatermSettings.defaultURL().path,
+          path: SupatermStateRoot.settingsFileURL().path,
           changedOnly: request.changedOnly
         )
       )
@@ -74,8 +101,7 @@ extension SocketRequestExecutor {
         try SupatermSettingsRegistry.reset(
           request,
           settings: .default,
-          path: SupatermSettings.defaultURL().path,
-          isLive: true
+          path: SupatermStateRoot.settingsFileURL().path
         ).result
       )
     case .settingsSet(let request):
@@ -83,10 +109,11 @@ extension SocketRequestExecutor {
         try SupatermSettingsRegistry.set(
           request,
           settings: .default,
-          path: SupatermSettings.defaultURL().path,
-          isLive: true
+          path: SupatermStateRoot.settingsFileURL().path
         ).result
       )
+    case .settingsValidate:
+      return try await SocketRequestExecutor.liveValue.executeApp(request)
     case .treeSnapshot:
       return .treeSnapshot(await terminalWindowsClient.treeSnapshot())
     case .notify(let notifyRequest):

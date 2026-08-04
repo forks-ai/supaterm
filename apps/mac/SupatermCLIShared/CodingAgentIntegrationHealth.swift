@@ -1,4 +1,4 @@
-public enum CodingAgentIntegrationHealth: Equatable, Sendable {
+public enum CodingAgentIntegrationHealth: String, Codable, Equatable, Sendable {
   case unavailable
   case unavailableInstalled
   case absent

@@ -1,8 +1,8 @@
 import AppKit
-import SupatermCLIShared
+import SupatermSupport
 import SwiftUI
 
-public typealias AppearanceMode = SupatermCLIShared.AppearanceMode
+public typealias AppearanceMode = SupatermSupport.AppearanceMode
 
 extension AppearanceMode {
   public var colorScheme: ColorScheme? {

@@ -1,12 +1,13 @@
 import Foundation
 import SupatermCLIShared
+import SupatermSupport
 import Testing
 
 struct SupatermSettingsValidationTests {
   @Test
   func defaultPathMissingWarnsAboutLegacyJson() throws {
     let homeDirectoryURL = try temporarySettingsValidationHomeDirectory()
-    let legacyURL = SupatermSettings.legacyURL(homeDirectoryPath: homeDirectoryURL.path, environment: [:])
+    let legacyURL = SupatermStateRoot.legacySettingsFileURL(homeDirectoryPath: homeDirectoryURL.path, environment: [:])
     try FileManager.default.createDirectory(
       at: legacyURL.deletingLastPathComponent(),
       withIntermediateDirectories: true
@@ -54,7 +55,7 @@ struct SupatermSettingsValidationTests {
   @Test
   func emptyTomlIsValid() throws {
     let homeDirectoryURL = try temporarySettingsValidationHomeDirectory()
-    let settingsURL = SupatermSettings.defaultURL(homeDirectoryPath: homeDirectoryURL.path, environment: [:])
+    let settingsURL = SupatermStateRoot.settingsFileURL(homeDirectoryPath: homeDirectoryURL.path, environment: [:])
     try FileManager.default.createDirectory(
       at: settingsURL.deletingLastPathComponent(),
       withIntermediateDirectories: true
@@ -71,7 +72,7 @@ struct SupatermSettingsValidationTests {
   @Test
   func validTomlWarnsOnUnknownKeys() throws {
     let homeDirectoryURL = try temporarySettingsValidationHomeDirectory()
-    let settingsURL = SupatermSettings.defaultURL(homeDirectoryPath: homeDirectoryURL.path, environment: [:])
+    let settingsURL = SupatermStateRoot.settingsFileURL(homeDirectoryPath: homeDirectoryURL.path, environment: [:])
     try FileManager.default.createDirectory(
       at: settingsURL.deletingLastPathComponent(),
       withIntermediateDirectories: true
@@ -115,7 +116,7 @@ struct SupatermSettingsValidationTests {
   @Test
   func validTomlAcceptsLegacyTerminalZmxKey() throws {
     let homeDirectoryURL = try temporarySettingsValidationHomeDirectory()
-    let settingsURL = SupatermSettings.defaultURL(homeDirectoryPath: homeDirectoryURL.path, environment: [:])
+    let settingsURL = SupatermStateRoot.settingsFileURL(homeDirectoryPath: homeDirectoryURL.path, environment: [:])
     try FileManager.default.createDirectory(
       at: settingsURL.deletingLastPathComponent(),
       withIntermediateDirectories: true
@@ -138,7 +139,7 @@ struct SupatermSettingsValidationTests {
   @Test
   func validTomlAuditsShortcutFields() throws {
     let homeDirectoryURL = try temporarySettingsValidationHomeDirectory()
-    let settingsURL = SupatermSettings.defaultURL(homeDirectoryPath: homeDirectoryURL.path, environment: [:])
+    let settingsURL = SupatermStateRoot.settingsFileURL(homeDirectoryPath: homeDirectoryURL.path, environment: [:])
     try FileManager.default.createDirectory(
       at: settingsURL.deletingLastPathComponent(),
       withIntermediateDirectories: true
@@ -164,7 +165,7 @@ struct SupatermSettingsValidationTests {
   @Test
   func validTomlAcceptsLoggingKeys() throws {
     let homeDirectoryURL = try temporarySettingsValidationHomeDirectory()
-    let settingsURL = SupatermSettings.defaultURL(homeDirectoryPath: homeDirectoryURL.path, environment: [:])
+    let settingsURL = SupatermStateRoot.settingsFileURL(homeDirectoryPath: homeDirectoryURL.path, environment: [:])
     try FileManager.default.createDirectory(
       at: settingsURL.deletingLastPathComponent(),
       withIntermediateDirectories: true
@@ -187,7 +188,7 @@ struct SupatermSettingsValidationTests {
   @Test
   func invalidTomlReturnsFailure() throws {
     let homeDirectoryURL = try temporarySettingsValidationHomeDirectory()
-    let settingsURL = SupatermSettings.defaultURL(homeDirectoryPath: homeDirectoryURL.path, environment: [:])
+    let settingsURL = SupatermStateRoot.settingsFileURL(homeDirectoryPath: homeDirectoryURL.path, environment: [:])
     try FileManager.default.createDirectory(
       at: settingsURL.deletingLastPathComponent(),
       withIntermediateDirectories: true

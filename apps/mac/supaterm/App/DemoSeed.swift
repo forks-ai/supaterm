@@ -2,7 +2,6 @@
   import Foundation
   import Sharing
   import SupaTheme
-  import SupatermCLIShared
   import SupatermSupport
 
   @MainActor

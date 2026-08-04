@@ -1,4 +1,5 @@
 import Foundation
+import SupatermCLIShared
 
 public struct CodexSettingsInstaller {
   typealias CommandResult = CodingAgentCommandResult

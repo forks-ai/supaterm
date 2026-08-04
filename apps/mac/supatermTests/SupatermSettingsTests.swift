@@ -2,6 +2,7 @@ import AppKit
 import Foundation
 import SupatermCLIShared
 import SupatermSettingsFeature
+import SupatermSupport
 import SupatermUpdateFeature
 import SwiftUI
 import Testing
@@ -11,7 +12,7 @@ import Testing
 struct SupatermSettingsTests {
   @Test
   func defaultURLUsesSupatermConfigPath() {
-    let url = SupatermSettings.defaultURL(
+    let url = SupatermStateRoot.settingsFileURL(
       homeDirectoryPath: "/tmp/khoi",
       environment: [:]
     )
@@ -21,7 +22,7 @@ struct SupatermSettingsTests {
 
   @Test
   func legacyURLUsesSupatermConfigPath() {
-    let url = SupatermSettings.legacyURL(
+    let url = SupatermStateRoot.legacySettingsFileURL(
       homeDirectoryPath: "/tmp/khoi",
       environment: [:]
     )
@@ -31,7 +32,7 @@ struct SupatermSettingsTests {
 
   @Test
   func defaultURLUsesStateHomeWhenPresent() {
-    let url = SupatermSettings.defaultURL(
+    let url = SupatermStateRoot.settingsFileURL(
       homeDirectoryPath: "/tmp/khoi",
       environment: [SupatermCLIEnvironment.stateHomeKey: "/tmp/supaterm-dev"]
     )

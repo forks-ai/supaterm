@@ -9,7 +9,7 @@ extension TerminalCommandExecutor {
     @Shared(.supatermSettings) var supatermSettings = SupatermSettings.default
     return SupatermSettingsRegistry.list(
       settings: supatermSettings,
-      path: SupatermSettings.defaultURL().path,
+      path: SupatermStateRoot.settingsFileURL().path,
       changedOnly: request.changedOnly
     )
   }
@@ -19,7 +19,7 @@ extension TerminalCommandExecutor {
     return try SupatermSettingsRegistry.get(
       key: request.key,
       settings: supatermSettings,
-      path: SupatermSettings.defaultURL().path
+      path: SupatermStateRoot.settingsFileURL().path
     )
   }
 
@@ -28,8 +28,7 @@ extension TerminalCommandExecutor {
     let edit = try SupatermSettingsRegistry.set(
       request,
       settings: supatermSettings,
-      path: SupatermSettings.defaultURL().path,
-      isLive: true
+      path: SupatermStateRoot.settingsFileURL().path
     )
     $supatermSettings.withLock {
       $0 = edit.settings
@@ -43,14 +42,20 @@ extension TerminalCommandExecutor {
     let edit = try SupatermSettingsRegistry.reset(
       request,
       settings: supatermSettings,
-      path: SupatermSettings.defaultURL().path,
-      isLive: true
+      path: SupatermStateRoot.settingsFileURL().path
     )
     $supatermSettings.withLock {
       $0 = edit.settings
     }
     applySettingsSideEffects(key: try SupatermSettingsKey(path: request.key), settings: edit.settings)
     return edit.result
+  }
+
+  func settingsValidate(
+    _ request: SupatermSettingsValidateRequest,
+    validator: SupatermSettingsValidator = SupatermSettingsValidator()
+  ) -> SupatermSettingsValidationResult {
+    validator.validate(path: request.path.map { URL(fileURLWithPath: $0, isDirectory: false) })
   }
 
   private func applySettingsSideEffects(

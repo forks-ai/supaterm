@@ -56,28 +56,6 @@ public struct SupatermSettings: Codable, Equatable, Sendable {
     zmxSessionsEnabled: true
   )
 
-  public static func defaultURL(
-    homeDirectoryPath: String = NSHomeDirectory(),
-    environment: [String: String] = ProcessInfo.processInfo.environment
-  ) -> URL {
-    SupatermStateRoot.fileURL(
-      "settings.toml",
-      homeDirectoryPath: homeDirectoryPath,
-      environment: environment
-    )
-  }
-
-  public static func legacyURL(
-    homeDirectoryPath: String = NSHomeDirectory(),
-    environment: [String: String] = ProcessInfo.processInfo.environment
-  ) -> URL {
-    SupatermStateRoot.fileURL(
-      "settings.json",
-      homeDirectoryPath: homeDirectoryPath,
-      environment: environment
-    )
-  }
-
   public init(from decoder: any Decoder) throws {
     let defaults = Self.default
     let container = try decoder.container(keyedBy: CodingKeys.self)

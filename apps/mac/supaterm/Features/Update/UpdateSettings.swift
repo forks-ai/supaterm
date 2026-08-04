@@ -1,7 +1,7 @@
 import Foundation
-import SupatermCLIShared
+import SupatermSupport
 
-public typealias UpdateChannel = SupatermCLIShared.UpdateChannel
+public typealias UpdateChannel = SupatermSupport.UpdateChannel
 
 extension UpdateChannel {
   public var title: String {

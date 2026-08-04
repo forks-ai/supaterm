@@ -38,11 +38,11 @@ public enum SupatermShellCommand {
     ].joined(separator: "; ")
   }
 
-  static func loginShellCommandArguments(for command: String) -> [String] {
+  public static func loginShellCommandArguments(for command: String) -> [String] {
     ["-l", "-i", "-c", command]
   }
 
-  static func loginShellPath(
+  public static func loginShellPath(
     environment: [String: String] = ProcessInfo.processInfo.environment,
     currentUserShellPath: String? = currentUserShellPath()
   ) -> String {
@@ -63,7 +63,7 @@ public enum SupatermShellCommand {
     return "'\(token.replacingOccurrences(of: "'", with: "'\"'\"'"))'"
   }
 
-  private static func currentUserShellPath() -> String? {
+  public static func currentUserShellPath() -> String? {
     guard let entry = getpwuid(getuid()), let shell = entry.pointee.pw_shell else {
       return nil
     }

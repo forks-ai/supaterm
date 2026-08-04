@@ -46,9 +46,6 @@ let project = Project(
       buildableFolders: [
         "SupatermCLIShared",
       ],
-      dependencies: [
-        .external(name: "TOML"),
-      ],
       settings: .settings(
         base: [
           "SWIFT_DEFAULT_ACTOR_ISOLATION": "nonisolated",
@@ -174,8 +171,12 @@ let project = Project(
         .target(name: "SupatermCLIShared"),
         .external(name: "ComposableArchitecture"),
         .external(name: "Sharing"),
+        .external(name: "TOML"),
       ],
       settings: .settings(
+        base: [
+          "SWIFT_DEFAULT_ACTOR_ISOLATION": "nonisolated",
+        ],
         defaultSettings: .essential
       )
     ),

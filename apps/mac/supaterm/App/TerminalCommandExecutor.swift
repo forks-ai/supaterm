@@ -64,6 +64,8 @@ final class TerminalCommandExecutor {
       return .settingsReset(try settingsReset(request))
     case .settingsSet(let request):
       return .settingsSet(try settingsSet(request))
+    case .settingsValidate(let request):
+      return .settingsValidate(settingsValidate(request))
     case .treeSnapshot:
       return .treeSnapshot(treeSnapshot())
     case .notify(let notifyRequest):
@@ -73,6 +75,25 @@ final class TerminalCommandExecutor {
     case .quit:
       onQuitRequested?()
       return .quit
+    }
+  }
+
+  func execute(
+    _ request: SocketRequestExecutor.AgentIntegrationRequest
+  ) async throws -> SocketRequestExecutor.AgentIntegrationResult {
+    switch request {
+    case .hooksInstall(let request):
+      return .hooksInstall(try await hooksInstall(request))
+    case .hooksRemove(let request):
+      return .hooksRemove(try await hooksRemove(request))
+    case .skillsGet(let request):
+      return .skillsGet(try skillsGet(request))
+    case .skillsInstall:
+      return .skillsInstall(try skillsInstall())
+    case .skillsList:
+      return .skillsList(try skillsList())
+    case .skillsPath(let request):
+      return .skillsPath(try skillsPath(request))
     }
   }
 

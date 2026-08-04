@@ -162,6 +162,8 @@ public struct SocketControlFeature {
         code: "invalid_request",
         message: error.localizedDescription
       )
+    } catch let error as SupatermSkillsError {
+      return skillsErrorResponse(error, requestID: request.id)
     } catch let error as TerminalCreateTabError {
       return createTabErrorResponse(error, requestID: request.id)
     } catch let error as TerminalCreatePaneError {

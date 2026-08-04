@@ -19,7 +19,7 @@ public enum SupatermCodexHookSettings {
     HookSpec(configEvent: "UserPromptSubmit", nativeEvent: "userPromptSubmit", timeout: 10),
   ]
 
-  static var nativeHookIdentities: Set<CodexHookIdentity> {
+  public static var nativeHookIdentities: Set<CodexHookIdentity> {
     Set(
       specs.map { spec in
         CodexHookIdentity(
@@ -34,7 +34,7 @@ public enum SupatermCodexHookSettings {
     )
   }
 
-  static func nativeEventName(forConfigEvent event: String) -> String? {
+  public static func nativeEventName(forConfigEvent event: String) -> String? {
     specs.first(where: { $0.configEvent == event })?.nativeEvent
   }
 
@@ -121,33 +121,15 @@ public enum SupatermCodexHookSettings {
   }
 }
 
-struct CodexHookIdentity: Hashable {
-  let eventName: String
-  let handlerType: String
-  let matcher: String?
-  let command: String
-  let timeoutSeconds: Int
-  let statusMessage: String?
+public struct CodexHookIdentity: Hashable {
+  public let eventName: String
+  public let handlerType: String
+  public let matcher: String?
+  public let command: String
+  public let timeoutSeconds: Int
+  public let statusMessage: String?
 
-  static func == (lhs: Self, rhs: Self) -> Bool {
-    lhs.eventName == rhs.eventName
-      && lhs.handlerType == rhs.handlerType
-      && lhs.matcher == rhs.matcher
-      && lhs.command == rhs.command
-      && lhs.timeoutSeconds == rhs.timeoutSeconds
-      && lhs.statusMessage == rhs.statusMessage
-  }
-
-  func hash(into hasher: inout Hasher) {
-    hasher.combine(eventName)
-    hasher.combine(handlerType)
-    hasher.combine(matcher)
-    hasher.combine(command)
-    hasher.combine(timeoutSeconds)
-    hasher.combine(statusMessage)
-  }
-
-  init(
+  public init(
     eventName: String,
     handlerType: String,
     matcher: String?,
@@ -161,17 +143,6 @@ struct CodexHookIdentity: Hashable {
     self.command = command
     self.timeoutSeconds = timeoutSeconds
     self.statusMessage = statusMessage
-  }
-
-  init(hook: CodexAppServerHook) {
-    self.init(
-      eventName: hook.eventName,
-      handlerType: hook.handlerType,
-      matcher: hook.matcher,
-      command: hook.command ?? "",
-      timeoutSeconds: hook.timeoutSeconds,
-      statusMessage: hook.statusMessage
-    )
   }
 }
 

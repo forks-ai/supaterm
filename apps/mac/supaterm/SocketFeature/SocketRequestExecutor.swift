@@ -1,6 +1,7 @@
 import ComposableArchitecture
 import Foundation
 import SupatermCLIShared
+import SupatermSupport
 import SupatermTerminalCore
 
 public struct SocketRequestExecutor: Sendable {
@@ -11,6 +12,7 @@ public struct SocketRequestExecutor: Sendable {
     case settingsList(SupatermSettingsListRequest)
     case settingsReset(SupatermSettingsResetRequest)
     case settingsSet(SupatermSettingsSetRequest)
+    case settingsValidate(SupatermSettingsValidateRequest)
     case treeSnapshot
     case notify(TerminalNotifyRequest)
     case agentHook(SupatermAgentHookRequest)
@@ -24,10 +26,29 @@ public struct SocketRequestExecutor: Sendable {
     case settingsList(SupatermSettingsListResult)
     case settingsReset(SupatermSettingsMutationResult)
     case settingsSet(SupatermSettingsMutationResult)
+    case settingsValidate(SupatermSettingsValidationResult)
     case treeSnapshot(SupatermTreeSnapshot)
     case notify(SupatermNotifyResult)
     case agentHook(TerminalAgentHookResult)
     case quit
+  }
+
+  public enum AgentIntegrationRequest: Sendable {
+    case hooksInstall(SupatermAgentHookTargetRequest)
+    case hooksRemove(SupatermAgentHookTargetRequest)
+    case skillsGet(SupatermSkillGetRequest)
+    case skillsInstall
+    case skillsList
+    case skillsPath(SupatermSkillPathRequest)
+  }
+
+  public enum AgentIntegrationResult: Sendable {
+    case hooksInstall(SupatermAgentHookHealth)
+    case hooksRemove(SupatermAgentHookHealth)
+    case skillsGet(SupatermSkillContent)
+    case skillsInstall(SupatermSkillInstallResult)
+    case skillsList(SupatermSkillListResult)
+    case skillsPath(SupatermSkillPathResult)
   }
 
   public enum TerminalCreationRequest: Sendable {
@@ -115,6 +136,8 @@ public struct SocketRequestExecutor: Sendable {
   }
 
   public var executeApp: @MainActor @Sendable (AppRequest) async throws -> AppResult
+  public var executeAgentIntegration:
+    @MainActor @Sendable (AgentIntegrationRequest) async throws -> AgentIntegrationResult
   public var executeTerminalCreation:
     @MainActor @Sendable (TerminalCreationRequest) async throws -> TerminalCreationResult
   public var executeTerminalPane: @MainActor @Sendable (TerminalPaneRequest) async throws -> TerminalPaneResult
@@ -125,6 +148,10 @@ public struct SocketRequestExecutor: Sendable {
 
   public init(
     executeApp: @escaping @MainActor @Sendable (AppRequest) async throws -> AppResult,
+    executeAgentIntegration:
+      @escaping @MainActor @Sendable (
+        AgentIntegrationRequest
+      ) async throws -> AgentIntegrationResult,
     executeTerminalCreation:
       @escaping @MainActor @Sendable (
         TerminalCreationRequest
@@ -149,6 +176,7 @@ public struct SocketRequestExecutor: Sendable {
       ) async throws -> TerminalSpaceResult
   ) {
     self.executeApp = executeApp
+    self.executeAgentIntegration = executeAgentIntegration
     self.executeTerminalCreation = executeTerminalCreation
     self.executeTerminalPane = executeTerminalPane
     self.executeTerminalTab = executeTerminalTab
@@ -170,14 +198,14 @@ extension SocketRequestExecutor: DependencyKey {
           try SupatermSettingsRegistry.get(
             key: request.key,
             settings: .default,
-            path: SupatermSettings.defaultURL().path
+            path: SupatermStateRoot.settingsFileURL().path
           )
         )
       case .settingsList(let request):
         return .settingsList(
           SupatermSettingsRegistry.list(
             settings: .default,
-            path: SupatermSettings.defaultURL().path,
+            path: SupatermStateRoot.settingsFileURL().path,
             changedOnly: request.changedOnly
           )
         )
@@ -186,8 +214,7 @@ extension SocketRequestExecutor: DependencyKey {
           try SupatermSettingsRegistry.reset(
             request,
             settings: .default,
-            path: SupatermSettings.defaultURL().path,
-            isLive: true
+            path: SupatermStateRoot.settingsFileURL().path
           ).result
         )
       case .settingsSet(let request):
@@ -195,9 +222,14 @@ extension SocketRequestExecutor: DependencyKey {
           try SupatermSettingsRegistry.set(
             request,
             settings: .default,
-            path: SupatermSettings.defaultURL().path,
-            isLive: true
+            path: SupatermStateRoot.settingsFileURL().path
           ).result
+        )
+      case .settingsValidate(let request):
+        return .settingsValidate(
+          SupatermSettingsValidator().validate(
+            path: request.path.map { URL(fileURLWithPath: $0, isDirectory: false) }
+          )
         )
       case .treeSnapshot:
         return .treeSnapshot(SupatermTreeSnapshot(windows: []))
@@ -207,6 +239,16 @@ extension SocketRequestExecutor: DependencyKey {
         return .agentHook(TerminalAgentHookResult(desktopNotification: nil))
       case .quit:
         return .quit
+      }
+    },
+    executeAgentIntegration: { request in
+      switch request {
+      case .hooksInstall(let request):
+        return .hooksInstall(SupatermAgentHookHealth(agent: request.agent, health: .unavailable))
+      case .hooksRemove(let request):
+        return .hooksRemove(SupatermAgentHookHealth(agent: request.agent, health: .unavailable))
+      case .skillsGet, .skillsInstall, .skillsList, .skillsPath:
+        throw SupatermSkillsError.bundledSkillsUnavailable(nil)
       }
     },
     executeTerminalCreation: { request in

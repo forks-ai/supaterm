@@ -1,4 +1,5 @@
 import Foundation
+import SupatermCLIShared
 
 enum AgentHookCommandOwnership {
   static func isSupatermManagedCommand(_ command: String?) -> Bool {

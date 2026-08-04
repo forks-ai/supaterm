@@ -1,10 +1,9 @@
 import AppKit
 import Carbon.HIToolbox
 import Foundation
-import SupatermCLIShared
 import SwiftUI
 
-public struct SupatermShortcutBinding: Hashable {
+public struct SupatermShortcutBinding: Hashable, Sendable {
   public let keyCode: UInt16
   public let modifiers: SupatermShortcutOverride.Modifiers
 
@@ -53,7 +52,7 @@ extension SupatermShortcutOverride.Modifiers {
   }
 }
 
-public struct SupatermShortcut: Identifiable {
+public struct SupatermShortcut: Identifiable, Sendable {
   public let id: SupatermShortcutID
   public let defaultBinding: SupatermShortcutBinding
 
@@ -103,7 +102,7 @@ public enum SupatermShortcutCategory: String, Sendable {
   }
 }
 
-public struct SupatermShortcutGroup: Identifiable {
+public struct SupatermShortcutGroup: Identifiable, Sendable {
   public let category: SupatermShortcutCategory
   public let shortcuts: [SupatermShortcut]
 

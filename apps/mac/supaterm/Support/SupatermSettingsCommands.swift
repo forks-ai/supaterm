@@ -1,4 +1,5 @@
 import Foundation
+import SupatermCLIShared
 
 public enum SupatermSettingsCommandError: Error, Equatable, LocalizedError, Sendable {
   case invalidKey(String)
@@ -12,11 +13,6 @@ public enum SupatermSettingsCommandError: Error, Equatable, LocalizedError, Send
       return "Invalid value `\(value)` for `\(key)`. Expected one of: \(allowedValues.joined(separator: ", "))."
     }
   }
-}
-
-public enum SupatermSettingsValueKind: String, Codable, Equatable, Sendable {
-  case bool
-  case string
 }
 
 public enum SupatermSettingsKey: String, CaseIterable, Codable, Equatable, Sendable {
@@ -161,16 +157,12 @@ public enum SupatermSettingsKey: String, CaseIterable, Codable, Equatable, Senda
     }
   }
 
-  public func mutationWarnings(isLive: Bool) -> [String] {
+  public func mutationWarnings() -> [String] {
     switch self {
     case .terminalZmxSessionsEnabled:
       return ["Restart Supaterm for zmx session changes to take effect."]
     case .notificationsSystemNotifications:
       return ["macOS notification permission may still be required."]
-    case .updatesChannel where !isLive:
-      return ["Update channel changes apply next time Supaterm starts."]
-    case .loggingVerboseEnabled where !isLive:
-      return ["Verbose logging changes apply next time Supaterm starts."]
     default:
       return []
     }
@@ -209,133 +201,6 @@ public enum SupatermSettingsKey: String, CaseIterable, Codable, Equatable, Senda
       )
     }
     return parsed
-  }
-}
-
-public struct SupatermSettingsEntry: Codable, Equatable, Sendable {
-  public let key: String
-  public let value: String
-  public let defaultValue: String
-  public let valueKind: SupatermSettingsValueKind
-  public let allowedValues: [String]
-  public let isDefault: Bool
-
-  public init(
-    key: String,
-    value: String,
-    defaultValue: String,
-    valueKind: SupatermSettingsValueKind,
-    allowedValues: [String],
-    isDefault: Bool
-  ) {
-    self.key = key
-    self.value = value
-    self.defaultValue = defaultValue
-    self.valueKind = valueKind
-    self.allowedValues = allowedValues
-    self.isDefault = isDefault
-  }
-}
-
-public struct SupatermSettingsPathResult: Codable, Equatable, Sendable {
-  public let path: String
-
-  public init(path: String) {
-    self.path = path
-  }
-}
-
-public struct SupatermSettingsGetRequest: Codable, Equatable, Sendable {
-  public let key: String
-
-  public init(key: String) {
-    self.key = key
-  }
-}
-
-public struct SupatermSettingsListRequest: Codable, Equatable, Sendable {
-  public let changedOnly: Bool
-
-  public init(changedOnly: Bool = false) {
-    self.changedOnly = changedOnly
-  }
-}
-
-public struct SupatermSettingsSetRequest: Codable, Equatable, Sendable {
-  public let key: String
-  public let value: String
-
-  public init(key: String, value: String) {
-    self.key = key
-    self.value = value
-  }
-}
-
-public struct SupatermSettingsResetRequest: Codable, Equatable, Sendable {
-  public let key: String
-
-  public init(key: String) {
-    self.key = key
-  }
-}
-
-public struct SupatermSettingsListResult: Codable, Equatable, Sendable {
-  public let path: String
-  public let entries: [SupatermSettingsEntry]
-  public let warnings: [String]
-
-  public init(
-    path: String,
-    entries: [SupatermSettingsEntry],
-    warnings: [String] = []
-  ) {
-    self.path = path
-    self.entries = entries
-    self.warnings = warnings
-  }
-}
-
-public struct SupatermSettingsGetResult: Codable, Equatable, Sendable {
-  public let path: String
-  public let entry: SupatermSettingsEntry
-  public let warnings: [String]
-
-  public init(
-    path: String,
-    entry: SupatermSettingsEntry,
-    warnings: [String] = []
-  ) {
-    self.path = path
-    self.entry = entry
-    self.warnings = warnings
-  }
-}
-
-public struct SupatermSettingsMutationResult: Codable, Equatable, Sendable {
-  public let path: String
-  public let key: String
-  public let oldValue: String
-  public let value: String
-  public let defaultValue: String
-  public let isDefault: Bool
-  public let warnings: [String]
-
-  public init(
-    path: String,
-    key: String,
-    oldValue: String,
-    value: String,
-    defaultValue: String,
-    isDefault: Bool,
-    warnings: [String] = []
-  ) {
-    self.path = path
-    self.key = key
-    self.oldValue = oldValue
-    self.value = value
-    self.defaultValue = defaultValue
-    self.isDefault = isDefault
-    self.warnings = warnings
   }
 }
 
@@ -384,8 +249,7 @@ public enum SupatermSettingsRegistry {
   public static func set(
     _ request: SupatermSettingsSetRequest,
     settings: SupatermSettings,
-    path: String,
-    isLive: Bool
+    path: String
   ) throws -> (settings: SupatermSettings, result: SupatermSettingsMutationResult) {
     let key = try SupatermSettingsKey(path: request.key)
     let oldValue = key.value(in: settings)
@@ -401,7 +265,7 @@ public enum SupatermSettingsRegistry {
         value: value,
         defaultValue: key.defaultValue,
         isDefault: value == key.defaultValue,
-        warnings: oldValue == value ? [] : key.mutationWarnings(isLive: isLive)
+        warnings: oldValue == value ? [] : key.mutationWarnings()
       )
     )
   }
@@ -409,8 +273,7 @@ public enum SupatermSettingsRegistry {
   public static func reset(
     _ request: SupatermSettingsResetRequest,
     settings: SupatermSettings,
-    path: String,
-    isLive: Bool
+    path: String
   ) throws -> (settings: SupatermSettings, result: SupatermSettingsMutationResult) {
     let key = try SupatermSettingsKey(path: request.key)
     let oldValue = key.value(in: settings)
@@ -426,101 +289,8 @@ public enum SupatermSettingsRegistry {
         value: value,
         defaultValue: key.defaultValue,
         isDefault: true,
-        warnings: oldValue == value ? [] : key.mutationWarnings(isLive: isLive)
+        warnings: oldValue == value ? [] : key.mutationWarnings()
       )
     )
-  }
-}
-
-public struct SupatermSettingsFileStore {
-  private let environment: [String: String]
-  private let fileManager: FileManager
-  private let homeDirectoryURL: URL
-
-  public init(
-    homeDirectoryURL: URL = FileManager.default.homeDirectoryForCurrentUser,
-    environment: [String: String] = ProcessInfo.processInfo.environment,
-    fileManager: FileManager = .default
-  ) {
-    self.environment = environment
-    self.fileManager = fileManager
-    self.homeDirectoryURL = homeDirectoryURL
-  }
-
-  public var settingsURL: URL {
-    SupatermSettings.defaultURL(
-      homeDirectoryPath: homeDirectoryURL.path,
-      environment: environment
-    )
-  }
-
-  public func path() -> SupatermSettingsPathResult {
-    SupatermSettingsPathResult(path: settingsURL.path)
-  }
-
-  public func list(changedOnly: Bool = false) throws -> SupatermSettingsListResult {
-    let loaded = try load()
-    return SupatermSettingsRegistry.list(
-      settings: loaded.settings,
-      path: settingsURL.path,
-      changedOnly: changedOnly,
-      warnings: loaded.warnings
-    )
-  }
-
-  public func get(key: String) throws -> SupatermSettingsGetResult {
-    let loaded = try load()
-    return try SupatermSettingsRegistry.get(
-      key: key,
-      settings: loaded.settings,
-      path: settingsURL.path,
-      warnings: loaded.warnings
-    )
-  }
-
-  public func set(_ request: SupatermSettingsSetRequest) throws -> SupatermSettingsMutationResult {
-    let loaded = try load()
-    let edit = try SupatermSettingsRegistry.set(
-      request,
-      settings: loaded.settings,
-      path: settingsURL.path,
-      isLive: false
-    )
-    try save(edit.settings)
-    return edit.result
-  }
-
-  public func reset(_ request: SupatermSettingsResetRequest) throws -> SupatermSettingsMutationResult {
-    let loaded = try load()
-    let edit = try SupatermSettingsRegistry.reset(
-      request,
-      settings: loaded.settings,
-      path: settingsURL.path,
-      isLive: false
-    )
-    try save(edit.settings)
-    return edit.result
-  }
-
-  private func load() throws -> (settings: SupatermSettings, warnings: [String]) {
-    guard fileManager.fileExists(atPath: settingsURL.path) else {
-      return (.default, [])
-    }
-    let data = try Data(contentsOf: settingsURL)
-    return (
-      try SupatermSettingsCodec.decode(data),
-      try SupatermSettingsCodec.unknownKeyWarnings(in: data)
-    )
-  }
-
-  private func save(_ settings: SupatermSettings) throws {
-    let data = try SupatermSettingsCodec.encode(settings)
-    _ = try SupatermSettingsCodec.decode(data)
-    try fileManager.createDirectory(
-      at: settingsURL.deletingLastPathComponent(),
-      withIntermediateDirectories: true,
-      attributes: nil
-    )
-    try data.write(to: settingsURL, options: .atomic)
   }
 }

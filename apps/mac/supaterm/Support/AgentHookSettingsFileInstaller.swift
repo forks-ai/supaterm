@@ -1,4 +1,5 @@
 import Foundation
+import SupatermCLIShared
 
 struct AgentHookSettingsFileInstaller {
   struct Mutation {

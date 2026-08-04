@@ -3,11 +3,18 @@ import Foundation
 public enum SupatermSocketMethod {
   public static let appOnboarding = "app.onboarding"
   public static let appDebug = "app.debug"
+  public static let appHooksInstall = "app.hooks.install"
+  public static let appHooksRemove = "app.hooks.remove"
   public static let appQuit = "app.quit"
   public static let appSettingsGet = "app.settings.get"
   public static let appSettingsList = "app.settings.list"
   public static let appSettingsReset = "app.settings.reset"
   public static let appSettingsSet = "app.settings.set"
+  public static let appSettingsValidate = "app.settings.validate"
+  public static let appSkillsGet = "app.skills.get"
+  public static let appSkillsInstall = "app.skills.install"
+  public static let appSkillsList = "app.skills.list"
+  public static let appSkillsPath = "app.skills.path"
   public static let appTree = "app.tree"
   public static let systemIdentity = "system.identity"
   public static let systemPing = "system.ping"
@@ -181,6 +188,49 @@ public struct SupatermSocketRequest: Equatable, Sendable, Codable {
     id: String = UUID().uuidString
   ) throws -> Self {
     try make(SupatermSocketMethod.appSettingsReset, payload, id: id)
+  }
+
+  public static func settingsValidate(
+    _ payload: SupatermSettingsValidateRequest = SupatermSettingsValidateRequest(),
+    id: String = UUID().uuidString
+  ) throws -> Self {
+    try make(SupatermSocketMethod.appSettingsValidate, payload, id: id)
+  }
+
+  public static func hooksInstall(
+    _ payload: SupatermAgentHookTargetRequest,
+    id: String = UUID().uuidString
+  ) throws -> Self {
+    try make(SupatermSocketMethod.appHooksInstall, payload, id: id)
+  }
+
+  public static func hooksRemove(
+    _ payload: SupatermAgentHookTargetRequest,
+    id: String = UUID().uuidString
+  ) throws -> Self {
+    try make(SupatermSocketMethod.appHooksRemove, payload, id: id)
+  }
+
+  public static func skillsList(id: String = UUID().uuidString) -> Self {
+    Self(id: id, method: SupatermSocketMethod.appSkillsList)
+  }
+
+  public static func skillsGet(
+    _ payload: SupatermSkillGetRequest,
+    id: String = UUID().uuidString
+  ) throws -> Self {
+    try make(SupatermSocketMethod.appSkillsGet, payload, id: id)
+  }
+
+  public static func skillsPath(
+    _ payload: SupatermSkillPathRequest,
+    id: String = UUID().uuidString
+  ) throws -> Self {
+    try make(SupatermSocketMethod.appSkillsPath, payload, id: id)
+  }
+
+  public static func skillsInstall(id: String = UUID().uuidString) -> Self {
+    Self(id: id, method: SupatermSocketMethod.appSkillsInstall)
   }
 
   public static func newPane(

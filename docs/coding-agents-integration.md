@@ -36,14 +36,14 @@ The integration is split into three layers.
 
 ### Agent Adapter
 
-- install agent-native hook configuration when the user opts in
-- install the Supaterm agent skill when the user opts in
 - forward hook payloads through `sp`
 - keep adapter behavior thin and agent-native
 
 ### App-Side Interpreter
 
 - accept typed socket requests
+- write agent-native hook configuration when the user opts in
+- install the Supaterm agent skill when the user opts in
 - bind agent sessions to pane surfaces
 - reduce every adapter into one canonical agent state store
 - update tab-level activity
@@ -71,6 +71,8 @@ sp skills install
 The install command copies a stable discovery skill to `~/.agents/skills/supaterm`, replacing any existing path.
 The discovery skill directs agents to version-matched content served by `sp skills get` from the app bundle.
 
+Every `sp skills` command asks the connected app, which reads its own bundle and does the copying. The catalog always matches the running app, and the commands fail when no app is reachable.
+
 Inspect the bundled catalog with:
 
 ```bash
@@ -97,7 +99,8 @@ sp onboard
 
 Claude and Codex share the settings-file hook bridge, but each installer uses the agent's public configuration surface.
 
-- Settings > Coding Agents exposes a toggle per agent. Turning it on installs hooks with `sp agent install-hook <agent>`; turning it off removes them with `sp agent remove-hook <agent>`.
+- Settings > Coding Agents exposes a toggle per agent. Turning it on installs hooks; turning it off removes them.
+- `sp agent install-hook <agent>` and `sp agent remove-hook <agent>` reach the same installers over the socket, so the CLI and the toggle do the same work in the same process. Each returns the agent's resulting health, and both fail when no app is reachable.
 - On open, Settings reports each integration as unavailable, unavailable but installed, absent, partial, drifted, or healthy.
 - Claude must be available through the user's login shell. Codex must be version 0.144.1 or newer, have its hooks feature enabled, and have canonical trust state.
 - A hook is Supaterm-managed only when its command exactly matches one of Supaterm's canonical hook commands.
@@ -181,6 +184,7 @@ The app binds Codex sessions to pane surfaces and turns Codex hook events into t
 Pi uses the extension package from `supaterm-skills`, not the `sp agent install-hook` settings bridge.
 
 Settings > Coding Agents can install or remove the package by invoking `pi` through the user's login shell.
+The socket methods `app.hooks.install` and `app.hooks.remove` accept `pi` and run that same package install or removal. `sp agent install-hook` and `sp agent remove-hook` expose only `claude` and `codex`.
 When Pi is unavailable, removal edits Pi's settings file directly so the installed integration can still be disabled.
 Supaterm treats canonical package protocol `0.2.0` or newer as healthy, updates an existing canonical checkout with `pi update`, and replaces noncanonical remote sources during repair.
 

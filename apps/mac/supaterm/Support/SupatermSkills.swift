@@ -1,44 +1,5 @@
 import Foundation
-
-public struct SupatermSkillSummary: Codable, Equatable, Sendable {
-  public let name: String
-  public let description: String
-
-  public init(name: String, description: String) {
-    self.name = name
-    self.description = description
-  }
-}
-
-public struct SupatermSkillFile: Equatable, Sendable {
-  public let path: String
-  public let content: String
-
-  public init(path: String, content: String) {
-    self.path = path
-    self.content = content
-  }
-}
-
-public struct SupatermSkillContent: Equatable, Sendable {
-  public let name: String
-  public let content: String
-  public let files: [SupatermSkillFile]?
-
-  public init(name: String, content: String, files: [SupatermSkillFile]? = nil) {
-    self.name = name
-    self.content = content
-    self.files = files
-  }
-}
-
-public struct SupatermSkillInstallResult: Codable, Equatable, Sendable {
-  public let path: String
-
-  public init(path: String) {
-    self.path = path
-  }
-}
+import SupatermCLIShared
 
 private struct ResolvedSupatermSkill {
   let directoryURL: URL
@@ -314,12 +275,12 @@ public struct SupatermSkills {
   }
 }
 
-enum SupatermSkillsError: Error, Equatable, LocalizedError {
+public enum SupatermSkillsError: Error, Equatable, LocalizedError {
   case bundledSkillsUnavailable(String?)
   case invalidSkill(String)
   case skillNotFound(String)
 
-  var errorDescription: String? {
+  public var errorDescription: String? {
     switch self {
     case .bundledSkillsUnavailable(let path):
       guard let path else {
