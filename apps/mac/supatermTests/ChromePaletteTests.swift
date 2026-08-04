@@ -41,6 +41,10 @@ private func expectSameColor(
   )
 }
 
+private func hueDelta(_ first: ColorMath.OKLCH, _ second: ColorMath.OKLCH) -> Double {
+  abs(atan2(sin(first.hue - second.hue), cos(first.hue - second.hue)))
+}
+
 @MainActor
 struct ChromePaletteTests {
   @Test func referenceAnchorsMatchExpectedValues() {
@@ -90,13 +94,12 @@ struct ChromePaletteTests {
         let luminance = ColorMath.relativeLuminance(surface)
         let tone = ColorMath.oklch(from: surface)
         let washTone = ColorMath.oklch(from: wash)
-        let hueDelta = abs(atan2(sin(tone.hue - washTone.hue), cos(tone.hue - washTone.hue)))
         #expect(
           ColorMath.relativeLuminance(wash) < luminance && luminance < ColorMath.relativeLuminance(.white),
           "surfaceBetweenWashAndWhite-\(tint.rawValue): \(surface) over \(wash)"
         )
         #expect(tone.chroma > 0, "surfaceChroma-\(tint.rawValue): \(surface)")
-        #expect(hueDelta < 0.05, "surfaceHue-\(tint.rawValue): \(hueDelta)")
+        #expect(hueDelta(tone, washTone) < 0.05, "surfaceHue-\(tint.rawValue): \(hueDelta(tone, washTone))")
         expectContrast(.black, surface, minimum: 4.5, token: "selectedTitle-\(tint.rawValue)")
       }
     }
@@ -125,7 +128,6 @@ struct ChromePaletteTests {
         let ink = palette.primaryTextValue
         let title = ColorMath.oklch(from: palette.spaceTitleValue)
         let anchor = ColorMath.oklch(from: tint.tone(in: .default).color(for: colorScheme))
-        let hueDelta = abs(atan2(sin(title.hue - anchor.hue), cos(title.hue - anchor.hue)))
         expectContrast(
           palette.spaceTitleValue,
           background,
@@ -135,7 +137,10 @@ struct ChromePaletteTests {
           ),
           token: "spaceTitle-\(colorScheme)-\(tint.rawValue)"
         )
-        #expect(hueDelta < 0.01, "spaceTitleHue-\(colorScheme)-\(tint.rawValue): \(hueDelta)")
+        #expect(
+          hueDelta(title, anchor) < 0.01,
+          "spaceTitleHue-\(colorScheme)-\(tint.rawValue): \(hueDelta(title, anchor))"
+        )
         #expect(title.chroma > 0.01, "spaceTitleChroma-\(colorScheme)-\(tint.rawValue): \(title.chroma)")
         #expect(
           colorScheme == .dark ? title.lightness > anchor.lightness : title.lightness < anchor.lightness,
