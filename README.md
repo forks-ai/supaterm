@@ -13,3 +13,6 @@ A terminal for ur coding agents.
 ## Thank you
 
 - [Tuist](https://tuist.dev/) for sponsoring our Remote Cache and pushing the boundary on native apps dev x.
+- [Depot](https://depot.dev?utm_source=Supaterm) for providing build instances for our Docker image builds.
+
+[![Built with Depot](https://depot.dev/badges/built-with-depot.svg)](https://depot.dev?utm_source=Supaterm)
