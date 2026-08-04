@@ -73,15 +73,16 @@ final class ChromeBackgroundNSView: NSView {
     appliedTint = palette.tint
     baseRampView.apply(
       ChromeBackgroundRamp.stops(
-        from: palette.chromeBackgroundBaseStartValue,
-        to: palette.chromeBackgroundBaseStopValue
+        from: palette.backgroundTopValue,
+        to: palette.backgroundBottomValue
       ),
       crossfading: crossfades
     )
     illuminationView.apply(
-      ChromeBackgroundRamp.stops(
-        from: palette.backgroundIlluminationStartValue,
-        to: palette.backgroundIlluminationStopValue
+      ChromeBackgroundRamp.illuminationStops(
+        top: palette.backgroundIlluminationTopValue,
+        body: palette.backgroundIlluminationBodyValue,
+        footer: palette.backgroundIlluminationFooterValue
       ),
       crossfading: crossfades
     )
@@ -143,7 +144,16 @@ enum ChromeBackgroundRamp {
   }
 
   static let rampEnd = 0.75
+  static let footerStart = 0.92
   static let sampleCount = 9
+
+  static func illuminationStops(top: ThemeColor, body: ThemeColor, footer: ThemeColor) -> [Stop] {
+    [
+      Stop(location: 0, color: top),
+      Stop(location: footerStart, color: body),
+      Stop(location: 1, color: footer),
+    ]
+  }
 
   static func stops(from start: ThemeColor, to stop: ThemeColor) -> [Stop] {
     let interior = (1..<(sampleCount - 1)).map { index in

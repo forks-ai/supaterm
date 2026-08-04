@@ -40,26 +40,16 @@ public struct Palette {
   private var surfaceSeed: ThemeColor { referencePalette.neutral.light }
   private var selectableRowInkValue: ThemeColor { isDark ? .white : .black }
   private var selectableRowPrimarySelectionValue: ThemeColor { isDark ? .black : .white }
+  private var selectableRowPrimarySelectionOpacity: Double { isDark ? 1 : 0.88 }
 
-  public var chromeBackgroundBaseStartValue: ThemeColor { backgroundTopValue }
-  public var chromeBackgroundBaseStopValue: ThemeColor { isDark ? backgroundBottomValue : backgroundTopValue }
-  public var backgroundIlluminationStartValue: ThemeColor {
-    lightChromeLayer(
-      Self.lightChromeBackgroundRecipe.illuminationStart,
-      opacity: Self.lightChromeBackgroundRecipe.illuminationStartOpacity
-    )
-  }
-  public var backgroundIlluminationStopValue: ThemeColor {
-    lightChromeLayer(
-      Self.lightChromeBackgroundRecipe.illuminationStop,
-      opacity: Self.lightChromeBackgroundRecipe.illuminationStopOpacity
-    )
-  }
+  public var backgroundIlluminationTopValue: ThemeColor { illumination(Self.lightChromeIllumination.top) }
+  public var backgroundIlluminationBodyValue: ThemeColor { illumination(Self.lightChromeIllumination.body) }
+  public var backgroundIlluminationFooterValue: ThemeColor { illumination(Self.lightChromeIllumination.footer) }
   public var chromeBackgroundStartValue: ThemeColor {
-    isDark ? backgroundTopValue : Self.lightChromeBackgroundRecipe.startSurface(over: backgroundTopValue)
+    ColorMath.composited(.white, opacity: backgroundIlluminationTopValue.alpha, over: backgroundTopValue)
   }
   public var chromeBackgroundStopValue: ThemeColor {
-    isDark ? backgroundBottomValue : Self.lightChromeBackgroundRecipe.stopSurface(over: backgroundTopValue)
+    ColorMath.composited(.white, opacity: backgroundIlluminationFooterValue.alpha, over: backgroundBottomValue)
   }
   public var windowBackgroundTint: Color { surfaceSeed.color.mix(with: .black, by: isDark ? 0.8 : 0).opacity(0.3) }
   public var detailBackground: Color { detailBackgroundValue.color }
@@ -78,7 +68,8 @@ public struct Palette {
       ).color,
       hoverFill: ThemeColor(red: 1, green: 1, blue: 1, alpha: isDark ? 0.16 : 0.55).color,
       pressedFill: ThemeColor(red: 1, green: 1, blue: 1, alpha: isDark ? 0.31 : 0.70).color,
-      primarySelectionFill: selectableRowPrimarySelectionValue.color,
+      primarySelectionFill: selectableRowPrimarySelectionValue.color
+        .opacity(selectableRowPrimarySelectionOpacity),
       secondarySelectionFill: ThemeColor(red: 1, green: 1, blue: 1, alpha: isDark ? 0.25 : 0.70).color,
       selectedTitle: ink.color,
       title: ThemeColor(
@@ -104,7 +95,24 @@ public struct Palette {
   public var selectedStrokeDim: Color { Color.white.opacity(isDark ? 0.08 : 0.98) }
   public var selectedShadow: Color { selectableRow.shadow }
   public var sidebarTabRowSelectedEdge: Color { isDark ? .clear : Color.white.opacity(0.98) }
-  public var primaryText: Color { isDark ? Color.white.opacity(0.94) : Color.black.opacity(0.86) }
+  public var primaryTextValue: ThemeColor {
+    isDark
+      ? ThemeColor(red: 1, green: 1, blue: 1, alpha: 0.94)
+      : ThemeColor(red: 0, green: 0, blue: 0, alpha: 0.86)
+  }
+  public var primaryText: Color { primaryTextValue.color }
+  public var spaceTitleValue: ThemeColor {
+    guard tint != .neutral else { return primaryTextValue }
+    return ColorMath.adjustedForContrast(
+      anchor: tint.tone(in: referencePalette).color(for: colorScheme),
+      against: backgroundTopValue,
+      minimumContrast: ColorMath.contrastRatio(
+        ColorMath.composited(primaryTextValue, opacity: primaryTextValue.alpha, over: backgroundTopValue),
+        backgroundTopValue
+      )
+    )
+  }
+  public var spaceTitle: Color { spaceTitleValue.color }
   public var secondaryText: Color { isDark ? Color.white.opacity(0.58) : Color.black.opacity(0.48) }
   public var sidebarGroupNeutralHoverFillValue: ThemeColor {
     isDark
@@ -161,7 +169,11 @@ public struct Palette {
   }
 
   public func sidebarTabPrimarySurface(over background: ThemeColor) -> ThemeColor {
-    ColorMath.composited(selectableRowPrimarySelectionValue, opacity: 1, over: background)
+    ColorMath.composited(
+      selectableRowPrimarySelectionValue,
+      opacity: selectableRowPrimarySelectionOpacity,
+      over: background
+    )
   }
 
   public var referenceSwatches: [ThemeSwatch] {
@@ -184,11 +196,11 @@ public struct Palette {
     let surfaceSeed = referencePalette.neutral.light
     let isDark = colorScheme == .dark
     let tintColor = tint.tone(in: referencePalette).color(for: colorScheme)
-    let tintWash = tint == .neutral ? 0 : (isDark ? 0.17 : 0.3)
+    let wash = tint == .neutral ? ChromeWash.neutral : (isDark ? .dark : .light)
     let backgroundTopValue = (isDark ? ThemeColor(hex: 0x1F1F1F) : ThemeColor(hex: 0xE4E4E4))
-      .mixed(with: tintColor, by: tintWash)
+      .mixed(with: tintColor, by: wash.top)
     let backgroundBottomValue = (isDark ? ThemeColor(hex: 0x161616) : ThemeColor(hex: 0xEDEDED))
-      .mixed(with: tintColor, by: tintWash)
+      .mixed(with: tintColor, by: wash.bottom)
     let detailBackgroundValue = surfaceSeed.mixed(with: isDark ? .black : .white, by: 0.85)
     let agentPanelBackgroundValue = surfaceSeed.mixed(with: isDark ? .black : .white, by: isDark ? 0.82 : 0.85)
     let semanticBackgrounds = [
@@ -239,30 +251,25 @@ public struct Palette {
     self.onDangerFillValue = onDangerFillValue
   }
 
-  private struct ChromeBackgroundRecipe {
-    let illuminationStart: ThemeColor
-    let illuminationStop: ThemeColor
-    let illuminationStartOpacity: Double
-    let illuminationStopOpacity: Double
+  private struct ChromeWash {
+    let top: Double
+    let bottom: Double
 
-    func startSurface(over underlay: ThemeColor) -> ThemeColor {
-      ColorMath.composited(illuminationStart, opacity: illuminationStartOpacity, over: underlay)
-    }
-
-    func stopSurface(over underlay: ThemeColor) -> ThemeColor {
-      ColorMath.composited(illuminationStop, opacity: illuminationStopOpacity, over: underlay)
-    }
+    static let neutral = ChromeWash(top: 0, bottom: 0)
+    static let dark = ChromeWash(top: 0.17, bottom: 0.17)
+    static let light = ChromeWash(top: 0.5, bottom: 0.18)
   }
 
-  private static let lightChromeBackgroundRecipe = ChromeBackgroundRecipe(
-    illuminationStart: .white,
-    illuminationStop: .white,
-    illuminationStartOpacity: 0.35,
-    illuminationStopOpacity: 0.7
-  )
+  private struct ChromeIllumination {
+    let top: Double
+    let body: Double
+    let footer: Double
+  }
 
-  private func lightChromeLayer(_ color: ThemeColor, opacity: Double) -> ThemeColor {
-    ThemeColor(red: color.red, green: color.green, blue: color.blue, alpha: isDark ? 0 : opacity)
+  private static let lightChromeIllumination = ChromeIllumination(top: 0.22, body: 0.36, footer: 0.62)
+
+  private func illumination(_ opacity: Double) -> ThemeColor {
+    ThemeColor(red: 1, green: 1, blue: 1, alpha: isDark ? 0 : opacity)
   }
 
   private static func semantic(_ anchor: ThemeColor, backgrounds: [ThemeColor]) -> ThemeColor {

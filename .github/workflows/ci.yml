@@ -5,20 +5,6 @@ on:
   merge_group:
     branches:
       - main
-  push:
-    branches:
-      - main
-    paths:
-      - ".github/actions/setup-macos/**"
-      - ".github/scripts/**"
-      - ".github/workflows/ci.yml"
-      - ".github/workflows/release-tip.yml"
-      - ".gitmodules"
-      - "apps/mac/**"
-      - "integrations/supaterm-skills"
-      - "Makefile"
-      - "mise.toml"
-      - "!**/*.md"
   pull_request:
     branches:
       - main
@@ -40,59 +26,35 @@ jobs:
     name: changes
     runs-on: ubuntu-latest
     outputs:
-      graph: ${{ steps.changes.outputs.graph }}
       mac: ${{ steps.changes.outputs.mac }}
     steps:
-      - if: github.event_name == 'push' || github.event_name == 'pull_request'
+      - if: github.event_name == 'pull_request'
         uses: actions/checkout@v6
         with:
           fetch-depth: 0
       - id: changes
         shell: bash
         env:
-          BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
           EVENT_NAME: ${{ github.event_name }}
-          HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
-          REF_TYPE: ${{ github.ref_type }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
         run: |
-          if [ "$REF_TYPE" = tag ]; then
-            echo "graph=false" >> "$GITHUB_OUTPUT"
+          if [ "$EVENT_NAME" != pull_request ]; then
             echo "mac=true" >> "$GITHUB_OUTPUT"
             exit 0
           fi
 
-          if [ "$EVENT_NAME" != push ] && [ "$EVENT_NAME" != pull_request ]; then
-            echo "graph=false" >> "$GITHUB_OUTPUT"
-            echo "mac=true" >> "$GITHUB_OUTPUT"
-            exit 0
-          fi
-
-          graph=false
           mac=false
-          if [ "$EVENT_NAME" = push ]; then
-            mac=true
-          fi
-
           while IFS= read -r path; do
             case "$path" in
               *.md)
                 continue
                 ;;
-            esac
-
-            case "$path" in
               .github/actions/setup-macos/* | .github/workflows/ci.yml | .gitmodules | apps/mac/* | integrations/supaterm-skills | Makefile | mise.toml)
                 mac=true
                 ;;
             esac
-
-            case "$path" in
-              .github/actions/setup-macos/* | .github/workflows/ci.yml | apps/mac/Configurations/* | apps/mac/Makefile | apps/mac/Project.swift | apps/mac/Tuist.swift | apps/mac/Tuist/* | apps/mac/Workspace.swift | Makefile | mise.toml)
-                graph=true
-                ;;
-            esac
           done < <(git diff --no-renames --name-only "$BASE_SHA...$HEAD_SHA")
-          echo "graph=$graph" >> "$GITHUB_OUTPUT"
           echo "mac=$mac" >> "$GITHUB_OUTPUT"
 
   swiftlint:
@@ -162,7 +124,7 @@ jobs:
       - run: make mac-tuist-install
       - run: make -C apps/mac build-ghostty build-zmx build-ap
       - id: build
-        run: mise exec -- tuist test supatermUITests --build-only --shard-total 8 --shard-granularity suite
+        run: mise exec -- tuist test supatermUITests --build-only --shard-total 12 --shard-granularity suite
         working-directory: apps/mac
       - uses: actions/upload-artifact@v6
         with:
@@ -248,7 +210,6 @@ jobs:
       - mac_test_e2e
       - mac_test_ui_build
       - mac_test_ui
-      - mac_test_ui_results
     runs-on: ubuntu-latest
     env:
       MAC: ${{ needs.changes.outputs.mac }}
@@ -257,7 +218,6 @@ jobs:
       E2E: ${{ needs.mac_test_e2e.result }}
       UI_BUILD: ${{ needs.mac_test_ui_build.result }}
       UI: ${{ needs.mac_test_ui.result }}
-      UI_RESULTS: ${{ needs.mac_test_ui_results.result }}
     steps:
       - run: |
           if [ "$MAC" = false ]; then
@@ -268,22 +228,3 @@ jobs:
           test "$E2E" = success
           test "$UI_BUILD" = success
           test "$UI" = success
-          test "$UI_RESULTS" = success
-
-  warm_cache:
-    name: warm-cache
-    continue-on-error: true
-    needs:
-      - changes
-      - required_checks
-    if: github.event_name == 'push' && github.ref_type == 'branch' && github.ref_name == 'main' && needs.changes.outputs.graph == 'true'
-    runs-on: macos-26
-    steps:
-      - uses: actions/checkout@v6
-        with:
-          submodules: recursive
-      - uses: ./.github/actions/setup-macos
-        with:
-          cache-native-builds: false
-      - run: make mac-warm-cache
-      - run: make mac-warm-cache TUIST_CACHE_CONFIGURATION=Release
