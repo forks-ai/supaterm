@@ -41,8 +41,8 @@ final class HoverLinkUITests: SupatermUITestCase {
       XCTAssertEqual(banner.label, "Hovered link: \(link)")
 
       let leadingFrame = banner.frame
-      XCTAssertLessThanOrEqual(abs(leadingFrame.minX - terminal.frame.minX), 4)
-      XCTAssertLessThanOrEqual(abs(leadingFrame.maxY - terminal.frame.maxY), 4)
+      XCTAssertEqual(leadingFrame.minX - terminal.frame.minX, 8, accuracy: 4)
+      XCTAssertEqual(terminal.frame.maxY - leadingFrame.maxY, 8, accuracy: 4)
 
       terminal.coordinate(withNormalizedOffset: .zero)
         .withOffset(
@@ -65,7 +65,7 @@ final class HoverLinkUITests: SupatermUITestCase {
           timeout: 10
         ) == .completed
       XCTAssertTrue(movedToTrailingEdge)
-      XCTAssertLessThanOrEqual(abs(banner.frame.maxX - terminal.frame.maxX), 4)
+      XCTAssertEqual(terminal.frame.maxX - banner.frame.maxX, 8, accuracy: 4)
     }
   }
 }

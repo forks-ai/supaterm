@@ -29,8 +29,9 @@ struct GhosttySurfaceHoverLinkPresentation: View {
   let pointerIsNearLeadingBanner: Bool
   let onLeadingBannerHoverChange: (Bool) -> Void
 
-  private let padding: CGFloat = 6
-  private let cornerRadius: CGFloat = 9
+  private let edgeInset: CGFloat = 8
+  private let horizontalPadding: CGFloat = 10
+  private let verticalPadding: CGFloat = 4
 
   var body: some View {
     GeometryReader { geometry in
@@ -66,23 +67,24 @@ struct GhosttySurfaceHoverLinkPresentation: View {
       }
 
       Text(verbatim: link)
-        .font(.callout)
+        .font(.caption)
         .foregroundStyle(palette.primaryText)
         .lineLimit(1)
         .truncationMode(.middle)
-        .padding(padding)
+        .padding(.horizontal, horizontalPadding)
+        .padding(.vertical, verticalPadding)
         .frame(maxWidth: maximumWidth)
-        .background(palette.detailBackground, in: shape(for: placement))
+        .background(palette.detailBackground, in: Capsule(style: .continuous))
         .background {
           if placement == .leading {
             GhosttySurfaceHoverTrackingView(onHoverChange: onLeadingBannerHoverChange)
           }
         }
         .overlay {
-          shape(for: placement)
+          Capsule(style: .continuous)
             .strokeBorder(palette.detailStroke, lineWidth: 1)
         }
-        .shadow(color: palette.overlayShadow, radius: 6, y: 2)
+        .shadow(color: palette.shadow, radius: 3, y: 1)
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(Text(verbatim: "Hovered link: \(link)"))
         .accessibilityIdentifier("terminal-hovered-link")
@@ -93,16 +95,8 @@ struct GhosttySurfaceHoverLinkPresentation: View {
       }
     }
     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
-  }
-
-  private func shape(for placement: Placement) -> UnevenRoundedRectangle {
-    UnevenRoundedRectangle(
-      cornerRadii: RectangleCornerRadii(
-        topLeading: placement == .trailing ? cornerRadius : 0,
-        topTrailing: placement == .leading ? cornerRadius : 0
-      ),
-      style: .continuous
-    )
+    .padding(.horizontal, edgeInset)
+    .padding(.bottom, edgeInset)
   }
 }
 
