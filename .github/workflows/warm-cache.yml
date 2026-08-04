@@ -1,0 +1,43 @@
+name: warm-cache
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - ".github/actions/setup-macos/**"
+      - ".github/workflows/warm-cache.yml"
+      - "apps/mac/Configurations/**"
+      - "apps/mac/Makefile"
+      - "apps/mac/Project.swift"
+      - "apps/mac/Tuist.swift"
+      - "apps/mac/Tuist/**"
+      - "apps/mac/Workspace.swift"
+      - "Makefile"
+      - "mise.toml"
+
+concurrency:
+  group: warm-cache
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  MISE_HTTP_TIMEOUT: 120
+  MISE_GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+  TUIST_TOKEN: ${{ secrets.TUIST_TOKEN }}
+
+jobs:
+  warm_cache:
+    name: warm-cache
+    runs-on: macos-26
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          submodules: recursive
+      - uses: ./.github/actions/setup-macos
+        with:
+          cache-native-builds: false
+      - run: make mac-warm-cache
+      - run: make mac-warm-cache TUIST_CACHE_CONFIGURATION=Release

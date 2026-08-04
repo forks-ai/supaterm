@@ -370,6 +370,7 @@ struct TerminalSplitTreeView: View {
             cancelNotificationPulse()
           }
           .onDisappear {
+            surfaceView.bridge.clearMouseOverLink()
             cancelNotificationPulse()
           }
       }
@@ -401,6 +402,9 @@ struct TerminalSplitTreeView: View {
         .overlay(alignment: .top) {
           GhosttySurfaceProgressOverlay(state: surfaceView.bridge.state)
         }
+        .overlay {
+          hoverLinkOverlay
+        }
         .overlay(alignment: .topTrailing) {
           searchOverlay
         }
@@ -429,6 +433,13 @@ struct TerminalSplitTreeView: View {
         geoSize: size,
         surfaceView: surfaceView
       )
+    }
+
+    @ViewBuilder
+    private var hoverLinkOverlay: some View {
+      if let link = surfaceView.bridge.state.mouseOverLink {
+        GhosttySurfaceHoverLinkOverlay(link: link, palette: palette)
+      }
     }
 
     @ViewBuilder

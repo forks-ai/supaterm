@@ -159,7 +159,6 @@ enum WindowTrafficLightMetrics {
   static let buttonSize: CGFloat = 14
   static let buttonSpacing: CGFloat = 9
   static let edgePadding: CGFloat = 19
-  static let symbolSize: CGFloat = 8
 
   static var clusterWidth: CGFloat {
     edgePadding + buttonSize * 3 + buttonSpacing * 2
@@ -181,13 +180,12 @@ struct WindowTrafficLights: NSViewRepresentable {
 final class WindowTrafficLightsView: WindowDragSurfaceView {
   var reduceMotion: Bool
 
-  private let buttons: [TrafficLightButton]
+  private var buttons: [NSButton] = []
+  private var isHovered = false
 
   init(reduceMotion: Bool) {
     self.reduceMotion = reduceMotion
-    buttons = TrafficLight.allCases.map { TrafficLightButton(light: $0) }
     super.init(frame: .zero)
-    buttons.forEach { addSubview($0) }
     addTrackingArea(
       NSTrackingArea(
         rect: .zero,
@@ -200,6 +198,16 @@ final class WindowTrafficLightsView: WindowDragSurfaceView {
   @available(*, unavailable)
   required init?(coder: NSCoder) {
     nil
+  }
+
+  override func viewDidMoveToWindow() {
+    super.viewDidMoveToWindow()
+    configureButtons()
+  }
+
+  override func viewDidChangeEffectiveAppearance() {
+    super.viewDidChangeEffectiveAppearance()
+    setHovered(isHovered, animated: false)
   }
 
   override func layout() {
@@ -227,123 +235,41 @@ final class WindowTrafficLightsView: WindowDragSurfaceView {
   }
 
   override func mouseEntered(with event: NSEvent) {
-    setHovered(true)
+    setHovered(true, animated: true)
   }
 
   override func mouseExited(with event: NSEvent) {
-    setHovered(false)
+    setHovered(false, animated: true)
   }
 
-  private func setHovered(_ hovered: Bool) {
+  private func configureButtons() {
+    buttons.forEach { $0.removeFromSuperview() }
+    guard let window else {
+      buttons = []
+      return
+    }
+
+    buttons = [
+      NSWindow.standardWindowButton(.closeButton, for: window.styleMask),
+      NSWindow.standardWindowButton(.miniaturizeButton, for: window.styleMask),
+      NSWindow.standardWindowButton(.zoomButton, for: window.styleMask),
+    ].compactMap { $0 }
+    buttons.forEach { addSubview($0) }
+    setHovered(false, animated: false)
+    needsLayout = true
+  }
+
+  private func setHovered(_ hovered: Bool, animated: Bool) {
+    isHovered = hovered
+    let alpha = hovered ? 1 : idleAlpha
     NSAnimationContext.runAnimationGroup { context in
-      context.duration = reduceMotion ? 0 : 0.1
-      buttons.forEach { $0.setSymbolVisible(hovered) }
-    }
-  }
-}
-
-private final class TrafficLightButton: NSButton {
-  private let light: TrafficLight
-  private let symbolView: NSImageView
-
-  init(light: TrafficLight) {
-    self.light = light
-    symbolView = NSImageView(
-      image: NSImage(
-        systemSymbolName: light.symbol,
-        accessibilityDescription: nil
-      ) ?? NSImage()
-    )
-    super.init(frame: .zero)
-    isBordered = false
-    wantsLayer = true
-    layer?.backgroundColor = light.color.cgColor
-    layer?.cornerRadius = WindowTrafficLightMetrics.buttonSize / 2
-    symbolView.contentTintColor = .black.withAlphaComponent(0.55)
-    symbolView.imageScaling = .scaleProportionallyDown
-    symbolView.alphaValue = 0
-    symbolView.setAccessibilityElement(false)
-    addSubview(symbolView)
-    target = self
-    action = #selector(performAction)
-    setAccessibilityLabel(light.accessibilityLabel)
-  }
-
-  @available(*, unavailable)
-  required init?(coder: NSCoder) {
-    nil
-  }
-
-  override func layout() {
-    super.layout()
-    symbolView.frame = bounds.insetBy(
-      dx: (bounds.width - WindowTrafficLightMetrics.symbolSize) / 2,
-      dy: (bounds.height - WindowTrafficLightMetrics.symbolSize) / 2
-    )
-  }
-
-  override func hitTest(_ point: NSPoint) -> NSView? {
-    bounds.contains(point) ? self : nil
-  }
-
-  func setSymbolVisible(_ visible: Bool) {
-    symbolView.animator().alphaValue = visible ? 1 : 0
-  }
-
-  @objc private func performAction() {
-    light.perform()
-  }
-}
-
-private enum TrafficLight: CaseIterable {
-  case close
-  case minimize
-  case zoom
-
-  var color: NSColor {
-    switch self {
-    case .close:
-      NSColor(red: 1, green: 0.37, blue: 0.34, alpha: 1)
-    case .minimize:
-      NSColor(red: 1, green: 0.74, blue: 0.18, alpha: 1)
-    case .zoom:
-      NSColor(red: 0.16, green: 0.8, blue: 0.33, alpha: 1)
+      context.duration = reduceMotion || !animated ? 0 : 0.1
+      buttons.forEach { $0.animator().alphaValue = alpha }
     }
   }
 
-  var symbol: String {
-    switch self {
-    case .close:
-      "xmark"
-    case .minimize:
-      "minus"
-    case .zoom:
-      "plus"
-    }
-  }
-
-  var accessibilityLabel: String {
-    switch self {
-    case .close:
-      "Close window"
-    case .minimize:
-      "Minimize window"
-    case .zoom:
-      "Enter full screen"
-    }
-  }
-
-  func perform() {
-    guard let window = NSApp.keyWindow else { return }
-
-    switch self {
-    case .close:
-      window.performClose(nil)
-    case .minimize:
-      window.performMiniaturize(nil)
-    case .zoom:
-      window.toggleFullScreen(nil)
-    }
+  private var idleAlpha: CGFloat {
+    effectiveAppearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua ? 0.33 : 0.1
   }
 }
 
