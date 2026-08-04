@@ -152,9 +152,13 @@ A zmx session daemon detaches from the app that spawned it, so quitting a develo
 make mac-reap-run-state
 ```
 
-Reaping walks every state home under `apps/mac/.build/run-state`. A state home whose run still has a live `supaterm` process naming it in `SUPATERM_STATE_HOME` is left alone, so concurrent development runs survive each other. For every other state home, `apps/mac/scripts/reap-run-state.sh` kills each process group whose environment carries that run's `ZMX_DIR` and then deletes the directory. It reads the process table rather than the socket directory, because a daemon whose socket was unlinked keeps running and `zmx ls` no longer reports it.
+Reaping walks every state home under `apps/mac/.build/run-state`. A state home whose run still has a live `supaterm` process naming it in `SUPATERM_STATE_HOME` is left alone, so concurrent development runs survive each other. For every other state home, `apps/mac/scripts/reap-run-state.sh` kills each `zmx` process group whose environment carries that run's `ZMX_DIR` and then deletes the directory. It reads the process table rather than the socket directory, because a daemon whose socket was unlinked keeps running and `zmx ls` no longer reports it.
+
+Two rules keep the sweep off processes it does not own. Only a process named `zmx` is ever a candidate, so a command that merely inherited a run's `ZMX_DIR` is safe. And a run is matched on its environment alone, which the script separates from the arguments by stripping a process's own argv off its `ps -E` line, so naming a directory in a command line costs nothing.
 
 Reaping only ever touches `apps/mac/.build/run-state`. Your own sessions in the default `/tmp/zmx-<uid>`, the sessions of `/Applications/supaterm.app`, and any run started with `SUPATERM_RUN_STATE_HOME` or `SUPATERM_RUN_ZMX_DIR` pointing outside that root are never reaped.
+
+`make mac-run-demo` reuses the fixed `run-state/demo` state home. Demo seeds its spaces, tabs, and panes on every launch, so the seeded layout is the same each time, but the state home is only wiped when no demo instance is already running — start a second demo app while one is up and it lands on the first one's state home.
 
 Panes inherit Supaterm context from the running app:
 

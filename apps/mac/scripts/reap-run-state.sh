@@ -8,19 +8,49 @@ if [ ! -d "${run_state_root}" ]; then
 fi
 
 own_process_group="$(ps -o pgid= -p $$ | tr -d ' ')"
-process_table="$(ps -Awwo pid=,pgid=,ucomm=,command= -E)"
 
 # A zmx daemon setsids and outlives both its socket and the app that spawned it,
 # so the process table is the only authority on which sessions a run still owns.
+# `ps -E` appends the environment to the command with no delimiter, so the
+# environment of a process is what remains once its own argv is stripped off.
+# Reading the whole line instead would let a mere argument name a run.
+process_table="$(
+  {
+    ps -Awwo pid=,pgid=,ucomm= | sed 's/^/identity /'
+    ps -Awwo pid=,command= | sed 's/^/argv /'
+    ps -Awwo pid=,command= -E | sed 's/^/full /'
+  } | awk '
+    { value = $0; sub(/^[a-z]+[[:space:]]+[0-9]+[[:space:]]+/, "", value) }
+    $1 == "identity" {
+      leads[$2] = ($2 == $3)
+      sub(/^[0-9]+[[:space:]]+/, "", value)
+      sub(/[[:space:]]+$/, "", value)
+      name[$2] = value
+      next
+    }
+    $1 == "argv" { argv[$2] = value; next }
+    $1 == "full" { full[$2] = value }
+    END {
+      for (processID in full) {
+        if (!(processID in argv)) continue
+        arguments = argv[processID]
+        if (substr(full[processID], 1, length(arguments)) != arguments) continue
+        printf "%d\t%d\t%s\t%s\n", processID, leads[processID], name[processID],
+          substr(full[processID], length(arguments) + 1)
+      }
+    }
+  '
+)"
+
 session_leaders() {
-  awk -v entry="ZMX_DIR=$1" -v own="${own_process_group}" '
-    $1 == $2 && $1 != own && index($0 " ", entry " ") { print $1 }
+  awk -F '\t' -v entry="ZMX_DIR=$1" -v own="${own_process_group}" '
+    $3 == "zmx" && $2 == 1 && $1 != own && index($4 " ", " " entry " ") { print $1 }
   ' <<<"${process_table}"
 }
 
 has_live_app() {
-  awk -v entry="SUPATERM_STATE_HOME=$1" '
-    $3 == "supaterm" && index($0 " ", entry " ") { found = 1 }
+  awk -F '\t' -v entry="SUPATERM_STATE_HOME=$1" '
+    $3 == "supaterm" && index($4 " ", " " entry " ") { found = 1 }
     END { exit !found }
   ' <<<"${process_table}"
 }

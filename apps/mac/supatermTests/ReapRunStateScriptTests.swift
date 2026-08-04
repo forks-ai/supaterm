@@ -27,7 +27,7 @@ struct ReapRunStateScriptTests {
       executable: zmxExecutableURL,
       zmxDirectory: unrelatedZmxDirectory
     )
-    let appStandIn = try makeAppStandInExecutable(in: root)
+    let appStandIn = try makeExecutableCopy(named: "supaterm", in: root)
     let liveSession = try startSession(in: live, executable: appStandIn)
 
     try run(URL(fileURLWithPath: "/bin/bash"), arguments: [scriptURL.path, root.path])
@@ -37,6 +37,53 @@ struct ReapRunStateScriptTests {
     #expect(ZmxTestWorkspace.processMatches(liveSession))
     #expect(FileManager.default.fileExists(atPath: live.path))
     #expect(ZmxTestWorkspace.processMatches(unrelatedSession))
+  }
+
+  /// `ps -E` runs the environment on from the arguments, so an argument naming a
+  /// run must not cost an unrelated process group its life.
+  @Test
+  func sparesAProcessThatOnlyNamesTheDirectoryInItsArguments() throws {
+    let root = try makeDirectory(URL(fileURLWithPath: "/tmp/spt-reap-\(token)", isDirectory: true))
+    let unrelatedZmxDirectory = try makeDirectory(
+      URL(fileURLWithPath: "/tmp/spt-keep-\(token)", isDirectory: true)
+    )
+    let decoy = try makeDirectory(root.appendingPathComponent("decoy", isDirectory: true))
+    defer {
+      try? ZmxTestSessionCleaner(directory: unrelatedZmxDirectory.path).cleanup()
+      try? FileManager.default.removeItem(at: root)
+      try? FileManager.default.removeItem(at: unrelatedZmxDirectory)
+    }
+
+    let decoyDirectory = decoy.appendingPathComponent("zmx", isDirectory: true).path
+    let session = try startSession(
+      in: decoy,
+      executable: zmxExecutableURL,
+      zmxDirectory: unrelatedZmxDirectory,
+      command: ["/bin/sh", "-c", "sleep 600", "\(ZmxEnvironment.directoryKey)=\(decoyDirectory)"]
+    )
+
+    try run(URL(fileURLWithPath: "/bin/bash"), arguments: [scriptURL.path, root.path])
+
+    #expect(ZmxTestWorkspace.processMatches(session))
+  }
+
+  /// Only a zmx daemon belongs to a run, so a process that merely inherited the
+  /// run's `ZMX_DIR` keeps its life.
+  @Test
+  func sparesAProcessThatIsNotAZmxSession() throws {
+    let root = try makeDirectory(URL(fileURLWithPath: "/tmp/spt-reap-\(token)", isDirectory: true))
+    let stateHome = try makeDirectory(root.appendingPathComponent("tool", isDirectory: true))
+    defer {
+      try? ZmxTestSessionCleaner(directory: stateHome.appendingPathComponent("zmx").path).cleanup()
+      try? FileManager.default.removeItem(at: root)
+    }
+
+    let tool = try makeExecutableCopy(named: "unrelated-tool", in: root)
+    let session = try startSession(in: stateHome, executable: tool)
+
+    try run(URL(fileURLWithPath: "/bin/bash"), arguments: [scriptURL.path, root.path])
+
+    #expect(ZmxTestWorkspace.processMatches(session))
   }
 
   private var token: String {
@@ -56,10 +103,10 @@ struct ReapRunStateScriptTests {
       .appendingPathComponent("supaterm.app/Contents/Helpers/zmx")
   }
 
-  /// `ucomm` reports the executable name, so a copy named `supaterm` stands in
-  /// for the development app process without launching the real one.
-  private func makeAppStandInExecutable(in directory: URL) throws -> URL {
-    let executable = directory.appendingPathComponent("supaterm", isDirectory: false)
+  /// `ucomm` reports the executable name, so a renamed copy of a binary that
+  /// outlives its launcher stands in for any process the reaper has to weigh.
+  private func makeExecutableCopy(named name: String, in directory: URL) throws -> URL {
+    let executable = directory.appendingPathComponent(name, isDirectory: false)
     try FileManager.default.copyItem(at: zmxExecutableURL, to: executable)
     return executable
   }
@@ -72,7 +119,8 @@ struct ReapRunStateScriptTests {
   private func startSession(
     in stateHome: URL,
     executable: URL,
-    zmxDirectory: URL? = nil
+    zmxDirectory: URL? = nil,
+    command: [String] = ["/bin/sleep", "600"]
   ) throws -> ZmxTestWorkspace.ProcessIdentity {
     let zmxDirectory = try makeDirectory(
       zmxDirectory ?? stateHome.appendingPathComponent("zmx", isDirectory: true)
@@ -84,7 +132,7 @@ struct ReapRunStateScriptTests {
     environment[ZmxEnvironment.sessionPrefixKey] = ""
     try run(
       executable,
-      arguments: ["run", "spt-reap-\(token)", "-d", "/bin/sleep", "600"],
+      arguments: ["run", "spt-reap-\(token)", "-d"] + command,
       environment: environment
     )
 
