@@ -196,4 +196,16 @@ class SupatermUITestCase: XCTestCase {
     }
   }
 
+  @MainActor
+  func assertEventually(
+    _ element: XCUIElement,
+    timeout: Duration = .seconds(10),
+    file: StaticString = #filePath,
+    line: UInt = #line,
+    until condition: @escaping (XCUIElement) -> Bool
+  ) async {
+    let didMatch = await wait(for: element, timeout: timeout, until: condition)
+    XCTAssertTrue(didMatch, file: file, line: line)
+  }
+
 }
