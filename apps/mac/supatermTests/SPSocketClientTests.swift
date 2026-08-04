@@ -228,57 +228,6 @@ struct SPSocketClientTests {
   }
 }
 
-private func withSocketRuntime(
-  replying reply:
-    @escaping @Sendable (
-      SupatermSocketRequest,
-      SupatermSocketEndpoint
-    ) async throws -> SupatermSocketResponse?,
-  run body: (SupatermSocketEndpoint) throws -> Void
-) async throws {
-  let rootURL = try makeSocketClientTemporaryDirectory()
-  let socketURL = rootURL.appendingPathComponent("control.sock", isDirectory: false)
-  let endpoint = socketClientEndpoint(path: socketURL.path)
-  let runtime = SocketControlRuntime(endpointProvider: { endpoint })
-  let responder = try await startSocketResponder(runtime: runtime, endpoint: endpoint, replying: reply)
-
-  do {
-    try body(endpoint)
-    responder.cancel()
-    await runtime.stop()
-    try? FileManager.default.removeItem(at: rootURL)
-  } catch {
-    responder.cancel()
-    await runtime.stop()
-    try? FileManager.default.removeItem(at: rootURL)
-    throw error
-  }
-}
-
-@discardableResult
-private func startSocketResponder(
-  runtime: SocketControlRuntime,
-  endpoint: SupatermSocketEndpoint,
-  replying reply:
-    @escaping @Sendable (
-      SupatermSocketRequest,
-      SupatermSocketEndpoint
-    ) async throws -> SupatermSocketResponse?
-) async throws -> Task<Void, Never> {
-  _ = try await runtime.start()
-  return Task.detached(priority: .utility) {
-    let stream = await runtime.requests()
-    for await request in stream {
-      if Task.isCancelled {
-        return
-      }
-      if let response = try? await reply(request.payload, endpoint) {
-        await runtime.reply(response, to: request.handle)
-      }
-    }
-  }
-}
-
 nonisolated private func socketClient(
   path: String,
   connectRetryTimeout: TimeInterval = 0.3,
@@ -290,15 +239,6 @@ nonisolated private func socketClient(
     connectRetryTimeout: connectRetryTimeout,
     responseTimeout: responseTimeout
   )
-}
-
-private func makeSocketClientTemporaryDirectory() throws -> URL {
-  var template = Array("/tmp/stm.XXXXXX".utf8CString)
-  guard let pointer = mkdtemp(&template) else {
-    throw POSIXError(POSIXErrorCode(rawValue: errno) ?? .EIO)
-  }
-  let path = SupatermSocketPath.canonicalized(String(cString: pointer)) ?? String(cString: pointer)
-  return URL(fileURLWithPath: path, isDirectory: true)
 }
 
 private func createStaleSocket(at url: URL) throws {
@@ -335,14 +275,4 @@ private func createStaleSocket(at url: URL) throws {
   guard bindResult == 0 else {
     throw POSIXError(POSIXErrorCode(rawValue: errno) ?? .EIO)
   }
-}
-
-nonisolated private func socketClientEndpoint(path: String) -> SupatermSocketEndpoint {
-  SupatermSocketEndpoint(
-    id: UUID(uuidString: "F46D3E0B-B0C0-46CC-B14F-7C32B433179A")!,
-    name: "test",
-    path: path,
-    pid: 1,
-    startedAt: Date(timeIntervalSince1970: 0)
-  )
 }

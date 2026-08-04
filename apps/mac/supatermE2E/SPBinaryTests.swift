@@ -119,6 +119,71 @@ extension SupatermE2ESuite {
     }
 
     @Test(.timeLimit(.minutes(5)))
+    func configSetGetAndSkillsListResolveThroughTheAppSocket() async throws {
+      try await withTestSpace { app, space in
+        try await app.waitForShellPrompt(space.pane)
+        let runner = spRunner(app, tabID: space.tab.tabID, paneID: space.tab.paneID)
+
+        let set = try decodeSPJSON(
+          SupatermSettingsMutationResult.self,
+          from: try requireSuccessfulSPResult(
+            try runner.run(
+              ["config", "set", "coding_agents.show_spinner", "false", "--json"],
+              cwd: space.directory
+            )
+          )
+        )
+        #expect(set.key == "coding_agents.show_spinner")
+        #expect(set.oldValue == "true")
+        #expect(set.value == "false")
+        #expect(!set.isDefault)
+        #expect(set.path.hasPrefix(app.stateHome.path))
+
+        let get = try decodeSPJSON(
+          SupatermSettingsGetResult.self,
+          from: try requireSuccessfulSPResult(
+            try runner.run(
+              ["config", "get", "coding_agents.show_spinner", "--json"],
+              cwd: space.directory
+            )
+          )
+        )
+        #expect(get.entry.value == "false")
+        #expect(get.path == set.path)
+
+        let changed = try requireSuccessfulSPResult(
+          try runner.run(["config", "list", "--changed", "--plain"], cwd: space.directory)
+        )
+        #expect(changed.stdout.contains("coding_agents.show_spinner\tfalse"))
+
+        let reset = try decodeSPJSON(
+          SupatermSettingsMutationResult.self,
+          from: try requireSuccessfulSPResult(
+            try runner.run(
+              ["config", "reset", "coding_agents.show_spinner", "--json"],
+              cwd: space.directory
+            )
+          )
+        )
+        #expect(reset.value == "true")
+        #expect(reset.isDefault)
+
+        let unknown = try requireFailedSPResult(
+          try runner.run(["config", "get", "terminal.confirm_quit"], cwd: space.directory)
+        )
+        #expect(unknown.stderr.contains("Unknown config key `terminal.confirm_quit`."))
+
+        let skills = try requireSuccessfulSPResult(
+          try runner.run(["skills", "list"], cwd: space.directory)
+        )
+        #expect(
+          skills.stdout.split(separator: "\n").compactMap { $0.split(separator: "\t").first }
+            == ["coding-agents", "core"]
+        )
+      }
+    }
+
+    @Test(.timeLimit(.minutes(5)))
     func runInjectsSupatermAndTmuxEnvironment() async throws {
       try await withTestSpace { app, space in
         try await app.waitForShellPrompt(space.pane)
