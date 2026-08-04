@@ -63,7 +63,7 @@ nonisolated enum ZmxTestProcessTable {
     return processIDs().filter { processID in
       processID != ownProcessGroupID
         && getpgid(processID) == processID
-        && arguments(processID: processID).contains(entry)
+        && environment(processID: processID).contains(entry)
     }
   }
 
@@ -79,9 +79,11 @@ nonisolated enum ZmxTestProcessTable {
     return processIDs.prefix(Int(writtenByteCount / stride)).filter { $0 > 0 }
   }
 
-  /// KERN_PROCARGS2 holds argc, the executable path, the arguments, and the
-  /// environment as NUL-separated strings after a four-byte argc header.
-  private static func arguments(processID: Int32) -> [String] {
+  /// KERN_PROCARGS2 lays out a four-byte argc, the executable path, NUL padding,
+  /// then argc arguments and the environment, all NUL-terminated. Skipping the
+  /// arguments keeps a process that merely names a directory from passing for
+  /// one that runs in it.
+  private static func environment(processID: Int32) -> [String] {
     var name: [Int32] = [CTL_KERN, KERN_PROCARGS2, processID]
     var byteCount = 0
     guard sysctl(&name, 3, nil, &byteCount, nil, 0) == 0, byteCount > MemoryLayout<Int32>.size else {
@@ -89,9 +91,17 @@ nonisolated enum ZmxTestProcessTable {
     }
     var buffer = [UInt8](repeating: 0, count: byteCount)
     guard sysctl(&name, 3, &buffer, &byteCount, nil, 0) == 0 else { return [] }
-    return buffer.prefix(byteCount)
-      .dropFirst(MemoryLayout<Int32>.size)
-      .split(separator: 0)
+    let argumentCount = Int(buffer.withUnsafeBytes { $0.loadUnaligned(as: Int32.self) })
+    guard argumentCount >= 0 else { return [] }
+
+    let executablePath = buffer.prefix(byteCount).dropFirst(MemoryLayout<Int32>.size)
+    return
+      executablePath
+      .drop { $0 != 0 }
+      .drop { $0 == 0 }
+      .split(separator: 0, omittingEmptySubsequences: false)
+      .dropFirst(argumentCount)
+      .prefix { !$0.isEmpty }
       .compactMap { String(bytes: $0, encoding: .utf8) }
   }
 }

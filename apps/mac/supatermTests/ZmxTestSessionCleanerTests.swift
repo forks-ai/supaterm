@@ -46,6 +46,28 @@ struct ZmxTestSessionCleanerTests {
     #expect(ZmxTestProcessTable.sessionProcessIDs(directory: otherDirectory.path).isEmpty)
   }
 
+  @Test
+  func sessionProcessIDsIgnoreDirectoriesNamedOnlyInArguments() throws {
+    let directory = try makeZmxDirectory()
+    let namedDirectory = try makeZmxDirectory()
+    defer {
+      try? ZmxTestSessionCleaner(directory: directory.path).cleanup()
+      try? FileManager.default.removeItem(at: directory)
+      try? FileManager.default.removeItem(at: namedDirectory)
+    }
+
+    try runZmxSession(
+      in: directory,
+      command: [
+        "/bin/sh", "-c", "sleep 60",
+        "\(ZmxEnvironment.directoryKey)=\(namedDirectory.path)",
+      ]
+    )
+
+    #expect(!ZmxTestProcessTable.sessionProcessIDs(directory: directory.path).isEmpty)
+    #expect(ZmxTestProcessTable.sessionProcessIDs(directory: namedDirectory.path).isEmpty)
+  }
+
   /// A busy daemon makes `zmx kill` unlink the socket without exiting, so the
   /// socket directory can disappear while the session is still running.
   @Test
@@ -281,7 +303,7 @@ struct ZmxTestSessionCleanerTests {
     return directory
   }
 
-  private func runZmxSession(in directory: URL) throws {
+  private func runZmxSession(in directory: URL, command: [String] = ["/bin/sleep", "60"]) throws {
     var environment = ProcessInfo.processInfo.environment
     environment[ZmxEnvironment.directoryKey] = directory.path
     environment[ZmxEnvironment.sessionKey] = ""
@@ -289,7 +311,7 @@ struct ZmxTestSessionCleanerTests {
 
     let process = Process()
     process.executableURL = zmxExecutableURL
-    process.arguments = ["run", "spt-unit-\(UUID().uuidString)", "-d", "/bin/sleep", "60"]
+    process.arguments = ["run", "spt-unit-\(UUID().uuidString)", "-d"] + command
     process.environment = environment
     process.standardOutput = FileHandle.nullDevice
     process.standardError = FileHandle.nullDevice
