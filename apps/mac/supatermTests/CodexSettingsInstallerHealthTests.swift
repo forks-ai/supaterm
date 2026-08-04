@@ -3,6 +3,7 @@ import Synchronization
 import Testing
 
 @testable import SupatermCLIShared
+@testable import SupatermSupport
 
 extension CodexSettingsInstallerTests {
   @Test

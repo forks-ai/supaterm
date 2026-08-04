@@ -85,14 +85,14 @@ extension SocketRequestExecutor {
         try SupatermSettingsRegistry.get(
           key: request.key,
           settings: .default,
-          path: SupatermSettings.defaultURL().path
+          path: SupatermStateRoot.settingsFileURL().path
         )
       )
     case .settingsList(let request):
       return .settingsList(
         SupatermSettingsRegistry.list(
           settings: .default,
-          path: SupatermSettings.defaultURL().path,
+          path: SupatermStateRoot.settingsFileURL().path,
           changedOnly: request.changedOnly
         )
       )
@@ -101,7 +101,7 @@ extension SocketRequestExecutor {
         try SupatermSettingsRegistry.reset(
           request,
           settings: .default,
-          path: SupatermSettings.defaultURL().path,
+          path: SupatermStateRoot.settingsFileURL().path,
           isLive: true
         ).result
       )
@@ -110,7 +110,7 @@ extension SocketRequestExecutor {
         try SupatermSettingsRegistry.set(
           request,
           settings: .default,
-          path: SupatermSettings.defaultURL().path,
+          path: SupatermStateRoot.settingsFileURL().path,
           isLive: true
         ).result
       )

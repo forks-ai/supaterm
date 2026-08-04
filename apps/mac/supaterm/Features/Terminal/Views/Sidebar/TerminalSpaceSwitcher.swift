@@ -2,7 +2,7 @@ import AppKit
 import ComposableArchitecture
 import Sharing
 import SupaTheme
-import SupatermCLIShared
+import SupatermSupport
 import SwiftUI
 
 struct TerminalSpaceSwitcherPresentation: Equatable {

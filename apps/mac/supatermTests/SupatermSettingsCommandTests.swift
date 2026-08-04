@@ -1,5 +1,5 @@
-import Foundation
 import SupatermCLIShared
+import SupatermSupport
 import Testing
 
 struct SupatermSettingsCommandTests {
@@ -101,75 +101,4 @@ struct SupatermSettingsCommandTests {
       Issue.record("Expected invalid boolean error, got \(error).")
     }
   }
-
-  @Test
-  func fileStoreCreatesSparseSettingsFile() throws {
-    let stateHomeURL = try temporarySettingsCommandDirectory()
-    let store = SupatermSettingsFileStore(environment: [SupatermCLIEnvironment.stateHomeKey: stateHomeURL.path])
-
-    let result = try store.set(SupatermSettingsSetRequest(key: "logging.verbose_enabled", value: "true"))
-    let contents = try String(contentsOf: store.settingsURL, encoding: .utf8).trimmingCharacters(in: .newlines)
-
-    #expect(result.value == "true")
-    #expect(result.warnings == ["Verbose logging changes apply next time Supaterm starts."])
-    #expect(
-      contents
-        == """
-        [logging]
-        verbose_enabled = true
-        """
-    )
-  }
-
-  @Test
-  func fileStoreResetRemovesDefaultOnlySections() throws {
-    let stateHomeURL = try temporarySettingsCommandDirectory()
-    let store = SupatermSettingsFileStore(environment: [SupatermCLIEnvironment.stateHomeKey: stateHomeURL.path])
-
-    _ = try store.set(SupatermSettingsSetRequest(key: "updates.channel", value: "tip"))
-    let result = try store.reset(SupatermSettingsResetRequest(key: "updates.channel"))
-    let contents = try String(contentsOf: store.settingsURL, encoding: .utf8)
-
-    #expect(result.oldValue == "tip")
-    #expect(result.value == "stable")
-    #expect(result.isDefault)
-    #expect(contents.isEmpty)
-  }
-
-  @Test
-  func fileStoreDoesNotRewriteInvalidToml() throws {
-    let stateHomeURL = try temporarySettingsCommandDirectory()
-    let store = SupatermSettingsFileStore(environment: [SupatermCLIEnvironment.stateHomeKey: stateHomeURL.path])
-    try FileManager.default.createDirectory(at: stateHomeURL, withIntermediateDirectories: true)
-    try Data("[updates]\nchannel = \"beta\"\n".utf8).write(to: store.settingsURL)
-
-    do {
-      _ = try store.set(SupatermSettingsSetRequest(key: "appearance.mode", value: "system"))
-      Issue.record("Expected invalid existing TOML to throw.")
-    } catch {
-      let contents = try String(contentsOf: store.settingsURL, encoding: .utf8)
-      #expect(contents == "[updates]\nchannel = \"beta\"\n")
-    }
-  }
-
-  @Test
-  func fileStoreChangedOnlyListOmitsDefaults() throws {
-    let stateHomeURL = try temporarySettingsCommandDirectory()
-    let store = SupatermSettingsFileStore(environment: [SupatermCLIEnvironment.stateHomeKey: stateHomeURL.path])
-
-    _ = try store.set(SupatermSettingsSetRequest(key: "privacy.analytics_enabled", value: "false"))
-    let result = try store.list(changedOnly: true)
-
-    #expect(result.entries.map(\.key) == ["privacy.analytics_enabled"])
-    #expect(result.entries.first?.value == "false")
-  }
-}
-
-private func temporarySettingsCommandDirectory() throws -> URL {
-  try FileManager.default.url(
-    for: .itemReplacementDirectory,
-    in: .userDomainMask,
-    appropriateFor: FileManager.default.temporaryDirectory,
-    create: true
-  )
 }

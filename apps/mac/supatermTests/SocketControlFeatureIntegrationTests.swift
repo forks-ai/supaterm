@@ -5,6 +5,7 @@ import Testing
 
 @testable import SPCLI
 @testable import SupatermCLIShared
+@testable import SupatermSupport
 @testable import supaterm
 
 @MainActor

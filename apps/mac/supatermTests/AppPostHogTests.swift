@@ -1,5 +1,6 @@
 import Foundation
 import PostHog
+import SupatermSupport
 import Testing
 
 @testable import supaterm

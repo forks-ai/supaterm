@@ -1,6 +1,6 @@
 import ComposableArchitecture
 import Foundation
-import SupatermCLIShared
+import SupatermSupport
 
 struct SupatermSkillClient: Sendable {
   var installSupatermSkill: @Sendable () async throws -> Void

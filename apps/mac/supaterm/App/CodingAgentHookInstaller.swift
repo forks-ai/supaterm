@@ -1,5 +1,6 @@
 import Foundation
 import SupatermCLIShared
+import SupatermSupport
 
 nonisolated struct CodingAgentHookInstaller: Sendable {
   let integrationHealth: @Sendable (SupatermAgentKind) throws -> CodingAgentIntegrationHealth

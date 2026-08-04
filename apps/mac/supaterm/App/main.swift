@@ -2,7 +2,7 @@ import AppKit
 import Darwin
 
 #if !SUPATERM_SNAPSHOT_CATALOG
-  import SupatermCLIShared
+  import SupatermSupport
 #endif
 
 let app = NSApplication.shared

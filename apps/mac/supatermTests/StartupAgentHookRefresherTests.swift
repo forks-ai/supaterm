@@ -2,6 +2,7 @@ import Foundation
 import Testing
 
 @testable import SupatermCLIShared
+@testable import SupatermSupport
 @testable import supaterm
 
 struct StartupAgentHookRefresherTests {

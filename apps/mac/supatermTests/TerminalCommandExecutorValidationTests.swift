@@ -2,6 +2,7 @@ import Foundation
 import Testing
 
 @testable import SupatermCLIShared
+@testable import SupatermSupport
 @testable import supaterm
 
 @MainActor
@@ -21,7 +22,7 @@ struct TerminalCommandExecutorValidationTests {
     #expect(
       result
         == SupatermSettingsValidationResult(
-          path: SupatermSettings.defaultURL(
+          path: SupatermStateRoot.settingsFileURL(
             homeDirectoryPath: homeDirectoryURL.path,
             environment: [:]
           ).path,
@@ -118,7 +119,7 @@ private func temporarySettingsHome() throws -> URL {
 
 @discardableResult
 private func writeSettings(_ contents: String, homeDirectoryURL: URL) throws -> URL {
-  let settingsURL = SupatermSettings.defaultURL(
+  let settingsURL = SupatermStateRoot.settingsFileURL(
     homeDirectoryPath: homeDirectoryURL.path,
     environment: [:]
   )

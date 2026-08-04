@@ -1,5 +1,5 @@
 import AppKit
-import SupatermCLIShared
+import SupatermSupport
 import SwiftUI
 
 struct SettingsToggleRow: View {

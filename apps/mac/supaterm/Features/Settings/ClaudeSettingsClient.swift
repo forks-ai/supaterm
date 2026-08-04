@@ -1,6 +1,7 @@
 import ComposableArchitecture
 import Foundation
 import SupatermCLIShared
+import SupatermSupport
 
 struct ClaudeSettingsClient: Sendable {
   var integrationHealth: @Sendable () async throws -> CodingAgentIntegrationHealth

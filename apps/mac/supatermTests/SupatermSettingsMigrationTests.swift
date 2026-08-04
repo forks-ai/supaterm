@@ -1,12 +1,13 @@
 import Foundation
 import SupatermCLIShared
+import SupatermSupport
 import Testing
 
 struct SupatermSettingsMigrationTests {
   @Test
   func migratesLegacyJsonToTomlAndDeletesLegacyFile() throws {
     let homeDirectoryURL = try temporarySettingsHomeDirectory()
-    let legacyURL = SupatermSettings.legacyURL(homeDirectoryPath: homeDirectoryURL.path, environment: [:])
+    let legacyURL = SupatermStateRoot.legacySettingsFileURL(homeDirectoryPath: homeDirectoryURL.path, environment: [:])
     try FileManager.default.createDirectory(
       at: legacyURL.deletingLastPathComponent(),
       withIntermediateDirectories: true
@@ -24,7 +25,7 @@ struct SupatermSettingsMigrationTests {
 
     try SupatermSettingsMigration(homeDirectoryURL: homeDirectoryURL, environment: [:]).migrateIfNeeded()
 
-    let settingsURL = SupatermSettings.defaultURL(homeDirectoryPath: homeDirectoryURL.path, environment: [:])
+    let settingsURL = SupatermStateRoot.settingsFileURL(homeDirectoryPath: homeDirectoryURL.path, environment: [:])
     #expect(FileManager.default.fileExists(atPath: settingsURL.path))
     #expect(!FileManager.default.fileExists(atPath: legacyURL.path))
     let settings = try SupatermSettingsCodec.decode(Data(contentsOf: settingsURL))
@@ -51,8 +52,8 @@ struct SupatermSettingsMigrationTests {
   @Test
   func validTomlDeletesRedundantLegacyJson() throws {
     let homeDirectoryURL = try temporarySettingsHomeDirectory()
-    let settingsURL = SupatermSettings.defaultURL(homeDirectoryPath: homeDirectoryURL.path, environment: [:])
-    let legacyURL = SupatermSettings.legacyURL(homeDirectoryPath: homeDirectoryURL.path, environment: [:])
+    let settingsURL = SupatermStateRoot.settingsFileURL(homeDirectoryPath: homeDirectoryURL.path, environment: [:])
+    let legacyURL = SupatermStateRoot.legacySettingsFileURL(homeDirectoryPath: homeDirectoryURL.path, environment: [:])
     try FileManager.default.createDirectory(
       at: settingsURL.deletingLastPathComponent(),
       withIntermediateDirectories: true
@@ -69,7 +70,7 @@ struct SupatermSettingsMigrationTests {
   @Test
   func migratesLegacyTerminalZmxKeyInToml() throws {
     let homeDirectoryURL = try temporarySettingsHomeDirectory()
-    let settingsURL = SupatermSettings.defaultURL(homeDirectoryPath: homeDirectoryURL.path, environment: [:])
+    let settingsURL = SupatermStateRoot.settingsFileURL(homeDirectoryPath: homeDirectoryURL.path, environment: [:])
     try FileManager.default.createDirectory(
       at: settingsURL.deletingLastPathComponent(),
       withIntermediateDirectories: true
@@ -101,8 +102,8 @@ struct SupatermSettingsMigrationTests {
   @Test
   func invalidTomlPreservesLegacyJson() throws {
     let homeDirectoryURL = try temporarySettingsHomeDirectory()
-    let settingsURL = SupatermSettings.defaultURL(homeDirectoryPath: homeDirectoryURL.path, environment: [:])
-    let legacyURL = SupatermSettings.legacyURL(homeDirectoryPath: homeDirectoryURL.path, environment: [:])
+    let settingsURL = SupatermStateRoot.settingsFileURL(homeDirectoryPath: homeDirectoryURL.path, environment: [:])
+    let legacyURL = SupatermStateRoot.legacySettingsFileURL(homeDirectoryPath: homeDirectoryURL.path, environment: [:])
     try FileManager.default.createDirectory(
       at: settingsURL.deletingLastPathComponent(),
       withIntermediateDirectories: true
@@ -119,7 +120,7 @@ struct SupatermSettingsMigrationTests {
   @Test
   func invalidLegacyJsonDoesNotCreateToml() throws {
     let homeDirectoryURL = try temporarySettingsHomeDirectory()
-    let legacyURL = SupatermSettings.legacyURL(homeDirectoryPath: homeDirectoryURL.path, environment: [:])
+    let legacyURL = SupatermStateRoot.legacySettingsFileURL(homeDirectoryPath: homeDirectoryURL.path, environment: [:])
     try FileManager.default.createDirectory(
       at: legacyURL.deletingLastPathComponent(),
       withIntermediateDirectories: true
@@ -131,7 +132,7 @@ struct SupatermSettingsMigrationTests {
     #expect(FileManager.default.fileExists(atPath: legacyURL.path))
     #expect(
       !FileManager.default.fileExists(
-        atPath: SupatermSettings.defaultURL(homeDirectoryPath: homeDirectoryURL.path, environment: [:]).path
+        atPath: SupatermStateRoot.settingsFileURL(homeDirectoryPath: homeDirectoryURL.path, environment: [:]).path
       )
     )
   }

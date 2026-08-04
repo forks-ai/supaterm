@@ -1,4 +1,5 @@
 import Foundation
+import SupatermCLIShared
 
 public struct PiSettingsInstaller {
   typealias CommandResult = CodingAgentCommandResult

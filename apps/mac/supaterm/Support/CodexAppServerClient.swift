@@ -1,5 +1,6 @@
 import Darwin
 import Foundation
+import SupatermCLIShared
 
 struct CodexAppServerHook: Equatable, Sendable {
   let key: String
@@ -14,6 +15,19 @@ struct CodexAppServerHook: Equatable, Sendable {
   let isManaged: Bool
   let currentHash: String
   let trustStatus: String
+}
+
+extension CodexHookIdentity {
+  init(hook: CodexAppServerHook) {
+    self.init(
+      eventName: hook.eventName,
+      handlerType: hook.handlerType,
+      matcher: hook.matcher,
+      command: hook.command ?? "",
+      timeoutSeconds: hook.timeoutSeconds,
+      statusMessage: hook.statusMessage
+    )
+  }
 }
 
 struct CodexAppServerUserConfig: Equatable, Sendable {
@@ -374,7 +388,7 @@ private final class CodexAppServerTransport {
   private func standardError() -> String {
     try? errorHandle.synchronize()
     guard let data = try? Data(contentsOf: errorURL) else { return "" }
-    return String(decoding: data, as: UTF8.self)
+    return (String(bytes: data, encoding: .utf8) ?? "")
       .trimmingCharacters(in: .whitespacesAndNewlines)
   }
 

@@ -1,6 +1,7 @@
 import ComposableArchitecture
 import Foundation
 import SupatermCLIShared
+import SupatermSupport
 import SupatermTerminalCore
 
 public struct SocketRequestExecutor: Sendable {
@@ -199,14 +200,14 @@ extension SocketRequestExecutor: DependencyKey {
           try SupatermSettingsRegistry.get(
             key: request.key,
             settings: .default,
-            path: SupatermSettings.defaultURL().path
+            path: SupatermStateRoot.settingsFileURL().path
           )
         )
       case .settingsList(let request):
         return .settingsList(
           SupatermSettingsRegistry.list(
             settings: .default,
-            path: SupatermSettings.defaultURL().path,
+            path: SupatermStateRoot.settingsFileURL().path,
             changedOnly: request.changedOnly
           )
         )
@@ -215,7 +216,7 @@ extension SocketRequestExecutor: DependencyKey {
           try SupatermSettingsRegistry.reset(
             request,
             settings: .default,
-            path: SupatermSettings.defaultURL().path,
+            path: SupatermStateRoot.settingsFileURL().path,
             isLive: true
           ).result
         )
@@ -224,7 +225,7 @@ extension SocketRequestExecutor: DependencyKey {
           try SupatermSettingsRegistry.set(
             request,
             settings: .default,
-            path: SupatermSettings.defaultURL().path,
+            path: SupatermStateRoot.settingsFileURL().path,
             isLive: true
           ).result
         )

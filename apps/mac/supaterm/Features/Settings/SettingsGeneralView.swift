@@ -1,5 +1,5 @@
 import ComposableArchitecture
-import SupatermCLIShared
+import SupatermSupport
 import SwiftUI
 
 struct SettingsGeneralView: View {

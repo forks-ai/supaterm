@@ -1,5 +1,6 @@
 import Foundation
 import SupatermCLIShared
+import SupatermSupport
 import SupatermTerminalCore
 
 extension SocketControlFeature {

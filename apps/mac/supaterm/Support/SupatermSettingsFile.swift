@@ -1,34 +1,6 @@
 import Foundation
+import SupatermCLIShared
 import TOML
-
-public enum SupatermSettingsValidationStatus: String, Codable, Sendable {
-  case invalid
-  case missing
-  case valid
-}
-
-public struct SupatermSettingsValidationResult: Codable, Equatable, Sendable {
-  public let path: String
-  public let status: SupatermSettingsValidationStatus
-  public let warnings: [String]
-  public let errors: [String]
-
-  public init(
-    path: String,
-    status: SupatermSettingsValidationStatus,
-    warnings: [String],
-    errors: [String]
-  ) {
-    self.path = path
-    self.status = status
-    self.warnings = warnings
-    self.errors = errors
-  }
-
-  public var isFailure: Bool {
-    !errors.isEmpty || status == .invalid
-  }
-}
 
 public enum SupatermSettingsCodec {
   public static func decode(_ data: Data) throws -> SupatermSettings {
@@ -100,11 +72,11 @@ public struct SupatermSettingsMigration {
   }
 
   public func migrateIfNeeded() throws {
-    let settingsURL = SupatermSettings.defaultURL(
+    let settingsURL = SupatermStateRoot.settingsFileURL(
       homeDirectoryPath: homeDirectoryURL.path,
       environment: environment
     )
-    let legacyURL = SupatermSettings.legacyURL(
+    let legacyURL = SupatermStateRoot.legacySettingsFileURL(
       homeDirectoryPath: homeDirectoryURL.path,
       environment: environment
     )
@@ -161,7 +133,7 @@ public struct SupatermSettingsValidator {
     let isDefaultPath = explicitPath == nil
     let path =
       explicitPath
-      ?? SupatermSettings.defaultURL(
+      ?? SupatermStateRoot.settingsFileURL(
         homeDirectoryPath: homeDirectoryURL.path,
         environment: environment
       )
@@ -170,7 +142,7 @@ public struct SupatermSettingsValidator {
       var warnings: [String] = []
       var errors: [String] = []
       if isDefaultPath {
-        let legacyURL = SupatermSettings.legacyURL(
+        let legacyURL = SupatermStateRoot.legacySettingsFileURL(
           homeDirectoryPath: homeDirectoryURL.path,
           environment: environment
         )

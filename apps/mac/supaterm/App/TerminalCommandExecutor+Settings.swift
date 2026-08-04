@@ -9,7 +9,7 @@ extension TerminalCommandExecutor {
     @Shared(.supatermSettings) var supatermSettings = SupatermSettings.default
     return SupatermSettingsRegistry.list(
       settings: supatermSettings,
-      path: SupatermSettings.defaultURL().path,
+      path: SupatermStateRoot.settingsFileURL().path,
       changedOnly: request.changedOnly
     )
   }
@@ -19,7 +19,7 @@ extension TerminalCommandExecutor {
     return try SupatermSettingsRegistry.get(
       key: request.key,
       settings: supatermSettings,
-      path: SupatermSettings.defaultURL().path
+      path: SupatermStateRoot.settingsFileURL().path
     )
   }
 
@@ -28,7 +28,7 @@ extension TerminalCommandExecutor {
     let edit = try SupatermSettingsRegistry.set(
       request,
       settings: supatermSettings,
-      path: SupatermSettings.defaultURL().path,
+      path: SupatermStateRoot.settingsFileURL().path,
       isLive: true
     )
     $supatermSettings.withLock {
@@ -43,7 +43,7 @@ extension TerminalCommandExecutor {
     let edit = try SupatermSettingsRegistry.reset(
       request,
       settings: supatermSettings,
-      path: SupatermSettings.defaultURL().path,
+      path: SupatermStateRoot.settingsFileURL().path,
       isLive: true
     )
     $supatermSettings.withLock {

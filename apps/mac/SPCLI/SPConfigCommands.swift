@@ -34,7 +34,7 @@ extension SP {
 
     mutating func run() throws {
       applyOutputStyle(output)
-      let result = SupatermSettingsPathResult(path: SupatermSettings.defaultURL().path)
+      let result = SupatermSettingsPathResult(path: SupatermStateRoot.settingsFileURL().path)
       try emitCommandResult(
         result,
         options: output,

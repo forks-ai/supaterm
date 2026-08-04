@@ -1,6 +1,7 @@
 import Darwin
 import Foundation
 import SupatermCLIShared
+import SupatermSupport
 
 struct SPCLIResult: Equatable {
   let exitCode: Int32

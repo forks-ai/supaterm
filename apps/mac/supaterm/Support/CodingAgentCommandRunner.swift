@@ -1,5 +1,6 @@
 import Darwin
 import Foundation
+import SupatermCLIShared
 
 enum LoginShellCommandAvailability {
   static func commandArguments(for commandNames: [String]) -> [String] {
@@ -98,7 +99,7 @@ enum CodingAgentCommandRunner {
 
   static func loginShellURL(
     environment: [String: String] = ProcessInfo.processInfo.environment,
-    currentUserShellPath: String? = currentUserShellPath()
+    currentUserShellPath: String? = SupatermShellCommand.currentUserShellPath()
   ) -> URL {
     URL(
       fileURLWithPath: SupatermShellCommand.loginShellPath(
@@ -106,13 +107,6 @@ enum CodingAgentCommandRunner {
         currentUserShellPath: currentUserShellPath
       )
     )
-  }
-
-  private static func currentUserShellPath() -> String? {
-    guard let entry = getpwuid(getuid()), let shell = entry.pointee.pw_shell else {
-      return nil
-    }
-    return String(cString: shell)
   }
 
   private static func string(at url: URL) throws -> String {

@@ -3,6 +3,7 @@ import Testing
 
 @testable import SPCLI
 @testable import SupatermCLIShared
+@testable import SupatermSupport
 
 struct SupatermSkillsTests {
   @Test
