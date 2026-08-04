@@ -17,11 +17,3 @@ public struct SupatermAgentHookHealth: Codable, Equatable, Sendable {
     self.health = health
   }
 }
-
-public struct SupatermAgentHookHealthResult: Codable, Equatable, Sendable {
-  public let agents: [SupatermAgentHookHealth]
-
-  public init(agents: [SupatermAgentHookHealth]) {
-    self.agents = agents
-  }
-}

@@ -34,7 +34,6 @@ public struct SocketRequestExecutor: Sendable {
   }
 
   public enum AgentIntegrationRequest: Sendable {
-    case hooksHealth
     case hooksInstall(SupatermAgentHookTargetRequest)
     case hooksRemove(SupatermAgentHookTargetRequest)
     case skillsGet(SupatermSkillGetRequest)
@@ -44,7 +43,6 @@ public struct SocketRequestExecutor: Sendable {
   }
 
   public enum AgentIntegrationResult: Sendable {
-    case hooksHealth(SupatermAgentHookHealthResult)
     case hooksInstall(SupatermAgentHookHealth)
     case hooksRemove(SupatermAgentHookHealth)
     case skillsGet(SupatermSkillContent)
@@ -245,26 +243,12 @@ extension SocketRequestExecutor: DependencyKey {
     },
     executeAgentIntegration: { request in
       switch request {
-      case .hooksHealth:
-        return .hooksHealth(
-          SupatermAgentHookHealthResult(
-            agents: SupatermAgentKind.allCases.map {
-              SupatermAgentHookHealth(agent: $0, health: .unavailable)
-            }
-          )
-        )
       case .hooksInstall(let request):
         return .hooksInstall(SupatermAgentHookHealth(agent: request.agent, health: .unavailable))
       case .hooksRemove(let request):
         return .hooksRemove(SupatermAgentHookHealth(agent: request.agent, health: .unavailable))
-      case .skillsGet(let request):
-        return .skillsGet(try SupatermSkills().get(name: request.name, full: request.full))
-      case .skillsInstall:
-        return .skillsInstall(try SupatermSkills().install())
-      case .skillsList:
-        return .skillsList(SupatermSkillListResult(skills: try SupatermSkills().list()))
-      case .skillsPath(let request):
-        return .skillsPath(SupatermSkillPathResult(path: try SupatermSkills().path(name: request.name)))
+      case .skillsGet, .skillsInstall, .skillsList, .skillsPath:
+        throw SupatermSkillsError.bundledSkillsUnavailable(nil)
       }
     },
     executeTerminalCreation: { request in

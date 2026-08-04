@@ -101,39 +101,6 @@ struct TerminalCommandExecutorHookTests {
   }
 
   @Test
-  func healthReportsEveryAgent() async throws {
-    let registry = TerminalWindowRegistry()
-    let commandExecutor = makeCommandExecutor(registry: registry)
-    let installer = CodingAgentHookInstaller(
-      integrationHealth: { agent in
-        switch agent {
-        case .claude:
-          return .healthy
-        case .codex:
-          return .drifted
-        case .pi:
-          return .unavailable
-        }
-      },
-      installSupatermHooks: { _ in },
-      removeSupatermHooks: { _ in }
-    )
-
-    let result = try await commandExecutor.hooksHealth(installer: installer)
-
-    #expect(
-      result
-        == SupatermAgentHookHealthResult(
-          agents: [
-            SupatermAgentHookHealth(agent: .claude, health: .healthy),
-            SupatermAgentHookHealth(agent: .codex, health: .drifted),
-            SupatermAgentHookHealth(agent: .pi, health: .unavailable),
-          ]
-        )
-    )
-  }
-
-  @Test
   func installAndRemoveForwardTheRequestedAgent() async throws {
     let registry = TerminalWindowRegistry()
     let commandExecutor = makeCommandExecutor(registry: registry)

@@ -23,15 +23,6 @@ struct AgentIntegrationPayloadFixtureTests {
   }
 
   @Test
-  func hookHealthRequestCarriesNoParams() throws {
-    try expectMethodFixture(
-      .hooksHealth(id: "hooks-health-1"),
-      method: SupatermSocketMethod.appHooksHealth,
-      params: "{}"
-    )
-  }
-
-  @Test
   func hookHealthEncodesAgentAndHealth() throws {
     try expectPayloadFixture(
       SupatermAgentHookHealth(agent: .claude, health: .healthy),
@@ -39,35 +30,20 @@ struct AgentIntegrationPayloadFixtureTests {
     )
   }
 
-  @Test
-  func everyHealthCaseEncodesItsRawValue() throws {
+  @Test(
+    arguments: [
+      (CodingAgentIntegrationHealth.unavailable, "unavailable"),
+      (.unavailableInstalled, "unavailableInstalled"),
+      (.absent, "absent"),
+      (.partial, "partial"),
+      (.drifted, "drifted"),
+      (.healthy, "healthy"),
+    ]
+  )
+  func everyHealthCaseEncodesItsRawValue(health: CodingAgentIntegrationHealth, raw: String) throws {
     try expectPayloadFixture(
-      SupatermAgentHookHealthResult(
-        agents: [
-          SupatermAgentHookHealth(agent: .claude, health: .unavailable),
-          SupatermAgentHookHealth(agent: .codex, health: .unavailableInstalled),
-          SupatermAgentHookHealth(agent: .pi, health: .absent),
-        ]
-      ),
-      """
-      {"agents":[{"agent":"claude","health":"unavailable"},\
-      {"agent":"codex","health":"unavailableInstalled"},\
-      {"agent":"pi","health":"absent"}]}
-      """
-    )
-    try expectPayloadFixture(
-      SupatermAgentHookHealthResult(
-        agents: [
-          SupatermAgentHookHealth(agent: .claude, health: .partial),
-          SupatermAgentHookHealth(agent: .codex, health: .drifted),
-          SupatermAgentHookHealth(agent: .pi, health: .healthy),
-        ]
-      ),
-      """
-      {"agents":[{"agent":"claude","health":"partial"},\
-      {"agent":"codex","health":"drifted"},\
-      {"agent":"pi","health":"healthy"}]}
-      """
+      SupatermAgentHookHealth(agent: .claude, health: health),
+      #"{"agent":"claude","health":"\#(raw)"}"#
     )
   }
 

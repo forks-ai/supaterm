@@ -28,16 +28,4 @@ extension TerminalCommandExecutor {
       )
     }.value
   }
-
-  func hooksHealth(
-    installer: CodingAgentHookInstaller = .live
-  ) async throws -> SupatermAgentHookHealthResult {
-    try await Task.detached(priority: .utility) {
-      SupatermAgentHookHealthResult(
-        agents: try SupatermAgentKind.allCases.map {
-          SupatermAgentHookHealth(agent: $0, health: try installer.integrationHealth($0))
-        }
-      )
-    }.value
-  }
 }

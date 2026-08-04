@@ -220,7 +220,6 @@ Settings methods read and write the running app:
 Hook methods own the agent settings files:
 
 - `app.hooks.install` and `app.hooks.remove` take `{"agent":"claude|codex|pi"}` and return that agent and its resulting health.
-- `app.hooks.health` takes nothing and returns health for every supported agent.
 - The app writes `~/.claude/settings.json` and `~/.codex/hooks.json`, and talks to Codex app-server. The CLI never touches those files.
 
 Skill methods serve the app bundle:

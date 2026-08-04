@@ -129,24 +129,6 @@ public struct CodexHookIdentity: Hashable {
   public let timeoutSeconds: Int
   public let statusMessage: String?
 
-  public static func == (lhs: Self, rhs: Self) -> Bool {
-    lhs.eventName == rhs.eventName
-      && lhs.handlerType == rhs.handlerType
-      && lhs.matcher == rhs.matcher
-      && lhs.command == rhs.command
-      && lhs.timeoutSeconds == rhs.timeoutSeconds
-      && lhs.statusMessage == rhs.statusMessage
-  }
-
-  public func hash(into hasher: inout Hasher) {
-    hasher.combine(eventName)
-    hasher.combine(handlerType)
-    hasher.combine(matcher)
-    hasher.combine(command)
-    hasher.combine(timeoutSeconds)
-    hasher.combine(statusMessage)
-  }
-
   public init(
     eventName: String,
     handlerType: String,

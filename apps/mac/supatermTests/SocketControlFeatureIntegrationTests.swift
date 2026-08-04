@@ -48,35 +48,6 @@ struct SocketControlFeatureIntegrationTests {
     )
   }
 
-  @Test
-  func hooksHealthRepliesWithEveryAgent() async throws {
-    let response = try await socketResponse(
-      #"{"id":"hooks-health-1","method":"app.hooks.health","params":{}}"#,
-      executeAgentIntegration: { request in
-        guard case .hooksHealth = request else {
-          throw UnexpectedRequest()
-        }
-        return .hooksHealth(
-          SupatermAgentHookHealthResult(
-            agents: [
-              SupatermAgentHookHealth(agent: .claude, health: .healthy),
-              SupatermAgentHookHealth(agent: .codex, health: .drifted),
-              SupatermAgentHookHealth(agent: .pi, health: .unavailable),
-            ]
-          )
-        )
-      }
-    )
-
-    #expect(
-      try jsonString(response) == """
-        {"id":"hooks-health-1","ok":true,"result":{"agents":\
-        [{"agent":"claude","health":"healthy"},{"agent":"codex","health":"drifted"},\
-        {"agent":"pi","health":"unavailable"}]}}
-        """
-    )
-  }
-
   @Test(
     arguments: [
       #"{"id":"hooks-install-2","method":"app.hooks.install","params":{"agent":"gemini"}}"#,

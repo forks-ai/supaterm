@@ -82,8 +82,6 @@ final class TerminalCommandExecutor {
     _ request: SocketRequestExecutor.AgentIntegrationRequest
   ) async throws -> SocketRequestExecutor.AgentIntegrationResult {
     switch request {
-    case .hooksHealth:
-      return .hooksHealth(try await hooksHealth())
     case .hooksInstall(let request):
       return .hooksInstall(try await hooksInstall(request))
     case .hooksRemove(let request):

@@ -3,7 +3,6 @@ import Foundation
 public enum SupatermSocketMethod {
   public static let appOnboarding = "app.onboarding"
   public static let appDebug = "app.debug"
-  public static let appHooksHealth = "app.hooks.health"
   public static let appHooksInstall = "app.hooks.install"
   public static let appHooksRemove = "app.hooks.remove"
   public static let appQuit = "app.quit"
@@ -196,10 +195,6 @@ public struct SupatermSocketRequest: Equatable, Sendable, Codable {
     id: String = UUID().uuidString
   ) throws -> Self {
     try make(SupatermSocketMethod.appSettingsValidate, payload, id: id)
-  }
-
-  public static func hooksHealth(id: String = UUID().uuidString) -> Self {
-    Self(id: id, method: SupatermSocketMethod.appHooksHealth)
   }
 
   public static func hooksInstall(

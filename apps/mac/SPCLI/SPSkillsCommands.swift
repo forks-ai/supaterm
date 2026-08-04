@@ -135,7 +135,7 @@ struct SPSkillsFailure: Encodable {
   let success = false
 }
 
-struct SPSkillsError: LocalizedError {
+private struct SPSkillsError: LocalizedError {
   let message: String
 
   var errorDescription: String? {
@@ -143,7 +143,7 @@ struct SPSkillsError: LocalizedError {
   }
 }
 
-func sendSkillsRequest<Result: Decodable>(
+private func sendSkillsRequest<Result: Decodable>(
   _ request: SupatermSocketRequest,
   connection: SPConnectionOptions,
   as resultType: Result.Type

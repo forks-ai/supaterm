@@ -118,13 +118,6 @@ extension SocketControlFeature {
     socketRequestExecutor: SocketRequestExecutor
   ) async throws -> SupatermSocketResponse? {
     switch request.method {
-    case SupatermSocketMethod.appHooksHealth:
-      let result = try await socketRequestExecutor.executeAgentIntegration(.hooksHealth)
-      guard case .hooksHealth(let health) = result else {
-        throw SocketExecutorError.unexpectedResult
-      }
-      return try .ok(id: request.id, encodableResult: health)
-
     case SupatermSocketMethod.appHooksInstall:
       let payload = try request.decodeParams(SupatermAgentHookTargetRequest.self)
       let result = try await socketRequestExecutor.executeAgentIntegration(.hooksInstall(payload))
