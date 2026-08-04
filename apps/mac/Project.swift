@@ -525,6 +525,7 @@ let project = Project(
       deploymentTargets: .macOS("26.0"),
       infoPlist: .default,
       buildableFolders: [
+        "SupatermTestSupport",
         "supatermTests",
       ],
       dependencies: [
@@ -565,11 +566,13 @@ let project = Project(
       deploymentTargets: .macOS("26.0"),
       infoPlist: .default,
       buildableFolders: [
+        "SupatermTestSupport",
         "supatermE2E",
       ],
       dependencies: [
         .target(name: "SPCLI"),
         .target(name: "SupatermCLIShared"),
+        .target(name: "SupatermSupport"),
       ],
       settings: .settings(
         base: [
@@ -587,13 +590,17 @@ let project = Project(
       deploymentTargets: .macOS("26.0"),
       infoPlist: .default,
       buildableFolders: [
+        "SupatermTestSupport",
         "supatermUITests",
       ],
       dependencies: [
         .target(name: "supaterm"),
+        .target(name: "SupatermCLIShared"),
+        .target(name: "SupatermSupport"),
       ],
       settings: .settings(
         base: [
+          "CODE_SIGN_ENTITLEMENTS": "supatermUITests.entitlements",
           "SWIFT_DEFAULT_ACTOR_ISOLATION": "nonisolated",
           "SWIFT_STRICT_CONCURRENCY": "complete",
         ],

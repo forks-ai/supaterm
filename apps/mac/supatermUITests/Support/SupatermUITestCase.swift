@@ -1,4 +1,5 @@
 import Foundation
+import SupatermSupport
 import XCTest
 
 class SupatermUITestCase: XCTestCase {
@@ -12,6 +13,20 @@ class SupatermUITestCase: XCTestCase {
   }
 
   private(set) var app: XCUIApplication!
+
+  private static var productsDirectory: URL {
+    var runnerURL = Bundle(for: SupatermUITestCase.self).bundleURL
+    while runnerURL.pathExtension != "app" {
+      let parent = runnerURL.deletingLastPathComponent()
+      precondition(parent != runnerURL, "UI test bundle is not inside a runner app")
+      runnerURL = parent
+    }
+    return runnerURL.deletingLastPathComponent()
+  }
+
+  private static var zmxExecutableURL: URL {
+    productsDirectory.appendingPathComponent("supaterm.app/Contents/Helpers/zmx")
+  }
 
   @MainActor
   var stateHome: URL {
@@ -30,14 +45,30 @@ class SupatermUITestCase: XCTestCase {
     try await super.setUp()
     continueAfterFailure = false
 
+    let temporaryDirectory = FileManager.default.temporaryDirectory
+    try ZmxTestWorkspace.reapAbandoned(
+      in: temporaryDirectory,
+      stateHomePrefix: "supaterm-ui-",
+      instanceNamePrefix: "ui-",
+      zmxExecutableURL: Self.zmxExecutableURL
+    )
+
     let token = UUID().uuidString
+    let instanceName = "ui-\(token)"
     let stateHome =
-      FileManager.default.temporaryDirectory
+      temporaryDirectory
       .appendingPathComponent("supaterm-ui-\(token)", isDirectory: true)
+    let workspace = try ZmxTestWorkspace(
+      stateHome: stateHome,
+      instanceName: instanceName,
+      zmxExecutableURL: Self.zmxExecutableURL
+    )
+    try FileManager.default.createDirectory(
+      at: workspace.zmxDirectory,
+      withIntermediateDirectories: true
+    )
     let home = stateHome.appendingPathComponent("home", isDirectory: true)
-    let zmx = stateHome.appendingPathComponent("zmx", isDirectory: true)
     try FileManager.default.createDirectory(at: home, withIntermediateDirectories: true)
-    try FileManager.default.createDirectory(at: zmx, withIntermediateDirectories: true)
     try Data("0".utf8).write(to: stateHome.appendingPathComponent("launch-state.json"))
     try Data(#"{"acknowledgedVersion":"999999999.0.0"}"#.utf8).write(
       to: stateHome.appendingPathComponent("release-announcements.json")
@@ -48,22 +79,29 @@ class SupatermUITestCase: XCTestCase {
       app.launchArguments = ["-ApplePersistenceIgnoreState", "YES"]
       app.launchEnvironment = [
         "HOME": home.path,
-        "SUPATERM_INSTANCE_NAME": "ui-\(token)",
+        "SUPATERM_INSTANCE_NAME": instanceName,
         "SUPATERM_STATE_HOME": stateHome.path,
         "SUPATERM_VERBOSE_LOGGING": "1",
-        "ZMX_DIR": zmx.path,
+        ZmxEnvironment.directoryKey: workspace.zmxDirectory.path,
       ]
-      app.launch()
-      app.activate()
       return app
     }
     self.app = app
 
     addTeardownBlock {
-      await MainActor.run {
+      let stopped = await MainActor.run { () -> Bool in
+        guard app.state != .notRunning else { return true }
         app.terminate()
+        return app.wait(for: .notRunning, timeout: 10)
       }
-      try? FileManager.default.removeItem(at: stateHome)
+      XCTAssertTrue(stopped)
+      guard stopped else { return }
+      try workspace.cleanup()
+    }
+
+    await MainActor.run {
+      app.launch()
+      app.activate()
     }
   }
 

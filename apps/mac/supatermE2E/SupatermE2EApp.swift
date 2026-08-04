@@ -1,6 +1,7 @@
 import Darwin
 import Foundation
 import SupatermCLIShared
+import SupatermSupport
 
 @testable import SPCLI
 
@@ -19,6 +20,7 @@ final class SupatermE2EApp: @unchecked Sendable {
   private(set) var socketPath: String
   private let environment: [String: String]
   private let executable: URL
+  private let workspace: ZmxTestWorkspace
   private var process: Process
   private var client: SPSocketClient
   private let logURL: URL
@@ -40,10 +42,24 @@ final class SupatermE2EApp: @unchecked Sendable {
       )
     }
 
+    let temporaryDirectory = FileManager.default.temporaryDirectory
+    try ZmxTestWorkspace.reapAbandoned(
+      in: temporaryDirectory,
+      stateHomePrefix: "supaterm-e2e-",
+      instanceNamePrefix: "e2e-",
+      zmxExecutableURL: Self.zmxExecutableURL
+    )
+
     let instanceName = "e2e-\(UUID().uuidString.prefix(8).lowercased())"
     self.instanceName = instanceName
-    stateHome = FileManager.default.temporaryDirectory
+    stateHome =
+      temporaryDirectory
       .appendingPathComponent("supaterm-\(instanceName)", isDirectory: true)
+    workspace = try ZmxTestWorkspace(
+      stateHome: stateHome,
+      instanceName: instanceName,
+      zmxExecutableURL: Self.zmxExecutableURL
+    )
     cliHome = stateHome.appendingPathComponent("home", isDirectory: true)
     let runtimeHome = URL(fileURLWithPath: "/tmp/\(instanceName)", isDirectory: true)
     logURL = stateHome.appendingPathComponent("app.log", isDirectory: false)
@@ -62,6 +78,7 @@ final class SupatermE2EApp: @unchecked Sendable {
       "SUPATERM_VERBOSE_LOGGING": "1",
       "USER": NSUserName(),
       "XDG_RUNTIME_DIR": runtimeHome.path,
+      ZmxEnvironment.directoryKey: workspace.zmxDirectory.path,
       SupatermCLIEnvironment.instanceNameKey: instanceName,
       SupatermCLIEnvironment.stateHomeKey: stateHome.path,
     ]
@@ -75,6 +92,10 @@ final class SupatermE2EApp: @unchecked Sendable {
   private static var productsDirectory: URL {
     final class BundleToken {}
     return Bundle(for: BundleToken.self).bundleURL.deletingLastPathComponent()
+  }
+
+  private static var zmxExecutableURL: URL {
+    productsDirectory.appendingPathComponent("supaterm.app/Contents/Helpers/zmx")
   }
 
   var spExecutable: URL {
@@ -99,10 +120,6 @@ final class SupatermE2EApp: @unchecked Sendable {
     SupatermCLIContext(surfaceID: paneID, tabID: tabID)
   }
 
-  private var zmxSessionPrefix: String {
-    "spt-\(SupatermInstanceIdentity.stableHash(for: instanceName))-"
-  }
-
   private func startProcess(currentDirectoryURL: URL) throws {
     let log = try FileHandle(forWritingTo: logURL)
     try log.seekToEnd()
@@ -114,6 +131,7 @@ final class SupatermE2EApp: @unchecked Sendable {
     process.standardError = log
     try process.run()
     self.process = process
+    try workspace.recordApp(process)
     socketPath =
       SupatermSocketPath.managedSocketURL(
         instanceName: instanceName,
@@ -335,11 +353,7 @@ final class SupatermE2EApp: @unchecked Sendable {
     }
 
     guard !preservingZmxSessions else { return }
-    let pkill = Process()
-    pkill.executableURL = URL(fileURLWithPath: "/usr/bin/pkill")
-    pkill.arguments = ["-f", zmxSessionPrefix]
-    try? pkill.run()
-    pkill.waitUntilExit()
+    try? workspace.cleanup()
   }
 
   private func waitForProcessExit(timeout: TimeInterval) async throws {

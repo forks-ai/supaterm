@@ -204,7 +204,7 @@ scan-dead-code: tuist-generate build-ghostty build-zmx build-ap
 	mise exec -- periphery scan --skip-build --schemes $(PERIPHERY_SCHEMES) --index-store-path "$(PERIPHERY_INDEX_STORE_PATH)"
 
 format: # Format code with swift format (local only)
-	swift format -p --in-place --recursive --configuration ./.swift-format.json SupaTheme SupaThemeLogoGenerator SupatermCLIShared SPCLI sp supaterm supatermTests supatermSnapshotTests supatermE2E supatermUITests
+	swift format -p --in-place --recursive --configuration ./.swift-format.json SupaTheme SupaThemeLogoGenerator SupatermCLIShared SupatermTestSupport SPCLI sp supaterm supatermTests supatermSnapshotTests supatermE2E supatermUITests
 
 lint: # Lint code with swiftlint
 	"$$(mise which swiftlint)" lint --quiet --config .swiftlint.yml
