@@ -110,7 +110,7 @@ Supaterm uses Calendar Versioning for public releases: `YY.release.patch`.
 - Use `regular` for the first release of a year and normal feature releases. The first 2026 release after `1.3.7` is `26.0.0`; the next regular 2026 release is `26.1.0`.
 - Use `hotfix` for patch-only follow-ups within the current release line. A hotfix after `26.1.0` is `26.1.1`.
 - `MARKETING_VERSION` is the public version shown in the app, changelog, tags, GitHub releases, and Sparkle short version.
-- `CURRENT_PROJECT_VERSION` is a private monotonic build number. Stable CI publishes `CURRENT_PROJECT_VERSION * 1000`; tip CI publishes `CURRENT_PROJECT_VERSION * 1000 + github.run_number`.
+- `CURRENT_PROJECT_VERSION` is a private monotonic build number. Each version reserves a million builds: stable CI publishes `CURRENT_PROJECT_VERSION * 1000000`, and tip CI publishes `CURRENT_PROJECT_VERSION * 1000000 + github.run_number`. `github.run_number` never resets, so the reserve has to outlast every tip release the repo will ever cut.
 
 Run stable releases from the repo root:
 
