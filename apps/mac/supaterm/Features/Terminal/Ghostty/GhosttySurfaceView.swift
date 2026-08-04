@@ -70,7 +70,6 @@ final class GhosttySurfaceView: NSView, Identifiable {
   private let accessibilitySelectionNotifier: @MainActor (GhosttySurfaceView) -> Void
   private let accessibilitySelectionSleep: @Sendable (Duration) async throws -> Void
   private var trackingArea: NSTrackingArea?
-  private var lastBackingSize: CGSize = .zero
   private var lastPerformKeyEvent: TimeInterval?
   private var currentCursor: NSCursor = .iBeam
   private var focused = false
@@ -1133,10 +1132,6 @@ final class GhosttySurfaceView: NSView, Identifiable {
   func updateSurfaceSize(contentSize: CGSize? = nil) {
     guard let surface else { return }
     let backingSize = convertToBacking(contentSize ?? bounds.size)
-    if backingSize == lastBackingSize {
-      return
-    }
-    lastBackingSize = backingSize
     let width = UInt32(max(1, Int(backingSize.width.rounded(.down))))
     let height = UInt32(max(1, Int(backingSize.height.rounded(.down))))
     let currentSize = ghostty_surface_size(surface)
