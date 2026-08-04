@@ -2,109 +2,178 @@ import Foundation
 import SupatermCLIShared
 import Testing
 
+@testable import SPCLI
+
 struct SPAgentHookCommandTests {
   @Test
-  func installHookClaudeWritesManagedHooksSilently() throws {
+  func hookCommandsSendOneRequestPerAgentAndStaySilent() async throws {
     let cli = try SPCLIHarness()
     defer { cli.remove() }
+    let log = SPSocketRequestLog()
 
-    let install = try cli.run(["agent", "install-hook", "claude"])
+    try await withSocketRuntime(
+      replying: { request, _ in
+        log.record(request)
+        return try .ok(
+          id: request.id,
+          encodableResult: SupatermAgentHookHealth(agent: .claude, health: .healthy)
+        )
+      },
+      run: { endpoint in
+        for arguments in [
+          ["agent", "install-hook", "claude"],
+          ["agent", "install-hook", "codex"],
+          ["agent", "remove-hook", "claude"],
+          ["agent", "remove-hook", "codex"],
+        ] {
+          let result = try cli.run(arguments + ["--socket", endpoint.path])
 
-    #expect(install == SPCLIResult(exitCode: 0, stdout: "", stderr: ""))
-    let hooks = try claudeHooks(in: cli)
+          #expect(result == SPCLIResult(exitCode: 0, stdout: "", stderr: ""))
+        }
+      }
+    )
+
     #expect(
-      Set(hooks.keys) == [
-        "Notification", "PostToolUse", "PreToolUse", "SessionEnd", "SessionStart", "Stop",
-        "SubagentStart", "SubagentStop", "UserPromptSubmit",
+      log.requests.map(\.method) == [
+        SupatermSocketMethod.appHooksInstall,
+        SupatermSocketMethod.appHooksInstall,
+        SupatermSocketMethod.appHooksRemove,
+        SupatermSocketMethod.appHooksRemove,
       ]
     )
-    #expect(claudeCommands(in: hooks).allSatisfy { $0 == SupatermClaudeHookSettings.command })
-    #expect(claudeCommands(in: hooks).count == hooks.count)
-  }
-
-  @Test
-  func installHookClaudeIsIdempotentAndPreservesUnrelatedSettings() throws {
-    let cli = try SPCLIHarness()
-    defer { cli.remove() }
-    try writeClaudeSettings(
-      """
-      {
-        "theme": "dark",
-        "hooks": {
-          "Notification": [
-            {"hooks": [{"command": "echo keep", "timeout": 30, "type": "command"}]}
-          ]
-        }
-      }
-      """,
-      in: cli
+    #expect(
+      try log.requests.map { try jsonString($0.params) } == [
+        #"{"agent":"claude"}"#,
+        #"{"agent":"codex"}"#,
+        #"{"agent":"claude"}"#,
+        #"{"agent":"codex"}"#,
+      ]
     )
-
-    #expect(try cli.run(["agent", "install-hook", "claude"]).exitCode == 0)
-    #expect(try cli.run(["agent", "install-hook", "claude"]).exitCode == 0)
-
-    let object = try claudeSettingsObject(in: cli)
-    let hooks = try #require(object["hooks"] as? [String: Any])
-    #expect(object["theme"] as? String == "dark")
-    #expect(claudeCommands(in: hooks).filter { $0 == SupatermClaudeHookSettings.command }.count == 9)
-    #expect(claudeCommands(in: hooks).contains("echo keep"))
   }
 
   @Test
-  func removeHookClaudeDropsManagedHooksAndKeepsTheRest() throws {
+  func installHooksInstallsClaudeThenCodex() async throws {
     let cli = try SPCLIHarness()
     defer { cli.remove() }
-    try writeClaudeSettings(
-      """
-      {
-        "theme": "dark",
-        "hooks": {
-          "Notification": [
-            {"hooks": [{"command": "echo keep", "timeout": 30, "type": "command"}]}
-          ]
-        }
+    let log = SPSocketRequestLog()
+
+    try await withSocketRuntime(
+      replying: { request, _ in
+        log.record(request)
+        return try .ok(
+          id: request.id,
+          encodableResult: SupatermAgentHookHealth(agent: .claude, health: .healthy)
+        )
+      },
+      run: { endpoint in
+        let result = try cli.run(["agent", "install-hooks", "--socket", endpoint.path])
+
+        #expect(result == SPCLIResult(exitCode: 0, stdout: "", stderr: ""))
       }
-      """,
-      in: cli
     )
-    #expect(try cli.run(["agent", "install-hook", "claude"]).exitCode == 0)
-
-    let remove = try cli.run(["agent", "remove-hook", "claude"])
-
-    #expect(remove == SPCLIResult(exitCode: 0, stdout: "", stderr: ""))
-    let object = try claudeSettingsObject(in: cli)
-    #expect(object["theme"] as? String == "dark")
-    #expect(claudeCommands(in: try #require(object["hooks"] as? [String: Any])) == ["echo keep"])
-  }
-
-  @Test
-  func installHookClaudeFailsWithoutOverwritingInvalidSettings() throws {
-    let cli = try SPCLIHarness()
-    defer { cli.remove() }
-    let invalidJSON = #"{ "hooks":"#
-    try writeClaudeSettings(invalidJSON, in: cli)
-
-    let install = try cli.run(["agent", "install-hook", "claude"])
 
     #expect(
-      install
-        == SPCLIResult(
-          exitCode: 1,
-          stdout: "",
-          stderr: "Claude settings must be valid JSON before Supaterm can install hooks.\n"
-        )
+      log.requests.map(\.method) == [
+        SupatermSocketMethod.appHooksInstall,
+        SupatermSocketMethod.appHooksInstall,
+      ]
     )
-    #expect(try String(contentsOf: cli.claudeSettingsURL, encoding: .utf8) == invalidJSON)
+    #expect(
+      try log.requests.map { try jsonString($0.params) } == [
+        #"{"agent":"claude"}"#,
+        #"{"agent":"codex"}"#,
+      ]
+    )
   }
 
   @Test
-  func removeHookClaudeSucceedsWithoutAnySettingsFile() throws {
+  func installHooksStopsAtTheFirstFailingAgent() async throws {
+    let cli = try SPCLIHarness()
+    defer { cli.remove() }
+    let log = SPSocketRequestLog()
+
+    try await withSocketRuntime(
+      replying: { request, _ in
+        log.record(request)
+        return .error(
+          id: request.id,
+          code: "internal_error",
+          message: "Claude settings must be valid JSON before Supaterm can install hooks."
+        )
+      },
+      run: { endpoint in
+        let result = try cli.run(["agent", "install-hooks", "--socket", endpoint.path])
+
+        #expect(result.exitCode == 64)
+        #expect(result.stdout.isEmpty)
+        #expect(
+          result.stderr.hasPrefix(
+            "Error: Claude settings must be valid JSON before Supaterm can install hooks.\n"
+          )
+        )
+      }
+    )
+
+    #expect(log.requests.count == 1)
+  }
+
+  @Test
+  func hookCommandFailuresReportTheServerMessage() async throws {
     let cli = try SPCLIHarness()
     defer { cli.remove() }
 
-    let remove = try cli.run(["agent", "remove-hook", "claude"])
+    try await withSocketRuntime(
+      replying: { request, _ in
+        .error(
+          id: request.id,
+          code: "internal_error",
+          message: "Codex settings must be valid TOML before Supaterm can install hooks."
+        )
+      },
+      run: { endpoint in
+        for arguments in [
+          ["agent", "install-hook", "codex"],
+          ["agent", "remove-hook", "codex"],
+        ] {
+          let result = try cli.run(arguments + ["--socket", endpoint.path])
 
-    #expect(remove == SPCLIResult(exitCode: 0, stdout: "", stderr: ""))
+          #expect(result.exitCode == 64)
+          #expect(result.stdout.isEmpty)
+          #expect(
+            result.stderr.hasPrefix(
+              "Error: Codex settings must be valid TOML before Supaterm can install hooks.\n"
+            )
+          )
+        }
+      }
+    )
+  }
+
+  @Test(
+    arguments: [
+      ["agent", "install-hooks"],
+      ["agent", "install-hook", "claude"],
+      ["agent", "install-hook", "codex"],
+      ["agent", "remove-hook", "claude"],
+      ["agent", "remove-hook", "codex"],
+    ]
+  )
+  func hookCommandsFailWithoutAReachableInstance(arguments: [String]) throws {
+    let cli = try SPCLIHarness()
+    defer { cli.remove() }
+
+    let result = try cli.run(arguments)
+
+    #expect(result.exitCode == 64)
+    #expect(result.stdout.isEmpty)
+    #expect(
+      result.stderr == """
+        Error: No reachable Supaterm instance was found.
+        Usage: sp <subcommand>
+          See 'sp --help' for more information.
+
+        """
+    )
     #expect(!FileManager.default.fileExists(atPath: cli.claudeSettingsURL.path))
   }
 
@@ -119,28 +188,4 @@ struct SPAgentHookCommandTests {
     #expect(result.stdout.contains("USAGE:"))
     #expect(result.stderr.isEmpty)
   }
-}
-
-private func writeClaudeSettings(_ contents: String, in cli: SPCLIHarness) throws {
-  try FileManager.default.createDirectory(
-    at: cli.claudeSettingsURL.deletingLastPathComponent(),
-    withIntermediateDirectories: true
-  )
-  try Data(contents.utf8).write(to: cli.claudeSettingsURL)
-}
-
-private func claudeSettingsObject(in cli: SPCLIHarness) throws -> [String: Any] {
-  let data = try Data(contentsOf: cli.claudeSettingsURL)
-  return try #require(try JSONSerialization.jsonObject(with: data) as? [String: Any])
-}
-
-private func claudeHooks(in cli: SPCLIHarness) throws -> [String: Any] {
-  try #require(try claudeSettingsObject(in: cli)["hooks"] as? [String: Any])
-}
-
-private func claudeCommands(in hooks: [String: Any]) -> [String] {
-  hooks.keys.sorted()
-    .flatMap { (hooks[$0] as? [[String: Any]]) ?? [] }
-    .flatMap { ($0["hooks"] as? [[String: Any]]) ?? [] }
-    .compactMap { $0["command"] as? String }
 }

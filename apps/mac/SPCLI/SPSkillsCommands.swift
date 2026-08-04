@@ -23,9 +23,16 @@ extension SP {
     @Flag(name: .long, help: "Print command output as JSON.")
     var json = false
 
+    @OptionGroup
+    var connection: SPConnectionOptions
+
     mutating func run() throws {
       let skills = try runSkillsOperation(json: json) {
-        try SupatermSkills(homeDirectoryURL: cliHomeDirectoryURL()).list()
+        try sendSkillsRequest(
+          .skillsList(),
+          connection: connection,
+          as: SupatermSkillListResult.self
+        ).skills
       }
       if json {
         print(try jsonString(SPSkillsSuccess(data: skills)))
@@ -50,9 +57,15 @@ extension SP {
     @Flag(name: .long, help: "Include every bundled file for the skill.")
     var full = false
 
+    @OptionGroup
+    var connection: SPConnectionOptions
+
     mutating func run() throws {
-      let skill = try SupatermSkills(homeDirectoryURL: cliHomeDirectoryURL())
-        .get(name: name, full: full)
+      let skill = try sendSkillsRequest(
+        try .skillsGet(SupatermSkillGetRequest(name: name, full: full)),
+        connection: connection,
+        as: SupatermSkillContent.self
+      )
       let output = renderSkill(skill)
       print(output, terminator: output.hasSuffix("\n") ? "" : "\n")
     }
@@ -68,8 +81,17 @@ extension SP {
     @Argument(help: "Bundled skill name.")
     var name: String
 
+    @OptionGroup
+    var connection: SPConnectionOptions
+
     mutating func run() throws {
-      print(try SupatermSkills(homeDirectoryURL: cliHomeDirectoryURL()).path(name: name))
+      print(
+        try sendSkillsRequest(
+          try .skillsPath(SupatermSkillPathRequest(name: name)),
+          connection: connection,
+          as: SupatermSkillPathResult.self
+        ).path
+      )
     }
   }
 
@@ -83,9 +105,16 @@ extension SP {
     @Flag(name: .long, help: "Print command output as JSON.")
     var json = false
 
+    @OptionGroup
+    var connection: SPConnectionOptions
+
     mutating func run() throws {
       let result = try runSkillsOperation(json: json) {
-        try SupatermSkills(homeDirectoryURL: cliHomeDirectoryURL()).install()
+        try sendSkillsRequest(
+          .skillsInstall(),
+          connection: connection,
+          as: SupatermSkillInstallResult.self
+        )
       }
       if json {
         print(try jsonString(SPSkillsSuccess(data: [result])))
@@ -104,6 +133,35 @@ struct SPSkillsSuccess<Data: Encodable>: Encodable {
 struct SPSkillsFailure: Encodable {
   let error: String
   let success = false
+}
+
+struct SPSkillsError: LocalizedError {
+  let message: String
+
+  var errorDescription: String? {
+    message
+  }
+}
+
+func sendSkillsRequest<Result: Decodable>(
+  _ request: SupatermSocketRequest,
+  connection: SPConnectionOptions,
+  as resultType: Result.Type
+) throws -> Result {
+  let client: SPSocketClient
+  do {
+    client = try socketClient(
+      path: connection.explicitSocketPath,
+      instance: connection.instance
+    )
+  } catch let error as ValidationError {
+    throw SPSkillsError(message: error.message)
+  }
+  let response = try client.send(request)
+  guard response.ok else {
+    throw SPSkillsError(message: response.error?.message ?? "Supaterm socket request failed.")
+  }
+  return try response.decodeResult(resultType)
 }
 
 func runSkillsOperation<Result>(json: Bool, operation: () throws -> Result) throws -> Result {

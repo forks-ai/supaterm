@@ -356,7 +356,7 @@ extension SupatermE2ESuite {
     }
 
     @Test(.timeLimit(.minutes(5)))
-    func bundledSkillsCatalogAndInstallRoundTripThroughEmbeddedBinary() async throws {
+    func bundledSkillsCatalogResolvesThroughTheAppSocket() async throws {
       try await withTestSpace { app, space in
         try await app.waitForShellPrompt(space.pane)
         let runner = spRunner(app, tabID: space.tab.tabID, paneID: space.tab.paneID)
@@ -396,31 +396,6 @@ extension SupatermE2ESuite {
         )
         #expect(missing.stdout.isEmpty)
         #expect(missing.stderr.contains("Skill not found: missing"))
-
-        let install = try requireSuccessfulSPResult(
-          try runner.run(["skills", "install", "--json"], cwd: space.directory)
-        )
-        let installResponse = try decodeSPJSON(
-          SkillsResponse<SupatermSkillInstallResult>.self,
-          from: install
-        )
-        let installResult = try #require(installResponse.data.first)
-        let skillDirectoryURL = SupatermSkills.skillDirectoryURL(homeDirectoryURL: app.cliHome)
-        #expect(installResult.path == skillDirectoryURL.path)
-        #expect(
-          FileManager.default.fileExists(
-            atPath: SupatermSkills.skillDefinitionURL(skillDirectoryURL: skillDirectoryURL).path
-          )
-        )
-        #expect((try? FileManager.default.destinationOfSymbolicLink(atPath: skillDirectoryURL.path)) == nil)
-        #expect(
-          try String(
-            contentsOf: SupatermSkills.skillDefinitionURL(
-              skillDirectoryURL: skillDirectoryURL
-            ),
-            encoding: .utf8
-          ).contains("sp skills get core")
-        )
       }
     }
 
@@ -439,12 +414,6 @@ extension SupatermE2ESuite {
           try runner.run(["internal", "agent-settings", "codex"], cwd: space.directory)
         )
         #expect(try jsonObject(from: codexSettings.stdout)["hooks"] != nil)
-
-        _ = try requireSuccessfulSPResult(
-          try runner.run(["agent", "install-hook", "claude"], cwd: space.directory)
-        )
-        let claudeURL = ClaudeSettingsInstaller.settingsURL(homeDirectoryURL: app.cliHome)
-        #expect(try String(contentsOf: claudeURL, encoding: .utf8).contains("receive-agent-hook --agent claude"))
 
         let event = SupatermAgentHookEvent(
           cwd: space.directory.path,
@@ -469,13 +438,6 @@ extension SupatermE2ESuite {
           )
         )
         #expect(invalidHook.stderr.contains("Agent hook input must be valid hook JSON"))
-
-        _ = try requireSuccessfulSPResult(
-          try runner.run(["agent", "remove-hook", "claude"], cwd: space.directory)
-        )
-        #expect(!fileContents(at: claudeURL).contains("receive-agent-hook --agent claude"))
-
-        #expect(claudeURL.path.hasPrefix(app.cliHome.path))
       }
     }
 

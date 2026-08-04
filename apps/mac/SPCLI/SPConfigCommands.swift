@@ -34,7 +34,7 @@ extension SP {
 
     mutating func run() throws {
       applyOutputStyle(output)
-      let result = SupatermSettingsFileStore().path()
+      let result = SupatermSettingsPathResult(path: SupatermSettings.defaultURL().path)
       try emitCommandResult(
         result,
         options: output,
@@ -54,28 +54,15 @@ extension SP {
     var changed = false
 
     @OptionGroup
-    var connection: SPConnectionOptions
-
-    @OptionGroup
-    var output: SPOutputOptions
+    var options: SPCommandOptions
 
     mutating func run() throws {
-      applyOutputStyle(output)
-      let result: SupatermSettingsListResult
-      if let client = try configSocketClient(connection: connection) {
-        let response = try client.send(.settingsList(.init(changedOnly: changed)))
-        guard response.ok else {
-          throw ValidationError(response.error?.message ?? "Supaterm socket request failed.")
-        }
-        result = try response.decodeResult(SupatermSettingsListResult.self)
-      } else {
-        result = try SupatermSettingsFileStore().list(changedOnly: changed)
-      }
-      try emitCommandResult(
-        result,
-        options: output,
-        plain: renderPlain(result),
-        human: renderHuman(result)
+      try runControlCommand(
+        options: options,
+        request: { _ in try .settingsList(SupatermSettingsListRequest(changedOnly: changed)) },
+        as: SupatermSettingsListResult.self,
+        plain: { renderPlain($0) },
+        human: { renderHuman($0) }
       )
     }
   }
@@ -90,28 +77,15 @@ extension SP {
     var key: String
 
     @OptionGroup
-    var connection: SPConnectionOptions
-
-    @OptionGroup
-    var output: SPOutputOptions
+    var options: SPCommandOptions
 
     mutating func run() throws {
-      applyOutputStyle(output)
-      let result: SupatermSettingsGetResult
-      if let client = try configSocketClient(connection: connection) {
-        let response = try client.send(.settingsGet(.init(key: key)))
-        guard response.ok else {
-          throw ValidationError(response.error?.message ?? "Supaterm socket request failed.")
-        }
-        result = try response.decodeResult(SupatermSettingsGetResult.self)
-      } else {
-        result = try SupatermSettingsFileStore().get(key: key)
-      }
-      try emitCommandResult(
-        result,
-        options: output,
-        plain: "\(result.entry.key)\t\(result.entry.value)",
-        human: "\(result.entry.key) = \(result.entry.value)\(warningSuffix(result.warnings))"
+      try runControlCommand(
+        options: options,
+        request: { _ in try .settingsGet(SupatermSettingsGetRequest(key: key)) },
+        as: SupatermSettingsGetResult.self,
+        plain: { "\($0.entry.key)\t\($0.entry.value)" },
+        human: { "\($0.entry.key) = \($0.entry.value)\(warningSuffix($0.warnings))" }
       )
     }
   }
@@ -129,29 +103,15 @@ extension SP {
     var value: String
 
     @OptionGroup
-    var connection: SPConnectionOptions
-
-    @OptionGroup
-    var output: SPOutputOptions
+    var options: SPCommandOptions
 
     mutating func run() throws {
-      applyOutputStyle(output)
-      let request = SupatermSettingsSetRequest(key: key, value: value)
-      let result: SupatermSettingsMutationResult
-      if let client = try configSocketClient(connection: connection) {
-        let response = try client.send(.settingsSet(request))
-        guard response.ok else {
-          throw ValidationError(response.error?.message ?? "Supaterm socket request failed.")
-        }
-        result = try response.decodeResult(SupatermSettingsMutationResult.self)
-      } else {
-        result = try SupatermSettingsFileStore().set(request)
-      }
-      try emitCommandResult(
-        result,
-        options: output,
-        plain: "\(result.key)\t\(result.oldValue)\t\(result.value)",
-        human: "Updated \(result.key): \(result.oldValue) -> \(result.value)\(warningSuffix(result.warnings))"
+      try runControlCommand(
+        options: options,
+        request: { _ in try .settingsSet(SupatermSettingsSetRequest(key: key, value: value)) },
+        as: SupatermSettingsMutationResult.self,
+        plain: { "\($0.key)\t\($0.oldValue)\t\($0.value)" },
+        human: { "Updated \($0.key): \($0.oldValue) -> \($0.value)\(warningSuffix($0.warnings))" }
       )
     }
   }
@@ -166,29 +126,15 @@ extension SP {
     var key: String
 
     @OptionGroup
-    var connection: SPConnectionOptions
-
-    @OptionGroup
-    var output: SPOutputOptions
+    var options: SPCommandOptions
 
     mutating func run() throws {
-      applyOutputStyle(output)
-      let request = SupatermSettingsResetRequest(key: key)
-      let result: SupatermSettingsMutationResult
-      if let client = try configSocketClient(connection: connection) {
-        let response = try client.send(.settingsReset(request))
-        guard response.ok else {
-          throw ValidationError(response.error?.message ?? "Supaterm socket request failed.")
-        }
-        result = try response.decodeResult(SupatermSettingsMutationResult.self)
-      } else {
-        result = try SupatermSettingsFileStore().reset(request)
-      }
-      try emitCommandResult(
-        result,
-        options: output,
-        plain: "\(result.key)\t\(result.oldValue)\t\(result.value)",
-        human: "Reset \(result.key): \(result.oldValue) -> \(result.value)\(warningSuffix(result.warnings))"
+      try runControlCommand(
+        options: options,
+        request: { _ in try .settingsReset(SupatermSettingsResetRequest(key: key)) },
+        as: SupatermSettingsMutationResult.self,
+        plain: { "\($0.key)\t\($0.oldValue)\t\($0.value)" },
+        human: { "Reset \($0.key): \($0.oldValue) -> \($0.value)\(warningSuffix($0.warnings))" }
       )
     }
   }
@@ -204,22 +150,31 @@ extension SP {
     var path: String?
 
     @OptionGroup
-    var output: SPOutputOptions
+    var options: SPCommandOptions
 
     mutating func run() throws {
-      applyOutputStyle(output)
-      let validator = SupatermSettingsValidator(homeDirectoryURL: cliHomeDirectoryURL())
+      applyOutputStyle(options.output)
       let explicitPath = try resolvedConfigPath(path)
-      let result = validator.validate(path: explicitPath)
+      let client = try socketClient(
+        path: options.connection.explicitSocketPath,
+        instance: options.connection.instance
+      )
+      let response = try client.send(
+        try .settingsValidate(SupatermSettingsValidateRequest(path: explicitPath?.path))
+      )
+      guard response.ok else {
+        throw ValidationError(response.error?.message ?? "Supaterm socket request failed.")
+      }
+      let result = try response.decodeResult(SupatermSettingsValidationResult.self)
 
-      guard !output.quiet else {
+      guard !options.output.quiet else {
         if shouldFail(result: result, explicitPath: explicitPath) {
           throw ExitCode.failure
         }
         return
       }
 
-      switch output.mode {
+      switch options.output.mode {
       case .json:
         print(try jsonString(result))
       case .plain:
@@ -233,19 +188,6 @@ extension SP {
       }
     }
   }
-}
-
-private func configSocketClient(connection: SPConnectionOptions) throws -> SPSocketClient? {
-  if connection.explicitSocketPath == nil,
-    connection.instance == nil,
-    SupatermSocketPath.normalized(ProcessInfo.processInfo.environment[SupatermCLIEnvironment.socketPathKey]) == nil
-  {
-    return nil
-  }
-  return try socketClient(
-    path: connection.explicitSocketPath,
-    instance: connection.instance
-  )
 }
 
 private func shouldFail(

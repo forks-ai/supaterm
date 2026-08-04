@@ -28,20 +28,15 @@ extension SP {
       discussion: SPHelp.installAgentHooksDiscussion
     )
 
-    mutating func run() throws {
-      var failures: [String] = []
-      for agent in supportedHookAgents {
-        do {
-          try installSupatermHooks(for: agent)
-        } catch {
-          failures.append("\(agent.rawValue): \(error.localizedDescription)")
-        }
-      }
+    @OptionGroup
+    var connection: SPConnectionOptions
 
-      guard failures.isEmpty else {
-        FileHandle.standardError.write(Data((failures.joined(separator: "\n") + "\n").utf8))
-        throw ExitCode.failure
-      }
+    mutating func run() throws {
+      try sendAgentHookRequests(
+        agents: [.claude, .codex],
+        connection: connection,
+        request: { try .hooksInstall($0) }
+      )
     }
   }
 
@@ -72,7 +67,7 @@ extension SP {
       )
       let response = try client.send(
         .agentHook(
-          .init(
+          SupatermAgentHookRequest(
             agent: agent,
             context: SupatermCLIContext.current,
             event: event,
@@ -121,13 +116,15 @@ extension SP.InstallAgentHook {
       discussion: SPHelp.installAgentHookClaudeDiscussion
     )
 
+    @OptionGroup
+    var connection: SPConnectionOptions
+
     mutating func run() throws {
-      do {
-        try installSupatermHooks(for: .claude)
-      } catch {
-        FileHandle.standardError.write(Data((error.localizedDescription + "\n").utf8))
-        throw ExitCode.failure
-      }
+      try sendAgentHookRequests(
+        agents: [.claude],
+        connection: connection,
+        request: { try .hooksInstall($0) }
+      )
     }
   }
 
@@ -138,13 +135,15 @@ extension SP.InstallAgentHook {
       discussion: SPHelp.installAgentHookCodexDiscussion
     )
 
+    @OptionGroup
+    var connection: SPConnectionOptions
+
     mutating func run() throws {
-      do {
-        try installSupatermHooks(for: .codex)
-      } catch {
-        FileHandle.standardError.write(Data((error.localizedDescription + "\n").utf8))
-        throw ExitCode.failure
-      }
+      try sendAgentHookRequests(
+        agents: [.codex],
+        connection: connection,
+        request: { try .hooksInstall($0) }
+      )
     }
   }
 }
@@ -157,13 +156,15 @@ extension SP.RemoveAgentHook {
       discussion: SPHelp.removeAgentHookClaudeDiscussion
     )
 
+    @OptionGroup
+    var connection: SPConnectionOptions
+
     mutating func run() throws {
-      do {
-        try ClaudeSettingsInstaller(homeDirectoryURL: cliHomeDirectoryURL()).removeSupatermHooks()
-      } catch {
-        FileHandle.standardError.write(Data((error.localizedDescription + "\n").utf8))
-        throw ExitCode.failure
-      }
+      try sendAgentHookRequests(
+        agents: [.claude],
+        connection: connection,
+        request: { try .hooksRemove($0) }
+      )
     }
   }
 
@@ -174,13 +175,15 @@ extension SP.RemoveAgentHook {
       discussion: SPHelp.removeAgentHookCodexDiscussion
     )
 
+    @OptionGroup
+    var connection: SPConnectionOptions
+
     mutating func run() throws {
-      do {
-        try CodexSettingsInstaller(homeDirectoryURL: cliHomeDirectoryURL()).removeSupatermHooks()
-      } catch {
-        FileHandle.standardError.write(Data((error.localizedDescription + "\n").utf8))
-        throw ExitCode.failure
-      }
+      try sendAgentHookRequests(
+        agents: [.codex],
+        connection: connection,
+        request: { try .hooksRemove($0) }
+      )
     }
   }
 }
@@ -234,16 +237,20 @@ private func agentHookEvent(from data: Data) throws -> SupatermAgentHookEvent {
   }
 }
 
-private let supportedHookAgents: [SupatermAgentKind] = [.claude, .codex]
-
-private func installSupatermHooks(for agent: SupatermAgentKind) throws {
-  switch agent {
-  case .claude:
-    try ClaudeSettingsInstaller(homeDirectoryURL: cliHomeDirectoryURL()).installSupatermHooks()
-  case .codex:
-    try CodexSettingsInstaller(homeDirectoryURL: cliHomeDirectoryURL()).installSupatermHooks()
-  case .pi:
-    throw ValidationError("Pi does not use Supaterm hook settings.")
+private func sendAgentHookRequests(
+  agents: [SupatermAgentKind],
+  connection: SPConnectionOptions,
+  request: (SupatermAgentHookTargetRequest) throws -> SupatermSocketRequest
+) throws {
+  let client = try socketClient(
+    path: connection.explicitSocketPath,
+    instance: connection.instance
+  )
+  for agent in agents {
+    let response = try client.send(try request(SupatermAgentHookTargetRequest(agent: agent)))
+    guard response.ok else {
+      throw ValidationError(response.error?.message ?? "Supaterm socket request failed.")
+    }
   }
 }
 
