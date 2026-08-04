@@ -21,7 +21,9 @@ final class SpaceLifecycleUITests: SupatermUITestCase {
 
     let createdSpaceDot = spaceDot(named: "UI Space")
     if !createdSpaceDot.isHittable {
-      app.typeKey("f", modifierFlags: [.control, .command])
+      let windowMenu = try require(app.menuBars.menuBarItems["Window"])
+      windowMenu.click()
+      try require(app.menuItems["Zoom"]).click()
     }
     let didMakeCreatedSpaceDotHittable = await wait(for: createdSpaceDot) {
       $0.exists && $0.isHittable
