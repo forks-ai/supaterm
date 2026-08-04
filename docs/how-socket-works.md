@@ -9,6 +9,7 @@ This document captures the stable rules of Supaterm's socket IPC. The source rem
 - The app and CLI share one protocol contract for endpoint identity, discovery, requests, and responses.
 - Pane-launched CLI processes are wired back to the owning app through injected environment, so the common path does not require discovery.
 - CLI invocations outside Supaterm can discover managed endpoints, but they never select when resolution is ambiguous.
+- The CLI holds no user state. The app process reads and writes every settings, hook, and skill file.
 
 ## Endpoint Identity
 
@@ -164,15 +165,33 @@ sp pane health 1/2/3
 sp pane wait-ready 1/2/3
 ```
 
-Compatibility and config:
+Compatibility:
 
 ```bash
 sp run -- zsh -lc 'echo hi'
 sp tmux list-panes
+```
+
+Config, hooks, and skills:
+
+```bash
+sp config path
 sp config get updates.channel
 sp config set appearance.mode system
 sp config validate
+sp agent install-hooks
+sp agent install-hook claude
+sp agent remove-hook codex
+sp skills list
+sp skills get core
+sp skills install
 ```
+
+- Every command in that block except `sp config path` needs a reachable app.
+- `sp config path` reads the local state root, so it can differ from the path the app reports when the two run with different `SUPATERM_STATE_HOME` values.
+- Without a reachable app, `sp config` and `sp agent` exit 64 and `sp skills` exits 1. All three print `Error: No reachable Supaterm instance was found.`
+- `sp agent install-hooks` installs Claude and then Codex, and stops at the first failure.
+- `sp agent receive-agent-hook` forwards hook payloads and is unaffected by these rules.
 
 ## Runtime Guarantees
 
@@ -188,10 +207,26 @@ sp config validate
 
 The full method list lives in `SupatermSocketMethod` (`apps/mac/SupatermCLIShared/SupatermSocketProtocol.swift`):
 
-- `app.*` — onboarding, debug, tree, settings
+- `app.*` — onboarding, debug, tree, settings, hooks, skills
 - `system.*` — identity, ping
 - `terminal.agent_hook` — coding agent hook events
 - `terminal.*` — space, tab, and pane control, one method per CLI verb
+
+Settings methods read and write the running app:
+
+- `app.settings.get`, `app.settings.list`, `app.settings.set`, and `app.settings.reset` act on the live settings the app already holds. A write lands in the app and on disk at once.
+- `app.settings.validate` takes an optional absolute `path` and checks that file. Without a path it checks the app's own settings file.
+
+Hook methods own the agent settings files:
+
+- `app.hooks.install` and `app.hooks.remove` take `{"agent":"claude|codex|pi"}` and return that agent and its resulting health.
+- `app.hooks.health` takes nothing and returns health for every supported agent.
+- The app writes `~/.claude/settings.json` and `~/.codex/hooks.json`, and talks to Codex app-server. The CLI never touches those files.
+
+Skill methods serve the app bundle:
+
+- `app.skills.list`, `app.skills.get`, and `app.skills.path` read the skills bundled with the connected app, so their content matches that app's version.
+- `app.skills.install` copies the discovery skill to `~/.agents/skills/supaterm` and returns the path.
 
 Space methods carry the ambient `context` instead of a window index:
 
@@ -207,7 +242,8 @@ Space methods carry the ambient `context` instead of a window index:
 - `apps/mac/supaterm/SocketFeature/` is the app-side socket boundary.
 - `apps/mac/supaterm/SocketFeature/SocketControlFeature.swift` owns request semantics.
 - `apps/mac/supaterm/SocketFeature/SocketControlRuntime.swift` owns socket lifecycle and transport.
-- `apps/mac/SupatermCLIShared/` holds the shared IPC contract.
+- `apps/mac/SupatermCLIShared/` holds the shared IPC contract and nothing else.
+- `apps/mac/supaterm/Support/` is `SupatermSupport`, the app-only home of the settings registry, hook installers, and skills.
 - `apps/mac/SupatermCLIShared/SupatermSocketProtocol.swift` defines methods and the request and response envelope.
 - `apps/mac/SupatermCLIShared/SupatermSocketTerminalPayloads.swift`, `SupatermSocketSnapshots.swift`, and `SupatermSocketNotifications.swift` define the payload types.
 - `apps/mac/SupatermCLIShared/SupatermSocketPath.swift` defines endpoint resolution and discovery.
