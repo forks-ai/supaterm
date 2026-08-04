@@ -21,7 +21,7 @@ final class SpaceLifecycleUITests: SupatermUITestCase {
 
     let createdSpaceDot = spaceDot(named: "UI Space")
     if !createdSpaceDot.isHittable {
-      try require(app.buttons["Enter full screen"]).click()
+      app.typeKey("f", modifierFlags: [.control, .command])
     }
     let didMakeCreatedSpaceDotHittable = await wait(for: createdSpaceDot) {
       $0.exists && $0.isHittable
