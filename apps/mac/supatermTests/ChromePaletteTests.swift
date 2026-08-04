@@ -82,6 +82,26 @@ struct ChromePaletteTests {
     }
   }
 
+  @Test func lightSidebarPrimarySelectionBlendsTheWashIntoWhite() {
+    for tint in ThemeTint.chromatic {
+      let palette = Palette(colorScheme: .light, tint: tint)
+      for wash in [palette.chromeBackgroundStartValue, palette.chromeBackgroundStopValue] {
+        let surface = palette.sidebarTabPrimarySurface(over: wash)
+        let luminance = ColorMath.relativeLuminance(surface)
+        let tone = ColorMath.oklch(from: surface)
+        let washTone = ColorMath.oklch(from: wash)
+        let hueDelta = abs(atan2(sin(tone.hue - washTone.hue), cos(tone.hue - washTone.hue)))
+        #expect(
+          ColorMath.relativeLuminance(wash) < luminance && luminance < ColorMath.relativeLuminance(.white),
+          "surfaceBetweenWashAndWhite-\(tint.rawValue): \(surface) over \(wash)"
+        )
+        #expect(tone.chroma > 0, "surfaceChroma-\(tint.rawValue): \(surface)")
+        #expect(hueDelta < 0.05, "surfaceHue-\(tint.rawValue): \(hueDelta)")
+        expectContrast(.black, surface, minimum: 4.5, token: "selectedTitle-\(tint.rawValue)")
+      }
+    }
+  }
+
   @Test func foregroundFollowsColorScheme() {
     expectSameColor(Palette(colorScheme: .light).primaryText, Color.black.opacity(0.86), "lightPrimaryText")
     expectSameColor(Palette(colorScheme: .dark).primaryText, Color.white.opacity(0.94), "darkPrimaryText")
@@ -428,7 +448,7 @@ struct ChromePaletteTests {
   private func expectSidebarTabRowTokens(_ palette: Palette, isDark: Bool) {
     let row = palette.selectableRow
     let ink = isDark ? Color.white : .black
-    let primarySelection = isDark ? Color.black : Color.white
+    let primarySelection = isDark ? Color.black : Color.white.opacity(0.88)
     expectSameColor(
       row.restFill,
       ink.opacity(0.06),

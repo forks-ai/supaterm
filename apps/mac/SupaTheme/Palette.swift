@@ -40,6 +40,7 @@ public struct Palette {
   private var surfaceSeed: ThemeColor { referencePalette.neutral.light }
   private var selectableRowInkValue: ThemeColor { isDark ? .white : .black }
   private var selectableRowPrimarySelectionValue: ThemeColor { isDark ? .black : .white }
+  private var selectableRowPrimarySelectionOpacity: Double { isDark ? 1 : 0.88 }
 
   public var backgroundIlluminationTopValue: ThemeColor { illumination(Self.lightChromeIllumination.top) }
   public var backgroundIlluminationBodyValue: ThemeColor { illumination(Self.lightChromeIllumination.body) }
@@ -67,7 +68,8 @@ public struct Palette {
       ).color,
       hoverFill: ThemeColor(red: 1, green: 1, blue: 1, alpha: isDark ? 0.16 : 0.55).color,
       pressedFill: ThemeColor(red: 1, green: 1, blue: 1, alpha: isDark ? 0.31 : 0.70).color,
-      primarySelectionFill: selectableRowPrimarySelectionValue.color,
+      primarySelectionFill: selectableRowPrimarySelectionValue.color
+        .opacity(selectableRowPrimarySelectionOpacity),
       secondarySelectionFill: ThemeColor(red: 1, green: 1, blue: 1, alpha: isDark ? 0.25 : 0.70).color,
       selectedTitle: ink.color,
       title: ThemeColor(
@@ -167,7 +169,11 @@ public struct Palette {
   }
 
   public func sidebarTabPrimarySurface(over background: ThemeColor) -> ThemeColor {
-    ColorMath.composited(selectableRowPrimarySelectionValue, opacity: 1, over: background)
+    ColorMath.composited(
+      selectableRowPrimarySelectionValue,
+      opacity: selectableRowPrimarySelectionOpacity,
+      over: background
+    )
   }
 
   public var referenceSwatches: [ThemeSwatch] {
