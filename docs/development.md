@@ -138,11 +138,16 @@ zmx sessions live in the default per-user directory. The instance hash in every 
 separates development sessions from the installed app's, and each app process reaps only its own
 namespace.
 
-For a clean slate, quit the app terminating its sessions, then delete the state home:
+For a clean slate, quit the app with **Quit Supaterm and Close All Sessions** first, then delete
+the state home:
 
 ```bash
 rm -rf apps/mac/.build/run-state/dev
 ```
+
+The order is load-bearing. The state home names the app's zmx sessions; delete it while its
+daemons run and they keep running, orphaned in the shared per-user zmx directory where the next
+`make mac-run` can no longer see them.
 
 `make mac-run` accepts these runtime overrides:
 
@@ -151,9 +156,11 @@ rm -rf apps/mac/.build/run-state/dev
 
 All Makefile app launch targets set `SUPATERM_VERBOSE_LOGGING=1`, so development runs always emit verbose diagnostics.
 
-Reaping walks every state home under `apps/mac/.build/run-state`. A state home whose run still has a live `supaterm` process naming it in `SUPATERM_STATE_HOME` is left alone, so concurrent development runs survive each other. For every other state home, `apps/mac/scripts/reap-run-state.sh` kills each process group whose environment carries that run's `ZMX_DIR` and then deletes the directory. It reads the process table rather than the socket directory, because a daemon whose socket was unlinked keeps running and `zmx ls` no longer reports it.
-
-Reaping only ever touches `apps/mac/.build/run-state`. Your own sessions in the default `/tmp/zmx-<uid>`, the sessions of `/Applications/supaterm.app`, and any run started with `SUPATERM_RUN_STATE_HOME` or `SUPATERM_RUN_ZMX_DIR` pointing outside that root are never reaped.
+`make mac-run-demo` runs the same way under its own `demo` identity and `run-state/demo` state
+home. Demo rewrites its spaces, tabs, panes, `restoreTerminalLayoutEnabled`,
+`codingAgentsShowPanel`, and the acknowledged release version on every launch, so the demo you see
+is always freshly seeded; the state the seed never writes — the remaining settings, launch state,
+and coding-agent state — carries over between demo runs.
 
 Panes inherit Supaterm context from the running app:
 
