@@ -30,7 +30,7 @@ struct SelectableRowButtonStyle: ButtonStyle {
           secondarySelectionFill: palette.selectableRow.secondarySelectionFill,
           pressedFill: palette.selectableRow.pressedFill,
           hoverFill: palette.selectableRow.hoverFill,
-          restFill: palette.selectableRow.restFill,
+          restFill: .clear,
           selectedStroke: AnyShapeStyle(palette.sidebarTabRowSelectedEdge),
           selectedShadow: palette.selectableRow.shadow
         )
