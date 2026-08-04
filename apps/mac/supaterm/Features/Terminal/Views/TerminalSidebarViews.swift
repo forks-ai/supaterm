@@ -64,6 +64,7 @@ struct TerminalSplitView: View {
       if !isSidebarCollapsed {
         SidebarResizeHandle(sidebarWidth: currentSidebarWidth, onInput: onResizeInput)
           .offset(x: TerminalSidebarWidthPolicy.stripOffset(for: currentSidebarWidth))
+          .zIndex(2)
       }
     }
     .coordinateSpace(name: TerminalCoordinateSpace.split)
