@@ -1,20 +1,7 @@
 import XCTest
 
 final class TabSelectionUITests: SupatermUITestCase {
-  private static let paneIdentifierPrefix = "terminal.pane."
   private static let coldStartTimeout: Duration = .seconds(60)
-
-  @MainActor
-  private var terminalPanes: XCUIElementQuery {
-    app.textViews.matching(
-      NSPredicate(format: "identifier BEGINSWITH %@", Self.paneIdentifierPrefix)
-    )
-  }
-
-  @MainActor
-  private var focusedTerminalPanes: XCUIElementQuery {
-    terminalPanes.matching(NSPredicate(format: "hasKeyboardFocus == true"))
-  }
 
   @MainActor
   func testClosingSelectedTabSelectsNextTabThenPreviousWhenLast() async throws {
@@ -60,7 +47,8 @@ final class TabSelectionUITests: SupatermUITestCase {
     let panes = try await requireVisiblePanes(count: 2)
     let paneA = try XCTUnwrap(panes.first { $0.identifier == paneAIdentifier })
     let paneB = try XCTUnwrap(panes.max { $0.frame.midX < $1.frame.midX })
-    let paneBID = String(paneB.identifier.dropFirst(Self.paneIdentifierPrefix.count))
+    let panePrefix = SupatermUITestIdentifier.Accessibility.terminalPanePrefix
+    let paneBID = String(paneB.identifier.dropFirst(panePrefix.count))
 
     try clickMenuItem(.selectSplitLeft)
     try await requireFocus(on: paneA)
@@ -98,34 +86,5 @@ final class TabSelectionUITests: SupatermUITestCase {
       !$0.label.contains("unread-pane-marker")
     }
     XCTAssertTrue(didClearUnread)
-  }
-
-  @MainActor
-  private func requireVisiblePanes(count expectedCount: Int) async throws -> [XCUIElement] {
-    let didReachCount = await wait(for: mainWindow, timeout: .seconds(30)) { _ in
-      guard self.terminalPanes.count == expectedCount else { return false }
-      return (0..<expectedCount).allSatisfy {
-        let pane = self.terminalPanes.element(boundBy: $0)
-        return pane.exists && !pane.frame.isEmpty
-      }
-    }
-    return try XCTUnwrap(
-      didReachCount
-        ? (0..<expectedCount).map { terminalPanes.element(boundBy: $0) }
-        : nil,
-      "Expected \(expectedCount) visible terminal panes"
-    )
-  }
-
-  @MainActor
-  private func requireFocus(on pane: XCUIElement) async throws {
-    let focusedPane = focusedTerminalPane(identifier: pane.identifier)
-    let didFocus = await wait(for: focusedPane) { $0.exists }
-    XCTAssertTrue(didFocus, "Expected pane \(pane.identifier) to have keyboard focus")
-  }
-
-  @MainActor
-  private func focusedTerminalPane(identifier: String) -> XCUIElement {
-    focusedTerminalPanes.matching(identifier: identifier).firstMatch
   }
 }
