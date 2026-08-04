@@ -89,6 +89,42 @@ struct ChromePaletteTests {
     expectSameColor(Palette(colorScheme: .dark).secondaryText, Color.white.opacity(0.58), "darkSecondaryText")
   }
 
+  @Test func neutralSpaceTitleKeepsThePrimaryTextInk() {
+    for colorScheme in [ColorScheme.light, ColorScheme.dark] {
+      let palette = Palette(colorScheme: colorScheme)
+      expectSameThemeColor(palette.spaceTitleValue, palette.primaryTextValue, "spaceTitleValue")
+      expectSameColor(palette.spaceTitle, palette.primaryText, "spaceTitle")
+    }
+  }
+
+  @Test func chromaticSpaceTitleHoldsTheTintHueAtPrimaryTextContrast() {
+    for colorScheme in [ColorScheme.light, ColorScheme.dark] {
+      for tint in ThemeTint.chromatic {
+        let palette = Palette(colorScheme: colorScheme, tint: tint)
+        let background = palette.backgroundTopValue
+        let ink = palette.primaryTextValue
+        let title = ColorMath.oklch(from: palette.spaceTitleValue)
+        let anchor = ColorMath.oklch(from: tint.tone(in: .default).color(for: colorScheme))
+        let hueDelta = abs(atan2(sin(title.hue - anchor.hue), cos(title.hue - anchor.hue)))
+        expectContrast(
+          palette.spaceTitleValue,
+          background,
+          minimum: ColorMath.contrastRatio(
+            ColorMath.composited(ink, opacity: ink.alpha, over: background),
+            background
+          ),
+          token: "spaceTitle-\(colorScheme)-\(tint.rawValue)"
+        )
+        #expect(hueDelta < 0.01, "spaceTitleHue-\(colorScheme)-\(tint.rawValue): \(hueDelta)")
+        #expect(title.chroma > 0.01, "spaceTitleChroma-\(colorScheme)-\(tint.rawValue): \(title.chroma)")
+        #expect(
+          colorScheme == .dark ? title.lightness > anchor.lightness : title.lightness < anchor.lightness,
+          "spaceTitleLightness-\(colorScheme)-\(tint.rawValue): \(title.lightness) vs \(anchor.lightness)"
+        )
+      }
+    }
+  }
+
   @Test func chromaticTintsWashChromeSurfacesOnly() {
     for colorScheme in [ColorScheme.light, ColorScheme.dark] {
       let neutral = Palette(colorScheme: colorScheme)

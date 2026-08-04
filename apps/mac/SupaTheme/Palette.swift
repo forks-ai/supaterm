@@ -93,7 +93,24 @@ public struct Palette {
   public var selectedStrokeDim: Color { Color.white.opacity(isDark ? 0.08 : 0.98) }
   public var selectedShadow: Color { selectableRow.shadow }
   public var sidebarTabRowSelectedEdge: Color { isDark ? .clear : Color.white.opacity(0.98) }
-  public var primaryText: Color { isDark ? Color.white.opacity(0.94) : Color.black.opacity(0.86) }
+  public var primaryTextValue: ThemeColor {
+    isDark
+      ? ThemeColor(red: 1, green: 1, blue: 1, alpha: 0.94)
+      : ThemeColor(red: 0, green: 0, blue: 0, alpha: 0.86)
+  }
+  public var primaryText: Color { primaryTextValue.color }
+  public var spaceTitleValue: ThemeColor {
+    guard tint != .neutral else { return primaryTextValue }
+    return ColorMath.adjustedForContrast(
+      anchor: tint.tone(in: referencePalette).color(for: colorScheme),
+      against: backgroundTopValue,
+      minimumContrast: ColorMath.contrastRatio(
+        ColorMath.composited(primaryTextValue, opacity: primaryTextValue.alpha, over: backgroundTopValue),
+        backgroundTopValue
+      )
+    )
+  }
+  public var spaceTitle: Color { spaceTitleValue.color }
   public var secondaryText: Color { isDark ? Color.white.opacity(0.58) : Color.black.opacity(0.48) }
   public var sidebarGroupNeutralHoverFillValue: ThemeColor {
     isDark
