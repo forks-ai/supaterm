@@ -128,6 +128,12 @@ across runs, so the next `make mac-run` reattaches the previous run's zmx sessio
 the shipped app does. Different checkouts derive different names, so worktrees stay isolated, and
 the launch guard refuses a second concurrent run of the same checkout.
 
+Debug builds carry the same identity inside the bundle: a build phase stamps `LSEnvironment` in
+the product's Info.plist with the checkout's instance name and state home. Launching the built app
+directly — `open`, Finder, an agent — runs it as the checkout's development instance instead of
+`default`, so it can never share sessions with the installed app. Explicit environment variables
+and raw binary launches are unaffected, and release builds carry no stamp.
+
 zmx sessions live in the default per-user directory. The instance hash in every session name
 separates development sessions from the installed app's, and each app process reaps only its own
 namespace.
