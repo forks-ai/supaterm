@@ -490,15 +490,11 @@ let project = Project(
               exit 0
             fi
 
-            plist="${TARGET_BUILD_DIR}/${INFOPLIST_PATH}"
             checkout_hash="$(printf '%s' "${SRCROOT}" | shasum -a 256 | awk '{print substr($1, 1, 12)}')"
-
-            /usr/libexec/PlistBuddy -c "Delete :LSEnvironment" "${plist}" 2>/dev/null || true
-            /usr/libexec/PlistBuddy -c "Add :LSEnvironment dict" "${plist}"
-            /usr/libexec/PlistBuddy \
-              -c "Add :LSEnvironment:SUPATERM_INSTANCE_NAME string dev-${checkout_hash}" "${plist}"
-            /usr/libexec/PlistBuddy \
-              -c "Add :LSEnvironment:SUPATERM_STATE_HOME string ${SRCROOT}/.build/run-state/dev" "${plist}"
+            environment="$(printf \
+              '{"SUPATERM_INSTANCE_NAME": "dev-%s", "SUPATERM_STATE_HOME": "%s/.build/run-state/dev"}' \
+              "${checkout_hash}" "${SRCROOT}")"
+            plutil -replace LSEnvironment -json "${environment}" "${TARGET_BUILD_DIR}/${INFOPLIST_PATH}"
             """,
           name: "Stamp Dev Instance Identity",
           basedOnDependencyAnalysis: false
