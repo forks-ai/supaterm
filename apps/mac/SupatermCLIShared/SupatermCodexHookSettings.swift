@@ -122,12 +122,7 @@ public enum SupatermCodexHookSettings {
 }
 
 public struct CodexHookIdentity: Hashable {
-  public let eventName: String
-  public let handlerType: String
-  public let matcher: String?
-  public let command: String
-  public let timeoutSeconds: Int
-  public let statusMessage: String?
+  private let components: [String?]
 
   public init(
     eventName: String,
@@ -137,12 +132,15 @@ public struct CodexHookIdentity: Hashable {
     timeoutSeconds: Int,
     statusMessage: String?
   ) {
-    self.eventName = eventName
-    self.handlerType = handlerType
-    self.matcher = matcher
-    self.command = command
-    self.timeoutSeconds = timeoutSeconds
-    self.statusMessage = statusMessage
+    components = [eventName, handlerType, matcher, command, String(timeoutSeconds), statusMessage]
+  }
+
+  public static func == (lhs: Self, rhs: Self) -> Bool {
+    lhs.components == rhs.components
+  }
+
+  public func hash(into hasher: inout Hasher) {
+    hasher.combine(components)
   }
 }
 
