@@ -290,9 +290,6 @@ enum WindowChromeConfiguration {
     window.titlebarSeparatorStyle = .none
     window.toolbar = nil
     window.isMovableByWindowBackground = false
-    window.standardWindowButton(.closeButton)?.isHidden = true
-    window.standardWindowButton(.miniaturizeButton)?.isHidden = true
-    window.standardWindowButton(.zoomButton)?.isHidden = true
 
     if let frameView = window.contentView?.superview,
       let titlebarContainer = firstDescendant(

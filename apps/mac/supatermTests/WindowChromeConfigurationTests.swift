@@ -68,7 +68,7 @@ struct WindowChromeConfigurationTests {
   }
 
   @Test
-  func applyHidesNativeTrafficLights() {
+  func applyHidesTheTitlebarAndKeepsSidebarTrafficLights() throws {
     let window = NSWindow(
       contentRect: NSRect(x: 0, y: 0, width: 1_440, height: 900),
       styleMask: [.titled, .closable, .miniaturizable, .resizable],
@@ -79,7 +79,13 @@ struct WindowChromeConfigurationTests {
     window.titleVisibility = .visible
     window.titlebarAppearsTransparent = false
     window.isMovableByWindowBackground = false
+    let titlebarClose = try #require(window.standardWindowButton(.closeButton))
 
+    let view = WindowTrafficLightsView(reduceMotion: true)
+    view.frame = NSRect(x: 0, y: 0, width: 100, height: 80)
+    window.contentView?.addSubview(view)
+
+    WindowChromeConfiguration.apply(to: window)
     WindowChromeConfiguration.apply(to: window)
 
     #expect(window.titleVisibility == .hidden)
@@ -87,9 +93,11 @@ struct WindowChromeConfigurationTests {
     #expect(window.titlebarSeparatorStyle == .none)
     #expect(window.toolbar == nil)
     #expect(window.isMovableByWindowBackground == false)
-    #expect(window.standardWindowButton(.closeButton)?.isHidden == true)
-    #expect(window.standardWindowButton(.miniaturizeButton)?.isHidden == true)
-    #expect(window.standardWindowButton(.zoomButton)?.isHidden == true)
+    #expect(titlebarClose.isHiddenOrHasHiddenAncestor)
+
+    let sidebarButtons = view.subviews.compactMap { $0 as? NSButton }
+    #expect(sidebarButtons.count == 3)
+    #expect(sidebarButtons.allSatisfy { !$0.isHiddenOrHasHiddenAncestor })
   }
 
   @Test
