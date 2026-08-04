@@ -4,185 +4,95 @@ import SupatermCLIShared
 import SupatermSupport
 
 nonisolated enum ZmxTestCleanupError: Error, CustomStringConvertible {
-  case commandFailed(arguments: [String], status: Int32, stderr: String)
-  case commandTimedOut(arguments: [String])
   case processDidNotExit(Int32)
   case processIdentityUnavailable(Int32)
   case processSignalFailed(processID: Int32, signal: Int32, errorCode: Int32)
-  case sessionsRemain([String])
+  case sessionsRemain([Int32])
 
   var description: String {
     switch self {
-    case .commandFailed(let arguments, let status, let stderr):
-      return "zmx \(arguments.joined(separator: " ")) failed with status \(status): \(stderr)"
-    case .commandTimedOut(let arguments):
-      return "zmx \(arguments.joined(separator: " ")) timed out"
     case .processDidNotExit(let processID):
       return "process \(processID) did not exit"
     case .processIdentityUnavailable(let processID):
       return "process \(processID) identity is unavailable"
     case .processSignalFailed(let processID, let signal, let errorCode):
       return "signal \(signal) failed for process \(processID) with error \(errorCode)"
-    case .sessionsRemain(let sessionIDs):
-      return "zmx sessions remain: \(sessionIDs.joined(separator: ", "))"
+    case .sessionsRemain(let processIDs):
+      return "zmx sessions remain: \(processIDs.map(String.init).joined(separator: ", "))"
     }
   }
 }
 
 nonisolated struct ZmxTestSessionCleaner: Sendable {
-  typealias Run = @Sendable (_ arguments: [String], _ environment: [String: String]) throws -> String
+  typealias ListSessions = @Sendable () -> [Int32]
+  typealias TerminateSession = @Sendable (_ processID: Int32) throws -> Void
 
-  private let instancePrefix: String
-  private let directory: String
-  private let terminatesProcesses: Bool
-  private let run: Run
+  private let listSessions: ListSessions
+  private let terminateSession: TerminateSession
 
-  init(executableURL: URL, instanceName: String, directory: String) {
-    instancePrefix = ZmxSessionID.namespacePrefix(
-      environment: [SupatermCLIEnvironment.instanceNameKey: instanceName]
+  init(directory: String) {
+    self.init(
+      listSessions: { ZmxTestProcessTable.sessionProcessIDs(directory: directory) },
+      terminateSession: ZmxTestWorkspace.terminateProcessGroup(processID:)
     )
-    self.directory = directory
-    terminatesProcesses = true
-    run = { arguments, environment in
-      try Self.run(executableURL: executableURL, arguments: arguments, environment: environment)
-    }
   }
 
-  init(instanceName: String, directory: String, run: @escaping Run) {
-    instancePrefix = ZmxSessionID.namespacePrefix(
-      environment: [SupatermCLIEnvironment.instanceNameKey: instanceName]
-    )
-    self.directory = directory
-    terminatesProcesses = false
-    self.run = run
+  init(listSessions: @escaping ListSessions, terminateSession: @escaping TerminateSession) {
+    self.listSessions = listSessions
+    self.terminateSession = terminateSession
   }
 
   func cleanup() throws {
-    if FileManager.default.fileExists(atPath: directory) {
-      let sessionIDs = try listSessions()
-      if !sessionIDs.isEmpty {
-        if terminatesProcesses {
-          for processID in try sessionChildProcessIDs() {
-            try ZmxTestWorkspace.terminateProcessGroup(processID: processID)
-          }
-        } else {
-          _ = try run(["kill"] + sessionIDs, environment)
-        }
-      }
+    for processID in listSessions() {
+      try terminateSession(processID)
     }
 
-    guard FileManager.default.fileExists(atPath: directory) else { return }
-    let remainingSessionIDs = try listSessions()
-    guard remainingSessionIDs.isEmpty else {
-      throw ZmxTestCleanupError.sessionsRemain(remainingSessionIDs)
+    let remaining = listSessions()
+    guard remaining.isEmpty else {
+      throw ZmxTestCleanupError.sessionsRemain(remaining)
     }
   }
+}
 
-  private var environment: [String: String] {
-    Self.environment(directory: directory)
-  }
-
-  static func environment(directory: String) -> [String: String] {
-    var environment = ProcessInfo.processInfo.environment
-    environment[ZmxEnvironment.directoryKey] = directory
-    environment[ZmxEnvironment.sessionKey] = ""
-    environment[ZmxEnvironment.sessionPrefixKey] = ""
-    return environment
-  }
-
-  private func listSessions() throws -> [String] {
-    try run(["ls", "--short"], environment)
-      .split(whereSeparator: \.isNewline)
-      .map { $0.trimmingCharacters(in: .whitespaces) }
-      .filter { $0.hasPrefix(instancePrefix) }
-  }
-
-  private func sessionChildProcessIDs() throws -> [Int32] {
-    Self.sessionChildProcessIDs(
-      try run(["ls"], environment),
-      instancePrefix: instancePrefix
-    )
-  }
-
-  static func sessionChildProcessIDs(_ output: String, instancePrefix: String) -> [Int32] {
-    output.split(whereSeparator: \.isNewline).compactMap { line in
-      let fields = line.split(separator: "\t")
-      guard
-        let nameField = fields.first?.trimmingCharacters(in: .whitespaces),
-        nameField.hasPrefix("name=\(instancePrefix)"),
-        let pidField = fields.first(where: { $0.hasPrefix("pid=") }),
-        let processID = Int32(pidField.dropFirst("pid=".count))
-      else {
-        return nil
-      }
-      return processID
+/// A zmx daemon outlives both its socket and the app that spawned it, so the
+/// process table is the only authority on which sessions a test still owns.
+nonisolated enum ZmxTestProcessTable {
+  static func sessionProcessIDs(directory: String) -> [Int32] {
+    let entry = "\(ZmxEnvironment.directoryKey)=\(directory)"
+    let ownProcessGroupID = getpgrp()
+    return processIDs().filter { processID in
+      processID != ownProcessGroupID
+        && getpgid(processID) == processID
+        && arguments(processID: processID).contains(entry)
     }
   }
 
-  static func run(
-    executableURL: URL,
-    arguments: [String],
-    environment: [String: String],
-    timeout: TimeInterval = 10
-  ) throws -> String {
-    let fileManager = FileManager.default
-    let outputDirectory = fileManager.temporaryDirectory.appendingPathComponent(
-      "supaterm-zmx-output-\(UUID().uuidString)",
-      isDirectory: true
-    )
-    try fileManager.createDirectory(at: outputDirectory, withIntermediateDirectories: false)
-    defer { try? fileManager.removeItem(at: outputDirectory) }
-
-    let stdoutURL = outputDirectory.appendingPathComponent("stdout")
-    let stderrURL = outputDirectory.appendingPathComponent("stderr")
-    try Data().write(to: stdoutURL)
-    try Data().write(to: stderrURL)
-    let stdout = try FileHandle(forWritingTo: stdoutURL)
-    let stderr = try FileHandle(forWritingTo: stderrURL)
-    defer {
-      try? stdout.close()
-      try? stderr.close()
+  private static func processIDs() -> [Int32] {
+    let stride = Int32(MemoryLayout<pid_t>.stride)
+    let byteCount = proc_listpids(UInt32(PROC_ALL_PIDS), 0, nil, 0)
+    guard byteCount > 0 else { return [] }
+    var processIDs = [pid_t](repeating: 0, count: Int(byteCount / stride))
+    let writtenByteCount = processIDs.withUnsafeMutableBufferPointer { buffer in
+      proc_listpids(UInt32(PROC_ALL_PIDS), 0, buffer.baseAddress, Int32(buffer.count) * stride)
     }
-
-    let process = Process()
-    process.executableURL = executableURL
-    process.arguments = arguments
-    process.environment = environment
-    process.standardOutput = stdout
-    process.standardError = stderr
-    try process.run()
-    guard Self.waitForExit(process, timeout: timeout) else {
-      process.terminate()
-      if Self.waitForExit(process, timeout: 0.5) == false {
-        kill(process.processIdentifier, SIGKILL)
-        _ = Self.waitForExit(process, timeout: 0.5)
-      }
-      throw ZmxTestCleanupError.commandTimedOut(arguments: arguments)
-    }
-
-    try stdout.close()
-    try stderr.close()
-
-    let outputData = try Data(contentsOf: stdoutURL)
-    let output = String(bytes: outputData, encoding: .utf8) ?? ""
-    guard process.terminationStatus == 0 else {
-      let errorData = try Data(contentsOf: stderrURL)
-      let error = String(bytes: errorData, encoding: .utf8) ?? ""
-      throw ZmxTestCleanupError.commandFailed(
-        arguments: arguments,
-        status: process.terminationStatus,
-        stderr: error.trimmingCharacters(in: .whitespacesAndNewlines)
-      )
-    }
-    return output
+    guard writtenByteCount > 0 else { return [] }
+    return processIDs.prefix(Int(writtenByteCount / stride)).filter { $0 > 0 }
   }
 
-  private static func waitForExit(_ process: Process, timeout: TimeInterval) -> Bool {
-    let deadline = Date().addingTimeInterval(timeout)
-    while process.isRunning, Date() < deadline {
-      Thread.sleep(forTimeInterval: 0.01)
+  /// KERN_PROCARGS2 holds argc, the executable path, the arguments, and the
+  /// environment as NUL-separated strings after a four-byte argc header.
+  private static func arguments(processID: Int32) -> [String] {
+    var name: [Int32] = [CTL_KERN, KERN_PROCARGS2, processID]
+    var byteCount = 0
+    guard sysctl(&name, 3, nil, &byteCount, nil, 0) == 0, byteCount > MemoryLayout<Int32>.size else {
+      return []
     }
-    return !process.isRunning
+    var buffer = [UInt8](repeating: 0, count: byteCount)
+    guard sysctl(&name, 3, &buffer, &byteCount, nil, 0) == 0 else { return [] }
+    return buffer.prefix(byteCount)
+      .dropFirst(MemoryLayout<Int32>.size)
+      .split(separator: 0)
+      .compactMap { String(bytes: $0, encoding: .utf8) }
   }
 }
 
@@ -205,14 +115,10 @@ nonisolated struct ZmxTestWorkspace: Sendable {
   private let cleaner: ZmxTestSessionCleaner
   let zmxDirectory: URL
 
-  init(stateHome: URL, instanceName: String, zmxExecutableURL: URL) throws {
+  init(stateHome: URL, instanceName: String) throws {
     self.stateHome = stateHome
     zmxDirectory = Self.zmxDirectory(instanceName: instanceName)
-    cleaner = ZmxTestSessionCleaner(
-      executableURL: zmxExecutableURL,
-      instanceName: instanceName,
-      directory: zmxDirectory.path
-    )
+    cleaner = ZmxTestSessionCleaner(directory: zmxDirectory.path)
     let runnerProcess = try Self.requiredProcessIdentity(processID: getpid())
     try FileManager.default.createDirectory(at: stateHome, withIntermediateDirectories: true)
     try writeOwner(Owner(runnerProcess: runnerProcess, appProcess: nil))
@@ -223,6 +129,8 @@ nonisolated struct ZmxTestWorkspace: Sendable {
     try writeOwner(Owner(runnerProcess: readOwner().runnerProcess, appProcess: appProcess))
   }
 
+  /// Removes the directories only once no session survives, so an unreapable
+  /// session keeps the owner file a later run needs to find it.
   func cleanup() throws {
     if let appProcess = try readOwner().appProcess {
       try Self.terminateProcess(appProcess)
@@ -247,8 +155,7 @@ nonisolated struct ZmxTestWorkspace: Sendable {
   static func reapAbandoned(
     in temporaryDirectory: URL,
     stateHomePrefix: String,
-    instanceNamePrefix: String,
-    zmxExecutableURL: URL
+    instanceNamePrefix: String
   ) throws {
     try reapAbandoned(
       in: temporaryDirectory,
@@ -256,11 +163,7 @@ nonisolated struct ZmxTestWorkspace: Sendable {
       instanceNamePrefix: instanceNamePrefix,
       cleanupInstance: { instanceName in
         let directory = zmxDirectory(instanceName: instanceName)
-        try ZmxTestSessionCleaner(
-          executableURL: zmxExecutableURL,
-          instanceName: instanceName,
-          directory: directory.path
-        ).cleanup()
+        try ZmxTestSessionCleaner(directory: directory.path).cleanup()
         try removeIfPresent(directory)
       }
     )
@@ -354,7 +257,7 @@ nonisolated struct ZmxTestWorkspace: Sendable {
     )
   }
 
-  private static func zmxDirectory(instanceName: String) -> URL {
+  static func zmxDirectory(instanceName: String) -> URL {
     let instanceHash = ZmxSessionID.instanceHash(
       environment: [SupatermCLIEnvironment.instanceNameKey: instanceName]
     )
@@ -380,20 +283,12 @@ nonisolated struct ZmxTestWorkspace: Sendable {
   }
 
   static func terminateProcessGroup(processID: Int32) throws {
-    let serverProcess = parentProcessIdentity(processID: processID)
+    guard let process = processIdentity(processID: processID) else { return }
     try send(SIGHUP, toProcessGroup: processID)
-    if let serverProcess {
-      if waitForExit(serverProcess, timeout: 0.5) { return }
-    } else {
-      Thread.sleep(forTimeInterval: 0.5)
-    }
+    if waitForExit(process, timeout: 0.5) { return }
     try send(SIGKILL, toProcessGroup: processID)
-    if let serverProcess {
-      guard waitForExit(serverProcess, timeout: 2) else {
-        throw ZmxTestCleanupError.processDidNotExit(serverProcess.processID)
-      }
-    } else {
-      Thread.sleep(forTimeInterval: 0.1)
+    guard waitForExit(process, timeout: 2) else {
+      throw ZmxTestCleanupError.processDidNotExit(processID)
     }
   }
 
@@ -427,15 +322,6 @@ nonisolated struct ZmxTestWorkspace: Sendable {
       startTimeSeconds: info.pbi_start_tvsec,
       startTimeMicroseconds: info.pbi_start_tvusec
     )
-  }
-
-  static func parentProcessIdentity(processID: Int32) -> ProcessIdentity? {
-    var info = proc_bsdinfo()
-    let size = MemoryLayout<proc_bsdinfo>.size
-    guard proc_pidinfo(processID, PROC_PIDTBSDINFO, 0, &info, Int32(size)) == Int32(size) else {
-      return nil
-    }
-    return processIdentity(processID: Int32(info.pbi_ppid))
   }
 
   private static func send(_ signal: Int32, to processID: Int32) throws {

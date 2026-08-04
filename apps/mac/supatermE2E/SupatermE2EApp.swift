@@ -46,8 +46,7 @@ final class SupatermE2EApp: @unchecked Sendable {
     try ZmxTestWorkspace.reapAbandoned(
       in: temporaryDirectory,
       stateHomePrefix: "supaterm-e2e-",
-      instanceNamePrefix: "e2e-",
-      zmxExecutableURL: Self.zmxExecutableURL
+      instanceNamePrefix: "e2e-"
     )
 
     let instanceName = "e2e-\(UUID().uuidString.prefix(8).lowercased())"
@@ -55,11 +54,7 @@ final class SupatermE2EApp: @unchecked Sendable {
     stateHome =
       temporaryDirectory
       .appendingPathComponent("supaterm-\(instanceName)", isDirectory: true)
-    workspace = try ZmxTestWorkspace(
-      stateHome: stateHome,
-      instanceName: instanceName,
-      zmxExecutableURL: Self.zmxExecutableURL
-    )
+    workspace = try ZmxTestWorkspace(stateHome: stateHome, instanceName: instanceName)
     cliHome = stateHome.appendingPathComponent("home", isDirectory: true)
     let runtimeHome = URL(fileURLWithPath: "/tmp/\(instanceName)", isDirectory: true)
     logURL = stateHome.appendingPathComponent("app.log", isDirectory: false)
@@ -92,10 +87,6 @@ final class SupatermE2EApp: @unchecked Sendable {
   private static var productsDirectory: URL {
     final class BundleToken {}
     return Bundle(for: BundleToken.self).bundleURL.deletingLastPathComponent()
-  }
-
-  private static var zmxExecutableURL: URL {
-    productsDirectory.appendingPathComponent("supaterm.app/Contents/Helpers/zmx")
   }
 
   var spExecutable: URL {

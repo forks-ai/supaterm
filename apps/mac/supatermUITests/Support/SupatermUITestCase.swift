@@ -14,20 +14,6 @@ class SupatermUITestCase: XCTestCase {
 
   private(set) var app: XCUIApplication!
 
-  private static var productsDirectory: URL {
-    var runnerURL = Bundle(for: SupatermUITestCase.self).bundleURL
-    while runnerURL.pathExtension != "app" {
-      let parent = runnerURL.deletingLastPathComponent()
-      precondition(parent != runnerURL, "UI test bundle is not inside a runner app")
-      runnerURL = parent
-    }
-    return runnerURL.deletingLastPathComponent()
-  }
-
-  private static var zmxExecutableURL: URL {
-    productsDirectory.appendingPathComponent("supaterm.app/Contents/Helpers/zmx")
-  }
-
   @MainActor
   var stateHome: URL {
     guard let path = app.launchEnvironment["SUPATERM_STATE_HOME"] else {
@@ -49,8 +35,7 @@ class SupatermUITestCase: XCTestCase {
     try ZmxTestWorkspace.reapAbandoned(
       in: temporaryDirectory,
       stateHomePrefix: "supaterm-ui-",
-      instanceNamePrefix: "ui-",
-      zmxExecutableURL: Self.zmxExecutableURL
+      instanceNamePrefix: "ui-"
     )
 
     let token = UUID().uuidString
@@ -58,11 +43,7 @@ class SupatermUITestCase: XCTestCase {
     let stateHome =
       temporaryDirectory
       .appendingPathComponent("supaterm-ui-\(token)", isDirectory: true)
-    let workspace = try ZmxTestWorkspace(
-      stateHome: stateHome,
-      instanceName: instanceName,
-      zmxExecutableURL: Self.zmxExecutableURL
-    )
+    let workspace = try ZmxTestWorkspace(stateHome: stateHome, instanceName: instanceName)
     try FileManager.default.createDirectory(
       at: workspace.zmxDirectory,
       withIntermediateDirectories: true

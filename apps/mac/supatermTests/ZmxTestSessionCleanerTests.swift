@@ -6,61 +6,25 @@ import Testing
 
 struct ZmxTestSessionCleanerTests {
   @Test
-  func cleanupKillsOnlySessionsForItsInstance() throws {
-    let instanceName = "ui-cleanup"
-    let directory = FileManager.default.temporaryDirectory.path
-    let instancePrefix = ZmxSessionID.namespacePrefix(
-      environment: [SupatermCLIEnvironment.instanceNameKey: instanceName]
+  func cleanupTerminatesEverySession() throws {
+    let sessions = Mutex([Int32(123), Int32(456)])
+    let terminated = Mutex([Int32]())
+    let cleaner = ZmxTestSessionCleaner(
+      listSessions: { sessions.withLock { $0 } },
+      terminateSession: { processID in
+        terminated.withLock { $0.append(processID) }
+        sessions.withLock { $0.removeAll { $0 == processID } }
+      }
     )
-    let ownSessionIDs = ["\(instancePrefix)first", "\(instancePrefix)second"]
-    let otherSessionID = "spt-other-third"
-    let calls = Mutex([[String]]())
-    let cleaner = ZmxTestSessionCleaner(instanceName: instanceName, directory: directory) {
-      arguments, environment in
-      let callCount = calls.withLock { calls in
-        calls.append(arguments)
-        return calls.count
-      }
-      #expect(environment[ZmxEnvironment.directoryKey] == directory)
-      #expect(environment[ZmxEnvironment.sessionKey]?.isEmpty == true)
-      #expect(environment[ZmxEnvironment.sessionPrefixKey]?.isEmpty == true)
-      if arguments == ["ls", "--short"], callCount == 1 {
-        return (ownSessionIDs + [otherSessionID]).joined(separator: "\n")
-      }
-      if arguments == ["kill"] + ownSessionIDs {
-        return ""
-      }
-      if arguments == ["ls", "--short"] {
-        return otherSessionID
-      }
-      Issue.record("Unexpected arguments: \(arguments)")
-      return ""
-    }
 
     try cleaner.cleanup()
 
-    #expect(
-      calls.withLock { $0 } == [
-        ["ls", "--short"],
-        ["kill"] + ownSessionIDs,
-        ["ls", "--short"],
-      ]
-    )
+    #expect(terminated.withLock { $0 } == [123, 456])
   }
 
   @Test
-  func cleanupFailsWhenItsSessionsRemain() {
-    let instanceName = "ui-stuck"
-    let instancePrefix = ZmxSessionID.namespacePrefix(
-      environment: [SupatermCLIEnvironment.instanceNameKey: instanceName]
-    )
-    let sessionID = "\(instancePrefix)session"
-    let cleaner = ZmxTestSessionCleaner(
-      instanceName: instanceName,
-      directory: FileManager.default.temporaryDirectory.path
-    ) { arguments, _ in
-      arguments.first == "ls" ? sessionID : ""
-    }
+  func cleanupFailsWhenSessionsRemain() {
+    let cleaner = ZmxTestSessionCleaner(listSessions: { [789] }, terminateSession: { _ in })
 
     #expect(throws: ZmxTestCleanupError.self) {
       try cleaner.cleanup()
@@ -68,35 +32,65 @@ struct ZmxTestSessionCleanerTests {
   }
 
   @Test
-  func cleanupSkipsMissingDirectory() throws {
-    let calls = Mutex([[String]]())
-    let directory = FileManager.default.temporaryDirectory
-      .appendingPathComponent(UUID().uuidString, isDirectory: true)
-    let cleaner = ZmxTestSessionCleaner(
-      instanceName: "ui-missing",
-      directory: directory.path
-    ) { arguments, _ in
-      calls.withLock { $0.append(arguments) }
-      return ""
+  func sessionProcessIDsIgnoreOtherDirectories() throws {
+    let directory = try makeZmxDirectory()
+    let otherDirectory = try makeZmxDirectory()
+    defer {
+      try? ZmxTestSessionCleaner(directory: directory.path).cleanup()
+      try? FileManager.default.removeItem(at: directory)
+      try? FileManager.default.removeItem(at: otherDirectory)
     }
 
-    try cleaner.cleanup()
+    try runZmxSession(in: directory)
 
-    #expect(calls.withLock { $0 }.isEmpty)
+    #expect(!ZmxTestProcessTable.sessionProcessIDs(directory: directory.path).isEmpty)
+    #expect(ZmxTestProcessTable.sessionProcessIDs(directory: otherDirectory.path).isEmpty)
+  }
+
+  /// A busy daemon makes `zmx kill` unlink the socket without exiting, so the
+  /// socket directory can disappear while the session is still running.
+  @Test
+  func cleanupReapsSessionAfterItsDirectoryIsGone() throws {
+    let directory = try makeZmxDirectory()
+    try runZmxSession(in: directory)
+    let processID = try #require(ZmxTestProcessTable.sessionProcessIDs(directory: directory.path).first)
+    let session = try #require(ZmxTestWorkspace.processIdentity(processID: processID))
+    try FileManager.default.removeItem(at: directory)
+
+    try ZmxTestSessionCleaner(directory: directory.path).cleanup()
+
+    #expect(!ZmxTestWorkspace.processMatches(session))
   }
 
   @Test
-  func sessionChildProcessIDsFilterByNamespace() {
-    let output = """
-        name=spt-instance-first\tpid=123\tclients=0
-        name=spt-other-second\tpid=456\tclients=0
-        name=spt-instance-third\terr=Timeout\tstatus=unreachable
-      """
+  func workspaceCleanupKillsSessionsAndRemovesState() throws {
+    let temporaryDirectory = FileManager.default.temporaryDirectory
+      .appendingPathComponent(UUID().uuidString, isDirectory: true)
+    try FileManager.default.createDirectory(at: temporaryDirectory, withIntermediateDirectories: true)
+    defer { try? FileManager.default.removeItem(at: temporaryDirectory) }
 
-    #expect(
-      ZmxTestSessionCleaner.sessionChildProcessIDs(output, instancePrefix: "spt-instance-")
-        == [123]
+    let instanceName = "unit-live-\(UUID().uuidString)"
+    let stateHome = temporaryDirectory.appendingPathComponent("direct", isDirectory: true)
+    let workspace = try ZmxTestWorkspace(stateHome: stateHome, instanceName: instanceName)
+    defer {
+      try? ZmxTestSessionCleaner(directory: workspace.zmxDirectory.path).cleanup()
+      try? FileManager.default.removeItem(at: workspace.zmxDirectory)
+    }
+    try FileManager.default.createDirectory(
+      at: workspace.zmxDirectory,
+      withIntermediateDirectories: true
     )
+    try runZmxSession(in: workspace.zmxDirectory)
+    let processID = try #require(
+      ZmxTestProcessTable.sessionProcessIDs(directory: workspace.zmxDirectory.path).first
+    )
+    let session = try #require(ZmxTestWorkspace.processIdentity(processID: processID))
+
+    try workspace.cleanup()
+
+    #expect(!ZmxTestWorkspace.processMatches(session))
+    #expect(!FileManager.default.fileExists(atPath: stateHome.path))
+    #expect(!FileManager.default.fileExists(atPath: workspace.zmxDirectory.path))
   }
 
   @Test
@@ -108,11 +102,7 @@ struct ZmxTestSessionCleanerTests {
     try FileManager.default.createDirectory(at: deadStateHome, withIntermediateDirectories: true)
     defer { try? FileManager.default.removeItem(at: temporaryDirectory) }
     try writeOwner(ZmxTestWorkspace.Owner(runnerProcess: deadProcess, appProcess: nil), to: deadStateHome)
-    _ = try ZmxTestWorkspace(
-      stateHome: liveStateHome,
-      instanceName: "ui-live",
-      zmxExecutableURL: URL(fileURLWithPath: "/usr/bin/true")
-    )
+    _ = try ZmxTestWorkspace(stateHome: liveStateHome, instanceName: "ui-live")
     let cleanedInstances = Mutex([String]())
 
     try ZmxTestWorkspace.reapAbandoned(
@@ -139,11 +129,7 @@ struct ZmxTestSessionCleanerTests {
 
     let process = try launchSleepProcess()
     defer { stop(process) }
-    let workspace = try ZmxTestWorkspace(
-      stateHome: stateHome,
-      instanceName: "ui-dead",
-      zmxExecutableURL: URL(fileURLWithPath: "/usr/bin/true")
-    )
+    let workspace = try ZmxTestWorkspace(stateHome: stateHome, instanceName: "ui-dead")
     try workspace.recordApp(process)
     let owner = try readOwner(from: stateHome)
     try writeOwner(
@@ -276,101 +262,6 @@ struct ZmxTestSessionCleanerTests {
     #expect(FileManager.default.fileExists(atPath: claimedStateHome.path))
   }
 
-  @Test
-  func runHandlesOutputLargerThanPipeBuffers() throws {
-    let output = try ZmxTestSessionCleaner.run(
-      executableURL: URL(fileURLWithPath: "/bin/sh"),
-      arguments: ["-c", "yes output | head -c 131072; yes error | head -c 131072 >&2"],
-      environment: ProcessInfo.processInfo.environment
-    )
-
-    #expect(output.utf8.count == 131_072)
-  }
-
-  @Test
-  func runTimesOut() {
-    #expect(throws: ZmxTestCleanupError.self) {
-      try ZmxTestSessionCleaner.run(
-        executableURL: URL(fileURLWithPath: "/bin/sleep"),
-        arguments: ["10"],
-        environment: ProcessInfo.processInfo.environment,
-        timeout: 0.01
-      )
-    }
-  }
-
-  @Test
-  func workspaceCleanupKillsBundledZmxSessionAndRemovesState() throws {
-    let temporaryDirectory = FileManager.default.temporaryDirectory
-      .appendingPathComponent(UUID().uuidString, isDirectory: true)
-    try FileManager.default.createDirectory(at: temporaryDirectory, withIntermediateDirectories: true)
-    defer { try? FileManager.default.removeItem(at: temporaryDirectory) }
-
-    let instanceName = "unit-live-\(UUID().uuidString)"
-    let sessionID = ZmxSessionID.make(
-      surfaceID: UUID(),
-      environment: [SupatermCLIEnvironment.instanceNameKey: instanceName]
-    )
-    let stateHome = temporaryDirectory.appendingPathComponent("direct", isDirectory: true)
-    let workspace = try ZmxTestWorkspace(
-      stateHome: stateHome,
-      instanceName: instanceName,
-      zmxExecutableURL: zmxExecutableURL
-    )
-    let cleaner = ZmxTestSessionCleaner(
-      executableURL: zmxExecutableURL,
-      instanceName: instanceName,
-      directory: workspace.zmxDirectory.path
-    )
-    defer { try? cleaner.cleanup() }
-    _ = try ZmxTestSessionCleaner.run(
-      executableURL: zmxExecutableURL,
-      arguments: ["run", sessionID, "-d", "/bin/sleep", "60"],
-      environment: ZmxTestSessionCleaner.environment(directory: workspace.zmxDirectory.path)
-    )
-    let sessions = try ZmxTestSessionCleaner.run(
-      executableURL: zmxExecutableURL,
-      arguments: ["ls", "--short"],
-      environment: ZmxTestSessionCleaner.environment(directory: workspace.zmxDirectory.path)
-    )
-    #expect(sessions.split(whereSeparator: \.isNewline).contains(Substring(sessionID)))
-    let processID = try #require(
-      ZmxTestSessionCleaner.sessionChildProcessIDs(
-        try ZmxTestSessionCleaner.run(
-          executableURL: zmxExecutableURL,
-          arguments: ["ls"],
-          environment: ZmxTestSessionCleaner.environment(directory: workspace.zmxDirectory.path)
-        ),
-        instancePrefix: ZmxSessionID.namespacePrefix(
-          environment: [SupatermCLIEnvironment.instanceNameKey: instanceName]
-        )
-      ).first
-    )
-    let process = try #require(ZmxTestWorkspace.parentProcessIdentity(processID: processID))
-
-    try workspace.cleanup()
-    #expect(!FileManager.default.fileExists(atPath: stateHome.path))
-    #expect(!FileManager.default.fileExists(atPath: workspace.zmxDirectory.path))
-    #expect(!ZmxTestWorkspace.processMatches(process))
-
-    let abandonedStateHome = temporaryDirectory.appendingPathComponent(
-      "supaterm-ui-abandoned",
-      isDirectory: true
-    )
-    try FileManager.default.createDirectory(at: abandonedStateHome, withIntermediateDirectories: true)
-    try writeOwner(
-      ZmxTestWorkspace.Owner(runnerProcess: deadProcess, appProcess: nil),
-      to: abandonedStateHome
-    )
-    try ZmxTestWorkspace.reapAbandoned(
-      in: temporaryDirectory,
-      stateHomePrefix: "supaterm-ui-",
-      instanceNamePrefix: "ui-",
-      zmxExecutableURL: zmxExecutableURL
-    )
-    #expect(!FileManager.default.fileExists(atPath: abandonedStateHome.path))
-  }
-
   private var zmxExecutableURL: URL {
     Bundle(for: ZmxTestBundleToken.self).bundleURL
       .deletingLastPathComponent()
@@ -383,6 +274,33 @@ struct ZmxTestSessionCleanerTests {
       startTimeSeconds: .max,
       startTimeMicroseconds: .max
     )
+  }
+
+  private func makeZmxDirectory() throws -> URL {
+    let directory = ZmxTestWorkspace.zmxDirectory(instanceName: "unit-\(UUID().uuidString)")
+    try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+    return directory
+  }
+
+  private func runZmxSession(in directory: URL) throws {
+    var environment = ProcessInfo.processInfo.environment
+    environment[ZmxEnvironment.directoryKey] = directory.path
+    environment[ZmxEnvironment.sessionKey] = ""
+    environment[ZmxEnvironment.sessionPrefixKey] = ""
+
+    let process = Process()
+    process.executableURL = zmxExecutableURL
+    process.arguments = ["run", "spt-unit-\(UUID().uuidString)", "-d", "/bin/sleep", "60"]
+    process.environment = environment
+    process.standardOutput = FileHandle.nullDevice
+    process.standardError = FileHandle.nullDevice
+    try process.run()
+    process.waitUntilExit()
+
+    let deadline = Date().addingTimeInterval(10)
+    while ZmxTestProcessTable.sessionProcessIDs(directory: directory.path).isEmpty, Date() < deadline {
+      Thread.sleep(forTimeInterval: 0.05)
+    }
   }
 
   private func writeOwner(_ owner: ZmxTestWorkspace.Owner, to stateHome: URL) throws {
