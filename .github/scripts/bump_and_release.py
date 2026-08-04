@@ -20,7 +20,7 @@ VERSION_STATE_PATH = XCCONFIG_PATH.relative_to(REPO_ROOT).as_posix()
 VERSION_PATTERN = re.compile(r"^\d+\.\d+\.\d+$")
 RELEASE_TAG_PATTERN = re.compile(r"^v(\d+\.\d+\.\d+)$")
 ZERO_OID_PATTERN = re.compile(r"^0+$")
-MAX_TIP_BUILD_OFFSET = 999
+BUILDS_PER_VERSION = 1_000_000
 RELEASE_KINDS = ("regular", "hotfix")
 ReleaseKind = Literal["regular", "hotfix"]
 
@@ -182,15 +182,15 @@ def run_interactive(command: list[str], cwd: Path = REPO_ROOT) -> None:
 def stable_build_number(build_number: int) -> int:
   if build_number < 1:
     raise ValueError("CURRENT_PROJECT_VERSION must be positive")
-  return build_number * 1000
+  return build_number * BUILDS_PER_VERSION
 
 
 def tip_build_number(build_number: int, offset: int) -> int:
   if offset < 1:
     raise ValueError("tip run_number must be positive")
-  if offset > MAX_TIP_BUILD_OFFSET:
+  if offset >= BUILDS_PER_VERSION:
     raise ValueError(
-      f"tip run_number ({offset}) exceeds {MAX_TIP_BUILD_OFFSET}; bump CURRENT_PROJECT_VERSION before the next tip release"
+      f"tip run_number ({offset}) fills the {BUILDS_PER_VERSION} builds each version reserves; raise BUILDS_PER_VERSION"
     )
   return stable_build_number(build_number) + offset
 

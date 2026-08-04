@@ -6,6 +6,7 @@ import unittest
 from unittest.mock import patch
 
 from bump_and_release import (
+  BUILDS_PER_VERSION,
   PendingRelease,
   PushUpdate,
   bump_and_release,
@@ -94,14 +95,24 @@ class BumpAndReleaseTest(unittest.TestCase):
     )
 
   def test_stable_build_number_uses_private_monotonic_build(self) -> None:
-    self.assertEqual(stable_build_number(35), 35000)
+    self.assertEqual(stable_build_number(35), 35_000_000)
 
   def test_tip_build_number_adds_run_offset(self) -> None:
-    self.assertEqual(tip_build_number(35, 42), 35042)
+    self.assertEqual(tip_build_number(35, 42), 35_000_042)
 
-  def test_tip_build_number_rejects_exhausted_offset_range(self) -> None:
-    with self.assertRaisesRegex(ValueError, "tip run_number \\(1000\\) exceeds 999"):
-      tip_build_number(35, 1000)
+  def test_tip_build_number_accepts_a_run_number_past_the_old_ceiling(self) -> None:
+    self.assertEqual(tip_build_number(40, 1000), 40_001_000)
+
+  def test_tip_build_number_stays_below_the_next_stable_build(self) -> None:
+    self.assertLess(tip_build_number(35, BUILDS_PER_VERSION - 1), stable_build_number(36))
+
+  def test_tip_build_number_rejects_an_offset_reaching_the_next_stable_build(self) -> None:
+    with self.assertRaisesRegex(ValueError, "tip run_number \\(1000000\\) fills the 1000000 builds"):
+      tip_build_number(35, BUILDS_PER_VERSION)
+
+  def test_build_numbers_rise_across_a_version_bump(self) -> None:
+    self.assertLess(tip_build_number(35, 934), stable_build_number(36))
+    self.assertLess(stable_build_number(36), tip_build_number(36, 935))
 
   def test_create_annotated_tag_command_uses_release_notes_file(self) -> None:
     self.assertEqual(
