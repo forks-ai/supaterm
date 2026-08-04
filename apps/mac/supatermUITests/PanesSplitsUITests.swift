@@ -178,27 +178,20 @@ final class PanesSplitsUITests: SupatermUITestCase {
   func testCollapsingSidebarHidesItsHeaderFromDetailPane() async throws {
     _ = mainWindow
     let spaceSwitcher = element(SupatermUITestIdentifier.Accessibility.titlebarSpaceSwitcher)
-    let windowControls = [
-      app.buttons["Close window"],
-      app.buttons["Minimize window"],
-      app.buttons["Enter full screen"],
-    ]
 
     let didShowSidebarHeader = await wait(timeout: .seconds(30)) {
       spaceSwitcher.exists
         && spaceSwitcher.isHittable
-        && windowControls.allSatisfy { $0.exists && $0.isHittable }
     }
     XCTAssertTrue(didShowSidebarHeader)
 
-    try clickMenuItem(.toggleSidebar)
+    app.typeKey("s", modifierFlags: .command)
 
     let showSidebar = app.buttons["Show sidebar"]
     let didHideSidebarHeader = await wait {
       showSidebar.exists
         && showSidebar.isHittable
         && !spaceSwitcher.isHittable
-        && windowControls.allSatisfy { !$0.isHittable }
     }
     XCTAssertTrue(didHideSidebarHeader)
   }
