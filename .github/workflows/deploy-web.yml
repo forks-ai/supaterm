@@ -23,7 +23,7 @@ concurrency:
 
 jobs:
   web:
-    runs-on: depot-ubuntu-latest
+    runs-on: ubuntu-latest
     permissions:
       contents: read
     steps:
