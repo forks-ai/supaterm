@@ -49,7 +49,7 @@ nonisolated enum TerminalAgentEventTranslator {
       )
       return .subagentStarted(
         nickname: metadata?.nickname,
-        role: role == "workflow-subagent" ? nil : role,
+        role: role,
         task: metadata?.task,
         transcriptPath: metadata?.transcriptPath
       )
@@ -112,15 +112,20 @@ nonisolated enum TerminalAgentEventTranslator {
         ? .turnContinuesInBackground
         : .turnCompleted(message: request.event.lastAssistantMessage)
       guard scope.subagentID == nil,
-        let liveSubagentIDs = runningClaudeSubagentIDs(request.event)
+        let tasks = request.event.payload["background_tasks"]?.arrayValue
       else {
         return [event(request, scope: scope, action: stopAction)]
       }
+      let liveSubagentIDs = runningClaudeTasks(tasks, ofType: "subagent")
+        .compactMap { $0["id"]?.stringValue }
       return [
         event(
           request,
           scope: scope,
-          action: .subagentsReconciled(liveSubagentIDs: liveSubagentIDs)
+          action: .subagentsReconciled(
+            liveSubagentIDs: Set(liveSubagentIDs),
+            hasRunningWorkflow: !runningClaudeTasks(tasks, ofType: "workflow").isEmpty
+          )
         ),
         event(request, scope: scope, action: stopAction),
       ]
@@ -132,21 +137,19 @@ nonisolated enum TerminalAgentEventTranslator {
     return [event(request, scope: scope, action: action)]
   }
 
-  private static func runningClaudeSubagentIDs(
-    _ event: SupatermAgentHookEvent
-  ) -> Set<String>? {
-    guard let tasks = event.payload["background_tasks"]?.arrayValue else { return nil }
-    return Set(
-      tasks.compactMap { task in
-        guard let task = task.objectValue,
-          task["type"]?.stringValue == "subagent",
-          task["status"]?.stringValue == "running"
-        else {
-          return nil
-        }
-        return task["id"]?.stringValue
+  private static func runningClaudeTasks(
+    _ tasks: [JSONValue],
+    ofType type: String
+  ) -> [JSONObject] {
+    tasks.compactMap { task in
+      guard let task = task.objectValue,
+        task["type"]?.stringValue == type,
+        task["status"]?.stringValue == "running"
+      else {
+        return nil
       }
-    )
+      return task
+    }
   }
 
   private static func hasActiveClaudeBackgroundWork(

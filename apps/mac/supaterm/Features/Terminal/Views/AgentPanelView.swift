@@ -66,8 +66,8 @@ struct AgentPanelView: View {
       if !presentation.activeChildren.isEmpty {
         section("Active agents") {
           VStack(alignment: .leading, spacing: AgentPanelMetrics.sectionContentSpacing) {
-            ForEach(presentation.activeChildren) { child in
-              activeChildRow(child)
+            ForEach(presentation.childGroups) { group in
+              childGroupRows(group)
             }
           }
         }
@@ -141,6 +141,64 @@ struct AgentPanelView: View {
         .fixedSize(horizontal: false, vertical: true)
     }
     .frame(maxWidth: .infinity, alignment: .leading)
+  }
+
+  @ViewBuilder
+  private func childGroupRows(_ group: PaneAgentChildGroup) -> some View {
+    if let workflowName = group.workflowName {
+      VStack(alignment: .leading, spacing: AgentPanelMetrics.sectionContentSpacing) {
+        workflowRow(workflowName, group: group)
+        VStack(alignment: .leading, spacing: AgentPanelMetrics.sectionContentSpacing) {
+          ForEach(group.liveChildren) { child in
+            workflowChildRow(child)
+          }
+        }
+        .padding(.leading, AgentPanelMetrics.rowIconWidth)
+      }
+      .frame(maxWidth: .infinity, alignment: .leading)
+    } else {
+      ForEach(group.children) { child in
+        activeChildRow(child)
+      }
+    }
+  }
+
+  private func workflowRow(_ name: String, group: PaneAgentChildGroup) -> some View {
+    AgentPanelRowContent(
+      leading: {
+        AgentPanelProgressIcon(
+          status: childProgressStatus(group.phase),
+          kind: .task,
+          palette: palette
+        )
+      },
+      title: name,
+      palette: palette,
+      trailing: {
+        Text(group.doneCountText)
+          .font(.system(size: 11))
+          .foregroundStyle(palette.secondaryText)
+      }
+    )
+  }
+
+  private func workflowChildRow(_ child: TerminalAgentActiveChild) -> some View {
+    AgentPanelRowContent(
+      leading: {
+        Circle()
+          .fill(childDotColor(child.phase))
+          .frame(width: 6, height: 6)
+          .frame(width: AgentPanelMetrics.rowIconWidth)
+          .accessibilityHidden(true)
+      },
+      title: Self.childDetail(child),
+      palette: palette,
+      titleColor: palette.secondaryText
+    )
+  }
+
+  private func childDotColor(_ phase: AgentActivityPhase) -> Color {
+    phase == .needsInput ? palette.warning : palette.primaryText
   }
 
   private func activeChildRow(_ child: TerminalAgentActiveChild) -> some View {

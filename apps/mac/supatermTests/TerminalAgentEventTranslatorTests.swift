@@ -234,8 +234,64 @@ struct TerminalAgentEventTranslatorTests {
 
     #expect(
       TerminalAgentEventTranslator.events(for: request).map(\.action) == [
-        .subagentsReconciled(liveSubagentIDs: ["child-live"]),
+        .subagentsReconciled(liveSubagentIDs: ["child-live"], hasRunningWorkflow: false),
         .turnContinuesInBackground,
+      ]
+    )
+  }
+
+  @Test
+  func claudeStopReportsOnlyRunningWorkflows() throws {
+    let request = try request(
+      agent: .claude,
+      json: #"""
+        {
+          "session_id": "claude-1",
+          "hook_event_name": "Stop",
+          "last_assistant_message": "Waiting.",
+          "background_tasks": [
+            {
+              "id": "wbcr1wp0d",
+              "type": "workflow",
+              "status": "running",
+              "name": "codex-balancer-research"
+            },
+            { "id": "wf-done", "type": "workflow", "status": "completed", "name": "dia-color" }
+          ],
+          "session_crons": []
+        }
+        """#
+    )
+
+    #expect(
+      TerminalAgentEventTranslator.events(for: request).map(\.action) == [
+        .subagentsReconciled(liveSubagentIDs: [], hasRunningWorkflow: true),
+        .turnContinuesInBackground,
+      ]
+    )
+  }
+
+  @Test
+  func claudeStopWithOnlyFinishedWorkflowsReportsNoRunningWorkflow() throws {
+    let request = try request(
+      agent: .claude,
+      json: #"""
+        {
+          "session_id": "claude-1",
+          "hook_event_name": "Stop",
+          "last_assistant_message": "Done.",
+          "background_tasks": [
+            { "id": "wf-done", "type": "workflow", "status": "completed", "name": "dia-color" }
+          ],
+          "session_crons": []
+        }
+        """#
+    )
+
+    #expect(
+      TerminalAgentEventTranslator.events(for: request).map(\.action) == [
+        .subagentsReconciled(liveSubagentIDs: [], hasRunningWorkflow: false),
+        .turnCompleted(message: "Done."),
       ]
     )
   }
@@ -271,7 +327,7 @@ struct TerminalAgentEventTranslatorTests {
 
     #expect(
       TerminalAgentEventTranslator.events(for: request).map(\.action) == [
-        .subagentsReconciled(liveSubagentIDs: []),
+        .subagentsReconciled(liveSubagentIDs: [], hasRunningWorkflow: false),
         .turnCompleted(message: "Done"),
       ]
     )
@@ -498,7 +554,7 @@ struct TerminalAgentEventTranslatorTests {
       TerminalAgentEventTranslator.events(for: request).map(\.action) == [
         .subagentStarted(
           nickname: "dia-color-recovery",
-          role: nil,
+          role: "workflow-subagent",
           task: "Recover the color palettes Dia ships for Profile custom colors.",
           transcriptPath: subagentTranscriptPath(
             for: transcript,
@@ -535,7 +591,7 @@ struct TerminalAgentEventTranslatorTests {
       TerminalAgentEventTranslator.events(for: request).map(\.action) == [
         .subagentStarted(
           nickname: nil,
-          role: nil,
+          role: "workflow-subagent",
           task: "Recover the color palettes Dia ships.",
           transcriptPath: subagentTranscriptPath(
             for: transcript,

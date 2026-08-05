@@ -20,6 +20,51 @@ nonisolated struct PaneAgentPanelPresentation: Equatable, Sendable {
       || !artifacts.isEmpty
       || session != nil
   }
+
+  var childGroups: [PaneAgentChildGroup] {
+    PaneAgentChildGroup.groups(for: activeChildren)
+  }
+}
+
+nonisolated struct PaneAgentChildGroup: Equatable, Identifiable, Sendable {
+  let id: String
+  let workflowName: String?
+  let children: [TerminalAgentActiveChild]
+
+  var phase: AgentActivityPhase {
+    children.map(\.phase).max() ?? .idle
+  }
+
+  var liveChildren: [TerminalAgentActiveChild] {
+    children.filter { $0.phase != .idle }
+  }
+
+  var doneCountText: String {
+    "\(children.count - liveChildren.count)/\(children.count) done"
+  }
+
+  static func groups(for children: [TerminalAgentActiveChild]) -> [Self] {
+    let loose = children.filter { !$0.runsInWorkflow }
+    var runs: [(key: String, children: [TerminalAgentActiveChild])] = []
+    for child in children where child.runsInWorkflow {
+      let key = child.transcriptDirectoryPath ?? child.nickname ?? unidentifiedRunKey
+      if let index = runs.firstIndex(where: { $0.key == key }) {
+        runs[index].children.append(child)
+      } else {
+        runs.append((key, [child]))
+      }
+    }
+    return (loose.isEmpty ? [] : [Self(id: "subagents", workflowName: nil, children: loose)])
+      + runs.map { run in
+        Self(
+          id: "workflow:\(run.key)",
+          workflowName: run.children.compactMap(\.nickname).first ?? "Workflow",
+          children: run.children
+        )
+      }
+  }
+
+  private static let unidentifiedRunKey = "unidentified-run"
 }
 
 nonisolated struct PaneAgentPanelSession: Equatable, Sendable {
