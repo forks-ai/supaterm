@@ -341,9 +341,12 @@ nonisolated struct TerminalAgentStateStore {
       )
     case .attentionResolved(let requestID):
       resolveAttention(requestID: requestID, turnID: event.scope.turnID, state: &state)
-    case .subagentsReconciled(let liveSubagentIDs):
-      state.activeChildren = state.activeChildren.filter {
-        liveSubagentIDs.contains($0.key.subagentID) || $0.value.runsInWorkflow
+    case .subagentsReconciled(let liveSubagentIDs, let liveWorkflowNames):
+      state.activeChildren = state.activeChildren.filter { _, child in
+        guard child.runsInWorkflow else {
+          return liveSubagentIDs.contains(child.subagentID)
+        }
+        return child.nickname.map(liveWorkflowNames.contains) ?? !liveWorkflowNames.isEmpty
       }
     case .hoverMessagesUpdated(let messages):
       updateHoverMessages(messages, turnID: event.scope.turnID, state: &state)
@@ -392,7 +395,11 @@ nonisolated struct TerminalAgentStateStore {
         transcriptPath: transcriptPath
       )
     case .subagentStopped:
-      state.activeChildren.removeValue(forKey: childKey)
+      guard let child = state.activeChildren[childKey], child.runsInWorkflow else {
+        state.activeChildren.removeValue(forKey: childKey)
+        return
+      }
+      state.activeChildren[childKey] = child.updating(phase: .idle, detail: nil)
     default:
       updateChild(event.action, key: childKey, state: &state)
     }

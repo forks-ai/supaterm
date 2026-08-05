@@ -112,7 +112,7 @@ nonisolated enum TerminalAgentEventTranslator {
         ? .turnContinuesInBackground
         : .turnCompleted(message: request.event.lastAssistantMessage)
       guard scope.subagentID == nil,
-        let liveSubagentIDs = runningClaudeSubagentIDs(request.event)
+        let tasks = request.event.payload["background_tasks"]?.arrayValue
       else {
         return [event(request, scope: scope, action: stopAction)]
       }
@@ -120,7 +120,10 @@ nonisolated enum TerminalAgentEventTranslator {
         event(
           request,
           scope: scope,
-          action: .subagentsReconciled(liveSubagentIDs: liveSubagentIDs)
+          action: .subagentsReconciled(
+            liveSubagentIDs: runningClaudeTaskValues(tasks, ofType: "subagent", key: "id"),
+            liveWorkflowNames: runningClaudeTaskValues(tasks, ofType: "workflow", key: "name")
+          )
         ),
         event(request, scope: scope, action: stopAction),
       ]
@@ -132,19 +135,20 @@ nonisolated enum TerminalAgentEventTranslator {
     return [event(request, scope: scope, action: action)]
   }
 
-  private static func runningClaudeSubagentIDs(
-    _ event: SupatermAgentHookEvent
-  ) -> Set<String>? {
-    guard let tasks = event.payload["background_tasks"]?.arrayValue else { return nil }
-    return Set(
+  private static func runningClaudeTaskValues(
+    _ tasks: [JSONValue],
+    ofType type: String,
+    key: String
+  ) -> Set<String> {
+    Set(
       tasks.compactMap { task in
         guard let task = task.objectValue,
-          task["type"]?.stringValue == "subagent",
+          task["type"]?.stringValue == type,
           task["status"]?.stringValue == "running"
         else {
           return nil
         }
-        return task["id"]?.stringValue
+        return task[key]?.stringValue
       }
     )
   }

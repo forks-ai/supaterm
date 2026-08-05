@@ -143,13 +143,17 @@ extension SnapshotCatalog {
               ),
               workflowChild(
                 subagentID: "ace7ef95",
-                task: "Deep-read sticky session handling",
-                detail: nil
+                task: "Deep-read sticky session handling"
               ),
               workflowChild(
                 subagentID: "aee5562e",
                 task: "Establish which endpoints the CLI calls",
                 detail: "Bash: rg -n backend-api codex-rs"
+              ),
+              workflowChild(
+                subagentID: "add2ef43",
+                task: "Audit the account pool",
+                phase: .idle
               ),
             ]
           )
@@ -247,7 +251,8 @@ extension SnapshotCatalog {
   private static func workflowChild(
     subagentID: String,
     task: String,
-    detail: String?
+    detail: String? = nil,
+    phase: AgentActivityPhase = .running
   ) -> TerminalAgentActiveChild {
     TerminalAgentActiveChild(
       id: TerminalAgentActiveChild.Identity(
@@ -260,7 +265,7 @@ extension SnapshotCatalog {
       transcriptPath:
         "/tmp/session/subagents/workflows/wf_2c58973b/agent-\(subagentID).jsonl",
       task: task,
-      phase: .running,
+      phase: phase,
       detail: detail
     )
   }

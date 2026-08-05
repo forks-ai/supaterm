@@ -615,6 +615,55 @@ struct TerminalCommandExecutorAgentHookTests {
   }
 
   @Test
+  func claudeWorkflowChildIsMarkedDoneAndSweptWhenItsRunEnds() throws {
+    let harness = try makeClaudeHookHarness()
+    func childEvent(_ hookEventName: SupatermAgentHookEventName) -> SupatermAgentHookEvent {
+      SupatermAgentHookEvent(
+        agentType: "workflow-subagent",
+        hookEventName: hookEventName,
+        sessionID: ClaudeHookFixtures.sessionID,
+        transcriptPath: ClaudeHookFixtures.transcriptPath,
+        agentID: "workflow-child"
+      )
+    }
+
+    _ = try harness.commandExecutor.handleAgentHook(
+      ClaudeHookFixtures.request(ClaudeHookFixtures.sessionStart, context: harness.context)
+    )
+    _ = try harness.commandExecutor.handleAgentHook(
+      SupatermAgentHookRequest(
+        agent: .claude,
+        context: harness.context,
+        event: childEvent(.subagentStart)
+      )
+    )
+    _ = try harness.commandExecutor.handleAgentHook(
+      SupatermAgentHookRequest(
+        agent: .claude,
+        context: harness.context,
+        event: childEvent(.subagentStop)
+      )
+    )
+
+    #expect(
+      harness.host.agentPanelPresentation(for: harness.context.surfaceID)?
+        .activeChildren.map(\.phase) == [.idle]
+    )
+
+    _ = try harness.commandExecutor.handleAgentHook(
+      ClaudeHookFixtures.request(
+        ClaudeHookFixtures.stopWithRunningSubagent,
+        context: harness.context
+      )
+    )
+
+    #expect(
+      harness.host.agentPanelPresentation(for: harness.context.surfaceID)?
+        .activeChildren.isEmpty == true
+    )
+  }
+
+  @Test
   func claudeSubagentTurnStartKeepsRecentStructuredNotification() throws {
     let harness = try makeClaudeHookHarness(windowActivity: .inactive)
     func childEvent(_ hookEventName: SupatermAgentHookEventName) -> SupatermAgentHookEvent {

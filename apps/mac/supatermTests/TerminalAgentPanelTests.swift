@@ -68,8 +68,29 @@ struct TerminalAgentPanelTests {
     )
     #expect(
       Array(presentation.childGroups.map(\.agentCountText).dropFirst())
-        == ["2 agents", "1 agent"]
+        == ["0/2 agents", "0/1 agents"]
     )
+  }
+
+  @Test
+  @MainActor
+  func finishedWorkflowAgentsCountWithoutTakingARow() {
+    let presentation = PaneAgentPanelPresentation(
+      activeChildren: [
+        workflowChild(subagentID: "wf-a", runID: "wf-1", task: "Read the proxy surface"),
+        workflowChild(
+          subagentID: "wf-b",
+          runID: "wf-1",
+          task: "Read the sticky map",
+          phase: .idle
+        ),
+      ]
+    )
+    let group = presentation.childGroups[0]
+
+    #expect(group.agentCountText == "1/2 agents")
+    #expect(group.liveChildren.map(\.subagentID) == ["wf-a"])
+    #expect(group.phase == .running)
   }
 
   private func child(
@@ -78,6 +99,7 @@ struct TerminalAgentPanelTests {
     role: String? = nil,
     transcriptPath: String? = nil,
     task: String? = nil,
+    phase: AgentActivityPhase = .running,
     detail: String? = nil
   ) -> TerminalAgentActiveChild {
     TerminalAgentActiveChild(
@@ -90,7 +112,7 @@ struct TerminalAgentPanelTests {
       role: role,
       transcriptPath: transcriptPath,
       task: task,
-      phase: .running,
+      phase: phase,
       detail: detail
     )
   }
@@ -98,7 +120,8 @@ struct TerminalAgentPanelTests {
   private func workflowChild(
     subagentID: String,
     runID: String,
-    task: String
+    task: String,
+    phase: AgentActivityPhase = .running
   ) -> TerminalAgentActiveChild {
     child(
       subagentID: subagentID,
@@ -106,7 +129,8 @@ struct TerminalAgentPanelTests {
       role: "workflow-subagent",
       transcriptPath:
         "/tmp/session/subagents/workflows/\(runID)/agent-\(subagentID).jsonl",
-      task: task
+      task: task,
+      phase: phase
     )
   }
 

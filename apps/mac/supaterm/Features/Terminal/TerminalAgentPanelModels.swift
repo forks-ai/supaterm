@@ -35,8 +35,12 @@ nonisolated struct PaneAgentChildGroup: Equatable, Identifiable, Sendable {
     children.reduce(.idle) { AgentActivityPhase.highest($0, $1.phase) }
   }
 
+  var liveChildren: [TerminalAgentActiveChild] {
+    children.filter { $0.phase != .idle }
+  }
+
   var agentCountText: String {
-    children.count == 1 ? "1 agent" : "\(children.count) agents"
+    "\(children.count - liveChildren.count)/\(children.count) agents"
   }
 
   static func groups(for children: [TerminalAgentActiveChild]) -> [Self] {

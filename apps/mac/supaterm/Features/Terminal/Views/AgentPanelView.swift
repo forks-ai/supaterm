@@ -149,7 +149,7 @@ struct AgentPanelView: View {
       VStack(alignment: .leading, spacing: AgentPanelMetrics.sectionContentSpacing) {
         workflowRow(workflowName, group: group)
         VStack(alignment: .leading, spacing: AgentPanelMetrics.sectionContentSpacing) {
-          ForEach(group.children) { child in
+          ForEach(group.liveChildren) { child in
             workflowChildRow(child)
           }
         }

@@ -234,7 +234,41 @@ struct TerminalAgentEventTranslatorTests {
 
     #expect(
       TerminalAgentEventTranslator.events(for: request).map(\.action) == [
-        .subagentsReconciled(liveSubagentIDs: ["child-live"]),
+        .subagentsReconciled(liveSubagentIDs: ["child-live"], liveWorkflowNames: []),
+        .turnContinuesInBackground,
+      ]
+    )
+  }
+
+  @Test
+  func claudeStopReportsRunningWorkflowsByName() throws {
+    let request = try request(
+      agent: .claude,
+      json: #"""
+        {
+          "session_id": "claude-1",
+          "hook_event_name": "Stop",
+          "last_assistant_message": "Waiting.",
+          "background_tasks": [
+            {
+              "id": "wbcr1wp0d",
+              "type": "workflow",
+              "status": "running",
+              "name": "codex-balancer-research"
+            },
+            { "id": "wf-done", "type": "workflow", "status": "completed", "name": "dia-color" }
+          ],
+          "session_crons": []
+        }
+        """#
+    )
+
+    #expect(
+      TerminalAgentEventTranslator.events(for: request).map(\.action) == [
+        .subagentsReconciled(
+          liveSubagentIDs: [],
+          liveWorkflowNames: ["codex-balancer-research"]
+        ),
         .turnContinuesInBackground,
       ]
     )
@@ -271,7 +305,7 @@ struct TerminalAgentEventTranslatorTests {
 
     #expect(
       TerminalAgentEventTranslator.events(for: request).map(\.action) == [
-        .subagentsReconciled(liveSubagentIDs: []),
+        .subagentsReconciled(liveSubagentIDs: [], liveWorkflowNames: []),
         .turnCompleted(message: "Done"),
       ]
     )

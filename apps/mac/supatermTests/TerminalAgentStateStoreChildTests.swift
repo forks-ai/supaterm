@@ -570,7 +570,7 @@ extension TerminalAgentStateStoreTests {
         agent: .claude,
         sessionID: "session-1",
         context: context,
-        action: .subagentsReconciled(liveSubagentIDs: ["child-live"])
+        action: .subagentsReconciled(liveSubagentIDs: ["child-live"], liveWorkflowNames: [])
       )
     )
 
@@ -622,7 +622,7 @@ extension TerminalAgentStateStoreTests {
       event(
         agent: .claude,
         sessionID: "session-1",
-        action: .subagentsReconciled(liveSubagentIDs: [])
+        action: .subagentsReconciled(liveSubagentIDs: [], liveWorkflowNames: [])
       )
     )
 
