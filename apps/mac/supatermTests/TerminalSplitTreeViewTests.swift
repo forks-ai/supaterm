@@ -263,6 +263,22 @@ struct TerminalSplitTreeViewTests {
   }
 
   @Test
+  func agentPanelMaxHeightLeavesTopAndBottomPadding() {
+    #expect(
+      TerminalSplitTreeView.LeafView.maxAgentPanelHeight(
+        surfaceSize: CGSize(width: 800, height: 600),
+        topPadding: 12
+      ) == 576
+    )
+    #expect(
+      TerminalSplitTreeView.LeafView.maxAgentPanelHeight(
+        surfaceSize: CGSize(width: 800, height: 600),
+        topPadding: GhosttySurfaceSearchOverlay.topReservedHeight
+      ) == 600 - GhosttySurfaceSearchOverlay.topReservedHeight - 12
+    )
+  }
+
+  @Test
   func collapsedAgentPanelKeepsOnlyToggleWidth() {
     #expect(TerminalSplitTreeView.LeafView.agentPanelOverlayWidth(isCollapsed: false) == 306)
     #expect(TerminalSplitTreeView.LeafView.agentPanelOverlayWidth(isCollapsed: true) == 30)

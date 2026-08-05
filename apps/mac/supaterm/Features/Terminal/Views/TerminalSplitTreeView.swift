@@ -685,6 +685,13 @@ struct TerminalSplitTreeView: View {
         .intersects(cursorRect)
     }
 
+    static func maxAgentPanelHeight(
+      surfaceSize: CGSize,
+      topPadding: CGFloat
+    ) -> CGFloat {
+      surfaceSize.height - topPadding - agentPanelEdgePadding
+    }
+
     static func agentPanelFrame(
       surfaceSize: CGSize,
       panelHeight: CGFloat?,
@@ -767,7 +774,7 @@ struct TerminalSplitTreeView: View {
     let toggle: () -> Void
     let openURL: (URL) -> Void
 
-    @State private var expandedHeight: CGFloat?
+    @State private var contentHeight: CGFloat?
     @State private var cursorMonitoringGeneration: Int?
     @State private var terminalCursorRect: CGRect?
 
@@ -776,21 +783,23 @@ struct TerminalSplitTreeView: View {
 
     var body: some View {
       ZStack(alignment: .topTrailing) {
-        AgentPanelView(
-          presentation: presentation,
-          palette: palette,
-          forksDown: forksDown,
-          showsShortcutHints: shortcutHint != nil,
-          copyText: copyText,
-          forkSession: forkSession,
-          openURL: openURL
-        )
-        .fixedSize(horizontal: false, vertical: true)
-        .onGeometryChange(for: CGFloat.self) { proxy in
-          proxy.size.height
-        } action: { height in
-          expandedHeight = max(height, AgentPanelMetrics.collapsedLength)
+        ScrollView {
+          AgentPanelView(
+            presentation: presentation,
+            palette: palette,
+            forksDown: forksDown,
+            showsShortcutHints: shortcutHint != nil,
+            copyText: copyText,
+            forkSession: forkSession,
+            openURL: openURL
+          )
+          .onGeometryChange(for: CGFloat.self) { proxy in
+            proxy.size.height
+          } action: { height in
+            contentHeight = height
+          }
         }
+        .scrollBounceBehavior(.basedOnSize)
         .opacity(isEffectivelyCollapsed ? 0 : 1)
         .scaleEffect(isEffectivelyCollapsed ? 0.96 : 1, anchor: .topTrailing)
         .allowsHitTesting(!isEffectivelyCollapsed)
@@ -934,6 +943,17 @@ struct TerminalSplitTreeView: View {
 
     private var surfaceWidth: CGFloat {
       TerminalSplitTreeView.LeafView.agentPanelOverlayWidth(isCollapsed: isEffectivelyCollapsed)
+    }
+
+    private var expandedHeight: CGFloat? {
+      guard let contentHeight else { return nil }
+      return min(
+        max(contentHeight, AgentPanelMetrics.collapsedLength),
+        TerminalSplitTreeView.LeafView.maxAgentPanelHeight(
+          surfaceSize: surfaceSize,
+          topPadding: topPadding
+        )
+      )
     }
 
     private var surfaceHeight: CGFloat? {
