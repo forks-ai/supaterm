@@ -27,6 +27,24 @@ struct GhosttySurfaceHoverLinkOverlayTests {
   }
 
   @Test
+  func bannerStopsGrowingAtItsCap() {
+    let containerWidth: CGFloat = 400
+    let reservedWidth = GhosttySurfaceHoverLinkPresentation.reservedWidth(
+      containerWidth: containerWidth
+    )
+
+    #expect(
+      containerWidth - reservedWidth
+        == GhosttySurfaceHoverLinkPresentation.maximumBannerWidth(containerWidth: containerWidth)
+    )
+  }
+
+  @Test
+  func narrowPanesReserveNothing() {
+    #expect(GhosttySurfaceHoverLinkPresentation.reservedWidth(containerWidth: -16) == 0)
+  }
+
+  @Test
   func hoverTrackingNeverAcceptsTerminalInput() {
     let view = GhosttySurfaceHoverTrackingView.TrackingView(onHoverChange: { _ in })
     view.frame = CGRect(x: 0, y: 0, width: 100, height: 30)

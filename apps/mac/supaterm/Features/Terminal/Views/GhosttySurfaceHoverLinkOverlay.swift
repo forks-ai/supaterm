@@ -36,13 +36,15 @@ struct GhosttySurfaceHoverLinkPresentation: View {
   var body: some View {
     GeometryReader { geometry in
       let placement = Self.placement(pointerIsNearLeadingBanner: pointerIsNearLeadingBanner)
-      let maximumBannerWidth = Self.maximumBannerWidth(containerWidth: geometry.size.width)
+      let reservedWidth = Self.reservedWidth(
+        containerWidth: geometry.size.width - edgeInset * 2
+      )
       ZStack {
-        banner(placement: .trailing, maximumWidth: maximumBannerWidth)
+        banner(placement: .trailing, reservedWidth: reservedWidth)
           .opacity(placement == .trailing ? 1 : 0)
           .accessibilityHidden(placement != .trailing)
 
-        banner(placement: .leading, maximumWidth: maximumBannerWidth)
+        banner(placement: .leading, reservedWidth: reservedWidth)
           .opacity(placement == .leading ? 1 : 0)
           .accessibilityHidden(placement != .leading)
       }
@@ -57,13 +59,17 @@ struct GhosttySurfaceHoverLinkPresentation: View {
     max(0, containerWidth * 0.45)
   }
 
+  static func reservedWidth(containerWidth: CGFloat) -> CGFloat {
+    max(0, containerWidth - maximumBannerWidth(containerWidth: containerWidth))
+  }
+
   private func banner(
     placement: Placement,
-    maximumWidth: CGFloat
+    reservedWidth: CGFloat
   ) -> some View {
     HStack(spacing: 0) {
       if placement == .trailing {
-        Spacer(minLength: 0)
+        Spacer(minLength: reservedWidth)
       }
 
       Text(verbatim: link)
@@ -73,7 +79,6 @@ struct GhosttySurfaceHoverLinkPresentation: View {
         .truncationMode(.middle)
         .padding(.horizontal, horizontalPadding)
         .padding(.vertical, verticalPadding)
-        .frame(maxWidth: maximumWidth)
         .background(palette.detailBackground, in: Capsule(style: .continuous))
         .background {
           if placement == .leading {
@@ -91,7 +96,7 @@ struct GhosttySurfaceHoverLinkPresentation: View {
         .allowsHitTesting(false)
 
       if placement == .leading {
-        Spacer(minLength: 0)
+        Spacer(minLength: reservedWidth)
       }
     }
     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
