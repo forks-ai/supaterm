@@ -6,6 +6,7 @@ nonisolated enum ClaudeSubagentMetadataParser {
     let nickname: String?
     let task: String?
     let transcriptPath: String
+    let usage: TerminalAgentChildUsage?
   }
 
   static func metadata(
@@ -19,25 +20,26 @@ nonisolated enum ClaudeSubagentMetadataParser {
     else {
       return nil
     }
+    let childTranscript =
+      metadataURL
+      .deletingLastPathComponent()
+      .appendingPathComponent("agent-\(agentID).jsonl")
+    let reading = ClaudeSubagentTranscriptReader.read(at: childTranscript)
     let nickname =
       AgentProgressParsing.normalizedTitle(object["name"]?.stringValue)
       ?? workflowName(besides: metadataURL)
     let task =
       AgentProgressParsing.normalizedTitle(object["description"]?.stringValue)
-      ?? spawnPromptTask(besides: metadataURL, agentID: agentID)
+      ?? spawnPromptTask(reading?.spawnPrompt)
     return Metadata(
       nickname: nickname,
       task: task,
-      transcriptPath:
-        metadataURL
-        .deletingLastPathComponent()
-        .appendingPathComponent("agent-\(agentID).jsonl")
-        .path
+      transcriptPath: childTranscript.path,
+      usage: reading?.usage
     )
   }
 
   private static let maxPromptTaskLength = 140
-  private static let maxSpawnLineBytes = 262_144
 
   private static func metadataURL(
     transcriptPath: String?,
@@ -98,35 +100,9 @@ nonisolated enum ClaudeSubagentMetadataParser {
     return AgentProgressParsing.normalizedTitle(String(script.dropLast(suffix.count)))
   }
 
-  private static func spawnPromptTask(besides metadataURL: URL, agentID: String) -> String? {
-    let transcript =
-      metadataURL
-      .deletingLastPathComponent()
-      .appendingPathComponent("agent-\(agentID).jsonl")
-    guard let line = firstLine(of: transcript),
-      let object = (try? JSONDecoder().decode(JSONValue.self, from: line))?.objectValue,
-      let prompt = promptText(object["message"]?.objectValue?["content"]),
-      let normalized = AgentProgressParsing.normalizedTitle(prompt)
-    else {
-      return nil
-    }
+  private static func spawnPromptTask(_ prompt: String?) -> String? {
+    guard let normalized = AgentProgressParsing.normalizedTitle(prompt) else { return nil }
     guard normalized.count > maxPromptTaskLength else { return normalized }
     return String(normalized.prefix(maxPromptTaskLength)) + "…"
-  }
-
-  private static func promptText(_ content: JSONValue?) -> String? {
-    if let text = content?.stringValue {
-      return text
-    }
-    return content?.arrayValue?
-      .compactMap { $0.objectValue?["text"]?.stringValue }
-      .first
-  }
-
-  private static func firstLine(of url: URL) -> Data? {
-    guard let handle = try? FileHandle(forReadingFrom: url) else { return nil }
-    defer { try? handle.close() }
-    guard let data = try? handle.read(upToCount: maxSpawnLineBytes) else { return nil }
-    return data.prefix { $0 != 0x0A }
   }
 }

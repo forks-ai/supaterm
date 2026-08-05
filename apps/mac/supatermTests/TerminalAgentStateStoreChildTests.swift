@@ -159,7 +159,7 @@ extension TerminalAgentStateStoreTests {
 
     for action in [
       TerminalAgentEvent.Action.subagentStarted(nickname: nil, role: "reviewer"),
-      .subagentStopped,
+      .subagentStopped(),
     ] {
       store.apply(
         event(
@@ -220,7 +220,7 @@ extension TerminalAgentStateStoreTests {
 
     for action in [
       TerminalAgentEvent.Action.subagentStarted(nickname: nil, role: "reviewer"),
-      .subagentStopped,
+      .subagentStopped(),
       .turnRunning(detail: "Late tool event"),
     ] {
       store.apply(
@@ -246,7 +246,7 @@ extension TerminalAgentStateStoreTests {
 
     for action in [
       TerminalAgentEvent.Action.subagentStarted(nickname: nil, role: "reviewer"),
-      .subagentStopped,
+      .subagentStopped(),
       .subagentStarted(nickname: nil, role: "reviewer"),
       .turnRunning(detail: "Bash"),
     ] {
@@ -500,7 +500,7 @@ extension TerminalAgentStateStoreTests {
         turnID: "turn-1",
         subagentID: "child-1",
         context: context,
-        action: .subagentStopped
+        action: .subagentStopped()
       )
     )
 

@@ -134,7 +134,9 @@ extension TerminalCommandExecutor {
     case .started:
       actions.append(.turnRunning(detail: snapshot.detail))
     case .aborted, .completed, .failed:
-      actions.append(scope.subagentID == nil ? .turnCompleted(message: nil) : .subagentStopped)
+      actions.append(
+        scope.subagentID == nil ? .turnCompleted(message: nil) : .subagentStopped()
+      )
     case nil:
       if snapshot.detail != nil {
         actions.append(.turnRunning(detail: snapshot.detail))
@@ -158,7 +160,7 @@ extension TerminalCommandExecutor {
       )
       didChange = terminal.applyAgentEvent(event).changed || didChange
     }
-    if actions.contains(.subagentStopped) {
+    if actions.contains(.subagentStopped()) {
       clearMonitoring(scope)
     }
     if didChange {
@@ -341,7 +343,7 @@ extension TerminalCommandExecutor {
     guard scope.subagentID != nil else { return request.event.transcriptPath }
     guard request.agent == .codex else { return nil }
     for event in events {
-      if case .subagentStarted(_, _, _, let transcriptPath) = event.action {
+      if case .subagentStarted(_, _, _, let transcriptPath, _) = event.action {
         return transcriptPath
       }
     }

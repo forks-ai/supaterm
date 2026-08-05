@@ -15,7 +15,13 @@ nonisolated enum TerminalAgentEventTranslator {
           )
         ]
       case .subagentStop:
-        return [event(request, scope: scope, action: .subagentStopped)]
+        return [
+          event(
+            request,
+            scope: scope,
+            action: .subagentStopped(usage: claudeSubagentMetadata(for: request)?.usage)
+          )
+        ]
       default:
         break
       }
@@ -43,15 +49,13 @@ nonisolated enum TerminalAgentEventTranslator {
   ) -> TerminalAgentEvent.Action {
     let role = normalized(request.event.agentType)
     guard request.agent == .codex else {
-      let metadata = ClaudeSubagentMetadataParser.metadata(
-        transcriptPath: request.event.transcriptPath,
-        agentID: request.event.agentID
-      )
+      let metadata = claudeSubagentMetadata(for: request)
       return .subagentStarted(
         nickname: metadata?.nickname,
         role: role,
         task: metadata?.task,
-        transcriptPath: metadata?.transcriptPath
+        transcriptPath: metadata?.transcriptPath,
+        usage: metadata?.usage
       )
     }
     let nickname = CodexTranscriptMetadataParser.subagentNickname(
@@ -167,12 +171,7 @@ nonisolated enum TerminalAgentEventTranslator {
     for request: SupatermAgentHookRequest,
     scope: TerminalAgentEvent.Scope
   ) -> [TerminalAgentEvent] {
-    guard
-      let metadata = ClaudeSubagentMetadataParser.metadata(
-        transcriptPath: request.event.transcriptPath,
-        agentID: request.event.agentID
-      )
-    else {
+    guard let metadata = claudeSubagentMetadata(for: request) else {
       return []
     }
     return [
@@ -182,10 +181,21 @@ nonisolated enum TerminalAgentEventTranslator {
         action: .subagentDescribed(
           nickname: metadata.nickname,
           task: metadata.task,
-          transcriptPath: metadata.transcriptPath
+          transcriptPath: metadata.transcriptPath,
+          usage: metadata.usage
         )
       )
     ]
+  }
+
+  private static func claudeSubagentMetadata(
+    for request: SupatermAgentHookRequest
+  ) -> ClaudeSubagentMetadataParser.Metadata? {
+    guard request.agent != .codex else { return nil }
+    return ClaudeSubagentMetadataParser.metadata(
+      transcriptPath: request.event.transcriptPath,
+      agentID: request.event.agentID
+    )
   }
 
   private static func subagentActivityEvents(
