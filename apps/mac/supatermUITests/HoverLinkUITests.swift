@@ -15,30 +15,27 @@ final class HoverLinkUITests: SupatermUITestCase {
     )
     terminal.click()
 
-    let link = "https://supaterm.com/docs/terminal/hovered-link-feedback-for-split-pane-regression"
-    app.typeText("clear; printf '\\033[H\(link)\\033[999B\\033[A\(link)'; sleep 300")
+    let shortLink = "https://supaterm.com"
+    let longLink =
+      "https://supaterm.com/docs/terminal/hovered-link-feedback-for-split-pane-regression"
+    app.typeText("clear; printf '\\033[H\(shortLink)\\033[999B\\r\(longLink)'; sleep 300")
     app.typeKey(.return, modifierFlags: [])
     let linkAppeared = await wait(for: terminal, timeout: .seconds(30)) {
-      ($0.value as? String)?.contains(link) == true
+      ($0.value as? String)?.contains(longLink) == true
     }
     XCTAssertTrue(linkAppeared)
 
     let banner = element(SupatermUITestIdentifier.Accessibility.hoveredLink)
     XCUIElement.perform(withKeyModifiers: .command) {
       terminal.coordinate(withNormalizedOffset: .zero)
-        .withOffset(
-          CGVector(
-            dx: terminal.frame.width * 0.6,
-            dy: 12
-          )
-        )
+        .withOffset(CGVector(dx: 30, dy: 12))
         .hover()
 
       guard banner.waitForExistence(timeout: 10) else {
         XCTFail("Hovered link banner did not appear")
         return
       }
-      XCTAssertEqual(banner.label, "Hovered link: \(link)")
+      XCTAssertEqual(banner.label, "Hovered link: \(shortLink)")
 
       let leadingFrame = banner.frame
       XCTAssertEqual(leadingFrame.minX - terminal.frame.minX, 8, accuracy: 4)
@@ -48,7 +45,7 @@ final class HoverLinkUITests: SupatermUITestCase {
         .withOffset(
           CGVector(
             dx: leadingFrame.midX - terminal.frame.minX,
-            dy: leadingFrame.minY - terminal.frame.minY + 6
+            dy: leadingFrame.midY - terminal.frame.minY
           )
         )
         .hover()
@@ -66,6 +63,8 @@ final class HoverLinkUITests: SupatermUITestCase {
         ) == .completed
       XCTAssertTrue(movedToTrailingEdge)
       XCTAssertEqual(terminal.frame.maxX - banner.frame.maxX, 8, accuracy: 4)
+      XCTAssertEqual(banner.label, "Hovered link: \(longLink)")
+      XCTAssertGreaterThan(banner.frame.width, leadingFrame.width + 40)
     }
   }
 }
