@@ -49,7 +49,7 @@ nonisolated enum TerminalAgentEventTranslator {
       )
       return .subagentStarted(
         nickname: metadata?.nickname,
-        role: role == "workflow-subagent" ? nil : role,
+        role: role,
         task: metadata?.task,
         transcriptPath: metadata?.transcriptPath
       )

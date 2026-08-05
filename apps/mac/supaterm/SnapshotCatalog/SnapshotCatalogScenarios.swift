@@ -126,6 +126,37 @@ extension SnapshotCatalog {
       )
     },
     scenario(
+      "workflow-agents",
+      group: "Agent Panel",
+      title: "Workflow child agents",
+      size: CGSize(width: 338, height: 190)
+    ) { appearance in
+      AnyView(
+        AgentPanelSnapshotFixture(
+          appearance: appearance,
+          presentation: PaneAgentPanelPresentation(
+            activeChildren: [
+              workflowChild(
+                subagentID: "a3b6b826",
+                task: "Investigate compaction in codex-lb",
+                detail: "Read: app/modules/proxy/api.py"
+              ),
+              workflowChild(
+                subagentID: "ace7ef95",
+                task: "Deep-read sticky session handling",
+                detail: nil
+              ),
+              workflowChild(
+                subagentID: "aee5562e",
+                task: "Establish which endpoints the CLI calls",
+                detail: "Bash: rg -n backend-api codex-rs"
+              ),
+            ]
+          )
+        )
+      )
+    },
+    scenario(
       "merge-queue",
       group: "Agent Panel",
       title: "Pull request in merge queue",
@@ -212,6 +243,27 @@ extension SnapshotCatalog {
       )
     },
   ]
+
+  private static func workflowChild(
+    subagentID: String,
+    task: String,
+    detail: String?
+  ) -> TerminalAgentActiveChild {
+    TerminalAgentActiveChild(
+      id: TerminalAgentActiveChild.Identity(
+        subagentID: subagentID,
+        sessionID: "session-26-0701",
+        turnID: "turn-4"
+      ),
+      nickname: "codex-balancer-research",
+      role: "workflow-subagent",
+      transcriptPath:
+        "/tmp/session/subagents/workflows/wf_2c58973b/agent-\(subagentID).jsonl",
+      task: task,
+      phase: .running,
+      detail: detail
+    )
+  }
 
   static let updateScenarios: [SnapshotScenario] = [
     updateScenario("permission", title: "Permission request", phase: .permissionRequest),

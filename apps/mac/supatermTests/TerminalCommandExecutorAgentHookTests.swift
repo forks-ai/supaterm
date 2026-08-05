@@ -564,6 +564,57 @@ struct TerminalCommandExecutorAgentHookTests {
   }
 
   @Test
+  func claudeWorkflowChildrenOutliveStopReconciliationAndTheNextTurn() throws {
+    let harness = try makeClaudeHookHarness()
+    func childEvent(agentType: String, agentID: String) -> SupatermAgentHookEvent {
+      SupatermAgentHookEvent(
+        agentType: agentType,
+        hookEventName: .subagentStart,
+        sessionID: ClaudeHookFixtures.sessionID,
+        transcriptPath: ClaudeHookFixtures.transcriptPath,
+        agentID: agentID
+      )
+    }
+
+    _ = try harness.commandExecutor.handleAgentHook(
+      ClaudeHookFixtures.request(ClaudeHookFixtures.sessionStart, context: harness.context)
+    )
+    for child in [
+      (agentType: "workflow-subagent", agentID: "workflow-child"),
+      (agentType: "general-purpose", agentID: "plain-child"),
+    ] {
+      _ = try harness.commandExecutor.handleAgentHook(
+        SupatermAgentHookRequest(
+          agent: .claude,
+          context: harness.context,
+          event: childEvent(agentType: child.agentType, agentID: child.agentID)
+        )
+      )
+    }
+
+    _ = try harness.commandExecutor.handleAgentHook(
+      ClaudeHookFixtures.request(
+        ClaudeHookFixtures.stopWithRunningWorkflow,
+        context: harness.context
+      )
+    )
+
+    #expect(
+      harness.host.agentPanelPresentation(for: harness.context.surfaceID)?
+        .activeChildren.map(\.subagentID) == ["workflow-child"]
+    )
+
+    _ = try harness.commandExecutor.handleAgentHook(
+      ClaudeHookFixtures.request(ClaudeHookFixtures.userPromptSubmit, context: harness.context)
+    )
+
+    #expect(
+      harness.host.agentPanelPresentation(for: harness.context.surfaceID)?
+        .activeChildren.map(\.subagentID) == ["workflow-child"]
+    )
+  }
+
+  @Test
   func claudeSubagentTurnStartKeepsRecentStructuredNotification() throws {
     let harness = try makeClaudeHookHarness(windowActivity: .inactive)
     func childEvent(_ hookEventName: SupatermAgentHookEventName) -> SupatermAgentHookEvent {

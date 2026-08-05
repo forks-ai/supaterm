@@ -115,6 +115,28 @@ enum ClaudeHookFixtures {
     }
     """
 
+  static let stopWithRunningWorkflow = """
+    {
+      "session_id": "\(sessionID)",
+      "transcript_path": "\(transcriptPath)",
+      "cwd": "\(cwd)",
+      "permission_mode": "acceptEdits",
+      "hook_event_name": "Stop",
+      "stop_hook_active": false,
+      "last_assistant_message": "Waiting for the workflow.",
+      "background_tasks": [
+        {
+          "id": "wbcr1wp0d",
+          "type": "workflow",
+          "status": "running",
+          "description": "Research the balancer API surface",
+          "name": "codex-balancer-research"
+        }
+      ],
+      "session_crons": []
+    }
+    """
+
   static let stopWithPendingCron = """
     {
       "session_id": "\(sessionID)",

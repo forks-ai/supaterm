@@ -20,6 +20,45 @@ nonisolated struct PaneAgentPanelPresentation: Equatable, Sendable {
       || !artifacts.isEmpty
       || session != nil
   }
+
+  var childGroups: [PaneAgentChildGroup] {
+    PaneAgentChildGroup.groups(for: activeChildren)
+  }
+}
+
+nonisolated struct PaneAgentChildGroup: Equatable, Identifiable, Sendable {
+  let id: String
+  let workflowName: String?
+  let children: [TerminalAgentActiveChild]
+
+  var phase: AgentActivityPhase {
+    children.reduce(.idle) { AgentActivityPhase.highest($0, $1.phase) }
+  }
+
+  var agentCountText: String {
+    children.count == 1 ? "1 agent" : "\(children.count) agents"
+  }
+
+  static func groups(for children: [TerminalAgentActiveChild]) -> [Self] {
+    let loose = children.filter { !$0.runsInWorkflow }
+    var runs: [(key: String, children: [TerminalAgentActiveChild])] = []
+    for child in children where child.runsInWorkflow {
+      let key = child.workflowRunPath ?? child.nickname ?? ""
+      if let index = runs.firstIndex(where: { $0.key == key }) {
+        runs[index].children.append(child)
+      } else {
+        runs.append((key, [child]))
+      }
+    }
+    return (loose.isEmpty ? [] : [Self(id: "subagents", workflowName: nil, children: loose)])
+      + runs.map { run in
+        Self(
+          id: "workflow:\(run.key)",
+          workflowName: run.children.compactMap(\.nickname).first ?? "Workflow",
+          children: run.children
+        )
+      }
+  }
 }
 
 nonisolated struct PaneAgentPanelSession: Equatable, Sendable {

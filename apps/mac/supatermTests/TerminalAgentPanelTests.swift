@@ -44,23 +44,69 @@ struct TerminalAgentPanelTests {
     )
   }
 
+  @Test
+  @MainActor
+  func workflowChildrenNestUnderTheirRun() {
+    let presentation = PaneAgentPanelPresentation(
+      activeChildren: [
+        child(subagentID: "plain", nickname: "Mendel", role: "reviewer"),
+        workflowChild(subagentID: "wf-a", runID: "wf-1", task: "Read the proxy surface"),
+        workflowChild(subagentID: "wf-b", runID: "wf-1", task: "Read the sticky map"),
+        workflowChild(subagentID: "wf-c", runID: "wf-2", task: "Audit the panes"),
+      ]
+    )
+
+    #expect(
+      presentation.childGroups.map(\.workflowName) == [
+        nil, "codex-balancer-research", "codex-balancer-research",
+      ]
+    )
+    #expect(
+      presentation.childGroups.map { $0.children.map(\.subagentID) } == [
+        ["plain"], ["wf-a", "wf-b"], ["wf-c"],
+      ]
+    )
+    #expect(
+      Array(presentation.childGroups.map(\.agentCountText).dropFirst())
+        == ["2 agents", "1 agent"]
+    )
+  }
+
   private func child(
+    subagentID: String = "child-1",
     nickname: String? = nil,
     role: String? = nil,
+    transcriptPath: String? = nil,
     task: String? = nil,
     detail: String? = nil
   ) -> TerminalAgentActiveChild {
     TerminalAgentActiveChild(
       id: TerminalAgentActiveChild.Identity(
-        subagentID: "child-1",
+        subagentID: subagentID,
         sessionID: "session-1",
         turnID: "turn-1"
       ),
       nickname: nickname,
       role: role,
+      transcriptPath: transcriptPath,
       task: task,
       phase: .running,
       detail: detail
+    )
+  }
+
+  private func workflowChild(
+    subagentID: String,
+    runID: String,
+    task: String
+  ) -> TerminalAgentActiveChild {
+    child(
+      subagentID: subagentID,
+      nickname: "codex-balancer-research",
+      role: "workflow-subagent",
+      transcriptPath:
+        "/tmp/session/subagents/workflows/\(runID)/agent-\(subagentID).jsonl",
+      task: task
     )
   }
 

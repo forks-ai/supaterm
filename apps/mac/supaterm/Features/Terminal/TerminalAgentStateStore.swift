@@ -5,6 +5,18 @@ nonisolated enum AgentActivityPhase: Codable, Equatable, Sendable {
   case idle
   case needsInput
   case running
+
+  static func highest(_ lhs: Self, _ rhs: Self) -> Self {
+    lhs.rank >= rhs.rank ? lhs : rhs
+  }
+
+  private var rank: Int {
+    switch self {
+    case .idle: 0
+    case .running: 1
+    case .needsInput: 2
+    }
+  }
 }
 
 nonisolated enum TerminalAgentTurnLifecycle: Codable, Equatable, Sendable {
@@ -53,6 +65,18 @@ nonisolated struct TerminalAgentActiveChild: Codable, Equatable, Identifiable, S
   var sessionID: String { id.sessionID }
   var turnID: String? { id.turnID }
   var displayDetail: String? { detail ?? task }
+
+  var runsInWorkflow: Bool { role == Self.workflowRole }
+
+  var workflowRunPath: String? {
+    guard runsInWorkflow, let transcriptPath else { return nil }
+    return URL(fileURLWithPath: transcriptPath)
+      .deletingLastPathComponent()
+      .standardizedFileURL
+      .path
+  }
+
+  private static let workflowRole = "workflow-subagent"
 }
 
 nonisolated struct TerminalAgentStatePresentation: Equatable, Sendable {
@@ -319,7 +343,7 @@ nonisolated struct TerminalAgentStateStore {
       resolveAttention(requestID: requestID, turnID: event.scope.turnID, state: &state)
     case .subagentsReconciled(let liveSubagentIDs):
       state.activeChildren = state.activeChildren.filter {
-        liveSubagentIDs.contains($0.key.subagentID)
+        liveSubagentIDs.contains($0.key.subagentID) || $0.value.runsInWorkflow
       }
     case .hoverMessagesUpdated(let messages):
       updateHoverMessages(messages, turnID: event.scope.turnID, state: &state)
@@ -407,7 +431,9 @@ nonisolated struct TerminalAgentStateStore {
     _ turnID: String?,
     state: inout SessionState
   ) {
-    state.activeChildren = state.activeChildren.filter { $0.key.turnID == turnID }
+    state.activeChildren = state.activeChildren.filter {
+      $0.key.turnID == turnID || $0.value.runsInWorkflow
+    }
     state.turnLifecycle = .active(turnID)
     state.isActionable = true
     state.phase = .running
@@ -581,7 +607,7 @@ nonisolated struct TerminalAgentStateStore {
     }
     let activeChildren = Self.sortedChildren(state.activeChildren.values)
     let phase = activeChildren.reduce(state.phase) { phase, child in
-      Self.highest(phase, child.phase)
+      AgentActivityPhase.highest(phase, child.phase)
     }
     let detail =
       state.phase == phase
@@ -798,13 +824,6 @@ nonisolated struct TerminalAgentStateStore {
     TerminalAgentPanelWorkspaceKey(workingDirectoryPath: path)?.workingDirectoryPath
   }
 
-  private static func highest(
-    _ lhs: AgentActivityPhase,
-    _ rhs: AgentActivityPhase
-  ) -> AgentActivityPhase {
-    rank(lhs) >= rank(rhs) ? lhs : rhs
-  }
-
   private static func sortedChildren(
     _ children: Dictionary<TerminalAgentActiveChild.Identity, TerminalAgentActiveChild>.Values
   ) -> [TerminalAgentActiveChild] {
@@ -821,14 +840,6 @@ nonisolated struct TerminalAgentStateStore {
         sessionID: event.scope.sessionID,
         turnID: event.scope.turnID
       )
-    }
-  }
-
-  private static func rank(_ phase: AgentActivityPhase) -> Int {
-    switch phase {
-    case .idle: 0
-    case .running: 1
-    case .needsInput: 2
     }
   }
 }

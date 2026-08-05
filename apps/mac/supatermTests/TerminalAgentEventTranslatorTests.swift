@@ -498,7 +498,7 @@ struct TerminalAgentEventTranslatorTests {
       TerminalAgentEventTranslator.events(for: request).map(\.action) == [
         .subagentStarted(
           nickname: "dia-color-recovery",
-          role: nil,
+          role: "workflow-subagent",
           task: "Recover the color palettes Dia ships for Profile custom colors.",
           transcriptPath: subagentTranscriptPath(
             for: transcript,
@@ -535,7 +535,7 @@ struct TerminalAgentEventTranslatorTests {
       TerminalAgentEventTranslator.events(for: request).map(\.action) == [
         .subagentStarted(
           nickname: nil,
-          role: nil,
+          role: "workflow-subagent",
           task: "Recover the color palettes Dia ships.",
           transcriptPath: subagentTranscriptPath(
             for: transcript,
