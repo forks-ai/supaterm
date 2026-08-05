@@ -570,13 +570,68 @@ extension TerminalAgentStateStoreTests {
         agent: .claude,
         sessionID: "session-1",
         context: context,
-        action: .subagentsReconciled(liveSubagentIDs: ["child-live"], liveWorkflowNames: [])
+        action: .subagentsReconciled(liveSubagentIDs: ["child-live"], hasRunningWorkflow: false)
       )
     )
 
     let presentation = try #require(store.presentation(for: surfaceID, agent: .claude))
     #expect(presentation.activeChildren.map(\.subagentID) == ["child-live"])
     #expect(presentation.phase == .running)
+  }
+
+  @Test
+  func reconciliationKeepsWorkflowChildrenOnlyWhileAWorkflowRuns() throws {
+    let surfaceID = UUID()
+    let context = SupatermCLIContext(surfaceID: surfaceID, tabID: UUID())
+    var store = TerminalAgentStateStore()
+
+    store.apply(
+      event(
+        agent: .claude,
+        sessionID: "session-1",
+        context: context,
+        action: .sessionStarted(transcriptPath: nil)
+      )
+    )
+    for child in [
+      (subagentID: "workflow-child", role: "workflow-subagent"),
+      (subagentID: "plain-child", role: "general-purpose"),
+    ] {
+      store.apply(
+        event(
+          agent: .claude,
+          sessionID: "session-1",
+          subagentID: child.subagentID,
+          context: context,
+          action: .subagentStarted(nickname: "codex-balancer-research", role: child.role)
+        )
+      )
+    }
+
+    store.apply(
+      event(
+        agent: .claude,
+        sessionID: "session-1",
+        context: context,
+        action: .subagentsReconciled(liveSubagentIDs: [], hasRunningWorkflow: true)
+      )
+    )
+
+    #expect(
+      store.presentation(for: surfaceID, agent: .claude)?
+        .activeChildren.map(\.subagentID) == ["workflow-child"]
+    )
+
+    store.apply(
+      event(
+        agent: .claude,
+        sessionID: "session-1",
+        context: context,
+        action: .subagentsReconciled(liveSubagentIDs: [], hasRunningWorkflow: false)
+      )
+    )
+
+    #expect(store.presentation(for: surfaceID, agent: .claude)?.activeChildren.isEmpty == true)
   }
 
   @Test
@@ -622,7 +677,7 @@ extension TerminalAgentStateStoreTests {
       event(
         agent: .claude,
         sessionID: "session-1",
-        action: .subagentsReconciled(liveSubagentIDs: [], liveWorkflowNames: [])
+        action: .subagentsReconciled(liveSubagentIDs: [], hasRunningWorkflow: false)
       )
     )
 

@@ -116,13 +116,15 @@ nonisolated enum TerminalAgentEventTranslator {
       else {
         return [event(request, scope: scope, action: stopAction)]
       }
+      let liveSubagentIDs = runningClaudeTasks(tasks, ofType: "subagent")
+        .compactMap { $0["id"]?.stringValue }
       return [
         event(
           request,
           scope: scope,
           action: .subagentsReconciled(
-            liveSubagentIDs: runningClaudeTaskValues(tasks, ofType: "subagent", key: "id"),
-            liveWorkflowNames: runningClaudeTaskValues(tasks, ofType: "workflow", key: "name")
+            liveSubagentIDs: Set(liveSubagentIDs),
+            hasRunningWorkflow: !runningClaudeTasks(tasks, ofType: "workflow").isEmpty
           )
         ),
         event(request, scope: scope, action: stopAction),
@@ -135,22 +137,19 @@ nonisolated enum TerminalAgentEventTranslator {
     return [event(request, scope: scope, action: action)]
   }
 
-  private static func runningClaudeTaskValues(
+  private static func runningClaudeTasks(
     _ tasks: [JSONValue],
-    ofType type: String,
-    key: String
-  ) -> Set<String> {
-    Set(
-      tasks.compactMap { task in
-        guard let task = task.objectValue,
-          task["type"]?.stringValue == type,
-          task["status"]?.stringValue == "running"
-        else {
-          return nil
-        }
-        return task[key]?.stringValue
+    ofType type: String
+  ) -> [JSONObject] {
+    tasks.compactMap { task in
+      guard let task = task.objectValue,
+        task["type"]?.stringValue == type,
+        task["status"]?.stringValue == "running"
+      else {
+        return nil
       }
-    )
+      return task
+    }
   }
 
   private static func hasActiveClaudeBackgroundWork(

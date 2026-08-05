@@ -1,22 +1,10 @@
 import Foundation
 import SupatermCLIShared
 
-nonisolated enum AgentActivityPhase: Codable, Equatable, Sendable {
+nonisolated enum AgentActivityPhase: Codable, Comparable, Sendable {
   case idle
-  case needsInput
   case running
-
-  static func highest(_ lhs: Self, _ rhs: Self) -> Self {
-    lhs.rank >= rhs.rank ? lhs : rhs
-  }
-
-  private var rank: Int {
-    switch self {
-    case .idle: 0
-    case .running: 1
-    case .needsInput: 2
-    }
-  }
+  case needsInput
 }
 
 nonisolated enum TerminalAgentTurnLifecycle: Codable, Equatable, Sendable {
@@ -68,12 +56,13 @@ nonisolated struct TerminalAgentActiveChild: Codable, Equatable, Identifiable, S
 
   var runsInWorkflow: Bool { role == Self.workflowRole }
 
-  var workflowRunPath: String? {
-    guard runsInWorkflow, let transcriptPath else { return nil }
-    return URL(fileURLWithPath: transcriptPath)
-      .deletingLastPathComponent()
-      .standardizedFileURL
-      .path
+  var transcriptDirectoryPath: String? {
+    transcriptPath.map {
+      URL(fileURLWithPath: $0)
+        .deletingLastPathComponent()
+        .standardizedFileURL
+        .path
+    }
   }
 
   private static let workflowRole = "workflow-subagent"
@@ -341,12 +330,11 @@ nonisolated struct TerminalAgentStateStore {
       )
     case .attentionResolved(let requestID):
       resolveAttention(requestID: requestID, turnID: event.scope.turnID, state: &state)
-    case .subagentsReconciled(let liveSubagentIDs, let liveWorkflowNames):
+    case .subagentsReconciled(let liveSubagentIDs, let hasRunningWorkflow):
       state.activeChildren = state.activeChildren.filter { _, child in
-        guard child.runsInWorkflow else {
-          return liveSubagentIDs.contains(child.subagentID)
-        }
-        return child.nickname.map(liveWorkflowNames.contains) ?? !liveWorkflowNames.isEmpty
+        child.runsInWorkflow
+          ? hasRunningWorkflow
+          : liveSubagentIDs.contains(child.subagentID)
       }
     case .hoverMessagesUpdated(let messages):
       updateHoverMessages(messages, turnID: event.scope.turnID, state: &state)
@@ -438,9 +426,7 @@ nonisolated struct TerminalAgentStateStore {
     _ turnID: String?,
     state: inout SessionState
   ) {
-    state.activeChildren = state.activeChildren.filter {
-      $0.key.turnID == turnID || $0.value.runsInWorkflow
-    }
+    state.activeChildren = state.activeChildren.filter { $0.key.turnID == turnID }
     state.turnLifecycle = .active(turnID)
     state.isActionable = true
     state.phase = .running
@@ -613,9 +599,7 @@ nonisolated struct TerminalAgentStateStore {
       return nil
     }
     let activeChildren = Self.sortedChildren(state.activeChildren.values)
-    let phase = activeChildren.reduce(state.phase) { phase, child in
-      AgentActivityPhase.highest(phase, child.phase)
-    }
+    let phase = activeChildren.reduce(state.phase) { max($0, $1.phase) }
     let detail =
       state.phase == phase
       ? state.detail
@@ -743,11 +727,7 @@ nonisolated struct TerminalAgentStateStore {
       .path
     let count = state.activeChildren.count
     state.activeChildren = state.activeChildren.filter { _, child in
-      guard let transcriptPath = child.transcriptPath else { return true }
-      return URL(fileURLWithPath: transcriptPath)
-        .deletingLastPathComponent()
-        .standardizedFileURL
-        .path != transcriptDirectoryPath
+      child.transcriptDirectoryPath != transcriptDirectoryPath
     }
     guard state.activeChildren.count != count else { return false }
     store(state, for: key)

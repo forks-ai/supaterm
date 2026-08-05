@@ -67,8 +67,8 @@ struct TerminalAgentPanelTests {
       ]
     )
     #expect(
-      Array(presentation.childGroups.map(\.agentCountText).dropFirst())
-        == ["0/2 agents", "0/1 agents"]
+      Array(presentation.childGroups.map(\.doneCountText).dropFirst())
+        == ["0/2 done", "0/1 done"]
     )
   }
 
@@ -88,7 +88,7 @@ struct TerminalAgentPanelTests {
     )
     let group = presentation.childGroups[0]
 
-    #expect(group.agentCountText == "1/2 agents")
+    #expect(group.doneCountText == "1/2 done")
     #expect(group.liveChildren.map(\.subagentID) == ["wf-a"])
     #expect(group.phase == .running)
   }

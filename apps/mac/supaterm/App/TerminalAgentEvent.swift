@@ -51,7 +51,7 @@ nonisolated struct TerminalAgentEvent: Equatable, Sendable {
       nickname: String?, role: String?, task: String? = nil, transcriptPath: String? = nil
     )
     case subagentStopped
-    case subagentsReconciled(liveSubagentIDs: Set<String>, liveWorkflowNames: Set<String>)
+    case subagentsReconciled(liveSubagentIDs: Set<String>, hasRunningWorkflow: Bool)
     case turnCompleted(message: String?)
     case turnContinuesInBackground
     case turnRunning(detail: String?)

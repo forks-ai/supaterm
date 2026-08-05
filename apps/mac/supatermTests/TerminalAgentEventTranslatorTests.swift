@@ -234,14 +234,14 @@ struct TerminalAgentEventTranslatorTests {
 
     #expect(
       TerminalAgentEventTranslator.events(for: request).map(\.action) == [
-        .subagentsReconciled(liveSubagentIDs: ["child-live"], liveWorkflowNames: []),
+        .subagentsReconciled(liveSubagentIDs: ["child-live"], hasRunningWorkflow: false),
         .turnContinuesInBackground,
       ]
     )
   }
 
   @Test
-  func claudeStopReportsRunningWorkflowsByName() throws {
+  func claudeStopReportsOnlyRunningWorkflows() throws {
     let request = try request(
       agent: .claude,
       json: #"""
@@ -265,11 +265,33 @@ struct TerminalAgentEventTranslatorTests {
 
     #expect(
       TerminalAgentEventTranslator.events(for: request).map(\.action) == [
-        .subagentsReconciled(
-          liveSubagentIDs: [],
-          liveWorkflowNames: ["codex-balancer-research"]
-        ),
+        .subagentsReconciled(liveSubagentIDs: [], hasRunningWorkflow: true),
         .turnContinuesInBackground,
+      ]
+    )
+  }
+
+  @Test
+  func claudeStopWithOnlyFinishedWorkflowsReportsNoRunningWorkflow() throws {
+    let request = try request(
+      agent: .claude,
+      json: #"""
+        {
+          "session_id": "claude-1",
+          "hook_event_name": "Stop",
+          "last_assistant_message": "Done.",
+          "background_tasks": [
+            { "id": "wf-done", "type": "workflow", "status": "completed", "name": "dia-color" }
+          ],
+          "session_crons": []
+        }
+        """#
+    )
+
+    #expect(
+      TerminalAgentEventTranslator.events(for: request).map(\.action) == [
+        .subagentsReconciled(liveSubagentIDs: [], hasRunningWorkflow: false),
+        .turnCompleted(message: "Done."),
       ]
     )
   }
@@ -305,7 +327,7 @@ struct TerminalAgentEventTranslatorTests {
 
     #expect(
       TerminalAgentEventTranslator.events(for: request).map(\.action) == [
-        .subagentsReconciled(liveSubagentIDs: [], liveWorkflowNames: []),
+        .subagentsReconciled(liveSubagentIDs: [], hasRunningWorkflow: false),
         .turnCompleted(message: "Done"),
       ]
     )

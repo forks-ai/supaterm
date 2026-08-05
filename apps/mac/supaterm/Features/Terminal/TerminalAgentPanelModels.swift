@@ -32,22 +32,22 @@ nonisolated struct PaneAgentChildGroup: Equatable, Identifiable, Sendable {
   let children: [TerminalAgentActiveChild]
 
   var phase: AgentActivityPhase {
-    children.reduce(.idle) { AgentActivityPhase.highest($0, $1.phase) }
+    children.map(\.phase).max() ?? .idle
   }
 
   var liveChildren: [TerminalAgentActiveChild] {
     children.filter { $0.phase != .idle }
   }
 
-  var agentCountText: String {
-    "\(children.count - liveChildren.count)/\(children.count) agents"
+  var doneCountText: String {
+    "\(children.count - liveChildren.count)/\(children.count) done"
   }
 
   static func groups(for children: [TerminalAgentActiveChild]) -> [Self] {
     let loose = children.filter { !$0.runsInWorkflow }
     var runs: [(key: String, children: [TerminalAgentActiveChild])] = []
     for child in children where child.runsInWorkflow {
-      let key = child.workflowRunPath ?? child.nickname ?? ""
+      let key = child.transcriptDirectoryPath ?? child.nickname ?? unidentifiedRunKey
       if let index = runs.firstIndex(where: { $0.key == key }) {
         runs[index].children.append(child)
       } else {
@@ -63,6 +63,8 @@ nonisolated struct PaneAgentChildGroup: Equatable, Identifiable, Sendable {
         )
       }
   }
+
+  private static let unidentifiedRunKey = "unidentified-run"
 }
 
 nonisolated struct PaneAgentPanelSession: Equatable, Sendable {

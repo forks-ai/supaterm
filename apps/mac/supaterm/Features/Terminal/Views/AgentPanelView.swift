@@ -175,7 +175,7 @@ struct AgentPanelView: View {
       title: name,
       palette: palette,
       trailing: {
-        Text(group.agentCountText)
+        Text(group.doneCountText)
           .font(.system(size: 11))
           .foregroundStyle(palette.secondaryText)
       }
@@ -198,11 +198,7 @@ struct AgentPanelView: View {
   }
 
   private func childDotColor(_ phase: AgentActivityPhase) -> Color {
-    switch phase {
-    case .idle: palette.success
-    case .needsInput: palette.warning
-    case .running: palette.primaryText
-    }
+    phase == .needsInput ? palette.warning : palette.primaryText
   }
 
   private func activeChildRow(_ child: TerminalAgentActiveChild) -> some View {
