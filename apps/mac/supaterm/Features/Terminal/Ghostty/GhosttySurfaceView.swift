@@ -2281,8 +2281,9 @@ final class GhosttySurfaceScrollView: NSView {
     needsLayout = true
   }
 
-  func invalidateLayout(ifSizeDiffersFrom size: CGSize) {
+  func resize(to size: CGSize) {
     guard bounds.size != size else { return }
+    setFrameSize(size)
     needsLayout = true
   }
 

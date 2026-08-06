@@ -128,7 +128,7 @@ struct GhosttySurfaceViewTests {
     try #require(fullWidth > 0)
 
     let splitWrapper = GhosttySurfaceScrollView(surfaceView: surfaceView)
-    splitWrapper.invalidateLayout(ifSizeDiffersFrom: CGSize(width: 600, height: 800))
+    splitWrapper.resize(to: CGSize(width: 600, height: 800))
     fullWrapper.removeFromSuperview()
     splitWrapper.frame = NSRect(x: 0, y: 0, width: 600, height: 800)
     window.contentView?.addSubview(splitWrapper)
@@ -167,7 +167,7 @@ struct GhosttySurfaceViewTests {
 
   @Test
   @MainActor
-  func deferredGeometryResizeInvalidatesWrapperLayout() {
+  func swiftUIGeometryResizeUpdatesWrapperFrame() {
     initializeGhosttyForTests()
 
     let surfaceView = GhosttySurfaceView(
@@ -181,11 +181,37 @@ struct GhosttySurfaceViewTests {
     wrapper.layoutSubtreeIfNeeded()
 
     wrapper.needsLayout = false
-    wrapper.invalidateLayout(ifSizeDiffersFrom: wrapper.bounds.size)
+    wrapper.resize(to: wrapper.bounds.size)
     #expect(!wrapper.needsLayout)
 
-    wrapper.invalidateLayout(ifSizeDiffersFrom: CGSize(width: 900, height: 700))
+    wrapper.resize(to: CGSize(width: 900, height: 700))
+    #expect(wrapper.frame.size == CGSize(width: 900, height: 700))
     #expect(wrapper.needsLayout)
+  }
+
+  @Test
+  @MainActor
+  func deferredGeometryResizeWritesCoreSurfaceSize() throws {
+    initializeGhosttyForTests()
+
+    let surfaceView = GhosttySurfaceView(
+      runtime: GhosttyRuntime(),
+      tabID: UUID(),
+      workingDirectory: nil,
+      context: GHOSTTY_SURFACE_CONTEXT_TAB
+    )
+    defer { surfaceView.closeSurface() }
+    let surface = try #require(surfaceView.surface)
+    let wrapper = GhosttySurfaceScrollView(surfaceView: surfaceView)
+    wrapper.frame.size = CGSize(width: 1_200, height: 800)
+    wrapper.layoutSubtreeIfNeeded()
+    let fullWidth = ghostty_surface_size(surface).width_px
+    try #require(fullWidth > 0)
+
+    wrapper.resize(to: CGSize(width: 600, height: 800))
+    wrapper.layoutSubtreeIfNeeded()
+
+    #expect(ghostty_surface_size(surface).width_px < fullWidth)
   }
 
   @Test
