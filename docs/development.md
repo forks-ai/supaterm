@@ -181,7 +181,9 @@ Typing `ssh` in a pane runs `sp ssh`. The bundled shell integrations define the 
 
 ### SSH inheritance
 
-A new tab or split opens the same remote host as the pane it came from. The app reads the kernel process table, walks the source pane's zmx session to the shell's terminal, and takes the argument vector of the `ssh` in that terminal's foreground process group. It rebuilds the command as bare `ssh` plus the user's own arguments, so the new pane's wrapper routes it through `sp ssh` again and the Supaterm terminal environment applies; the `SendEnv` options that `sp ssh` injected are dropped rather than repeated. The new pane runs that command and falls back to a login shell when the remote session ends.
+A new tab or split opens the same remote host as the pane it came from. The app reads the kernel process table, walks the source pane's zmx session to the shell's terminal, and takes the argument vector of the `ssh` in that terminal's foreground process group. It rebuilds the command as the bundled `sp ssh` plus the user's own arguments, and drops the `SendEnv` options the first `sp ssh` injected because the new one adds them again. The command names the CLI outright: a startup-command pane never reaches a prompt, and the shell integrations define the `ssh` wrapper on the first prompt, so the wrapper does not exist there. Without a bundled CLI the command falls back to bare `ssh`.
+
+Only a session worth reopening is inherited: an `ssh` with a destination, no remote command, and none of `-N`, `-f`, or `-W`. That leaves alone the `ssh` children of `git`, `rsync`, and `scp`, and tunnels that carry no shell. The new pane falls back to a login shell when the remote session ends.
 
 Inheritance needs the zmx session, so it does nothing when zmx sessions are disabled. It reads only the process table and never talks to the remote host.
 

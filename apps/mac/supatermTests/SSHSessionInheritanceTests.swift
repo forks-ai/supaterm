@@ -6,6 +6,7 @@ import Testing
 
 struct SSHSessionInheritanceTests {
   private static let sessionName = "spt-37a8eec1ce19687d-8d9a2ce8-6212-4234-b419-df4c52a451ef"
+  private static let cliPath = "/Applications/supaterm.app/Contents/MacOS/sp"
   private static let paneTerminal: dev_t = 268_435_457
   private static let sessionTerminal: dev_t = 268_435_465
 
@@ -48,6 +49,7 @@ struct SSHSessionInheritanceTests {
   func inheritsForegroundSSHCommandFromSessionShell() throws {
     let resolved = SSHSessionInheritance.startupCommand(
       zmxSessionName: Self.sessionName,
+      cliPath: Self.cliPath,
       table: Self.table(
         shellForegroundGroup: 300,
         extra: [
@@ -77,15 +79,15 @@ struct SSHSessionInheritanceTests {
     )
 
     let command = try #require(resolved)
-    #expect(command.contains("ssh -p 2222 dev@example.com"))
+    #expect(command.hasPrefix("\(Self.cliPath) ssh -- -p 2222 dev@example.com;"))
     #expect(!command.contains("SendEnv"))
-    #expect(!command.contains("/usr/bin/ssh"))
   }
 
   @Test
   func ignoresBackgroundSSHOutsideTheForegroundGroup() {
     let command = SSHSessionInheritance.startupCommand(
       zmxSessionName: Self.sessionName,
+      cliPath: Self.cliPath,
       table: Self.table(
         shellForegroundGroup: 200,
         extra: [
@@ -114,6 +116,7 @@ struct SSHSessionInheritanceTests {
   func ignoresSessionsBelongingToAnotherSurface() {
     let command = SSHSessionInheritance.startupCommand(
       zmxSessionName: "spt-37a8eec1ce19687d-00000000-0000-0000-0000-000000000000",
+      cliPath: Self.cliPath,
       table: Self.table(shellForegroundGroup: 200),
       arguments: Self.arguments([
         100: ["zmx", "attach", Self.sessionName],
@@ -129,6 +132,7 @@ struct SSHSessionInheritanceTests {
   func returnsNilWhenTheForegroundCommandIsAShell() {
     let command = SSHSessionInheritance.startupCommand(
       zmxSessionName: Self.sessionName,
+      cliPath: Self.cliPath,
       table: Self.table(shellForegroundGroup: 200),
       arguments: Self.arguments([
         100: ["zmx", "attach", Self.sessionName],
@@ -145,6 +149,7 @@ struct SSHSessionInheritanceTests {
     let command = try #require(
       SSHSessionInheritance.startupCommand(
         zmxSessionName: Self.sessionName,
+        cliPath: Self.cliPath,
         table: Self.table(
           shellForegroundGroup: 300,
           extra: [
@@ -167,7 +172,7 @@ struct SSHSessionInheritanceTests {
       )
     )
 
-    #expect(command.hasPrefix("ssh example.com"))
+    #expect(command.hasPrefix("\(Self.cliPath) ssh -- example.com;"))
     #expect(command.contains("exec"))
   }
 }

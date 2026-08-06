@@ -46,19 +46,25 @@ public struct ProcessTable: Sendable, Equatable {
 
   public static func snapshot() -> ProcessTable {
     var request: [Int32] = [CTL_KERN, KERN_PROC, KERN_PROC_ALL, 0]
-    var probedSize = 0
-    guard sysctl(&request, 4, nil, &probedSize, nil, 0) == 0, probedSize > 0 else {
-      return ProcessTable(entries: [])
-    }
-
     let stride = MemoryLayout<kinfo_proc>.stride
-    var processes = [kinfo_proc](repeating: kinfo_proc(), count: probedSize / stride + 64)
-    var readSize = processes.count * stride
-    guard sysctl(&request, 4, &processes, &readSize, nil, 0) == 0 else {
-      return ProcessTable(entries: [])
+    var slack = 64
+
+    while slack <= 4096 {
+      var probedSize = 0
+      guard sysctl(&request, 4, nil, &probedSize, nil, 0) == 0, probedSize > 0 else {
+        return ProcessTable(entries: [])
+      }
+
+      var processes = [kinfo_proc](repeating: kinfo_proc(), count: probedSize / stride + slack)
+      var readSize = processes.count * stride
+      if sysctl(&request, 4, &processes, &readSize, nil, 0) == 0 {
+        return ProcessTable(entries: processes.prefix(readSize / stride).map(entry(from:)))
+      }
+      guard errno == ENOMEM else { return ProcessTable(entries: []) }
+      slack *= 4
     }
 
-    return ProcessTable(entries: processes.prefix(readSize / stride).map(entry(from:)))
+    return ProcessTable(entries: [])
   }
 
   public static func arguments(forProcessID processID: pid_t) -> [String]? {
