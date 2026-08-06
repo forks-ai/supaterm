@@ -1228,6 +1228,75 @@ struct TerminalWindowRegistryTests {
   }
 
   @Test
+  func requestOpenAgentPanelPullRequestInKeyWindowOpensSelectedPullRequest() async throws {
+    try await withDependencies {
+      $0.defaultFileStorage = .inMemory
+    } operation: {
+      initializeGhosttyForTests()
+
+      let registry = TerminalWindowRegistry()
+      let host = try makeCommandPaletteHost(title: "codex", workingDirectory: nil)
+      let surfaceID = try #require(host.selectedSurfaceView?.id)
+      #expect(
+        host.applyTestAgentActivity(
+          .codex(.running),
+          for: surfaceID,
+          sessionID: "session-1",
+          processID: nil
+        )
+      )
+      let pullRequestURL = try #require(
+        URL(string: "https://github.com/supabitapp/supaterm/pull/170")
+      )
+      #expect(
+        host.storeAgentPanelBranchDetails(
+          PaneAgentBranchDetails(
+            branchName: "feat/open-pr-hotkey",
+            addedLineCount: 9,
+            removedLineCount: 0,
+            pullRequestStatus: PaneAgentPullRequestStatus(
+              kind: .open,
+              title: "#170",
+              url: pullRequestURL,
+              addedLineCount: 9,
+              removedLineCount: 0,
+              checks: nil
+            )
+          ),
+          for: surfaceID
+        )
+      )
+      var openedURLs: [URL] = []
+      let store = Store(initialState: AppFeature.State()) {
+        AppFeature()
+      } withDependencies: {
+        $0.externalNavigationClient.open = { url in
+          openedURLs.append(url)
+          return true
+        }
+      }
+      let windowControllerID = UUID()
+
+      registry.register(
+        keyboardShortcutForAction: { _ in nil },
+        windowControllerID: windowControllerID,
+        store: store,
+        terminal: host,
+        requestConfirmedWindowClose: {}
+      )
+      let window = makeWindow()
+      registry.updateWindow(window, for: windowControllerID)
+
+      registry.requestOpenAgentPanelPullRequestInKeyWindow()
+      await flushEffects()
+
+      #expect(openedURLs == [pullRequestURL])
+      #expect(registry.commandAvailability().hasAgentPanelPullRequest)
+      withExtendedLifetime(window) {}
+    }
+  }
+
+  @Test
   func requestCopyAgentPanelSessionIDInKeyWindowCopiesSelectedSession() async throws {
     try await withDependencies {
       $0.defaultFileStorage = .inMemory
@@ -1386,6 +1455,7 @@ struct TerminalWindowRegistryTests {
 
       let availability = registry.commandAvailability()
       #expect(availability.hasAgentPanel)
+      #expect(!availability.hasAgentPanelPullRequest)
       #expect(!availability.hasAgentPanelSession)
     }
   }

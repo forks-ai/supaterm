@@ -203,8 +203,8 @@ struct SupatermMenuControllerTests {
       let viewMenu = try #require(app.mainMenu?.items.first(where: { $0.title == "View" })?.submenu)
       #expect(viewMenu.items[1].keyEquivalent == "i")
       #expect(viewMenu.items[1].keyEquivalentModifierMask == [.command])
-      #expect(viewMenu.items[5].keyEquivalent == "r")
-      #expect(viewMenu.items[5].keyEquivalentModifierMask == [.command, .option])
+      #expect(viewMenu.items[6].keyEquivalent == "r")
+      #expect(viewMenu.items[6].keyEquivalentModifierMask == [.command, .option])
     }
   }
 
@@ -1183,16 +1183,19 @@ struct SupatermMenuControllerTests {
       viewMenu.items.map(\.title) == [
         "Toggle Sidebar",
         "Toggle Agent Panel",
+        "Open Pull Request",
         "Fork Agent Session",
         "Copy Agent Session ID",
         "",
         "Change Tab Title...",
         "Change Terminal Title...",
       ])
-    #expect(viewMenu.items[2].keyEquivalent == "f")
+    #expect(viewMenu.items[2].keyEquivalent == "p")
     #expect(viewMenu.items[2].keyEquivalentModifierMask == [.command, .option])
-    #expect(viewMenu.items[3].keyEquivalent == "c")
+    #expect(viewMenu.items[3].keyEquivalent == "f")
     #expect(viewMenu.items[3].keyEquivalentModifierMask == [.command, .option])
+    #expect(viewMenu.items[4].keyEquivalent == "c")
+    #expect(viewMenu.items[4].keyEquivalentModifierMask == [.command, .option])
   }
 
   private func assertSpacesMenu(_ menu: NSMenu?) throws {

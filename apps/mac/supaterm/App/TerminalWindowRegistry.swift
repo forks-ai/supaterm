@@ -28,6 +28,7 @@ final class TerminalWindowRegistry {
     let hasSurface: Bool
     var hasAnySurface = false
     var hasAgentPanel = false
+    var hasAgentPanelPullRequest = false
     var hasAgentPanelSession = false
   }
 
@@ -58,6 +59,7 @@ final class TerminalWindowRegistry {
   }
 
   private struct SelectedAgentPanel {
+    let pullRequestURL: URL?
     let surfaceID: UUID
     let session: PaneAgentPanelSession?
   }
@@ -479,6 +481,14 @@ final class TerminalWindowRegistry {
     entry.store.send(.terminal(.agentPanelVisibilityToggled(surfaceID)))
   }
 
+  func requestOpenAgentPanelPullRequestInKeyWindow() {
+    guard
+      let entry = preferredActiveEntry(),
+      let url = selectedAgentPanel(in: entry)?.pullRequestURL
+    else { return }
+    entry.store.send(.terminal(.agentPanelURLTapped(url)))
+  }
+
   func requestForkAgentPanelSessionInKeyWindow(direction: SupatermPaneDirection) {
     guard
       let entry = preferredActiveEntry(),
@@ -768,7 +778,11 @@ final class TerminalWindowRegistry {
   private func selectedAgentPanel(in entry: Entry) -> SelectedAgentPanel? {
     guard let surfaceID = entry.terminal.selectedSurfaceView?.id else { return nil }
     guard let presentation = entry.terminal.agentPanelPresentation(for: surfaceID) else { return nil }
-    return SelectedAgentPanel(surfaceID: surfaceID, session: presentation.session)
+    return SelectedAgentPanel(
+      pullRequestURL: presentation.branchDetails?.displayedPullRequestStatus?.url,
+      surfaceID: surfaceID,
+      session: presentation.session
+    )
   }
 
   private func selectedGroupID(in entry: Entry) -> TerminalTabGroupID? {
@@ -784,6 +798,7 @@ final class TerminalWindowRegistry {
       hasSurface: entry.terminal.selectedSurfaceView != nil,
       hasAnySurface: hasAnySurface,
       hasAgentPanel: selectedAgentPanel != nil,
+      hasAgentPanelPullRequest: selectedAgentPanel?.pullRequestURL != nil,
       hasAgentPanelSession: selectedAgentPanel?.session != nil
     )
   }

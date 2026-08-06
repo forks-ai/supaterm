@@ -65,6 +65,7 @@ final class SupatermMenuController: NSObject {
     static let selectionForFind = NSUserInterfaceItemIdentifier("app.supabit.supaterm.edit.selectionForFind")
     static let toggleSidebar = NSUserInterfaceItemIdentifier("app.supabit.supaterm.view.toggleSidebar")
     static let toggleAgentPanel = NSUserInterfaceItemIdentifier("app.supabit.supaterm.view.toggleAgentPanel")
+    static let openPullRequest = NSUserInterfaceItemIdentifier("app.supabit.supaterm.view.openPullRequest")
     static let forkAgentSession = NSUserInterfaceItemIdentifier("app.supabit.supaterm.view.forkAgentSession")
     static let copyAgentSessionID = NSUserInterfaceItemIdentifier("app.supabit.supaterm.view.copyAgentSessionID")
     static let changeTabTitle = NSUserInterfaceItemIdentifier("app.supabit.supaterm.view.changeTabTitle")
@@ -319,6 +320,7 @@ final class SupatermMenuController: NSObject {
       entries: [
         .item(MenuItemIdentifier.toggleSidebar),
         .item(MenuItemIdentifier.toggleAgentPanel),
+        .item(MenuItemIdentifier.openPullRequest),
         .item(MenuItemIdentifier.forkAgentSession),
         .item(MenuItemIdentifier.copyAgentSessionID),
         .separator,
@@ -628,6 +630,12 @@ final class SupatermMenuController: NSObject {
         title: "Toggle Agent Panel",
         action: #selector(toggleAgentPanel(_:)),
         shortcut: .app(.toggleAgentPanel)
+      ),
+      SupatermMenuItemSpec(
+        id: MenuItemIdentifier.openPullRequest,
+        title: "Open Pull Request",
+        action: #selector(openPullRequest(_:)),
+        shortcut: .appRouted(.openPullRequest)
       ),
       SupatermMenuItemSpec(
         id: MenuItemIdentifier.forkAgentSession,
@@ -1088,6 +1096,10 @@ final class SupatermMenuController: NSObject {
     registry.requestToggleAgentPanelInKeyWindow()
   }
 
+  @objc func openPullRequest(_ sender: Any?) {
+    registry.requestOpenAgentPanelPullRequestInKeyWindow()
+  }
+
   @objc func forkAgentSession(_ sender: Any?) {
     registry.requestForkAgentPanelSessionInKeyWindow(direction: .right)
   }
@@ -1428,6 +1440,8 @@ extension SupatermMenuController: NSMenuItemValidation {
       return context.availability.hasTab
     case MenuItemIdentifier.toggleAgentPanel:
       return context.availability.hasAgentPanel
+    case MenuItemIdentifier.openPullRequest:
+      return context.availability.hasAgentPanelPullRequest
     case MenuItemIdentifier.forkAgentSession,
       MenuItemIdentifier.copyAgentSessionID:
       return context.availability.hasAgentPanelSession
