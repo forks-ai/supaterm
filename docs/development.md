@@ -175,9 +175,9 @@ The app also prepends its `Contents/MacOS` directory to pane `PATH`. The directo
 
 ### SSH entry point
 
-Supaterm keeps `ssh-env` in new terminal configs. When `ssh-env` or `ssh-terminfo` is active and the current terminal host has no Ghostty executable, the bundled shell integrations call the exact `SUPATERM_CLI_PATH` and let `sp ssh` replace itself with the user's `ssh` executable. This reuses the signed CLI already in the app bundle and cannot call an unbundled executable.
+Typing `ssh` in a pane runs `sp ssh`. The bundled shell integrations define the wrapper whenever `SUPATERM_CLI_PATH` is executable and the pane has no Ghostty executable, so the route reads no `shell-integration-features` value and Supaterm never writes that key. A missing or unrunnable path leaves the shell's own `ssh` alone. The wrapper calls the exact path, so it reuses the signed CLI in the app bundle and cannot call an unbundled executable. `command ssh` skips the wrapper.
 
-`sp ssh` owns the Supaterm route's portable `xterm-256color` default, SSH executable choice, terminal environment, and `SendEnv` rules. It does not pass `SetEnv`, so user SSH config keeps ownership of those values. Native Ghostty keeps its `+ssh` route and automatic terminfo installation, including when launched from a Supaterm pane. Supaterm does not rewrite existing terminal configs; users without either SSH feature keep their current behavior.
+`sp ssh` owns the portable `xterm-256color` default, SSH executable choice, terminal environment, and `SendEnv` rules. It does not pass `SetEnv`, so user SSH config keeps ownership of those values. It replaces itself with `ssh`, so exit codes and signals are the user's own. Native Ghostty keeps its `+ssh` route and its `ssh-env` and `ssh-terminfo` features, including when launched from a Supaterm pane.
 
 ## Session persistence
 
