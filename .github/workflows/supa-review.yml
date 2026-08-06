@@ -11,6 +11,6 @@ jobs:
       contents: read
       issues: write
       pull-requests: write
-    uses: supabitapp/supareview/.github/workflows/thermos-review.yml@main
+    uses: supabitapp/supareview/.github/workflows/supareview-review.yml@main
     secrets:
-      THERMOS_OPENAI_API_KEY: ${{ secrets.CODEX_BALANCER_API_KEY }}
+      SUPAREVIEW_OPENAI_API_KEY: ${{ secrets.CODEX_BALANCER_API_KEY }}
