@@ -1,3 +1,4 @@
+import SupaTheme
 import SupatermCLIShared
 import SwiftUI
 import Testing
@@ -28,10 +29,26 @@ struct TerminalSplitTreeViewTests {
     let initialColor = NSColor(deviceWhite: 0.1, alpha: 1)
     let updatedColor = NSColor(deviceWhite: 0.2, alpha: 1)
     let container = TerminalSplitAXContainerView(backgroundColor: initialColor)
+    let rootView = TerminalSplitTreeView(
+      agentPanelPresentations: [:],
+      dimmingColor: .clear,
+      dimmingOpacity: 0,
+      focusedSurfaceID: nil,
+      hiddenAgentPanelSurfaceIDs: [],
+      notificationColor: .clear,
+      palette: Palette(colorScheme: .dark),
+      agentPanelForksDown: false,
+      agentPanelShortcutHint: nil,
+      showsGlowingPaneRing: false,
+      splitDividerColor: .clear,
+      tree: SplitTree(),
+      unreadSurfaceIDs: [],
+      action: { _ in }
+    )
 
     container.update(
       backgroundColor: updatedColor,
-      rootView: AnyView(EmptyView()),
+      rootView: rootView,
       visibleNode: nil,
       action: { _ in },
       panes: []
