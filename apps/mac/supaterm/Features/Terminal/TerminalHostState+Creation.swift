@@ -156,8 +156,14 @@ extension TerminalHostState {
       preconditionFailure("TerminalHostState cannot create surfaces without a GhosttyRuntime")
     }
     let inherited = inheritedSurfaceConfig(fromSurfaceID: inheritingFromSurfaceID, context: context)
+    let resolvedStartupCommand =
+      startupCommand
+      ?? inheritedSSHCommand(
+        fromSurfaceID: inheritingFromSurfaceID,
+        workingDirectory: workingDirectory
+      )
     let launchCommand = resolvedSurfaceCommand(
-      startupCommand: startupCommand,
+      startupCommand: resolvedStartupCommand,
       surfaceID: surfaceID
     )
     SupatermLog.debug(
@@ -168,7 +174,7 @@ extension TerminalHostState {
         "tabID=\(tabID.rawValue.uuidString.lowercased())",
         "context=\(Self.surfaceContextLabel(context))",
         "zmxSessionsEnabled=\(zmxSessionsEnabled)",
-        "hasStartupCommand=\(startupCommand?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false)",
+        "hasStartupCommand=\(resolvedStartupCommand?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false)",
         "hasResolvedCommand=\(launchCommand.command != nil)",
         "hasCommandWrapper=\(!launchCommand.commandWrapper.isEmpty)",
         "usesZmx=\(launchCommand.usesZmx)",
@@ -222,11 +228,10 @@ extension TerminalHostState {
       )
       return SurfaceLaunchCommand(command: command, commandWrapper: [], usesZmx: false)
     }
-    let zmxCommand = startupCommand.map { SupatermShellCommand.ghosttyStartupCommand(for: $0) }
     let launch = ZmxAttach.resolveLaunch(
       executablePath: executable.path(percentEncoded: false),
       sessionID: sessionID,
-      command: zmxCommand
+      command: command
     )
     SupatermLog.debug(
       SupatermLog.zmx,
@@ -242,6 +247,14 @@ extension TerminalHostState {
       command: launch.command,
       commandWrapper: launch.commandWrapper,
       usesZmx: true
+    )
+  }
+
+  func inheritedSSHCommand(fromSurfaceID surfaceID: UUID?, workingDirectory: URL?) -> String? {
+    guard zmxSessionsEnabled, workingDirectory == nil, let surfaceID else { return nil }
+    return SSHSessionInheritance.startupCommand(
+      zmxSessionName: ZmxSessionID.make(surfaceID: surfaceID),
+      cliPath: GhosttySupport.bundledCLIPath(executableURL: Bundle.main.executableURL)
     )
   }
 

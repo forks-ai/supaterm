@@ -38,6 +38,8 @@ sp tab pin
 sp tab next
 ```
 
+A new tab with no command or explicit working directory opens the same remote host when its source pane runs a plain interactive SSH login. Pass `--cwd`, a command after `--`, or `--script` to open a local shell instead. **New Supaterm Tab Here** always opens a local shell in the chosen folder.
+
 ## Panes
 
 Split a tab when related processes should stay visible together:
@@ -46,6 +48,8 @@ Split a tab when related processes should stay visible together:
 sp pane split right
 sp pane split down --cwd ~/code/project -- npm test
 ```
+
+A split with no command or explicit working directory opens the same remote host when its source pane runs a plain interactive SSH login. Pass `--cwd`, a command after `--`, or `--script` to open a local shell instead.
 
 Use the **Splits** menu or command palette to focus and resize panes. `Command-Shift-Return` zooms the selected pane without changing the split tree.
 
