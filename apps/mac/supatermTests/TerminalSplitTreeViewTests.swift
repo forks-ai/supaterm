@@ -308,6 +308,7 @@ struct TerminalSplitTreeViewTests {
   @Test
   func agentPanelShortcutsDisplayCommandHints() {
     #expect(SupatermShortcuts.toggleAgentPanel.defaultBinding.display == "⌘I")
+    #expect(SupatermShortcuts.openPullRequest.defaultBinding.display == "⌘⌥P")
     #expect(SupatermShortcuts.forkAgentSession.defaultBinding.display == "⌘⌥F")
     #expect(SupatermShortcuts.copyAgentSessionID.defaultBinding.display == "⌘⌥C")
   }

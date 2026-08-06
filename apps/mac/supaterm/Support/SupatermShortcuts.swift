@@ -150,6 +150,11 @@ public enum SupatermShortcuts {
     keyCode: UInt16(kVK_ANSI_C),
     modifiers: [.command, .option]
   )
+  public static let openPullRequest = SupatermShortcut(
+    id: .openPullRequest,
+    keyCode: UInt16(kVK_ANSI_P),
+    modifiers: [.command, .option]
+  )
 
   public static let nextSpace = SupatermShortcut(
     id: .nextSpace,
@@ -181,7 +186,7 @@ public enum SupatermShortcuts {
     ),
     SupatermShortcutGroup(
       category: .codingAgents,
-      shortcuts: [forkAgentSession, copyAgentSessionID]
+      shortcuts: [openPullRequest, forkAgentSession, copyAgentSessionID]
     ),
     SupatermShortcutGroup(
       category: .spaces,

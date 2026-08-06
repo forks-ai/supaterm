@@ -426,7 +426,13 @@ struct AgentPanelView: View {
     let icon = pullRequestIcon(status)
     let color = pullRequestColor(status)
     if let url = status.url {
-      linkRow(icon: icon, title: status.displayTitle, url: url, iconColor: color)
+      linkRow(
+        icon: icon,
+        title: status.displayTitle,
+        url: url,
+        iconColor: color,
+        shortcutHint: shortcutHint(.openPullRequest)
+      )
     } else {
       valueRow(icon: icon, title: status.displayTitle, iconColor: color)
     }
@@ -436,7 +442,8 @@ struct AgentPanelView: View {
     icon: AgentPanelIcon,
     title: String,
     url: URL,
-    iconColor: Color? = nil
+    iconColor: Color? = nil,
+    shortcutHint: String? = nil
   ) -> some View {
     Button {
       openURL(url)
@@ -447,9 +454,17 @@ struct AgentPanelView: View {
         palette: palette,
         iconColor: iconColor ?? palette.secondaryText
       ) {
-        Image(systemName: "arrow.up.right")
-          .font(.system(size: 9, weight: .bold))
-          .foregroundStyle(palette.secondaryText)
+        if let shortcutHint {
+          Text(shortcutHint)
+            .font(.system(size: 11, weight: .semibold, design: .rounded))
+            .foregroundStyle(palette.secondaryText)
+            .monospacedDigit()
+            .lineLimit(1)
+        } else {
+          Image(systemName: "arrow.up.right")
+            .font(.system(size: 9, weight: .bold))
+            .foregroundStyle(palette.secondaryText)
+        }
       }
     }
     .buttonStyle(AgentPanelRowButtonStyle(palette: palette))
