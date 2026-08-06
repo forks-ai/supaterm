@@ -1,5 +1,6 @@
 import ArgumentParser
 import Foundation
+import SupatermCLIShared
 
 extension SP {
   struct SSH: ParsableCommand {
@@ -11,10 +12,10 @@ extension SP {
     )
 
     @Option(name: .long, help: "TERM value to use for the remote session.")
-    var term = "xterm-256color"
+    var term = SupatermSSHCommand.term
 
     @Option(name: .long, help: "SSH executable to launch.")
-    var ssh = "ssh"
+    var ssh = SupatermSSHCommand.program
 
     @Argument(parsing: .remaining, help: "Arguments to pass to SSH.")
     var arguments: [String] = []
@@ -72,12 +73,7 @@ enum SPSSHLauncher {
 
     return Invocation(
       executablePath: executablePath,
-      arguments: [
-        executablePath,
-        "-o", "SendEnv=COLORTERM",
-        "-o", "SendEnv=TERM_PROGRAM",
-        "-o", "SendEnv=TERM_PROGRAM_VERSION",
-      ] + arguments,
+      arguments: [executablePath] + SupatermSSHCommand.forwardedEnvironmentOptions + arguments,
       environment: processEnvironment
     )
   }

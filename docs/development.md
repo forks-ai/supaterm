@@ -179,6 +179,12 @@ Typing `ssh` in a pane runs `sp ssh`. The bundled shell integrations define the 
 
 `sp ssh` owns the portable `xterm-256color` default, SSH executable choice, terminal environment, and `SendEnv` rules. It does not pass `SetEnv`, so user SSH config keeps ownership of those values. It replaces itself with `ssh`, so exit codes and signals are the user's own. Native Ghostty keeps its `+ssh` route and its `ssh-env` and `ssh-terminfo` features, including when launched from a Supaterm pane.
 
+### SSH inheritance
+
+A new tab or split opens the same remote host as the pane it came from. The app reads the kernel process table, walks the source pane's zmx session to the shell's terminal, and takes the argument vector of the `ssh` in that terminal's foreground process group. It rebuilds the command as bare `ssh` plus the user's own arguments, so the new pane's wrapper routes it through `sp ssh` again and the Supaterm terminal environment applies; the `SendEnv` options that `sp ssh` injected are dropped rather than repeated. The new pane runs that command and falls back to a login shell when the remote session ends.
+
+Inheritance needs the zmx session, so it does nothing when zmx sessions are disabled. It reads only the process table and never talks to the remote host.
+
 ## Session persistence
 
 State files under the Supaterm state root (`session.json`, `spaces.json`, `pinned-tabs.json`, `settings.toml`) hold user data. Breaking them destroys real user sessions.

@@ -1001,6 +1001,7 @@ final class TerminalHostState {
   struct InheritedSurfaceConfig: Equatable {
     let workingDirectory: URL?
     let fontSize: Float32?
+    let startupCommand: String?
   }
 
   struct ResolvedCreateTabTarget {

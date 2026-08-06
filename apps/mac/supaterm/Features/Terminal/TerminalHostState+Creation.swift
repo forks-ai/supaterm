@@ -157,7 +157,7 @@ extension TerminalHostState {
     }
     let inherited = inheritedSurfaceConfig(fromSurfaceID: inheritingFromSurfaceID, context: context)
     let launchCommand = resolvedSurfaceCommand(
-      startupCommand: startupCommand,
+      startupCommand: startupCommand ?? inherited.startupCommand,
       surfaceID: surfaceID
     )
     SupatermLog.debug(
@@ -249,8 +249,23 @@ extension TerminalHostState {
     fromSurfaceID surfaceID: UUID?,
     context: ghostty_surface_context_e
   ) -> InheritedSurfaceConfig {
-    guard let surfaceID, let view = surfaces[surfaceID], let sourceSurface = view.surface else {
-      return InheritedSurfaceConfig(workingDirectory: nil, fontSize: nil)
+    guard let surfaceID else {
+      return InheritedSurfaceConfig(workingDirectory: nil, fontSize: nil, startupCommand: nil)
+    }
+
+    let startupCommand =
+      zmxSessionsEnabled
+      ? SSHSessionInheritance.startupCommand(
+        zmxSessionName: ZmxSessionID.make(surfaceID: surfaceID)
+      )
+      : nil
+
+    guard let view = surfaces[surfaceID], let sourceSurface = view.surface else {
+      return InheritedSurfaceConfig(
+        workingDirectory: nil,
+        fontSize: nil,
+        startupCommand: startupCommand
+      )
     }
 
     let inherited = ghostty_surface_inherited_config(sourceSurface, context)
@@ -267,7 +282,8 @@ extension TerminalHostState {
 
     return InheritedSurfaceConfig(
       workingDirectory: workingDirectory,
-      fontSize: fontSize
+      fontSize: fontSize,
+      startupCommand: startupCommand
     )
   }
 
