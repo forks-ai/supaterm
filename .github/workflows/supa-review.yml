@@ -13,4 +13,4 @@ jobs:
       pull-requests: write
     uses: supabitapp/supareview/.github/workflows/supareview-review.yml@main
     secrets:
-      SUPAREVIEW_OPENAI_API_KEY: ${{ secrets.CODEX_BALANCER_API_KEY }}
+      CODEX_BALANCER_API_KEY: ${{ secrets.CODEX_BALANCER_API_KEY }}
