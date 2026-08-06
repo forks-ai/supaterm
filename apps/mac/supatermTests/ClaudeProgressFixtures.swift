@@ -169,6 +169,7 @@ enum ClaudeProgressFixtures {
     runID: String,
     workflowName: String? = nil,
     prompt: Any,
+    startedAt: String? = nil,
     forTranscriptAt transcriptURL: URL
   ) throws {
     let directoryURL =
@@ -192,15 +193,36 @@ enum ClaudeProgressFixtures {
       options: [.sortedKeys]
     )
     try metadata.write(to: directoryURL.appendingPathComponent("agent-\(agentID).meta.json"))
-    let spawn: [String: Any] = [
+    var spawn: [String: Any] = [
       "type": "user",
       "agentId": agentID,
       "message": ["role": "user", "content": prompt],
     ]
+    if let startedAt {
+      spawn["timestamp"] = startedAt
+    }
     let transcript = try JSONSerialization.data(withJSONObject: spawn, options: [.sortedKeys])
     try (transcript + Data([0x0A])).write(
       to: directoryURL.appendingPathComponent("agent-\(agentID).jsonl")
     )
+  }
+
+  static func appendSubagentReply(
+    model: String,
+    usage: [String: Int],
+    timestamp: String,
+    to transcriptURL: URL
+  ) throws {
+    let reply: [String: Any] = [
+      "type": "assistant",
+      "timestamp": timestamp,
+      "message": ["role": "assistant", "model": model, "usage": usage],
+    ]
+    let line = try JSONSerialization.data(withJSONObject: reply, options: [.sortedKeys])
+    let handle = try FileHandle(forWritingTo: transcriptURL)
+    defer { try? handle.close() }
+    try handle.seekToEnd()
+    try handle.write(contentsOf: line + Data([0x0A]))
   }
 
   static func appendTaskReminder(

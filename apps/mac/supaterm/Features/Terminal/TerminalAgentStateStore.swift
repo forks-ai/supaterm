@@ -13,6 +13,63 @@ nonisolated enum TerminalAgentTurnLifecycle: Codable, Equatable, Sendable {
   case unseen
 }
 
+nonisolated struct TerminalAgentChildUsage: Codable, Equatable, Sendable {
+  let model: String?
+  let contextTokens: Int
+  let startedAt: Date
+  let lastActiveAt: Date
+
+  func summary(now: Date) -> String {
+    [modelName, tokenText, elapsedText(now: now)]
+      .compactMap(\.self)
+      .joined(separator: " · ")
+  }
+
+  var modelName: String? {
+    guard let model else { return nil }
+    let components =
+      model
+      .split(separator: "-")
+      .map(String.init)
+      .filter { $0 != "claude" && !isReleaseDate($0) }
+    guard let family = components.first(where: { !isVersion($0) }) else { return nil }
+    let version = components.filter(isVersion).joined(separator: ".")
+    return version.isEmpty ? family.capitalized : "\(family.capitalized) \(version)"
+  }
+
+  private var tokenText: String? {
+    guard contextTokens > 0 else { return nil }
+    guard contextTokens >= 1000 else { return "\(contextTokens) tok" }
+    let thousands = (Double(contextTokens) / 100).rounded() / 10
+    let text =
+      thousands == thousands.rounded()
+      ? String(Int(thousands))
+      : String(format: "%.1f", thousands)
+    return "\(text)k tok"
+  }
+
+  private func elapsedText(now: Date) -> String {
+    let seconds = max(0, Int(now.timeIntervalSince(startedAt).rounded()))
+    let hours = seconds / 3600
+    let minutes = seconds % 3600 / 60
+    if hours > 0 {
+      return String(format: "%dh%02dm", hours, minutes)
+    }
+    if minutes > 0 {
+      return String(format: "%dm%02ds", minutes, seconds % 60)
+    }
+    return "\(seconds)s"
+  }
+
+  private func isVersion(_ component: String) -> Bool {
+    component.allSatisfy(\.isNumber)
+  }
+
+  private func isReleaseDate(_ component: String) -> Bool {
+    component.count == 8 && isVersion(component)
+  }
+}
+
 nonisolated struct TerminalAgentActiveChild: Codable, Equatable, Identifiable, Sendable {
   struct Identity: Codable, Equatable, Hashable, Sendable {
     let subagentID: String
@@ -28,6 +85,7 @@ nonisolated struct TerminalAgentActiveChild: Codable, Equatable, Identifiable, S
   let phase: AgentActivityPhase
   let detail: String?
   let attentionRequestID: String?
+  let usage: TerminalAgentChildUsage?
 
   init(
     id: Identity,
@@ -37,7 +95,8 @@ nonisolated struct TerminalAgentActiveChild: Codable, Equatable, Identifiable, S
     task: String? = nil,
     phase: AgentActivityPhase,
     detail: String?,
-    attentionRequestID: String? = nil
+    attentionRequestID: String? = nil,
+    usage: TerminalAgentChildUsage? = nil
   ) {
     self.id = id
     self.nickname = nickname
@@ -47,6 +106,7 @@ nonisolated struct TerminalAgentActiveChild: Codable, Equatable, Identifiable, S
     self.phase = phase
     self.detail = detail
     self.attentionRequestID = attentionRequestID
+    self.usage = usage
   }
 
   var subagentID: String { id.subagentID }
@@ -351,7 +411,7 @@ nonisolated struct TerminalAgentStateStore {
   ) {
     guard let childKey = Self.childKey(for: event) else { return }
     switch event.action {
-    case .subagentStarted(let nickname, let role, let task, let transcriptPath):
+    case .subagentStarted(let nickname, let role, let task, let transcriptPath, let usage):
       state.activeChildren = state.activeChildren.filter {
         $0.key.subagentID != childKey.subagentID || $0.key == childKey
       }
@@ -360,7 +420,8 @@ nonisolated struct TerminalAgentStateStore {
           nickname: nickname,
           role: role,
           task: task,
-          transcriptPath: transcriptPath
+          transcriptPath: transcriptPath,
+          usage: usage
         )
         state.activeChildren[childKey] =
           child.phase == .idle ? updated.updating(phase: .running, detail: nil) : updated
@@ -372,22 +433,28 @@ nonisolated struct TerminalAgentStateStore {
           transcriptPath: transcriptPath,
           task: task,
           phase: .running,
-          detail: nil
+          detail: nil,
+          usage: usage
         )
       }
-    case .subagentDescribed(let nickname, let task, let transcriptPath):
+    case .subagentDescribed(let nickname, let task, let transcriptPath, let usage):
       guard let child = state.activeChildren[childKey] else { return }
       state.activeChildren[childKey] = child.updating(
         nickname: nickname,
         task: task,
-        transcriptPath: transcriptPath
+        transcriptPath: transcriptPath,
+        usage: usage
       )
-    case .subagentStopped:
+    case .subagentStopped(let usage):
       guard let child = state.activeChildren[childKey], child.runsInWorkflow else {
         state.activeChildren.removeValue(forKey: childKey)
         return
       }
-      state.activeChildren[childKey] = child.updating(phase: .idle, detail: nil)
+      state.activeChildren[childKey] = child.updating(
+        phase: .idle,
+        detail: nil,
+        usage: usage
+      )
     default:
       updateChild(event.action, key: childKey, state: &state)
     }
@@ -836,7 +903,8 @@ extension TerminalAgentActiveChild {
     nickname: String?,
     role: String? = nil,
     task: String?,
-    transcriptPath: String? = nil
+    transcriptPath: String? = nil,
+    usage: TerminalAgentChildUsage? = nil
   ) -> Self {
     Self(
       id: id,
@@ -846,14 +914,16 @@ extension TerminalAgentActiveChild {
       task: task ?? self.task,
       phase: phase,
       detail: detail,
-      attentionRequestID: attentionRequestID
+      attentionRequestID: attentionRequestID,
+      usage: usage ?? self.usage
     )
   }
 
   fileprivate nonisolated func updating(
     phase: AgentActivityPhase,
     detail: String?,
-    attentionRequestID: String? = nil
+    attentionRequestID: String? = nil,
+    usage: TerminalAgentChildUsage? = nil
   ) -> Self {
     Self(
       id: id,
@@ -863,7 +933,8 @@ extension TerminalAgentActiveChild {
       task: task,
       phase: phase,
       detail: detail,
-      attentionRequestID: attentionRequestID
+      attentionRequestID: attentionRequestID,
+      usage: usage ?? self.usage
     )
   }
 }

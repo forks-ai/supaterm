@@ -46,6 +46,49 @@ struct TerminalAgentPanelTests {
 
   @Test
   @MainActor
+  func workflowChildTitleShowsTheSpawnTask() {
+    #expect(
+      AgentPanelView.workflowChildTitle(child(task: "Audit the account pool"))
+        == "Audit the account pool"
+    )
+    #expect(
+      AgentPanelView.workflowChildTitle(child(detail: "Bash: rg -n backend-api")) == "Working…"
+    )
+  }
+
+  @Test
+  func childUsageReadsLikeTheAgentFleetDisplay() {
+    let started = Date(timeIntervalSince1970: 1_775_000_000)
+    func usage(
+      model: String? = "claude-opus-5",
+      contextTokens: Int,
+      elapsed: TimeInterval
+    ) -> TerminalAgentChildUsage {
+      TerminalAgentChildUsage(
+        model: model,
+        contextTokens: contextTokens,
+        startedAt: started,
+        lastActiveAt: started.addingTimeInterval(elapsed)
+      )
+    }
+
+    for (usage, summary) in [
+      (usage(contextTokens: 33_084, elapsed: 147), "Opus 5 · 33.1k tok · 2m27s"),
+      (usage(contextTokens: 135_000, elapsed: 303), "Opus 5 · 135k tok · 5m03s"),
+      (usage(contextTokens: 940, elapsed: 8), "Opus 5 · 940 tok · 8s"),
+      (usage(contextTokens: 1_000, elapsed: 3_720), "Opus 5 · 1k tok · 1h02m"),
+      (
+        usage(model: "claude-haiku-4-5-20251001", contextTokens: 12_340, elapsed: 61),
+        "Haiku 4.5 · 12.3k tok · 1m01s"
+      ),
+      (usage(model: nil, contextTokens: 0, elapsed: 12), "12s"),
+    ] {
+      #expect(usage.summary(now: usage.lastActiveAt) == summary)
+    }
+  }
+
+  @Test
+  @MainActor
   func workflowChildrenNestUnderTheirRun() {
     let presentation = PaneAgentPanelPresentation(
       activeChildren: [
@@ -74,7 +117,7 @@ struct TerminalAgentPanelTests {
 
   @Test
   @MainActor
-  func finishedWorkflowAgentsCountWithoutTakingARow() {
+  func finishedWorkflowAgentsKeepTheirRowAndCount() {
     let presentation = PaneAgentPanelPresentation(
       activeChildren: [
         workflowChild(subagentID: "wf-a", runID: "wf-1", task: "Read the proxy surface"),
@@ -89,7 +132,7 @@ struct TerminalAgentPanelTests {
     let group = presentation.childGroups[0]
 
     #expect(group.doneCountText == "1/2 done")
-    #expect(group.liveChildren.map(\.subagentID) == ["wf-a"])
+    #expect(group.children.map(\.subagentID) == ["wf-a", "wf-b"])
     #expect(group.phase == .running)
   }
 

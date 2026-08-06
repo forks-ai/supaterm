@@ -148,9 +148,11 @@ struct AgentPanelView: View {
     if let workflowName = group.workflowName {
       VStack(alignment: .leading, spacing: AgentPanelMetrics.sectionContentSpacing) {
         workflowRow(workflowName, group: group)
-        VStack(alignment: .leading, spacing: AgentPanelMetrics.sectionContentSpacing) {
-          ForEach(group.liveChildren) { child in
-            workflowChildRow(child)
+        TimelineView(.periodic(from: .now, by: 1)) { context in
+          VStack(alignment: .leading, spacing: AgentPanelMetrics.sectionContentSpacing) {
+            ForEach(group.children) { child in
+              workflowChildRow(child, now: context.date)
+            }
           }
         }
         .padding(.leading, AgentPanelMetrics.rowIconWidth)
@@ -182,23 +184,56 @@ struct AgentPanelView: View {
     )
   }
 
-  private func workflowChildRow(_ child: TerminalAgentActiveChild) -> some View {
-    AgentPanelRowContent(
-      leading: {
-        Circle()
-          .fill(childDotColor(child.phase))
-          .frame(width: 6, height: 6)
-          .frame(width: AgentPanelMetrics.rowIconWidth)
-          .accessibilityHidden(true)
-      },
-      title: Self.childDetail(child),
-      palette: palette,
-      titleColor: palette.secondaryText
-    )
+  private func workflowChildRow(
+    _ child: TerminalAgentActiveChild,
+    now: Date
+  ) -> some View {
+    let summary = child.usage.map {
+      $0.summary(now: child.phase == .idle ? $0.lastActiveAt : now)
+    }
+    return HStack(alignment: .top, spacing: AgentPanelMetrics.rowContentSpacing) {
+      workflowChildStatus(child.phase)
+      VStack(alignment: .leading, spacing: 2) {
+        Text(Self.workflowChildTitle(child))
+          .font(.system(size: 12, weight: .medium))
+          .foregroundStyle(palette.primaryText)
+          .lineLimit(1)
+        if let summary {
+          Text(summary)
+            .font(.system(size: 11))
+            .foregroundStyle(palette.secondaryText)
+            .lineLimit(1)
+        }
+      }
+    }
+    .frame(maxWidth: .infinity, alignment: .leading)
   }
 
-  private func childDotColor(_ phase: AgentActivityPhase) -> Color {
-    phase == .needsInput ? palette.warning : palette.primaryText
+  static func workflowChildTitle(_ child: TerminalAgentActiveChild) -> String {
+    child.task ?? "Working…"
+  }
+
+  private func workflowChildStatus(_ phase: AgentActivityPhase) -> some View {
+    Group {
+      switch phase {
+      case .idle:
+        Image(systemName: "checkmark")
+          .font(.system(size: 9, weight: .bold))
+          .foregroundStyle(palette.success)
+      case .running:
+        childDot(palette.primaryText)
+      case .needsInput:
+        childDot(palette.warning)
+      }
+    }
+    .frame(width: AgentPanelMetrics.rowIconWidth, height: 15)
+    .accessibilityHidden(true)
+  }
+
+  private func childDot(_ color: Color) -> some View {
+    Circle()
+      .fill(color)
+      .frame(width: 6, height: 6)
   }
 
   private func activeChildRow(_ child: TerminalAgentActiveChild) -> some View {

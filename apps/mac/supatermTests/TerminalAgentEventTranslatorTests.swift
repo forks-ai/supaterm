@@ -435,7 +435,7 @@ struct TerminalAgentEventTranslatorTests {
     #expect(
       events.map(\.action) == [
         .subagentStarted(nickname: nil, role: "explorer"),
-        .subagentStopped,
+        .subagentStopped(),
       ]
     )
   }
@@ -604,6 +604,66 @@ struct TerminalAgentEventTranslatorTests {
   }
 
   @Test
+  func claudeWorkflowSubagentStopReportsModelTokensAndElapsedTime() throws {
+    let transcript = try ClaudeProgressFixtures.makeTranscript()
+    defer { try? FileManager.default.removeItem(at: transcript.deletingLastPathComponent()) }
+    try ClaudeProgressFixtures.writeWorkflowSubagentSpawn(
+      agentID: "child-1",
+      runID: "wf_0c5cf178-0c1",
+      workflowName: "cmux-ssh-research",
+      prompt: "Read the cmux SSH blog post.",
+      startedAt: "2026-08-05T19:58:05.663Z",
+      forTranscriptAt: transcript
+    )
+    for reply in [
+      (usage: ["input_tokens": 2, "cache_creation_input_tokens": 989], time: "19:59:01.101Z"),
+      (
+        usage: [
+          "input_tokens": 2,
+          "cache_creation_input_tokens": 1502,
+          "cache_read_input_tokens": 31580,
+          "output_tokens": 6158,
+        ], time: "20:00:32.614Z"
+      ),
+    ] {
+      try ClaudeProgressFixtures.appendSubagentReply(
+        model: "claude-opus-5",
+        usage: reply.usage,
+        timestamp: "2026-08-05T\(reply.time)",
+        to: URL(
+          fileURLWithPath: subagentTranscriptPath(
+            for: transcript,
+            runID: "wf_0c5cf178-0c1",
+            agentID: "child-1"
+          )
+        )
+      )
+    }
+    let request = SupatermAgentHookRequest(
+      agent: .claude,
+      event: SupatermAgentHookEvent(
+        agentType: "workflow-subagent",
+        hookEventName: .subagentStop,
+        sessionID: "session-1",
+        transcriptPath: transcript.path,
+        agentID: "child-1"
+      )
+    )
+
+    guard
+      case .subagentStopped(let usage) =
+        TerminalAgentEventTranslator
+        .events(for: request).map(\.action).first,
+      let usage
+    else {
+      Issue.record("Expected a stop carrying usage")
+      return
+    }
+
+    #expect(usage.summary(now: usage.lastActiveAt) == "Opus 5 · 33.1k tok · 2m27s")
+  }
+
+  @Test
   func claudeWorkflowSubagentPromptTaskIsTruncated() throws {
     let transcript = try ClaudeProgressFixtures.makeTranscript()
     defer { try? FileManager.default.removeItem(at: transcript.deletingLastPathComponent()) }
@@ -691,7 +751,7 @@ struct TerminalAgentEventTranslatorTests {
     let events = TerminalAgentEventTranslator.events(for: request)
 
     #expect(events.map(\.scope.subagentID) == ["child-1"])
-    #expect(events.map(\.action) == [.subagentStopped])
+    #expect(events.map(\.action) == [.subagentStopped()])
   }
 
   @Test
@@ -715,7 +775,7 @@ struct TerminalAgentEventTranslatorTests {
     )
 
     #expect(
-      TerminalAgentEventTranslator.events(for: request).map(\.action) == [.subagentStopped]
+      TerminalAgentEventTranslator.events(for: request).map(\.action) == [.subagentStopped()]
     )
   }
 

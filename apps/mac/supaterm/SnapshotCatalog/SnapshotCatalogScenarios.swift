@@ -129,7 +129,7 @@ extension SnapshotCatalog {
       "workflow-agents",
       group: "Agent Panel",
       title: "Workflow child agents",
-      size: CGSize(width: 338, height: 190)
+      size: CGSize(width: 338, height: 240)
     ) { appearance in
       AnyView(
         AgentPanelSnapshotFixture(
@@ -139,20 +139,26 @@ extension SnapshotCatalog {
               workflowChild(
                 subagentID: "a3b6b826",
                 task: "Investigate compaction in codex-lb",
-                detail: "Read: app/modules/proxy/api.py"
+                contextTokens: 169_100,
+                elapsed: 312
               ),
               workflowChild(
                 subagentID: "ace7ef95",
-                task: "Deep-read sticky session handling"
+                task: "Deep-read sticky session handling",
+                contextTokens: 229_300,
+                elapsed: 312
               ),
               workflowChild(
                 subagentID: "aee5562e",
                 task: "Establish which endpoints the CLI calls",
-                detail: "Bash: rg -n backend-api codex-rs"
+                contextTokens: 135_000,
+                elapsed: 312
               ),
               workflowChild(
                 subagentID: "add2ef43",
                 task: "Audit the account pool",
+                contextTokens: 33_084,
+                elapsed: 147,
                 phase: .idle
               ),
             ]
@@ -251,10 +257,12 @@ extension SnapshotCatalog {
   private static func workflowChild(
     subagentID: String,
     task: String,
-    detail: String? = nil,
+    contextTokens: Int,
+    elapsed: TimeInterval,
     phase: AgentActivityPhase = .running
   ) -> TerminalAgentActiveChild {
-    TerminalAgentActiveChild(
+    let now = Date()
+    return TerminalAgentActiveChild(
       id: TerminalAgentActiveChild.Identity(
         subagentID: subagentID,
         sessionID: "session-26-0701",
@@ -266,7 +274,13 @@ extension SnapshotCatalog {
         "/tmp/session/subagents/workflows/wf_2c58973b/agent-\(subagentID).jsonl",
       task: task,
       phase: phase,
-      detail: detail
+      detail: nil,
+      usage: TerminalAgentChildUsage(
+        model: "claude-opus-5",
+        contextTokens: contextTokens,
+        startedAt: now.addingTimeInterval(-elapsed),
+        lastActiveAt: now
+      )
     )
   }
 

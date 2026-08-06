@@ -46,11 +46,20 @@ nonisolated struct TerminalAgentEvent: Equatable, Sendable {
     case sessionEnded
     case sessionResumed(transcriptPath: String?)
     case sessionStarted(transcriptPath: String?)
-    case subagentDescribed(nickname: String?, task: String?, transcriptPath: String? = nil)
-    case subagentStarted(
-      nickname: String?, role: String?, task: String? = nil, transcriptPath: String? = nil
+    case subagentDescribed(
+      nickname: String?,
+      task: String?,
+      transcriptPath: String? = nil,
+      usage: TerminalAgentChildUsage? = nil
     )
-    case subagentStopped
+    case subagentStarted(
+      nickname: String?,
+      role: String?,
+      task: String? = nil,
+      transcriptPath: String? = nil,
+      usage: TerminalAgentChildUsage? = nil
+    )
+    case subagentStopped(usage: TerminalAgentChildUsage? = nil)
     case subagentsReconciled(liveSubagentIDs: Set<String>, hasRunningWorkflow: Bool)
     case turnCompleted(message: String?)
     case turnContinuesInBackground
