@@ -23,7 +23,7 @@ struct SupatermSSHCommandTests {
     )
 
     let expected =
-      "\(Self.cliPath) ssh --term xterm-custom --ssh /usr/bin/ssh -- "
+      "/usr/bin/env \(Self.cliPath) ssh --term xterm-custom --ssh /usr/bin/ssh -- "
       + "-o SetEnv=PRODUCT=custom -p 2222 dev@example.com"
     #expect(command == expected)
   }
@@ -39,7 +39,7 @@ struct SupatermSSHCommandTests {
 
     #expect(
       command
-        == "\(Self.cliPath) ssh --term vt100-custom --ssh /opt/custom/client -- dev@example.com"
+        == "/usr/bin/env \(Self.cliPath) ssh --term vt100-custom --ssh /opt/custom/client -- dev@example.com"
     )
   }
 
@@ -53,7 +53,7 @@ struct SupatermSSHCommandTests {
 
     #expect(
       command
-        == "\(Self.cliPath) ssh --ssh /usr/bin/ssh -- -o SendEnv=COLORTERM dev@example.com"
+        == "/usr/bin/env \(Self.cliPath) ssh --ssh /usr/bin/ssh -- -o SendEnv=COLORTERM dev@example.com"
     )
   }
 
@@ -77,7 +77,7 @@ struct SupatermSSHCommandTests {
       arguments: ["ssh", "-o", "ProxyCommand=nc %h %p", "example.com"]
     )
 
-    #expect(command == "ssh -o 'ProxyCommand=nc %h %p' example.com")
+    #expect(command == "/usr/bin/env ssh -o 'ProxyCommand=nc %h %p' example.com")
   }
 
   @Test
@@ -86,7 +86,7 @@ struct SupatermSSHCommandTests {
       arguments: ["ssh", "-tt", "-p2222", "-4", "example.com"]
     )
 
-    #expect(command == "ssh -tt -p2222 -4 example.com")
+    #expect(command == "/usr/bin/env ssh -tt -p2222 -4 example.com")
   }
 
   @Test
@@ -121,7 +121,7 @@ struct SupatermSSHCommandTests {
       arguments: ["ssh", "-L", "8080:localhost:8080", "example.com"]
     )
 
-    #expect(command == "ssh -L 8080:localhost:8080 example.com")
+    #expect(command == "/usr/bin/env ssh -L 8080:localhost:8080 example.com")
   }
 
   @Test

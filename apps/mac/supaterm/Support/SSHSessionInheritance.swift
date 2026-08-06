@@ -9,13 +9,12 @@ public enum SSHSessionInheritance {
 
   public static func startupCommand(
     zmxSessionName: String,
-    cliPath: String?,
-    table: ProcessTable = .snapshot()
+    cliPath: String?
   ) -> String? {
     startupCommand(
       zmxSessionName: zmxSessionName,
       cliPath: cliPath,
-      table: table,
+      table: .snapshot(),
       invocation: { ProcessTable.invocation(forProcessID: $0) }
     )
   }

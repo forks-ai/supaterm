@@ -6,50 +6,30 @@ struct ProcessInvocation: Sendable, Equatable {
   let terminalType: String?
 }
 
-public struct ProcessEntry: Sendable, Equatable {
-  public let processID: pid_t
-  public let parentProcessID: pid_t
-  public let processGroupID: pid_t
-  public let foregroundProcessGroupID: pid_t
-  public let terminalDevice: dev_t
-  public let name: String
-
-  public init(
-    processID: pid_t,
-    parentProcessID: pid_t,
-    processGroupID: pid_t,
-    foregroundProcessGroupID: pid_t,
-    terminalDevice: dev_t,
-    name: String
-  ) {
-    self.processID = processID
-    self.parentProcessID = parentProcessID
-    self.processGroupID = processGroupID
-    self.foregroundProcessGroupID = foregroundProcessGroupID
-    self.terminalDevice = terminalDevice
-    self.name = name
-  }
+struct ProcessEntry: Sendable, Equatable {
+  let processID: pid_t
+  let parentProcessID: pid_t
+  let processGroupID: pid_t
+  let foregroundProcessGroupID: pid_t
+  let terminalDevice: dev_t
+  let name: String
 }
 
-public struct ProcessTable: Sendable, Equatable {
-  public let entries: [ProcessEntry]
+struct ProcessTable: Sendable, Equatable {
+  let entries: [ProcessEntry]
 
-  public init(entries: [ProcessEntry]) {
-    self.entries = entries
-  }
-
-  public func children(of processID: pid_t) -> [ProcessEntry] {
+  func children(of processID: pid_t) -> [ProcessEntry] {
     entries.filter { $0.parentProcessID == processID }
   }
 
-  public func foregroundGroup(onTerminalOf entry: ProcessEntry) -> [ProcessEntry] {
+  func foregroundGroup(onTerminalOf entry: ProcessEntry) -> [ProcessEntry] {
     entries.filter {
       $0.terminalDevice == entry.terminalDevice
         && $0.processGroupID == entry.foregroundProcessGroupID
     }
   }
 
-  public static func snapshot() -> ProcessTable {
+  static func snapshot() -> ProcessTable {
     var request: [Int32] = [CTL_KERN, KERN_PROC, KERN_PROC_ALL, 0]
     let stride = MemoryLayout<kinfo_proc>.stride
     var slack = 64

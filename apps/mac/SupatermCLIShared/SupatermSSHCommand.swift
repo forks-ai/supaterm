@@ -3,7 +3,7 @@ import Foundation
 public enum SupatermSSHCommand {
   public static let program = "ssh"
   public static let term = "xterm-256color"
-  public static let forwardedEnvironmentVariables = [
+  private static let forwardedEnvironmentVariables = [
     "COLORTERM",
     "TERM_PROGRAM",
     "TERM_PROGRAM_VERSION",
@@ -14,6 +14,12 @@ public enum SupatermSSHCommand {
     "S", "W", "w",
   ]
   private static let optionsWithoutSession: Set<Character> = ["N", "W", "f"]
+
+  private enum OptionAction {
+    case reject
+    case preserve
+    case preserveWithValue
+  }
 
   public static var forwardedEnvironmentOptions: [String] {
     forwardedEnvironmentVariables.flatMap { ["-o", "SendEnv=\($0)"] }
@@ -44,15 +50,15 @@ public enum SupatermSSHCommand {
       .flatMap { $0.isEmpty ? nil : $0 }
     var tokens: [String]
     if let cliPath {
-      tokens = [cliPath, program]
+      tokens = ["/usr/bin/env", cliPath, program]
       if let terminalType {
         tokens += ["--term", terminalType]
       }
       tokens += ["--ssh", executable, "--"] + sessionArguments
     } else {
-      tokens = []
+      tokens = ["/usr/bin/env"]
       if let terminalType {
-        tokens = ["/usr/bin/env", "TERM=\(terminalType)"]
+        tokens.append("TERM=\(terminalType)")
       }
       tokens += [executable] + sourceArguments
     }
@@ -75,24 +81,30 @@ public enum SupatermSSHCommand {
         return options + [token]
       }
 
-      guard let expectsSeparateValue = valuePlacement(in: token) else { return nil }
-      guard !expectsSeparateValue || index + 1 < arguments.count else { return nil }
-      let value = expectsSeparateValue ? arguments[index + 1] : nil
-
-      index += expectsSeparateValue ? 2 : 1
-      options.append(token)
-      if let value { options.append(value) }
+      switch optionAction(for: token) {
+      case .reject:
+        return nil
+      case .preserve:
+        options.append(token)
+        index += 1
+      case .preserveWithValue:
+        guard index + 1 < arguments.count else { return nil }
+        options += [token, arguments[index + 1]]
+        index += 2
+      }
     }
 
     return nil
   }
 
-  private static func valuePlacement(in token: String) -> Bool? {
+  private static func optionAction(for token: String) -> OptionAction {
     let flags = Array(token.dropFirst())
     for (position, flag) in flags.enumerated() {
-      if optionsWithoutSession.contains(flag) { return nil }
-      if optionsTakingValue.contains(flag) { return position == flags.count - 1 }
+      if optionsWithoutSession.contains(flag) { return .reject }
+      if optionsTakingValue.contains(flag) {
+        return position == flags.count - 1 ? .preserveWithValue : .preserve
+      }
     }
-    return false
+    return .preserve
   }
 }
