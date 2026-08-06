@@ -188,15 +188,18 @@ struct AgentPanelView: View {
     _ child: TerminalAgentActiveChild,
     now: Date
   ) -> some View {
-    HStack(alignment: .top, spacing: AgentPanelMetrics.rowContentSpacing) {
+    let summary = child.usage.map {
+      $0.summary(now: child.phase == .idle ? $0.lastActiveAt : now)
+    }
+    return HStack(alignment: .top, spacing: AgentPanelMetrics.rowContentSpacing) {
       workflowChildStatus(child.phase)
       VStack(alignment: .leading, spacing: 2) {
         Text(Self.workflowChildTitle(child))
           .font(.system(size: 12, weight: .medium))
           .foregroundStyle(palette.primaryText)
           .lineLimit(1)
-        if let usage = child.usage {
-          Text(usage.summary(now: child.phase == .idle ? usage.lastActiveAt : now))
+        if let summary {
+          Text(summary)
             .font(.system(size: 11))
             .foregroundStyle(palette.secondaryText)
             .lineLimit(1)
@@ -210,22 +213,27 @@ struct AgentPanelView: View {
     child.task ?? "Working…"
   }
 
-  @ViewBuilder
   private func workflowChildStatus(_ phase: AgentActivityPhase) -> some View {
-    switch phase {
-    case .idle:
-      Image(systemName: "checkmark")
-        .font(.system(size: 9, weight: .bold))
-        .foregroundStyle(palette.success)
-        .frame(width: AgentPanelMetrics.rowIconWidth, height: 15)
-        .accessibilityHidden(true)
-    case .running, .needsInput:
-      Circle()
-        .fill(phase == .needsInput ? palette.warning : palette.primaryText)
-        .frame(width: 6, height: 6)
-        .frame(width: AgentPanelMetrics.rowIconWidth, height: 15)
-        .accessibilityHidden(true)
+    Group {
+      switch phase {
+      case .idle:
+        Image(systemName: "checkmark")
+          .font(.system(size: 9, weight: .bold))
+          .foregroundStyle(palette.success)
+      case .running:
+        childDot(palette.primaryText)
+      case .needsInput:
+        childDot(palette.warning)
+      }
     }
+    .frame(width: AgentPanelMetrics.rowIconWidth, height: 15)
+    .accessibilityHidden(true)
+  }
+
+  private func childDot(_ color: Color) -> some View {
+    Circle()
+      .fill(color)
+      .frame(width: 6, height: 6)
   }
 
   private func activeChildRow(_ child: TerminalAgentActiveChild) -> some View {

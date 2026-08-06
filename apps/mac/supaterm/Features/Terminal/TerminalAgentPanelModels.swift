@@ -35,12 +35,9 @@ nonisolated struct PaneAgentChildGroup: Equatable, Identifiable, Sendable {
     children.map(\.phase).max() ?? .idle
   }
 
-  var liveChildren: [TerminalAgentActiveChild] {
-    children.filter { $0.phase != .idle }
-  }
-
   var doneCountText: String {
-    "\(children.count - liveChildren.count)/\(children.count) done"
+    let done = children.filter { $0.phase == .idle }.count
+    return "\(done)/\(children.count) done"
   }
 
   static func groups(for children: [TerminalAgentActiveChild]) -> [Self] {

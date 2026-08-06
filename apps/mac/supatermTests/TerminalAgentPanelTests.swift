@@ -117,7 +117,7 @@ struct TerminalAgentPanelTests {
 
   @Test
   @MainActor
-  func finishedWorkflowAgentsCountWithoutTakingARow() {
+  func finishedWorkflowAgentsKeepTheirRowAndCount() {
     let presentation = PaneAgentPanelPresentation(
       activeChildren: [
         workflowChild(subagentID: "wf-a", runID: "wf-1", task: "Read the proxy surface"),
@@ -132,7 +132,7 @@ struct TerminalAgentPanelTests {
     let group = presentation.childGroups[0]
 
     #expect(group.doneCountText == "1/2 done")
-    #expect(group.liveChildren.map(\.subagentID) == ["wf-a"])
+    #expect(group.children.map(\.subagentID) == ["wf-a", "wf-b"])
     #expect(group.phase == .running)
   }
 

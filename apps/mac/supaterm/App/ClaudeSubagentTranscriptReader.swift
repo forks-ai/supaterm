@@ -25,10 +25,7 @@ nonisolated enum ClaudeSubagentTranscriptReader {
     var model: String?
     var contextTokens = 0
     var lastActiveAt = startedAt
-    var scanned = 0
-    for line in lastLines(handle, size: size).reversed() {
-      guard scanned < maxScannedLines else { break }
-      scanned += 1
+    for line in lastLines(handle, size: size).reversed().prefix(maxScannedLines) {
       guard let object = (try? JSONDecoder().decode(JSONValue.self, from: line))?.objectValue
       else { continue }
       if let timestamp = timestamps.date(from: object["timestamp"]?.stringValue ?? "") {
