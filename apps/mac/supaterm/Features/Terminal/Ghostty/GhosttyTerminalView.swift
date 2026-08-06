@@ -9,6 +9,6 @@ struct GhosttyTerminalView: NSViewRepresentable {
   }
 
   func updateNSView(_ view: GhosttySurfaceScrollView, context: Context) {
-    view.resize(to: size)
+    view.invalidateLayout(ifSizeDiffersFrom: size)
   }
 }

@@ -82,9 +82,18 @@ struct GhosttySurfaceViewTests {
       workingDirectory: nil,
       context: GHOSTTY_SURFACE_CONTEXT_TAB
     )
+    defer { surfaceView.closeSurface() }
+    let window = NSWindow(
+      contentRect: NSRect(x: 0, y: 0, width: 800, height: 600),
+      styleMask: [.titled],
+      backing: .buffered,
+      defer: false
+    )
+    defer { window.contentView = nil }
     let wrapper = GhosttySurfaceScrollView(surfaceView: surfaceView)
     wrapper.frame.size = CGSize(width: 800, height: 600)
-    wrapper.layoutSubtreeIfNeeded()
+    window.contentView?.addSubview(wrapper)
+    window.contentView?.layoutSubtreeIfNeeded()
     var invalidationCount = 0
 
     for _ in 0..<1_000 {
@@ -96,6 +105,39 @@ struct GhosttySurfaceViewTests {
     }
 
     #expect(invalidationCount == 0)
+  }
+
+  @Test
+  @MainActor
+  func offWindowWrapperDoesNotDetachAttachedSurface() {
+    initializeGhosttyForTests()
+
+    let surfaceView = GhosttySurfaceView(
+      runtime: GhosttyRuntime(),
+      tabID: UUID(),
+      workingDirectory: nil,
+      context: GHOSTTY_SURFACE_CONTEXT_TAB
+    )
+    defer { surfaceView.closeSurface() }
+    let window = NSWindow(
+      contentRect: NSRect(x: 0, y: 0, width: 800, height: 600),
+      styleMask: [.titled],
+      backing: .buffered,
+      defer: false
+    )
+    defer { window.contentView = nil }
+
+    let attachedWrapper = GhosttySurfaceScrollView(surfaceView: surfaceView)
+    attachedWrapper.frame = window.contentView?.bounds ?? .zero
+    window.contentView?.addSubview(attachedWrapper)
+    window.contentView?.layoutSubtreeIfNeeded()
+    #expect(surfaceView.window === window)
+
+    let offWindowWrapper = GhosttySurfaceScrollView(surfaceView: surfaceView)
+
+    #expect(offWindowWrapper.window == nil)
+    #expect(surfaceView.window === window)
+    #expect(surfaceView.scrollWrapper === attachedWrapper)
   }
 
   @Test
@@ -128,7 +170,6 @@ struct GhosttySurfaceViewTests {
     try #require(fullWidth > 0)
 
     let splitWrapper = GhosttySurfaceScrollView(surfaceView: surfaceView)
-    splitWrapper.resize(to: CGSize(width: 600, height: 800))
     fullWrapper.removeFromSuperview()
     splitWrapper.frame = NSRect(x: 0, y: 0, width: 600, height: 800)
     window.contentView?.addSubview(splitWrapper)
@@ -149,14 +190,24 @@ struct GhosttySurfaceViewTests {
       context: GHOSTTY_SURFACE_CONTEXT_TAB
     )
     defer { surfaceView.closeSurface() }
+    let window = NSWindow(
+      contentRect: NSRect(x: 0, y: 0, width: 1200, height: 800),
+      styleMask: [.titled],
+      backing: .buffered,
+      defer: false
+    )
+    defer { window.contentView = nil }
 
     let defunctWrapper = GhosttySurfaceScrollView(surfaceView: surfaceView)
     defunctWrapper.frame.size = CGSize(width: 1200, height: 800)
-    defunctWrapper.layoutSubtreeIfNeeded()
+    window.contentView?.addSubview(defunctWrapper)
+    window.contentView?.layoutSubtreeIfNeeded()
 
     let splitWrapper = GhosttySurfaceScrollView(surfaceView: surfaceView)
     splitWrapper.frame.size = CGSize(width: 600, height: 800)
-    splitWrapper.layoutSubtreeIfNeeded()
+    defunctWrapper.removeFromSuperview()
+    window.contentView?.addSubview(splitWrapper)
+    window.contentView?.layoutSubtreeIfNeeded()
     #expect(surfaceView.frame.size == CGSize(width: 600, height: 800))
 
     defunctWrapper.needsLayout = true
@@ -167,7 +218,7 @@ struct GhosttySurfaceViewTests {
 
   @Test
   @MainActor
-  func swiftUIGeometryResizeUpdatesWrapperFrame() {
+  func deferredGeometryResizeInvalidatesWrapperLayout() {
     initializeGhosttyForTests()
 
     let surfaceView = GhosttySurfaceView(
@@ -181,37 +232,11 @@ struct GhosttySurfaceViewTests {
     wrapper.layoutSubtreeIfNeeded()
 
     wrapper.needsLayout = false
-    wrapper.resize(to: wrapper.bounds.size)
+    wrapper.invalidateLayout(ifSizeDiffersFrom: wrapper.bounds.size)
     #expect(!wrapper.needsLayout)
 
-    wrapper.resize(to: CGSize(width: 900, height: 700))
-    #expect(wrapper.frame.size == CGSize(width: 900, height: 700))
+    wrapper.invalidateLayout(ifSizeDiffersFrom: CGSize(width: 900, height: 700))
     #expect(wrapper.needsLayout)
-  }
-
-  @Test
-  @MainActor
-  func deferredGeometryResizeWritesCoreSurfaceSize() throws {
-    initializeGhosttyForTests()
-
-    let surfaceView = GhosttySurfaceView(
-      runtime: GhosttyRuntime(),
-      tabID: UUID(),
-      workingDirectory: nil,
-      context: GHOSTTY_SURFACE_CONTEXT_TAB
-    )
-    defer { surfaceView.closeSurface() }
-    let surface = try #require(surfaceView.surface)
-    let wrapper = GhosttySurfaceScrollView(surfaceView: surfaceView)
-    wrapper.frame.size = CGSize(width: 1_200, height: 800)
-    wrapper.layoutSubtreeIfNeeded()
-    let fullWidth = ghostty_surface_size(surface).width_px
-    try #require(fullWidth > 0)
-
-    wrapper.resize(to: CGSize(width: 600, height: 800))
-    wrapper.layoutSubtreeIfNeeded()
-
-    #expect(ghostty_surface_size(surface).width_px < fullWidth)
   }
 
   @Test

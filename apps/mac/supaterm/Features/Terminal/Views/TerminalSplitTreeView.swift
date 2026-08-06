@@ -1428,23 +1428,21 @@ struct TerminalSplitTreeAXContainer: NSViewRepresentable {
     let visiblePanes = visibleNode?.leaves() ?? []
     nsView.update(
       backgroundColor: NSColor(palette.detailBackground),
-      rootView: AnyView(
-        TerminalSplitTreeView(
-          agentPanelPresentations: agentPanelPresentations,
-          dimmingColor: dimmingColor,
-          dimmingOpacity: dimmingOpacity,
-          focusedSurfaceID: focusedSurfaceID,
-          hiddenAgentPanelSurfaceIDs: hiddenAgentPanelSurfaceIDs,
-          notificationColor: notificationColor,
-          palette: palette,
-          agentPanelForksDown: agentPanelForksDown,
-          agentPanelShortcutHint: agentPanelShortcutHint,
-          showsGlowingPaneRing: showsGlowingPaneRing,
-          splitDividerColor: splitDividerColor,
-          tree: tree,
-          unreadSurfaceIDs: unreadSurfaceIDs,
-          action: action
-        )
+      rootView: TerminalSplitTreeView(
+        agentPanelPresentations: agentPanelPresentations,
+        dimmingColor: dimmingColor,
+        dimmingOpacity: dimmingOpacity,
+        focusedSurfaceID: focusedSurfaceID,
+        hiddenAgentPanelSurfaceIDs: hiddenAgentPanelSurfaceIDs,
+        notificationColor: notificationColor,
+        palette: palette,
+        agentPanelForksDown: agentPanelForksDown,
+        agentPanelShortcutHint: agentPanelShortcutHint,
+        showsGlowingPaneRing: showsGlowingPaneRing,
+        splitDividerColor: splitDividerColor,
+        tree: tree,
+        unreadSurfaceIDs: unreadSurfaceIDs,
+        action: action
       ),
       visibleNode: visibleNode,
       action: action,
@@ -1453,7 +1451,7 @@ struct TerminalSplitTreeAXContainer: NSViewRepresentable {
   }
 }
 
-private final class TerminalSplitHostingView: NSHostingView<AnyView> {
+private final class TerminalSplitHostingView: NSHostingView<TerminalSplitTreeView> {
   nonisolated override var safeAreaInsets: NSEdgeInsets { NSEdgeInsetsZero }
 
   override var mouseDownCanMoveWindow: Bool { false }
@@ -1496,7 +1494,7 @@ final class TerminalSplitAXContainerView: NSView {
 
   func update(
     backgroundColor: NSColor,
-    rootView: AnyView,
+    rootView: TerminalSplitTreeView,
     visibleNode: SplitTree<GhosttySurfaceView>.Node?,
     action: @escaping (TerminalSplitTreeView.Operation) -> Void,
     panes: [GhosttySurfaceView]
