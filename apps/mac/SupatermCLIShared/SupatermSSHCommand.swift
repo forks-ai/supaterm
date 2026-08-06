@@ -19,35 +19,60 @@ public enum SupatermSSHCommand {
     forwardedEnvironmentVariables.flatMap { ["-o", "SendEnv=\($0)"] }
   }
 
-  public static func commandLine(forArguments arguments: [String], cliPath: String?) -> String? {
-    guard
-      let executable = arguments.first,
-      URL(fileURLWithPath: executable).lastPathComponent == program,
-      let session = sessionArguments(Array(arguments.dropFirst()))
-    else {
+  public static func commandLine(
+    forArguments arguments: [String],
+    terminalType: String?,
+    cliPath: String?
+  ) -> String? {
+    guard let executable = arguments.first else { return nil }
+
+    let sourceArguments = Array(arguments.dropFirst())
+    let launchedBySupaterm = sourceArguments.starts(with: forwardedEnvironmentOptions)
+    guard launchedBySupaterm || URL(fileURLWithPath: executable).lastPathComponent == program else {
       return nil
     }
 
-    let tokens = cliPath.map { [$0, program, "--"] } ?? [program]
-    return (tokens + session)
+    let inheritedArguments =
+      launchedBySupaterm
+      ? Array(sourceArguments.dropFirst(forwardedEnvironmentOptions.count))
+      : sourceArguments
+    guard let sessionArguments = sessionArguments(inheritedArguments) else { return nil }
+
+    let terminalType =
+      terminalType
+      .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+      .flatMap { $0.isEmpty ? nil : $0 }
+    var tokens: [String]
+    if let cliPath {
+      tokens = [cliPath, program]
+      if let terminalType {
+        tokens += ["--term", terminalType]
+      }
+      tokens += ["--ssh", executable, "--"] + sessionArguments
+    } else {
+      tokens = []
+      if let terminalType {
+        tokens = ["/usr/bin/env", "TERM=\(terminalType)"]
+      }
+      tokens += [executable] + sourceArguments
+    }
+
+    return
+      tokens
       .map(SupatermShellCommand.escapedToken)
       .joined(separator: " ")
   }
 
-  static func sessionArguments(_ arguments: [String]) -> [String]? {
-    let forwarded = Set(forwardedEnvironmentVariables.map { "SendEnv=\($0)" })
+  private static func sessionArguments(_ arguments: [String]) -> [String]? {
     var options: [String] = []
-    var destination: String?
     var index = 0
 
     while index < arguments.count {
       let token = arguments[index]
 
       guard token.hasPrefix("-"), token.count > 1 else {
-        guard destination == nil else { return nil }
-        destination = token
-        index += 1
-        continue
+        guard index == arguments.count - 1 else { return nil }
+        return options + [token]
       }
 
       guard let expectsSeparateValue = valuePlacement(in: token) else { return nil }
@@ -55,14 +80,11 @@ public enum SupatermSSHCommand {
       let value = expectsSeparateValue ? arguments[index + 1] : nil
 
       index += expectsSeparateValue ? 2 : 1
-      if token == "-o", let value, forwarded.contains(value) { continue }
-
       options.append(token)
       if let value { options.append(value) }
     }
 
-    guard let destination else { return nil }
-    return options + [destination]
+    return nil
   }
 
   private static func valuePlacement(in token: String) -> Bool? {

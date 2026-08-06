@@ -157,7 +157,11 @@ extension TerminalHostState {
     }
     let inherited = inheritedSurfaceConfig(fromSurfaceID: inheritingFromSurfaceID, context: context)
     let resolvedStartupCommand =
-      startupCommand ?? inheritedSSHCommand(fromSurfaceID: inheritingFromSurfaceID)
+      startupCommand
+      ?? inheritedSSHCommand(
+        fromSurfaceID: inheritingFromSurfaceID,
+        workingDirectory: workingDirectory
+      )
     let launchCommand = resolvedSurfaceCommand(
       startupCommand: resolvedStartupCommand,
       surfaceID: surfaceID
@@ -246,8 +250,8 @@ extension TerminalHostState {
     )
   }
 
-  func inheritedSSHCommand(fromSurfaceID surfaceID: UUID?) -> String? {
-    guard zmxSessionsEnabled, let surfaceID else { return nil }
+  func inheritedSSHCommand(fromSurfaceID surfaceID: UUID?, workingDirectory: URL?) -> String? {
+    guard zmxSessionsEnabled, workingDirectory == nil, let surfaceID else { return nil }
     return SSHSessionInheritance.startupCommand(
       zmxSessionName: ZmxSessionID.make(surfaceID: surfaceID),
       cliPath: GhosttySupport.bundledCLIPath(executableURL: Bundle.main.executableURL)

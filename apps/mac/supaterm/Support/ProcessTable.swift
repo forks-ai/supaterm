@@ -1,6 +1,11 @@
 import Darwin
 import Foundation
 
+struct ProcessInvocation: Sendable, Equatable {
+  let arguments: [String]
+  let terminalType: String?
+}
+
 public struct ProcessEntry: Sendable, Equatable {
   public let processID: pid_t
   public let parentProcessID: pid_t
@@ -67,7 +72,7 @@ public struct ProcessTable: Sendable, Equatable {
     return ProcessTable(entries: [])
   }
 
-  public static func arguments(forProcessID processID: pid_t) -> [String]? {
+  static func invocation(forProcessID processID: pid_t) -> ProcessInvocation? {
     var request: [Int32] = [CTL_KERN, KERN_PROCARGS2, processID]
     var probedSize = 0
     guard sysctl(&request, 3, nil, &probedSize, nil, 0) == 0, probedSize > 0 else { return nil }
@@ -76,10 +81,10 @@ public struct ProcessTable: Sendable, Equatable {
     var readSize = probedSize
     guard sysctl(&request, 3, &buffer, &readSize, nil, 0) == 0 else { return nil }
 
-    return arguments(inProcessArguments: Array(buffer.prefix(readSize)))
+    return invocation(inProcessArguments: Array(buffer.prefix(readSize)))
   }
 
-  public static func arguments(inProcessArguments buffer: [UInt8]) -> [String]? {
+  static func invocation(inProcessArguments buffer: [UInt8]) -> ProcessInvocation? {
     let countWidth = MemoryLayout<UInt32>.size
     guard buffer.count > countWidth else { return nil }
     let count =
@@ -87,18 +92,37 @@ public struct ProcessTable: Sendable, Equatable {
 
     var index = countWidth
     while index < buffer.count, buffer[index] != 0 { index += 1 }
+    guard index < buffer.count else { return nil }
     while index < buffer.count, buffer[index] == 0 { index += 1 }
 
     var arguments: [String] = []
     while arguments.count < count, index < buffer.count {
-      var end = index
-      while end < buffer.count, buffer[end] != 0 { end += 1 }
-      guard let argument = String(bytes: buffer[index..<end], encoding: .utf8) else { return nil }
+      guard
+        let bytes = nextBytes(in: buffer, index: &index),
+        let argument = String(bytes: bytes, encoding: .utf8)
+      else {
+        return nil
+      }
       arguments.append(argument)
-      index = end + 1
     }
 
-    return arguments.count == count ? arguments : nil
+    guard arguments.count == count else { return nil }
+
+    let terminalTypePrefix = Array("TERM=".utf8)
+    var terminalType: String?
+    while index < buffer.count {
+      while index < buffer.count, buffer[index] == 0 { index += 1 }
+      guard index < buffer.count else { break }
+      guard let variable = nextBytes(in: buffer, index: &index) else { return nil }
+      if variable.starts(with: terminalTypePrefix) {
+        terminalType = String(
+          bytes: variable.dropFirst(terminalTypePrefix.count),
+          encoding: .utf8
+        )
+      }
+    }
+
+    return ProcessInvocation(arguments: arguments, terminalType: terminalType)
   }
 
   private static func entry(from process: kinfo_proc) -> ProcessEntry {
@@ -116,5 +140,13 @@ public struct ProcessTable: Sendable, Equatable {
     withUnsafeBytes(of: process.kp_proc.p_comm) { raw in
       String(bytes: raw.prefix { $0 != 0 }, encoding: .utf8) ?? ""
     }
+  }
+
+  private static func nextBytes(in buffer: [UInt8], index: inout Int) -> ArraySlice<UInt8>? {
+    let start = index
+    while index < buffer.count, buffer[index] != 0 { index += 1 }
+    guard index < buffer.count else { return nil }
+    defer { index += 1 }
+    return buffer[start..<index]
   }
 }

@@ -3,27 +3,41 @@ import Foundation
 import SupatermCLIShared
 
 public enum SSHSessionInheritance {
-  public typealias ArgumentsProvider = @Sendable (pid_t) -> [String]?
+  typealias InvocationProvider = @Sendable (pid_t) -> ProcessInvocation?
 
   private static let multiplexerProcessName = SupatermBundleLayout.zmxExecutableName
 
   public static func startupCommand(
     zmxSessionName: String,
     cliPath: String?,
-    table: ProcessTable = .snapshot(),
-    arguments: ArgumentsProvider = { ProcessTable.arguments(forProcessID: $0) }
+    table: ProcessTable = .snapshot()
+  ) -> String? {
+    startupCommand(
+      zmxSessionName: zmxSessionName,
+      cliPath: cliPath,
+      table: table,
+      invocation: { ProcessTable.invocation(forProcessID: $0) }
+    )
+  }
+
+  static func startupCommand(
+    zmxSessionName: String,
+    cliPath: String?,
+    table: ProcessTable,
+    invocation: InvocationProvider
   ) -> String? {
     guard
-      let shell = sessionShell(zmxSessionName: zmxSessionName, table: table, arguments: arguments)
+      let shell = sessionShell(zmxSessionName: zmxSessionName, table: table, invocation: invocation)
     else {
       return nil
     }
 
     for candidate in table.foregroundGroup(onTerminalOf: shell) {
       guard
-        let argumentList = arguments(candidate.processID),
+        let process = invocation(candidate.processID),
         let command = SupatermSSHCommand.commandLine(
-          forArguments: argumentList,
+          forArguments: process.arguments,
+          terminalType: process.terminalType,
           cliPath: cliPath
         )
       else {
@@ -38,10 +52,10 @@ public enum SSHSessionInheritance {
   private static func sessionShell(
     zmxSessionName: String,
     table: ProcessTable,
-    arguments: ArgumentsProvider
+    invocation: InvocationProvider
   ) -> ProcessEntry? {
     for entry in table.entries where entry.name == multiplexerProcessName {
-      guard arguments(entry.processID)?.contains(zmxSessionName) == true else { continue }
+      guard invocation(entry.processID)?.arguments.contains(zmxSessionName) == true else { continue }
       if let shell = table.children(of: entry.processID)
         .first(where: { $0.name != multiplexerProcessName })
       {

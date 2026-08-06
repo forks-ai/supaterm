@@ -41,8 +41,15 @@ struct SSHSessionInheritanceTests {
     )
   }
 
-  private static func arguments(_ table: [pid_t: [String]]) -> SSHSessionInheritance.ArgumentsProvider {
-    { table[$0] }
+  private static func invocations(
+    _ table: [pid_t: [String]],
+    terminalTypes: [pid_t: String] = [:]
+  ) -> SSHSessionInheritance.InvocationProvider {
+    { processID in
+      table[processID].map {
+        ProcessInvocation(arguments: $0, terminalType: terminalTypes[processID])
+      }
+    }
   }
 
   @Test
@@ -63,23 +70,30 @@ struct SSHSessionInheritanceTests {
           )
         ]
       ),
-      arguments: Self.arguments([
-        100: ["zmx", "attach", Self.sessionName, "/usr/bin/login"],
-        101: ["zmx", "attach", Self.sessionName, "/usr/bin/login"],
-        200: ["/usr/bin/login", "-flp", "khoi"],
-        300: [
-          "/usr/bin/ssh",
-          "-o", "SendEnv=COLORTERM",
-          "-o", "SendEnv=TERM_PROGRAM",
-          "-o", "SendEnv=TERM_PROGRAM_VERSION",
-          "-p", "2222",
-          "dev@example.com",
+      invocation: Self.invocations(
+        [
+          100: ["zmx", "attach", Self.sessionName, "/usr/bin/login"],
+          101: ["zmx", "attach", Self.sessionName, "/usr/bin/login"],
+          200: ["/usr/bin/login", "-flp", "khoi"],
+          300: [
+            "/usr/bin/ssh",
+            "-o", "SendEnv=COLORTERM",
+            "-o", "SendEnv=TERM_PROGRAM",
+            "-o", "SendEnv=TERM_PROGRAM_VERSION",
+            "-p", "2222",
+            "dev@example.com",
+          ],
         ],
-      ])
+        terminalTypes: [300: "xterm-custom"]
+      )
     )
 
     let command = try #require(resolved)
-    #expect(command.hasPrefix("\(Self.cliPath) ssh -- -p 2222 dev@example.com;"))
+    #expect(
+      command.hasPrefix(
+        "\(Self.cliPath) ssh --term xterm-custom --ssh /usr/bin/ssh -- -p 2222 dev@example.com;"
+      )
+    )
     #expect(!command.contains("SendEnv"))
   }
 
@@ -101,7 +115,7 @@ struct SSHSessionInheritanceTests {
           )
         ]
       ),
-      arguments: Self.arguments([
+      invocation: Self.invocations([
         100: ["zmx", "attach", Self.sessionName],
         101: ["zmx", "attach", Self.sessionName],
         200: ["/usr/bin/login", "-flp", "khoi"],
@@ -118,7 +132,7 @@ struct SSHSessionInheritanceTests {
       zmxSessionName: "spt-37a8eec1ce19687d-00000000-0000-0000-0000-000000000000",
       cliPath: Self.cliPath,
       table: Self.table(shellForegroundGroup: 200),
-      arguments: Self.arguments([
+      invocation: Self.invocations([
         100: ["zmx", "attach", Self.sessionName],
         101: ["zmx", "attach", Self.sessionName],
         200: ["/usr/bin/login", "-flp", "khoi"],
@@ -134,7 +148,7 @@ struct SSHSessionInheritanceTests {
       zmxSessionName: Self.sessionName,
       cliPath: Self.cliPath,
       table: Self.table(shellForegroundGroup: 200),
-      arguments: Self.arguments([
+      invocation: Self.invocations([
         100: ["zmx", "attach", Self.sessionName],
         101: ["zmx", "attach", Self.sessionName],
         200: ["/usr/bin/login", "-flp", "khoi"],
@@ -163,7 +177,7 @@ struct SSHSessionInheritanceTests {
             )
           ]
         ),
-        arguments: Self.arguments([
+        invocation: Self.invocations([
           100: ["zmx", "attach", Self.sessionName],
           101: ["zmx", "attach", Self.sessionName],
           200: ["/usr/bin/login", "-flp", "khoi"],
@@ -172,7 +186,7 @@ struct SSHSessionInheritanceTests {
       )
     )
 
-    #expect(command.hasPrefix("\(Self.cliPath) ssh -- example.com;"))
+    #expect(command.hasPrefix("\(Self.cliPath) ssh --ssh ssh -- example.com;"))
     #expect(command.contains("exec"))
   }
 }

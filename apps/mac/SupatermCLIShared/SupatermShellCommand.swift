@@ -19,23 +19,7 @@ public enum SupatermShellCommand {
 
   public static func interactiveStartupCommand(for command: String, shellPath: String) -> String {
     let shellPath = normalizedShellPath(shellPath) ?? "/bin/zsh"
-    if shellPath.hasSuffix("/fish") {
-      return [
-        command,
-        #"set -l shell "$SHELL""#,
-        #"if test -z "$shell"; set shell \#(shellPath); end"#,
-        #"if not test -x "$shell"; set shell \#(shellPath); end"#,
-        #"exec "$shell" -l"#,
-      ].joined(separator: "; ")
-    }
-
-    return [
-      command,
-      #"shell="${SHELL:-\#(shellPath)}""#,
-      #"[ -x "$shell" ] || shell="\#(shellPath)""#,
-      #"if "$shell" -l -c 'exit 0' >/dev/null 2>&1; then exec "$shell" -l; fi"#,
-      #"exec "$shell""#,
-    ].joined(separator: "; ")
+    return "\(command); exec \(escapedToken(shellPath)) -l"
   }
 
   public static func loginShellCommandArguments(for command: String) -> [String] {

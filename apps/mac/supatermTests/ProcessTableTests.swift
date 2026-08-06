@@ -5,9 +5,12 @@ import Testing
 @testable import SupatermSupport
 
 struct ProcessTableTests {
-  private static func processArguments(count: Int, executablePath: String, arguments: [String])
-    -> [UInt8]
-  {
+  private static func processArguments(
+    count: Int,
+    executablePath: String,
+    arguments: [String],
+    environment: [String] = []
+  ) -> [UInt8] {
     var buffer: [UInt8] = []
     let value = UInt32(count)
     buffer.append(contentsOf: [
@@ -22,26 +25,33 @@ struct ProcessTableTests {
       buffer.append(contentsOf: Array(argument.utf8))
       buffer.append(0)
     }
+    for variable in environment {
+      buffer.append(contentsOf: Array(variable.utf8))
+      buffer.append(0)
+    }
     return buffer
   }
 
   @Test
-  func parsesArgumentVectorAfterExecutablePathPadding() throws {
-    let parsed = ProcessTable.arguments(
+  func parsesArgumentsAndTerminalTypeAfterExecutablePathPadding() throws {
+    let parsed = ProcessTable.invocation(
       inProcessArguments: Self.processArguments(
         count: 3,
         executablePath: "/usr/bin/ssh",
-        arguments: ["ssh", "-p", "2222"]
+        arguments: ["ssh", "-p", "2222"],
+        environment: ["HOME=/Users/khoi", "TERM=xterm-custom", "COLORTERM=truecolor"]
       )
     )
 
-    #expect(try #require(parsed) == ["ssh", "-p", "2222"])
+    let invocation = try #require(parsed)
+    #expect(invocation.arguments == ["ssh", "-p", "2222"])
+    #expect(invocation.terminalType == "xterm-custom")
   }
 
   @Test
   func rejectsTruncatedArgumentVectors() {
     #expect(
-      ProcessTable.arguments(
+      ProcessTable.invocation(
         inProcessArguments: Self.processArguments(
           count: 4,
           executablePath: "/usr/bin/ssh",
@@ -49,7 +59,7 @@ struct ProcessTableTests {
         )
       ) == nil
     )
-    #expect(ProcessTable.arguments(inProcessArguments: [1, 0]) == nil)
+    #expect(ProcessTable.invocation(inProcessArguments: [1, 0]) == nil)
   }
 
   @Test
@@ -62,10 +72,11 @@ struct ProcessTableTests {
   }
 
   @Test
-  func readsArgumentsOfTheCurrentProcess() throws {
-    let arguments = try #require(ProcessTable.arguments(forProcessID: getpid()))
+  func readsInvocationOfTheCurrentProcess() throws {
+    let invocation = try #require(ProcessTable.invocation(forProcessID: getpid()))
 
-    #expect(!arguments.isEmpty)
+    #expect(!invocation.arguments.isEmpty)
+    #expect(invocation.terminalType == ProcessInfo.processInfo.environment["TERM"])
   }
 
   @Test
