@@ -1,10 +1,10 @@
 import SwiftUI
 import Testing
 
-@testable import SupatermSurfaces
+@testable import SupatermUI
 
 @MainActor
-struct SupatermSurfacesTests {
+struct SupatermUITests {
   @Test
   func oneTimeCodeKeepsDigitsAndLimitsLength() {
     #expect(DialogOneTimeCodeValue.normalized(" 12a-345 67", length: 6) == "123456")

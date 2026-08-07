@@ -1,6 +1,6 @@
 import AppKit
 import SupaTheme
-import SupatermSurfaces
+import SupatermUI
 import SwiftUI
 
 struct ConfirmationOverlay: View {

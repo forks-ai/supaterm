@@ -2,7 +2,7 @@ import AppKit
 import Carbon.HIToolbox
 import ComposableArchitecture
 import SupatermSupport
-import SupatermSurfaces
+import SupatermUI
 import SwiftUI
 
 private struct ShortcutTableItem: Identifiable {

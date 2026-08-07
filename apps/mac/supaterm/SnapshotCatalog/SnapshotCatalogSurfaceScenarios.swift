@@ -1,5 +1,5 @@
 import SupaTheme
-import SupatermSurfaces
+import SupatermUI
 import SwiftUI
 
 extension SnapshotCatalog {

@@ -158,14 +158,14 @@ let project = Project(
       )
     ),
     .target(
-      name: "SupatermSurfaces",
+      name: "SupatermUI",
       destinations: .macOS,
       product: .staticFramework,
-      bundleId: "app.supabit.supaterm.surfaces",
+      bundleId: "app.supabit.supaterm.ui",
       deploymentTargets: .macOS("26.0"),
       infoPlist: .default,
       buildableFolders: [
-        "supaterm/Features/Surfaces",
+        "supaterm/Features/UI",
       ],
       dependencies: [
         .target(name: "SupaTheme"),
@@ -269,7 +269,7 @@ let project = Project(
       ],
       dependencies: [
         .target(name: "SupatermCLIShared"),
-        .target(name: "SupatermSurfaces"),
+        .target(name: "SupatermUI"),
         .target(name: "SupatermSupport"),
         .target(name: "SupatermUpdateFeature"),
         .external(name: "ComposableArchitecture"),
@@ -525,7 +525,7 @@ let project = Project(
         .target(name: "SupatermTerminalCore"),
         .target(name: "SupatermSocketFeature"),
         .target(name: "SupatermSettingsFeature"),
-        .target(name: "SupatermSurfaces"),
+        .target(name: "SupatermUI"),
         .target(name: "SupatermUpdateFeature"),
         .target(name: "SupaTheme"),
         .target(name: "GhosttyKit"),
@@ -574,7 +574,7 @@ let project = Project(
         .target(name: "SupatermTerminalCore"),
         .target(name: "SupatermSocketFeature"),
         .target(name: "SupatermSettingsFeature"),
-        .target(name: "SupatermSurfaces"),
+        .target(name: "SupatermUI"),
         .target(name: "SupatermUpdateFeature"),
         .target(name: "SupaTheme"),
         .target(name: "GhosttyKit"),
@@ -673,7 +673,7 @@ let project = Project(
         .target(name: "SupatermTerminalCore"),
         .target(name: "SupatermSocketFeature"),
         .target(name: "SupatermSettingsFeature"),
-        .target(name: "SupatermSurfaces"),
+        .target(name: "SupatermUI"),
         .target(name: "SupatermUpdateFeature"),
         .target(name: "SupaTheme"),
         .target(name: "GhosttyKit"),

@@ -2,7 +2,7 @@ import Sharing
 import SupaTheme
 import SupatermCLIShared
 import SupatermSupport
-import SupatermSurfaces
+import SupatermUI
 import SwiftUI
 
 enum AgentPanelMetrics {
