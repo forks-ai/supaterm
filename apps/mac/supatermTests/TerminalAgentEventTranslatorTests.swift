@@ -649,6 +649,41 @@ struct TerminalAgentEventTranslatorTests {
   }
 
   @Test
+  func claudeSubagentUnderTranscriptNamedWorkflowsKeepsWholePrompt() throws {
+    let transcript = try ClaudeProgressFixtures.makeTranscript(named: "workflows.jsonl")
+    defer { try? FileManager.default.removeItem(at: transcript.deletingLastPathComponent()) }
+    let preamble = "Repo context (already scouted, trust this):"
+    for (agentID, angle) in [("child-1", "rules_js"), ("child-2", "ci-caching")] {
+      try ClaudeProgressFixtures.writeSubagentMetadata(
+        agentID: agentID,
+        prompt: preamble + "\nYour research angle: \(angle)",
+        forTranscriptAt: transcript
+      )
+    }
+    let request = SupatermAgentHookRequest(
+      agent: .claude,
+      event: SupatermAgentHookEvent(
+        agentType: "general-purpose",
+        hookEventName: .subagentStart,
+        sessionID: "session-1",
+        transcriptPath: transcript.path,
+        agentID: "child-1"
+      )
+    )
+
+    #expect(
+      TerminalAgentEventTranslator.events(for: request).map(\.action) == [
+        .subagentStarted(
+          nickname: nil,
+          role: "general-purpose",
+          task: "\(preamble) Your research angle: rules_js",
+          transcriptPath: subagentTranscriptPath(for: transcript, agentID: "child-1")
+        )
+      ]
+    )
+  }
+
+  @Test
   func claudeWorkflowSubagentStopReportsModelTokensAndElapsedTime() throws {
     let transcript = try ClaudeProgressFixtures.makeTranscript()
     defer { try? FileManager.default.removeItem(at: transcript.deletingLastPathComponent()) }

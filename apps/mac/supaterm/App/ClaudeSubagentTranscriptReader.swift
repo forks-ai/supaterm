@@ -63,15 +63,24 @@ nonisolated enum ClaudeSubagentTranscriptReader {
   }
 
   private static let maxLineBytes = 262_144
+  private static let lineChunkBytes = 16_384
   private static let maxTailBytes: UInt64 = 262_144
   private static let maxScannedLines = 64
   private static let newline = UInt8(0x0A)
 
   private static func firstObject(_ handle: FileHandle) -> JSONObject? {
     try? handle.seek(toOffset: 0)
-    guard let data = try? handle.read(upToCount: maxLineBytes) else { return nil }
-    return (try? JSONDecoder().decode(JSONValue.self, from: data.prefix { $0 != newline }))?
-      .objectValue
+    var line = Data()
+    while line.count < maxLineBytes {
+      guard let chunk = try? handle.read(upToCount: lineChunkBytes), !chunk.isEmpty else { break }
+      guard let end = chunk.firstIndex(of: newline) else {
+        line.append(chunk)
+        continue
+      }
+      line.append(chunk[..<end])
+      break
+    }
+    return (try? JSONDecoder().decode(JSONValue.self, from: line))?.objectValue
   }
 
   private static func lastLines(_ handle: FileHandle, size: UInt64) -> [Data] {

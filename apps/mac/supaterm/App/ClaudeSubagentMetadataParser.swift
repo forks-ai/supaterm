@@ -125,7 +125,10 @@ nonisolated enum ClaudeSubagentMetadataParser {
 
   private static func workflowRunDirectory(containing file: URL) -> URL? {
     let runDirectory = file.deletingLastPathComponent()
-    guard runDirectory.deletingLastPathComponent().lastPathComponent == "workflows" else {
+    let workflows = runDirectory.deletingLastPathComponent()
+    guard workflows.lastPathComponent == "workflows",
+      workflows.deletingLastPathComponent().lastPathComponent == "subagents"
+    else {
       return nil
     }
     return runDirectory
