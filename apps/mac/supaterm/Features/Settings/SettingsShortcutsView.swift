@@ -2,6 +2,7 @@ import AppKit
 import Carbon.HIToolbox
 import ComposableArchitecture
 import SupatermSupport
+import SupatermSurfaces
 import SwiftUI
 
 private struct ShortcutTableItem: Identifiable {
@@ -326,58 +327,60 @@ private struct ShortcutRecorderPopover: View {
   @State private var status = Status.recording
 
   var body: some View {
-    VStack(spacing: 8) {
-      switch status {
-      case .recording:
-        if activeModifiers.isEmpty {
-          HStack(spacing: 4) {
-            Text("e.g.")
-              .foregroundStyle(.tertiary)
-            ShortcutKeycap(symbol: "⇧")
-            ShortcutKeycap(symbol: "⌘")
-            ShortcutKeycap(symbol: "Space")
+    PopoverSurface(theme: .system, contentPadding: 0) {
+      VStack(spacing: 8) {
+        switch status {
+        case .recording:
+          if activeModifiers.isEmpty {
+            HStack(spacing: 4) {
+              Text("e.g.")
+                .foregroundStyle(.tertiary)
+              ShortcutKeycap(symbol: "⇧")
+              ShortcutKeycap(symbol: "⌘")
+              ShortcutKeycap(symbol: "Space")
+            }
+            .opacity(0.4)
+          } else {
+            ShortcutKeycaps(symbols: modifierSymbols)
           }
-          .opacity(0.4)
-        } else {
-          ShortcutKeycaps(symbols: modifierSymbols)
+          Text("Recording…")
+            .font(.caption)
+            .foregroundStyle(.secondary)
+        case .recorded(let override):
+          ShortcutKeycaps(symbols: SupatermShortcutBinding(override).displaySymbols)
+          Label("Recorded", systemImage: "checkmark.circle.fill")
+            .font(.caption)
+            .foregroundStyle(.green)
+        case .conflict(let override, let name):
+          ShortcutKeycaps(symbols: SupatermShortcutBinding(override).displaySymbols)
+          Text("Already used by \(name).")
+            .font(.caption)
+            .foregroundStyle(.red)
         }
-        Text("Recording…")
-          .font(.caption)
-          .foregroundStyle(.secondary)
-      case .recorded(let override):
-        ShortcutKeycaps(symbols: SupatermShortcutBinding(override).displaySymbols)
-        Label("Recorded", systemImage: "checkmark.circle.fill")
-          .font(.caption)
-          .foregroundStyle(.green)
-      case .conflict(let override, let name):
-        ShortcutKeycaps(symbols: SupatermShortcutBinding(override).displaySymbols)
-        Text("Already used by \(name).")
-          .font(.caption)
-          .foregroundStyle(.red)
       }
-    }
-    .fixedSize()
-    .padding(.horizontal, 32)
-    .padding(.vertical, 16)
-    .overlay(alignment: .topTrailing) {
-      Button {
-        onCancelled()
-      } label: {
-        Image(systemName: "xmark")
-          .font(.caption2)
-          .accessibilityLabel("Cancel")
+      .fixedSize()
+      .padding(.horizontal, 32)
+      .padding(.vertical, 16)
+      .overlay(alignment: .topTrailing) {
+        Button {
+          onCancelled()
+        } label: {
+          Image(systemName: "xmark")
+            .font(.caption2)
+            .accessibilityLabel("Cancel")
+        }
+        .buttonStyle(.plain)
+        .padding(8)
       }
-      .buttonStyle(.plain)
-      .padding(8)
-    }
-    .background {
-      if case .recording = status {
-        ShortcutRecorderView(
-          onRecorded: handleRecorded,
-          onCancelled: onCancelled,
-          onModifiersChanged: { activeModifiers = $0 }
-        )
-        .frame(width: 0, height: 0)
+      .background {
+        if case .recording = status {
+          ShortcutRecorderView(
+            onRecorded: handleRecorded,
+            onCancelled: onCancelled,
+            onModifiersChanged: { activeModifiers = $0 }
+          )
+          .frame(width: 0, height: 0)
+        }
       }
     }
     .onDisappear {

@@ -313,8 +313,8 @@ private struct TerminalSidebarTabPreviewRow: View {
     )
   }
 
-  private var rowAppearance: SelectableRowButtonStyle.ResolvedAppearance {
-    SelectableRowButtonStyle.Appearance.sidebar.resolve(palette: palette)
+  private var rowAppearance: SelectableRowStyle.ResolvedAppearance {
+    SelectableRowStyle.Appearance.sidebar.resolve(palette: palette)
   }
 }
 

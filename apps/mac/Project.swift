@@ -158,6 +158,23 @@ let project = Project(
       )
     ),
     .target(
+      name: "SupatermSurfaces",
+      destinations: .macOS,
+      product: .staticFramework,
+      bundleId: "app.supabit.supaterm.surfaces",
+      deploymentTargets: .macOS("26.0"),
+      infoPlist: .default,
+      buildableFolders: [
+        "supaterm/Features/Surfaces",
+      ],
+      dependencies: [
+        .target(name: "SupaTheme"),
+      ],
+      settings: .settings(
+        defaultSettings: .essential
+      )
+    ),
+    .target(
       name: "SupatermSupport",
       destinations: .macOS,
       product: .staticFramework,
@@ -252,6 +269,7 @@ let project = Project(
       ],
       dependencies: [
         .target(name: "SupatermCLIShared"),
+        .target(name: "SupatermSurfaces"),
         .target(name: "SupatermSupport"),
         .target(name: "SupatermUpdateFeature"),
         .external(name: "ComposableArchitecture"),
@@ -507,6 +525,7 @@ let project = Project(
         .target(name: "SupatermTerminalCore"),
         .target(name: "SupatermSocketFeature"),
         .target(name: "SupatermSettingsFeature"),
+        .target(name: "SupatermSurfaces"),
         .target(name: "SupatermUpdateFeature"),
         .target(name: "SupaTheme"),
         .target(name: "GhosttyKit"),
@@ -555,6 +574,7 @@ let project = Project(
         .target(name: "SupatermTerminalCore"),
         .target(name: "SupatermSocketFeature"),
         .target(name: "SupatermSettingsFeature"),
+        .target(name: "SupatermSurfaces"),
         .target(name: "SupatermUpdateFeature"),
         .target(name: "SupaTheme"),
         .target(name: "GhosttyKit"),
@@ -653,6 +673,7 @@ let project = Project(
         .target(name: "SupatermTerminalCore"),
         .target(name: "SupatermSocketFeature"),
         .target(name: "SupatermSettingsFeature"),
+        .target(name: "SupatermSurfaces"),
         .target(name: "SupatermUpdateFeature"),
         .target(name: "SupaTheme"),
         .target(name: "GhosttyKit"),

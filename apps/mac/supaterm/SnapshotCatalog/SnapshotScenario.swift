@@ -69,6 +69,7 @@ enum SnapshotCatalog {
     + updateScenarios
     + commandPaletteScenarios
     + dialogScenarios
+    + surfaceScenarios
     + configurationDiagnosticsScenarios
     + settingsScenarios
     + chromeScenarios
