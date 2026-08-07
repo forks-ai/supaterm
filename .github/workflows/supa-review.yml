@@ -11,6 +11,6 @@ jobs:
       contents: read
       issues: write
       pull-requests: write
-    uses: supabitapp/supareview/.github/workflows/supareview-review.yml@3236a7a31d7505312d6d050ccb1232b81bf73e08
+    uses: supabitapp/supareview/.github/workflows/supareview-review.yml@main
     secrets:
       CODEX_BALANCER_API_KEY: ${{ secrets.CODEX_BALANCER_API_KEY }}
