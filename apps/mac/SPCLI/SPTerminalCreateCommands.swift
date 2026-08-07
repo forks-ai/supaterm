@@ -128,7 +128,7 @@ extension SP {
     var cwd: String?
 
     @Flag(inversion: .prefixedNo, help: "Focus the new pane after creating it.")
-    var focus = true
+    var focus = false
 
     @Option(name: .customLong("layout"), help: "Pane layout after splitting.")
     var layout: LayoutOption = .equalize

@@ -70,8 +70,11 @@ enum SPHelp {
 
     `--script` runs shell script text as the terminal startup command.
 
+    The new pane does not take focus by default. Add `--focus` to make it active.
+
     Example:
       sp pane split right
+      sp pane split --focus right
       sp pane split right --cwd ~/tmp
       sp pane split down -- htop
       sp pane split down --script 'echo hi; pwd'
