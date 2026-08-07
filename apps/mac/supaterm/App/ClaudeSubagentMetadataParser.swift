@@ -51,6 +51,7 @@ nonisolated enum ClaudeSubagentMetadataParser {
 
   private static let maxPromptTaskLength = 140
   private static let maxRememberedSpawns = 1024
+  private static let maxRememberedPromptLength = 8_192
 
   private static let spawnPromptLines = Mutex<[String: [String]]>([:])
 
@@ -136,7 +137,7 @@ nonisolated enum ClaudeSubagentMetadataParser {
     }
     guard let prompt = ClaudeSubagentTranscriptReader.spawnPrompt(at: url) else { return [] }
     let lines = promptLines(prompt)
-    guard !lines.isEmpty else { return [] }
+    guard !lines.isEmpty, prompt.count <= maxRememberedPromptLength else { return lines }
     spawnPromptLines.withLock {
       if $0.count >= maxRememberedSpawns {
         $0.removeAll(keepingCapacity: true)
