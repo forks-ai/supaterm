@@ -35,7 +35,7 @@ nonisolated enum ClaudeSubagentMetadataParser {
       }
     let task =
       AgentProgressParsing.normalizedTitle(object["description"]?.stringValue)
-      ?? spawnPromptTask(reading?.spawnPrompt, besides: childTranscript, in: location.runDirectory)
+      ?? spawnPromptTask(reading?.spawnPrompt, in: location.runDirectory)
     return Metadata(
       nickname: nickname,
       task: task,
@@ -49,11 +49,23 @@ nonisolated enum ClaudeSubagentMetadataParser {
     let runDirectory: URL?
   }
 
-  private static let maxPromptTaskLength = 140
-  private static let maxRememberedSpawns = 1024
-  private static let maxRememberedPromptLength = 8_192
+  private struct Run {
+    var readSpawns: Set<String> = []
+    var lineCounts: [String: Int] = [:]
+    var lastUsed = 0
 
-  private static let spawnPromptLines = Mutex<[String: [String]]>([:])
+    var spawnCount: Int { readSpawns.count }
+  }
+
+  private struct RunTable {
+    var runs: [String: Run] = [:]
+    var nextUse = 0
+  }
+
+  private static let maxPromptTaskLength = 140
+  private static let maxRememberedRuns = 8
+
+  private static let runTable = Mutex(RunTable())
 
   private static func location(
     transcriptPath: String,
@@ -101,13 +113,10 @@ nonisolated enum ClaudeSubagentMetadataParser {
 
   private static func spawnPromptTask(
     _ prompt: String?,
-    besides transcript: URL,
     in runDirectory: URL?
   ) -> String? {
     guard let prompt else { return nil }
-    let title =
-      runDirectory.flatMap { distinguishingLine(of: prompt, besides: transcript, in: $0) }
-      ?? prompt
+    let title = runDirectory.flatMap { distinguishingLine(of: prompt, in: $0) } ?? prompt
     guard let normalized = AgentProgressParsing.normalizedTitle(title) else { return nil }
     guard normalized.count > maxPromptTaskLength else { return normalized }
     return String(normalized.prefix(maxPromptTaskLength)) + "…"
@@ -115,36 +124,36 @@ nonisolated enum ClaudeSubagentMetadataParser {
 
   private static func distinguishingLine(
     of prompt: String,
-    besides transcript: URL,
     in runDirectory: URL
   ) -> String? {
-    let siblingLines = Set(
-      contents(of: runDirectory)
-        .filter {
-          $0.lastPathComponent.hasPrefix("agent-")
-            && $0.pathExtension == "jsonl"
-            && $0.lastPathComponent != transcript.lastPathComponent
-        }
-        .flatMap(spawnPromptLines(at:))
-    )
-    guard !siblingLines.isEmpty else { return nil }
-    return promptLines(prompt).first { !siblingLines.contains($0) }
+    let run = run(at: runDirectory)
+    guard run.spawnCount > 1 else { return nil }
+    return promptLines(prompt).first { run.lineCounts[$0] == 1 }
   }
 
-  private static func spawnPromptLines(at url: URL) -> [String] {
-    if let remembered = spawnPromptLines.withLock({ $0[url.path] }) {
-      return remembered
+  private static func run(at directory: URL) -> Run {
+    let spawns = contents(of: directory).filter {
+      $0.lastPathComponent.hasPrefix("agent-") && $0.pathExtension == "jsonl"
     }
-    guard let prompt = ClaudeSubagentTranscriptReader.spawnPrompt(at: url) else { return [] }
-    let lines = promptLines(prompt)
-    guard !lines.isEmpty, prompt.count <= maxRememberedPromptLength else { return lines }
-    spawnPromptLines.withLock {
-      if $0.count >= maxRememberedSpawns {
-        $0.removeAll(keepingCapacity: true)
+    return runTable.withLock { table in
+      var run = table.runs[directory.path] ?? Run()
+      for spawn in spawns where !run.readSpawns.contains(spawn.lastPathComponent) {
+        guard let prompt = ClaudeSubagentTranscriptReader.spawnPrompt(at: spawn) else { continue }
+        run.readSpawns.insert(spawn.lastPathComponent)
+        for line in Set(promptLines(prompt)) {
+          run.lineCounts[line, default: 0] += 1
+        }
       }
-      $0[url.path] = lines
+      if table.runs[directory.path] == nil, table.runs.count >= maxRememberedRuns,
+        let coldest = table.runs.min(by: { $0.value.lastUsed < $1.value.lastUsed })?.key
+      {
+        table.runs.removeValue(forKey: coldest)
+      }
+      run.lastUsed = table.nextUse
+      table.nextUse += 1
+      table.runs[directory.path] = run
+      return run
     }
-    return lines
   }
 
   private static func promptLines(_ prompt: String) -> [String] {
