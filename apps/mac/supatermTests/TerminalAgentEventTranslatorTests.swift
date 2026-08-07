@@ -650,8 +650,15 @@ struct TerminalAgentEventTranslatorTests {
 
   @Test
   func claudeSubagentUnderTranscriptNamedWorkflowsKeepsWholePrompt() throws {
-    let transcript = try ClaudeProgressFixtures.makeTranscript(named: "workflows.jsonl")
-    defer { try? FileManager.default.removeItem(at: transcript.deletingLastPathComponent()) }
+    let transcript = try ClaudeProgressFixtures.makeTranscript(
+      named: "workflows.jsonl",
+      inDirectoryNamed: "subagents"
+    )
+    defer {
+      try? FileManager.default.removeItem(
+        at: transcript.deletingLastPathComponent().deletingLastPathComponent()
+      )
+    }
     let preamble = "Repo context (already scouted, trust this):"
     for (agentID, angle) in [("child-1", "rules_js"), ("child-2", "ci-caching")] {
       try ClaudeProgressFixtures.writeSubagentMetadata(

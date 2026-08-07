@@ -3,11 +3,15 @@ import Foundation
 @testable import supaterm
 
 enum ClaudeProgressFixtures {
-  static func makeTranscript(named name: String = "transcript.jsonl") throws -> URL {
-    let directoryURL = FileManager.default.temporaryDirectory.appendingPathComponent(
+  static func makeTranscript(
+    named name: String = "transcript.jsonl",
+    inDirectoryNamed nested: String? = nil
+  ) throws -> URL {
+    let rootURL = FileManager.default.temporaryDirectory.appendingPathComponent(
       UUID().uuidString,
       isDirectory: true
     )
+    let directoryURL = nested.map { rootURL.appendingPathComponent($0, isDirectory: true) } ?? rootURL
     try FileManager.default.createDirectory(at: directoryURL, withIntermediateDirectories: true)
     let fileURL = directoryURL.appendingPathComponent(name)
     try Data().write(to: fileURL)
