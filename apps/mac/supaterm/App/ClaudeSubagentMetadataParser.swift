@@ -53,8 +53,6 @@ nonisolated enum ClaudeSubagentMetadataParser {
     var readSpawns: Set<String> = []
     var lineCounts: [String: Int] = [:]
     var lastUsed = 0
-
-    var spawnCount: Int { readSpawns.count }
   }
 
   private struct RunTable {
@@ -64,6 +62,7 @@ nonisolated enum ClaudeSubagentMetadataParser {
 
   private static let maxPromptTaskLength = 140
   private static let maxRememberedRuns = 8
+  private static let maxCountedLines = 256
 
   private static let runTable = Mutex(RunTable())
 
@@ -126,33 +125,32 @@ nonisolated enum ClaudeSubagentMetadataParser {
     of prompt: String,
     in runDirectory: URL
   ) -> String? {
-    let run = run(at: runDirectory)
-    guard run.spawnCount > 1 else { return nil }
-    return promptLines(prompt).first { run.lineCounts[$0] == 1 }
-  }
-
-  private static func run(at directory: URL) -> Run {
-    let spawns = contents(of: directory).filter {
+    let lines = promptLines(prompt)
+    let spawns = contents(of: runDirectory).filter {
       $0.lastPathComponent.hasPrefix("agent-") && $0.pathExtension == "jsonl"
     }
     return runTable.withLock { table in
-      var run = table.runs[directory.path] ?? Run()
+      var run = table.runs.removeValue(forKey: runDirectory.path) ?? Run()
       for spawn in spawns where !run.readSpawns.contains(spawn.lastPathComponent) {
         guard let prompt = ClaudeSubagentTranscriptReader.spawnPrompt(at: spawn) else { continue }
         run.readSpawns.insert(spawn.lastPathComponent)
-        for line in Set(promptLines(prompt)) {
+        for line in Set(promptLines(prompt).prefix(maxCountedLines)) {
           run.lineCounts[line, default: 0] += 1
         }
       }
-      if table.runs[directory.path] == nil, table.runs.count >= maxRememberedRuns,
+      if table.runs.count >= maxRememberedRuns,
         let coldest = table.runs.min(by: { $0.value.lastUsed < $1.value.lastUsed })?.key
       {
         table.runs.removeValue(forKey: coldest)
       }
       run.lastUsed = table.nextUse
       table.nextUse += 1
-      table.runs[directory.path] = run
-      return run
+      let line =
+        run.readSpawns.count > 1
+        ? lines.first { run.lineCounts[$0] == 1 }
+        : nil
+      table.runs[runDirectory.path] = run
+      return line
     }
   }
 
