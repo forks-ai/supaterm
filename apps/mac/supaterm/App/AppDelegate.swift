@@ -122,6 +122,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
   }
 
   isolated deinit {
+    tabNewWindowDropController.stop()
     if let configurationDiagnosticsObserver {
       NotificationCenter.default.removeObserver(configurationDiagnosticsObserver)
     }
