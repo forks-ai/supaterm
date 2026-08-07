@@ -29,6 +29,7 @@ struct TerminalCommandPaletteOverlay: View {
           selection: selectionBinding,
           items: items,
           prompt: "Search commands...",
+          accessibilityNamespace: "palette",
           layout: SearchPanelLayout(width: width, height: 272),
           onActivate: { _ in onActivate() },
           onDismiss: onClose

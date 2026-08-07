@@ -27,6 +27,17 @@ struct SupatermUITests {
   }
 
   @Test
+  func searchSelectionMovesWhenSelectedItemBecomesDisabled() {
+    let items = [
+      SearchPanelItem(id: "first", title: "First"),
+      SearchPanelItem(id: "selected", title: "Selected", isEnabled: false),
+    ]
+
+    #expect(SearchPanelSelection.normalized("selected", in: items) == "first")
+    #expect(SearchPanelSelection.normalized("first", in: items) == "first")
+  }
+
+  @Test
   func trailingResizeMovesTrailingEdge() {
     let geometry = PopoverSurfaceGeometry(
       size: CGSize(width: 300, height: 200),

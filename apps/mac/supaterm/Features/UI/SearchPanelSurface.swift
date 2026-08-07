@@ -54,6 +54,14 @@ public struct SearchPanelLayout: Sendable {
 }
 
 enum SearchPanelSelection {
+  static func normalized<ID: Hashable>(
+    _ selection: ID?,
+    in items: [SearchPanelItem<ID>]
+  ) -> ID? {
+    items.first { $0.id == selection && $0.isEnabled }?.id
+      ?? items.first(where: \.isEnabled)?.id
+  }
+
   static func moved<ID: Hashable>(
     _ selection: ID?,
     in items: [SearchPanelItem<ID>],
@@ -76,6 +84,7 @@ public struct SearchPanelSurface<ID: Hashable, Preview: View>: View {
   private let items: [SearchPanelItem<ID>]
   private let prompt: String
   private let emptyMessage: String
+  private let accessibilityNamespace: String
   private let layout: SearchPanelLayout
   private let onActivate: (SearchPanelItem<ID>) -> Void
   private let onDismiss: () -> Void
@@ -93,6 +102,7 @@ public struct SearchPanelSurface<ID: Hashable, Preview: View>: View {
     items: [SearchPanelItem<ID>],
     prompt: String = "Search…",
     emptyMessage: String = "No matches",
+    accessibilityNamespace: String = "search-panel",
     layout: SearchPanelLayout = SearchPanelLayout(),
     onActivate: @escaping (SearchPanelItem<ID>) -> Void,
     onDismiss: @escaping () -> Void,
@@ -104,6 +114,7 @@ public struct SearchPanelSurface<ID: Hashable, Preview: View>: View {
     self.items = items
     self.prompt = prompt
     self.emptyMessage = emptyMessage
+    self.accessibilityNamespace = accessibilityNamespace
     self.layout = layout
     self.onActivate = onActivate
     self.onDismiss = onDismiss
@@ -135,11 +146,11 @@ public struct SearchPanelSurface<ID: Hashable, Preview: View>: View {
       await focusQuery()
       normalizeSelection()
     }
-    .onChange(of: items.map(\.id)) { _, _ in
+    .onChange(of: items.filter(\.isEnabled).map(\.id)) { _, _ in
       normalizeSelection()
     }
     .accessibilityElement(children: .contain)
-    .accessibilityIdentifier("search-panel.surface")
+    .accessibilityIdentifier("\(accessibilityNamespace).surface")
   }
 
   private func panel(colors: SurfaceColors) -> some View {
@@ -198,7 +209,7 @@ public struct SearchPanelSurface<ID: Hashable, Preview: View>: View {
           selection.wrappedValue = SearchPanelSelection.moved(selection.wrappedValue, in: items, by: 1)
           return .handled
         }
-        .accessibilityIdentifier("search-panel.input")
+        .accessibilityIdentifier("\(accessibilityNamespace).input")
 
       if !query.wrappedValue.isEmpty {
         Button {
@@ -231,7 +242,8 @@ public struct SearchPanelSurface<ID: Hashable, Preview: View>: View {
                   item: item,
                   theme: theme,
                   isHovered: hoveredID == item.id,
-                  isSelected: selection.wrappedValue == item.id
+                  isSelected: selection.wrappedValue == item.id,
+                  accessibilityIdentifier: "\(accessibilityNamespace).result-row"
                 ) {
                   selection.wrappedValue = item.id
                   onActivate(item)
@@ -276,6 +288,7 @@ public struct SearchPanelSurface<ID: Hashable, Preview: View>: View {
               theme: theme,
               isHovered: false,
               isSelected: false,
+              accessibilityIdentifier: "\(accessibilityNamespace).result-row",
               action: { onActivate(child) }
             )
           }
@@ -305,10 +318,7 @@ public struct SearchPanelSurface<ID: Hashable, Preview: View>: View {
   }
 
   private func normalizeSelection() {
-    guard items.contains(where: { $0.id == selection.wrappedValue && $0.isEnabled }) else {
-      selection.wrappedValue = items.first(where: \.isEnabled)?.id
-      return
-    }
+    selection.wrappedValue = SearchPanelSelection.normalized(selection.wrappedValue, in: items)
   }
 
   private func focusQuery() async {
@@ -328,6 +338,7 @@ extension SearchPanelSurface where Preview == EmptyView {
     items: [SearchPanelItem<ID>],
     prompt: String = "Search…",
     emptyMessage: String = "No matches",
+    accessibilityNamespace: String = "search-panel",
     layout: SearchPanelLayout = SearchPanelLayout(),
     onActivate: @escaping (SearchPanelItem<ID>) -> Void,
     onDismiss: @escaping () -> Void
@@ -339,6 +350,7 @@ extension SearchPanelSurface where Preview == EmptyView {
       items: items,
       prompt: prompt,
       emptyMessage: emptyMessage,
+      accessibilityNamespace: accessibilityNamespace,
       layout: layout,
       onActivate: onActivate,
       onDismiss: onDismiss,
@@ -352,6 +364,7 @@ private struct SearchPanelRow<ID: Hashable>: View {
   let theme: SurfaceTheme
   let isHovered: Bool
   let isSelected: Bool
+  let accessibilityIdentifier: String
   let action: () -> Void
 
   @Environment(\.colorScheme) private var colorScheme
@@ -415,7 +428,7 @@ private struct SearchPanelRow<ID: Hashable>: View {
     .buttonStyle(.plain)
     .disabled(!item.isEnabled)
     .opacity(item.isEnabled ? 1 : 0.5)
-    .accessibilityIdentifier("search-panel.result-row")
+    .accessibilityIdentifier(accessibilityIdentifier)
     .accessibilityAddTraits(isSelected ? .isSelected : [])
     .help(item.detail ?? "")
   }
