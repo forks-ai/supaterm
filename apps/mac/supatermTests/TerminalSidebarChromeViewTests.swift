@@ -12,7 +12,7 @@ struct TerminalSidebarChromeViewTests {
   func sidebarRowAppearanceResolvesEveryState() {
     for colorScheme in [ColorScheme.light, ColorScheme.dark] {
       let palette = Palette(colorScheme: colorScheme)
-      let row = SelectableRowButtonStyle.Appearance.sidebar.resolve(palette: palette)
+      let row = SelectableRowStyle.Appearance.sidebar.resolve(palette: palette)
       let colors = palette.selectableRow
 
       expectSameColor(row.fill(selection: .none, isPressed: false, isHovering: false), .clear)

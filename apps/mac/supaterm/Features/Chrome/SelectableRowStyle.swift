@@ -7,7 +7,7 @@ enum SelectableRowSelection: Equatable {
   case secondary
 }
 
-struct SelectableRowButtonStyle: ButtonStyle {
+enum SelectableRowStyle {
   enum Appearance {
     case standard(restFill: Color)
     case sidebar
@@ -67,52 +67,6 @@ struct SelectableRowButtonStyle: ButtonStyle {
     }
   }
 
-  let palette: Palette
-  let selection: SelectableRowSelection
-  let isHovering: Bool
-  let cornerRadius: CGFloat
-  let appearance: Appearance
-  let showsSelectionEdge: Bool
-  let showsSelectionShadow: Bool
-
-  init(
-    palette: Palette,
-    isSelected: Bool,
-    isHovering: Bool,
-    cornerRadius: CGFloat,
-    appearance: Appearance = .standard(restFill: .clear),
-    showsSelectionEdge: Bool = true,
-    showsSelectionShadow: Bool = true
-  ) {
-    self.palette = palette
-    selection = isSelected ? .primary : .none
-    self.isHovering = isHovering
-    self.cornerRadius = cornerRadius
-    self.appearance = appearance
-    self.showsSelectionEdge = showsSelectionEdge
-    self.showsSelectionShadow = showsSelectionShadow
-  }
-
-  func makeBody(configuration: Configuration) -> some View {
-    let resolvedAppearance = appearance.resolve(palette: palette)
-    configuration.label
-      .background(
-        resolvedAppearance.fill(
-          selection: selection,
-          isPressed: configuration.isPressed,
-          isHovering: isHovering
-        )
-      )
-      .modifier(
-        SelectableRowChrome(
-          selection: selection,
-          cornerRadius: cornerRadius,
-          appearance: resolvedAppearance,
-          showsSelectionEdge: showsSelectionEdge,
-          showsSelectionShadow: showsSelectionShadow
-        )
-      )
-  }
 }
 
 enum SelectableRowShadowMetrics {
@@ -127,14 +81,14 @@ struct SelectableRowChrome: ViewModifier {
 
   let selection: SelectableRowSelection
   let cornerRadius: CGFloat
-  let appearance: SelectableRowButtonStyle.ResolvedAppearance
+  let appearance: SelectableRowStyle.ResolvedAppearance
   let showsSelectionEdge: Bool
   let showsSelectionShadow: Bool
 
   init(
     selection: SelectableRowSelection,
     cornerRadius: CGFloat,
-    appearance: SelectableRowButtonStyle.ResolvedAppearance,
+    appearance: SelectableRowStyle.ResolvedAppearance,
     showsSelectionEdge: Bool,
     showsSelectionShadow: Bool = true
   ) {
