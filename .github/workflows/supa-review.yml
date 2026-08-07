@@ -8,6 +8,7 @@ jobs:
   review:
     if: github.event.pull_request.draft == false
     permissions:
+      actions: read
       contents: read
       issues: write
       pull-requests: write

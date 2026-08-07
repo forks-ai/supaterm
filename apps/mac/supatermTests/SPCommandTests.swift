@@ -15,16 +15,21 @@ struct SPCommandTests {
   }
 
   @Test
-  func newPaneLayoutDefaultsToEqualizeAndCanKeepLayout() throws {
+  func newPaneDefaultsAndOptions() throws {
     let defaultCommand = try #require(
       try SP.parseAsRoot(["pane", "split", "right"]) as? SP.NewPane
     )
     let keepLayoutCommand = try #require(
       try SP.parseAsRoot(["pane", "split", "--layout", "keep", "right"]) as? SP.NewPane
     )
+    let focusedCommand = try #require(
+      try SP.parseAsRoot(["pane", "split", "--focus", "right"]) as? SP.NewPane
+    )
 
     #expect(defaultCommand.layout == .equalize)
+    #expect(!defaultCommand.focus)
     #expect(keepLayoutCommand.layout == .keep)
+    #expect(focusedCommand.focus)
   }
 
   @Test
