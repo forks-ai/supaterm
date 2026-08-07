@@ -332,6 +332,7 @@ private struct DialogSurfaceActionButton: View {
       .disabled(!action.isEnabled)
       .opacity(action.isEnabled ? 1 : 0.5)
       .onHover { isHovering = $0 }
+      .accessibilityLabel(action.title)
       .accessibilityIdentifier(action.accessibilityIdentifier ?? "dialog.action.\(action.id)")
     )
   }
