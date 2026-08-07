@@ -7,6 +7,12 @@ nonisolated enum ClaudeSubagentTranscriptReader {
     let usage: TerminalAgentChildUsage?
   }
 
+  static func spawnPrompt(at url: URL) -> String? {
+    guard let handle = try? FileHandle(forReadingFrom: url) else { return nil }
+    defer { try? handle.close() }
+    return firstObject(handle).flatMap(promptText(in:))
+  }
+
   static func read(at url: URL) -> Reading? {
     guard let handle = try? FileHandle(forReadingFrom: url),
       let size = try? handle.seekToEnd(),
@@ -16,7 +22,7 @@ nonisolated enum ClaudeSubagentTranscriptReader {
     }
     defer { try? handle.close() }
     guard let spawn = firstObject(handle) else { return nil }
-    let spawnPrompt = promptText(spawn["message"]?.objectValue?["content"])
+    let spawnPrompt = promptText(in: spawn)
     let timestamps = ISO8601DateFormatter()
     timestamps.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
     guard let startedAt = timestamps.date(from: spawn["timestamp"]?.stringValue ?? "") else {
@@ -78,7 +84,8 @@ nonisolated enum ClaudeSubagentTranscriptReader {
     return (offset == 0 ? lines[...] : lines.dropFirst()).map { Data($0) }
   }
 
-  private static func promptText(_ content: JSONValue?) -> String? {
+  private static func promptText(in object: JSONObject) -> String? {
+    let content = object["message"]?.objectValue?["content"]
     if let text = content?.stringValue {
       return text
     }

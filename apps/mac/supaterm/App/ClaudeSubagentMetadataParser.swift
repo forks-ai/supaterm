@@ -30,7 +30,7 @@ nonisolated enum ClaudeSubagentMetadataParser {
       ?? workflowName(besides: metadataURL)
     let task =
       AgentProgressParsing.normalizedTitle(object["description"]?.stringValue)
-      ?? spawnPromptTask(reading?.spawnPrompt)
+      ?? spawnPromptTask(reading?.spawnPrompt, besides: childTranscript)
     return Metadata(
       nickname: nickname,
       task: task,
@@ -58,13 +58,8 @@ nonisolated enum ClaudeSubagentMetadataParser {
       return direct
     }
     let workflows = subagents.appendingPathComponent("workflows")
-    let workflowRuns =
-      (try? FileManager.default.contentsOfDirectory(
-        at: workflows,
-        includingPropertiesForKeys: nil
-      )) ?? []
     return
-      workflowRuns
+      contents(of: workflows)
       .map {
         workflows.appendingPathComponent($0.lastPathComponent).appendingPathComponent(fileName)
       }
@@ -72,10 +67,7 @@ nonisolated enum ClaudeSubagentMetadataParser {
   }
 
   private static func workflowName(besides metadataURL: URL) -> String? {
-    let runDirectory = metadataURL.deletingLastPathComponent()
-    guard runDirectory.deletingLastPathComponent().lastPathComponent == "workflows" else {
-      return nil
-    }
+    guard let runDirectory = workflowRunDirectory(containing: metadataURL) else { return nil }
     let suffix = "-\(runDirectory.lastPathComponent).js"
     let scriptsDirectory =
       runDirectory
@@ -84,14 +76,9 @@ nonisolated enum ClaudeSubagentMetadataParser {
       .deletingLastPathComponent()
       .appendingPathComponent("workflows")
       .appendingPathComponent("scripts")
-    let scripts =
-      (try? FileManager.default.contentsOfDirectory(
-        at: scriptsDirectory,
-        includingPropertiesForKeys: nil
-      )) ?? []
     guard
       let script =
-        scripts
+        contents(of: scriptsDirectory)
         .map(\.lastPathComponent)
         .first(where: { $0.hasSuffix(suffix) })
     else {
@@ -100,9 +87,54 @@ nonisolated enum ClaudeSubagentMetadataParser {
     return AgentProgressParsing.normalizedTitle(String(script.dropLast(suffix.count)))
   }
 
-  private static func spawnPromptTask(_ prompt: String?) -> String? {
-    guard let normalized = AgentProgressParsing.normalizedTitle(prompt) else { return nil }
+  private static func spawnPromptTask(
+    _ prompt: String?,
+    besides transcript: URL
+  ) -> String? {
+    guard let prompt else { return nil }
+    let title = distinguishingLine(of: prompt, besides: transcript) ?? prompt
+    guard let normalized = AgentProgressParsing.normalizedTitle(title) else { return nil }
     guard normalized.count > maxPromptTaskLength else { return normalized }
     return String(normalized.prefix(maxPromptTaskLength)) + "…"
+  }
+
+  private static func distinguishingLine(
+    of prompt: String,
+    besides transcript: URL
+  ) -> String? {
+    guard let runDirectory = workflowRunDirectory(containing: transcript) else { return nil }
+    let siblingLines = Set(
+      contents(of: runDirectory)
+        .filter {
+          $0.lastPathComponent.hasPrefix("agent-")
+            && $0.pathExtension == "jsonl"
+            && $0.lastPathComponent != transcript.lastPathComponent
+        }
+        .compactMap(ClaudeSubagentTranscriptReader.spawnPrompt(at:))
+        .flatMap(promptLines)
+    )
+    guard !siblingLines.isEmpty else { return nil }
+    return promptLines(prompt).first { !siblingLines.contains($0) }
+  }
+
+  private static func promptLines(_ prompt: String) -> [String] {
+    prompt
+      .components(separatedBy: .newlines)
+      .compactMap(AgentProgressParsing.normalizedTitle)
+  }
+
+  private static func workflowRunDirectory(containing file: URL) -> URL? {
+    let runDirectory = file.deletingLastPathComponent()
+    guard runDirectory.deletingLastPathComponent().lastPathComponent == "workflows" else {
+      return nil
+    }
+    return runDirectory
+  }
+
+  private static func contents(of directory: URL) -> [URL] {
+    (try? FileManager.default.contentsOfDirectory(
+      at: directory,
+      includingPropertiesForKeys: nil
+    )) ?? []
   }
 }
