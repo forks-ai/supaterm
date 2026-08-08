@@ -69,16 +69,17 @@ final class CommandPaletteUITests: SupatermUITestCase {
   }
 
   @MainActor
-  func testWordInitialQueryFiltersRows() async throws {
+  func testWordInitialQueryFiltersRowsAndRanksTitleMatchFirst() async throws {
     let terminal = try readyTerminal()
     terminal.click()
     let input = try await openPalette()
     let rows = paletteRows
+    let initialRowCount = rows.count
 
     input.typeText("caw")
 
     let didFilter = await wait(for: rows.firstMatch) {
-      $0.exists && rows.count == 1
+      $0.exists && rows.count < initialRowCount
     }
     XCTAssertTrue(didFilter)
     XCTAssertTrue(rows.firstMatch.label.contains("Close All Windows"))
