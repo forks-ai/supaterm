@@ -149,7 +149,10 @@ private struct TerminalDetailTopBar: View {
     .padding(.leading, 8)
     .padding(.trailing, 4)
     .frame(maxWidth: .infinity, minHeight: 36, maxHeight: 36, alignment: .leading)
-    .background(backgroundColor, in: .rect)
+    .background {
+      Rectangle()
+        .fill(backgroundColor)
+    }
     .overlay(alignment: .bottom) {
       Rectangle()
         .fill(palette.detailStroke)
