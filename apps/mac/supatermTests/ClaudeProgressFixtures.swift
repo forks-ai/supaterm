@@ -3,13 +3,17 @@ import Foundation
 @testable import supaterm
 
 enum ClaudeProgressFixtures {
-  static func makeTranscript() throws -> URL {
-    let directoryURL = FileManager.default.temporaryDirectory.appendingPathComponent(
+  static func makeTranscript(
+    named name: String = "transcript.jsonl",
+    inDirectoryNamed nested: String? = nil
+  ) throws -> URL {
+    let rootURL = FileManager.default.temporaryDirectory.appendingPathComponent(
       UUID().uuidString,
       isDirectory: true
     )
+    let directoryURL = nested.map { rootURL.appendingPathComponent($0, isDirectory: true) } ?? rootURL
     try FileManager.default.createDirectory(at: directoryURL, withIntermediateDirectories: true)
-    let fileURL = directoryURL.appendingPathComponent("transcript.jsonl")
+    let fileURL = directoryURL.appendingPathComponent(name)
     try Data().write(to: fileURL)
     return fileURL
   }
@@ -146,6 +150,7 @@ enum ClaudeProgressFixtures {
     agentID: String,
     name: String? = nil,
     description: String? = nil,
+    prompt: Any? = nil,
     forTranscriptAt transcriptURL: URL
   ) throws {
     let directoryURL =
@@ -162,6 +167,13 @@ enum ClaudeProgressFixtures {
     }
     let data = try JSONSerialization.data(withJSONObject: object, options: [.sortedKeys])
     try data.write(to: directoryURL.appendingPathComponent("agent-\(agentID).meta.json"))
+    guard let prompt else { return }
+    try writeSpawn(
+      agentID: agentID,
+      prompt: prompt,
+      startedAt: nil,
+      in: directoryURL
+    )
   }
 
   static func writeWorkflowSubagentSpawn(
@@ -193,6 +205,20 @@ enum ClaudeProgressFixtures {
       options: [.sortedKeys]
     )
     try metadata.write(to: directoryURL.appendingPathComponent("agent-\(agentID).meta.json"))
+    try writeSpawn(
+      agentID: agentID,
+      prompt: prompt,
+      startedAt: startedAt,
+      in: directoryURL
+    )
+  }
+
+  private static func writeSpawn(
+    agentID: String,
+    prompt: Any,
+    startedAt: String?,
+    in directoryURL: URL
+  ) throws {
     var spawn: [String: Any] = [
       "type": "user",
       "agentId": agentID,
@@ -203,6 +229,28 @@ enum ClaudeProgressFixtures {
     }
     let transcript = try JSONSerialization.data(withJSONObject: spawn, options: [.sortedKeys])
     try (transcript + Data([0x0A])).write(
+      to: directoryURL.appendingPathComponent("agent-\(agentID).jsonl")
+    )
+  }
+
+  static func writePartialWorkflowSubagentSpawn(
+    agentID: String,
+    runID: String,
+    forTranscriptAt transcriptURL: URL
+  ) throws {
+    let directoryURL =
+      transcriptURL
+      .deletingPathExtension()
+      .appendingPathComponent("subagents")
+      .appendingPathComponent("workflows")
+      .appendingPathComponent(runID)
+    try FileManager.default.createDirectory(at: directoryURL, withIntermediateDirectories: true)
+    let metadata = try JSONSerialization.data(
+      withJSONObject: ["agentType": "workflow-subagent", "spawnDepth": 1],
+      options: [.sortedKeys]
+    )
+    try metadata.write(to: directoryURL.appendingPathComponent("agent-\(agentID).meta.json"))
+    try Data(#"{"type":"user","message":{"role":"user","content":"Repo con"#.utf8).write(
       to: directoryURL.appendingPathComponent("agent-\(agentID).jsonl")
     )
   }
