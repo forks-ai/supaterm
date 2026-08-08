@@ -246,14 +246,19 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
     let bypassesConfirmationForNextQuit = self.bypassesConfirmationForNextQuit
     self.bypassesConfirmationForNextQuit = false
     let terminatesSessionsOnQuit = terminatesSessionsForNextQuit || supatermSettings.terminatesSessionsOnQuit
+    let terminalWindow = terminalWindowRegistry.preferredTerminalWindow
     let terminationPlan = Self.terminationPlan(
-      hasVisibleAppWindows: NSApp.windows.contains(where: \.isVisible),
+      hasTerminalWindow: terminalWindow != nil,
       bypassesQuitConfirmation: terminatesSessionsForNextQuit
         || bypassesConfirmationForNextQuit
         || terminalWindowRegistry.bypassesQuitConfirmation,
       terminatesSessionsOnQuit: terminatesSessionsOnQuit
     ) {
-      quitConfirmationPresenter.confirmQuit(terminatesSessions: terminatesSessionsOnQuit)
+      guard let terminalWindow else { return .cancel }
+      return quitConfirmationPresenter.confirmQuit(
+        parentWindow: terminalWindow,
+        terminatesSessions: terminatesSessionsOnQuit
+      )
     }
     let reply = terminationPlan.reply
     sessionPersistenceState = .afterTerminationDecision(
@@ -587,13 +592,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
   }
 
   static func terminationPlan(
-    hasVisibleAppWindows: Bool,
+    hasTerminalWindow: Bool,
     bypassesQuitConfirmation: Bool,
     terminatesSessionsOnQuit: Bool = false,
     confirmQuit: () -> QuitConfirmationDecision
   ) -> TerminationPlan {
     let defaultPlan = TerminationPlan(reply: .terminateNow, terminatesSessions: terminatesSessionsOnQuit)
-    guard hasVisibleAppWindows else { return defaultPlan }
+    guard hasTerminalWindow else { return defaultPlan }
     guard !bypassesQuitConfirmation else { return defaultPlan }
     switch confirmQuit() {
     case .cancel:

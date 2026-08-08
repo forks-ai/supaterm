@@ -337,23 +337,21 @@ private struct SearchButtonLabel: View {
   }
 }
 
-private struct GhosttySearchField: NSViewRepresentable {
+struct GhosttySearchField: NSViewRepresentable {
   @Binding var text: String
   var focusRequest: Int
   var selectionRequest: Int
   var onSubmit: (Bool) -> Void
   var onEscape: () -> Void
 
-  func makeCoordinator() -> Coordinator {
-    Coordinator(text: $text)
+  func makeCoordinator() -> GhosttySearchFieldDelegate {
+    GhosttySearchFieldDelegate(text: $text, onSubmit: onSubmit, onEscape: onEscape)
   }
 
-  func makeNSView(context: Context) -> SearchField {
-    let field = SearchField()
+  func makeNSView(context: Context) -> NSTextField {
+    let field = NSTextField()
     field.setAccessibilityIdentifier("terminal.search.field")
     field.delegate = context.coordinator
-    field.onSubmit = onSubmit
-    field.onEscape = onEscape
     field.isBordered = false
     field.drawsBackground = false
     field.focusRingType = .none
@@ -364,12 +362,12 @@ private struct GhosttySearchField: NSViewRepresentable {
     return field
   }
 
-  func updateNSView(_ nsView: SearchField, context: Context) {
+  func updateNSView(_ nsView: NSTextField, context: Context) {
     if nsView.stringValue != text {
       nsView.stringValue = text
     }
-    nsView.onSubmit = onSubmit
-    nsView.onEscape = onEscape
+    context.coordinator.onSubmit = onSubmit
+    context.coordinator.onEscape = onEscape
 
     if context.coordinator.focusRequest != focusRequest, let window = nsView.window {
       context.coordinator.focusRequest = focusRequest
@@ -382,39 +380,51 @@ private struct GhosttySearchField: NSViewRepresentable {
       editor.selectedRange = NSRange(location: 0, length: nsView.stringValue.utf16.count)
     }
   }
+}
 
-  final class Coordinator: NSObject, NSTextFieldDelegate {
-    @Binding var text: String
-    var focusRequest = 0
-    var selectionRequest = 0
+final class GhosttySearchFieldDelegate: NSObject, NSTextFieldDelegate {
+  @Binding var text: String
+  var onSubmit: (Bool) -> Void
+  var onEscape: () -> Void
+  var focusRequest = 0
+  var selectionRequest = 0
+  private let modifierFlags: () -> NSEvent.ModifierFlags
 
-    init(text: Binding<String>) {
-      _text = text
+  init(
+    text: Binding<String>,
+    onSubmit: @escaping (Bool) -> Void,
+    onEscape: @escaping () -> Void,
+    modifierFlags: @escaping () -> NSEvent.ModifierFlags = {
+      NSApp.currentEvent?.modifierFlags ?? []
     }
-
-    func controlTextDidChange(_ obj: Notification) {
-      guard let field = obj.object as? NSTextField else { return }
-      text = field.stringValue
-    }
+  ) {
+    _text = text
+    self.onSubmit = onSubmit
+    self.onEscape = onEscape
+    self.modifierFlags = modifierFlags
   }
 
-  final class SearchField: NSTextField {
-    var onSubmit: ((Bool) -> Void)?
-    var onEscape: (() -> Void)?
+  func controlTextDidChange(_ obj: Notification) {
+    guard let field = obj.object as? NSTextField else { return }
+    text = field.stringValue
+  }
 
-    override func cancelOperation(_ sender: Any?) {
-      onEscape?()
-    }
-
-    override func keyDown(with event: NSEvent) {
-      switch event.keyCode {
-      case 36, 76:
-        onSubmit?(event.modifierFlags.contains(.shift))
-      case 53:
-        onEscape?()
-      default:
-        super.keyDown(with: event)
-      }
+  func control(
+    _ control: NSControl,
+    textView: NSTextView,
+    doCommandBy commandSelector: Selector
+  ) -> Bool {
+    switch commandSelector {
+    case #selector(NSResponder.insertNewline(_:)):
+      let isShifted = modifierFlags().contains(.shift)
+      guard !textView.hasMarkedText() || isShifted else { return false }
+      onSubmit(isShifted)
+      return true
+    case #selector(NSResponder.cancelOperation(_:)):
+      onEscape()
+      return true
+    default:
+      return false
     }
   }
 }

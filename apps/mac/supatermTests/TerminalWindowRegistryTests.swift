@@ -31,6 +31,19 @@ struct TerminalWindowRegistryTests {
   }
 
   @Test
+  func preferredTerminalWindowExcludesUnregisteredWindows() {
+    let registry = TerminalWindowRegistry()
+    let unrelatedWindow = makeWindow()
+
+    #expect(registry.preferredTerminalWindow == nil)
+
+    let terminalWindow = registerWindow(in: registry, spaceID: TerminalSpaceID())
+
+    #expect(registry.preferredTerminalWindow === terminalWindow.window)
+    withExtendedLifetime(unrelatedWindow) {}
+  }
+
+  @Test
   func selectingSpaceSwitchesThePreferredWindowInPlace() {
     withDependencies {
       $0.defaultFileStorage = .inMemory

@@ -806,6 +806,124 @@ struct GhosttySurfaceViewTests {
 
   @Test
   @MainActor
+  func searchFieldReturnCommitsMarkedTextBeforeNavigating() throws {
+    try withSearchField { field, editor, recorder, window in
+      editor.setMarkedText(
+        "かな",
+        selectedRange: NSRange(location: 2, length: 0),
+        replacementRange: NSRange(location: NSNotFound, length: 0)
+      )
+      #expect(editor.hasMarkedText())
+
+      window.sendEvent(
+        try makeKeyEvent(
+          keyCode: kVK_Return,
+          characters: "\r",
+          modifierFlags: [],
+          windowNumber: window.windowNumber
+        )
+      )
+
+      #expect(!editor.hasMarkedText())
+      #expect(field.stringValue == "かな")
+      #expect(recorder.submissions.isEmpty)
+
+      window.sendEvent(
+        try makeKeyEvent(
+          keyCode: kVK_Return,
+          characters: "\r",
+          modifierFlags: [],
+          windowNumber: window.windowNumber
+        )
+      )
+
+      #expect(recorder.submissions == [false])
+    }
+  }
+
+  @Test
+  @MainActor
+  func searchFieldShiftReturnNavigatesBackward() throws {
+    try withSearchField(modifierFlags: .shift) { _, _, recorder, window in
+      window.sendEvent(
+        try makeKeyEvent(
+          keyCode: kVK_Return,
+          characters: "\r",
+          modifierFlags: .shift,
+          windowNumber: window.windowNumber
+        )
+      )
+
+      #expect(recorder.submissions == [true])
+    }
+  }
+
+  @Test
+  @MainActor
+  func searchFieldShiftReturnUsesProductionWiring() async throws {
+    let recorder = SearchFieldCommandRecorder()
+    let representable = GhosttySearchField(
+      text: Binding(
+        get: { recorder.text },
+        set: { recorder.text = $0 }
+      ),
+      focusRequest: 0,
+      selectionRequest: 0,
+      onSubmit: {
+        recorder.submissions.append($0)
+        NSApp.stopModal()
+      },
+      onEscape: { recorder.escapeCount += 1 }
+    )
+    let window = NSWindow(
+      contentRect: NSRect(x: 0, y: 0, width: 300, height: 100),
+      styleMask: [.titled],
+      backing: .buffered,
+      defer: false
+    )
+    let hostingView = NSHostingView(rootView: representable)
+    window.contentView = hostingView
+    window.makeKeyAndOrderFront(nil)
+    defer {
+      window.contentView = nil
+      window.orderOut(nil)
+    }
+
+    let field = try await searchField(in: hostingView)
+    try #require(window.makeFirstResponder(field))
+    NSApp.postEvent(
+      try makeKeyEvent(
+        keyCode: kVK_Return,
+        characters: "\r",
+        modifierFlags: .shift,
+        windowNumber: window.windowNumber
+      ),
+      atStart: true
+    )
+    NSApp.runModal(for: window)
+
+    #expect(recorder.submissions == [true])
+  }
+
+  @Test
+  @MainActor
+  func searchFieldEscapeClosesSearch() throws {
+    try withSearchField { _, _, recorder, window in
+      window.sendEvent(
+        try makeKeyEvent(
+          keyCode: kVK_Escape,
+          characters: "\u{1b}",
+          modifierFlags: [],
+          windowNumber: window.windowNumber
+        )
+      )
+
+      #expect(recorder.escapeCount == 1)
+    }
+  }
+
+  @Test
+  @MainActor
   func searchOverlayUpdateDoesNotStealFocusAfterSplit() async throws {
     initializeGhosttyForTests()
 
@@ -1496,6 +1614,52 @@ private final class SelectionTextSource {
 
 private final class FocusableWrapperView: NSView {
   override var acceptsFirstResponder: Bool { true }
+}
+
+@MainActor
+private final class SearchFieldCommandRecorder {
+  var escapeCount = 0
+  var submissions: [Bool] = []
+  var text = ""
+}
+
+@MainActor
+private func withSearchField(
+  modifierFlags: NSEvent.ModifierFlags = [],
+  perform body: (
+    _ field: NSTextField,
+    _ editor: NSTextView,
+    _ recorder: SearchFieldCommandRecorder,
+    _ window: NSWindow
+  ) throws -> Void
+) throws {
+  let recorder = SearchFieldCommandRecorder()
+  let coordinator = GhosttySearchFieldDelegate(
+    text: Binding(
+      get: { recorder.text },
+      set: { recorder.text = $0 }
+    ),
+    onSubmit: { recorder.submissions.append($0) },
+    onEscape: { recorder.escapeCount += 1 },
+    modifierFlags: { modifierFlags }
+  )
+  let field = NSTextField(frame: NSRect(x: 0, y: 0, width: 200, height: 24))
+  let window = NSWindow(
+    contentRect: NSRect(x: 0, y: 0, width: 300, height: 100),
+    styleMask: [.titled],
+    backing: .buffered,
+    defer: false
+  )
+  field.delegate = coordinator
+  window.contentView = field
+  try #require(window.makeFirstResponder(field))
+  let editor = try #require(field.currentEditor() as? NSTextView)
+  defer {
+    window.contentView = nil
+    window.orderOut(nil)
+  }
+
+  try body(field, editor, recorder, window)
 }
 
 @MainActor
