@@ -5,6 +5,7 @@ import SwiftUI
 @MainActor
 final class QuitConfirmationPresenter {
   func confirmQuit(terminatesSessions: Bool) -> QuitConfirmationDecision {
+    NSApp.unhide(nil)
     guard let panelController = panelController(terminatesSessions: terminatesSessions) else {
       return .cancel
     }
