@@ -649,6 +649,60 @@ struct TerminalAgentEventTranslatorTests {
   }
 
   @Test
+  func claudeWorkflowSubagentKeepsWholePromptWhenAPromptIsTooLongToCount() throws {
+    let transcript = try ClaudeProgressFixtures.makeTranscript()
+    defer { try? FileManager.default.removeItem(at: transcript.deletingLastPathComponent()) }
+    let preamble = "Repo context (already scouted, trust this):"
+    try ClaudeProgressFixtures.writeWorkflowSubagentSpawn(
+      agentID: "child-1",
+      runID: "wf_0c5cf178-0c1",
+      prompt: preamble + "\nYour research angle: rules_js",
+      forTranscriptAt: transcript
+    )
+    try ClaudeProgressFixtures.writeWorkflowSubagentSpawn(
+      agentID: "child-2",
+      runID: "wf_0c5cf178-0c1",
+      prompt: (0...300).map { "shared line \($0)" }.joined(separator: "\n"),
+      forTranscriptAt: transcript
+    )
+    func start(_ agentID: String) -> SupatermAgentHookRequest {
+      SupatermAgentHookRequest(
+        agent: .claude,
+        event: SupatermAgentHookEvent(
+          agentType: "workflow-subagent",
+          hookEventName: .subagentStart,
+          sessionID: "session-1",
+          transcriptPath: transcript.path,
+          agentID: agentID
+        )
+      )
+    }
+    _ = TerminalAgentEventTranslator.events(for: start("child-1"))
+
+    try ClaudeProgressFixtures.writeWorkflowSubagentSpawn(
+      agentID: "child-3",
+      runID: "wf_0c5cf178-0c1",
+      prompt: preamble + "\nYour research angle: ci-caching",
+      forTranscriptAt: transcript
+    )
+
+    #expect(
+      TerminalAgentEventTranslator.events(for: start("child-3")).map(\.action) == [
+        .subagentStarted(
+          nickname: nil,
+          role: "workflow-subagent",
+          task: "\(preamble) Your research angle: ci-caching",
+          transcriptPath: subagentTranscriptPath(
+            for: transcript,
+            runID: "wf_0c5cf178-0c1",
+            agentID: "child-3"
+          )
+        )
+      ]
+    )
+  }
+
+  @Test
   func claudeWorkflowSubagentTaskHealsWhenSiblingLands() throws {
     let transcript = try ClaudeProgressFixtures.makeTranscript()
     defer { try? FileManager.default.removeItem(at: transcript.deletingLastPathComponent()) }
