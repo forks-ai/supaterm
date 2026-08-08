@@ -103,6 +103,7 @@ final class GhosttySurfaceView: NSView, Identifiable {
   }
   weak var scrollWrapper: GhosttySurfaceScrollView? {
     didSet {
+      scrollWrapper?.refreshAppearance()
       if let lastScrollbar {
         scrollWrapper?.updateScrollbar(
           total: lastScrollbar.total,
@@ -336,11 +337,11 @@ final class GhosttySurfaceView: NSView, Identifiable {
     bridge.onPromptSurfaceTitle = { [weak self] in
       self?.promptSurfaceTitle()
     }
+    bridge.updateSurfaceConfig(runtime.surfaceConfig())
     createSurface(using: surfaceFactory)
     if let surface {
       surfaceRef = runtime.registerSurface(surface)
     }
-    syncRuntimeConfigState()
     registerForDraggedTypes(Array(Self.dropTypes))
 
     eventMonitor = NSEvent.addLocalMonitorForEvents(matching: [.keyUp, .leftMouseDown]) {
@@ -511,16 +512,6 @@ final class GhosttySurfaceView: NSView, Identifiable {
           self?.applyWindowBackgroundAppearance()
         }
       })
-    notificationObservers.append(
-      center.addObserver(
-        forName: .ghosttyRuntimeConfigDidChange,
-        object: runtime,
-        queue: .main
-      ) { [weak self] _ in
-        Task { @MainActor [weak self] in
-          self?.applyWindowBackgroundAppearance()
-        }
-      })
   }
 
   private func windowDidChangeScreen() {
@@ -600,7 +591,7 @@ final class GhosttySurfaceView: NSView, Identifiable {
   private func applyWindowBackgroundAppearance() {
     guard managesWindowAppearance else { return }
     guard let window, window.isVisible else { return }
-    let opacity = runtime.backgroundOpacity()
+    let opacity = bridge.state.derivedConfig.backgroundOpacity
     if !window.styleMask.contains(.fullScreen), opacity < 1 {
       window.isOpaque = false
       window.titlebarAppearsTransparent = true
@@ -615,7 +606,12 @@ final class GhosttySurfaceView: NSView, Identifiable {
     }
     window.isOpaque = true
     window.titlebarAppearsTransparent = false
-    window.backgroundColor = runtime.backgroundColor().withAlphaComponent(1)
+    window.backgroundColor = bridge.state.effectiveBackgroundColor.withAlphaComponent(1)
+  }
+
+  func surfaceAppearanceDidChange() {
+    applyWindowBackgroundAppearance()
+    scrollWrapper?.refreshAppearance()
   }
 
   func focusDidChange(_ focused: Bool) {
@@ -1198,11 +1194,11 @@ final class GhosttySurfaceView: NSView, Identifiable {
   }
 
   func shouldShowScrollbar() -> Bool {
-    runtime.shouldShowScrollbar()
+    bridge.state.derivedConfig.showsScrollbar
   }
 
   func scrollbarAppearanceName() -> NSAppearance.Name {
-    runtime.scrollbarAppearanceName()
+    bridge.state.derivedConfig.scrollbarAppearanceName
   }
 
   func setMouseShape(_ shape: ghostty_action_mouse_shape_e) {
@@ -1261,10 +1257,6 @@ final class GhosttySurfaceView: NSView, Identifiable {
     lastOcclusion = nil
     lastSurfaceFocus = nil
     updateSurfaceSize()
-  }
-
-  func syncRuntimeConfigState() {
-    bridge.state.progressStyleEnabled = runtime.progressStyle()
   }
 
   private static func withEnvironmentVariables<Result>(
@@ -2235,18 +2227,6 @@ final class GhosttySurfaceScrollView: NSView {
           self?.handleScrollerStyleChange()
         }
       })
-
-    observers.append(
-      NotificationCenter.default.addObserver(
-        forName: .ghosttyRuntimeConfigDidChange,
-        object: nil,
-        queue: .main
-      ) { [weak self] _ in
-        MainActor.assumeIsolated {
-          self?.surfaceView.syncRuntimeConfigState()
-          self?.refreshAppearance()
-        }
-      })
   }
 
   required init?(coder: NSCoder) {
@@ -2304,6 +2284,7 @@ final class GhosttySurfaceScrollView: NSView {
     scrollView.appearance = NSAppearance(named: surfaceView.scrollbarAppearanceName())
     scrollView.scrollerStyle = .overlay
     updateTrackingAreas()
+    synchronizeCoreSurface()
   }
 
   private func handleScrollChange() {
@@ -2312,7 +2293,6 @@ final class GhosttySurfaceScrollView: NSView {
 
   private func handleScrollerStyleChange() {
     refreshAppearance()
-    synchronizeCoreSurface()
   }
 
   private func synchronizeSurfaceView() {

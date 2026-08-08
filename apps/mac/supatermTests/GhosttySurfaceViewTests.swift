@@ -73,6 +73,60 @@ struct GhosttySurfaceViewTests {
 
   @Test
   @MainActor
+  func surfaceConfigDrivesProgressAndScrollbarAppearance() throws {
+    let runtime = try makeGhosttyRuntime(
+      """
+      background = #101010
+      background-opacity = 0.4
+      scrollbar = never
+      progress-style = false
+      """
+    )
+    let surfaceView = GhosttySurfaceView(
+      runtime: runtime,
+      tabID: UUID(),
+      workingDirectory: nil,
+      context: GHOSTTY_SURFACE_CONTEXT_TAB,
+      surfaceFactory: { _, _ in nil }
+    )
+    let wrapper = GhosttySurfaceScrollView(surfaceView: surfaceView)
+    surfaceView.scrollWrapper = wrapper
+    let scrollView = try #require(wrapper.subviews.compactMap { $0 as? NSScrollView }.first)
+
+    #expect(surfaceView.bridge.state.derivedConfig.backgroundOpacity == 0.4)
+    #expect(!surfaceView.bridge.state.progressStyleEnabled)
+    #expect(!scrollView.hasVerticalScroller)
+    #expect(scrollView.appearance?.name == .darkAqua)
+
+    let colorAction = ghosttyColorChangeAction(
+      kind: GHOSTTY_ACTION_COLOR_KIND_BACKGROUND,
+      red: 244,
+      green: 230,
+      blue: 216
+    )
+    #expect(surfaceView.bridge.handleAction(target: ghosttySurfaceTarget(), action: colorAction))
+    #expect(scrollView.appearance?.name == .darkAqua)
+
+    try withConfigChangeAction(
+      """
+      background = #F4E6D8
+      background-opacity = 0.8
+      scrollbar = system
+      progress-style = true
+      """
+    ) { action in
+      #expect(surfaceView.bridge.handleAction(target: ghosttySurfaceTarget(), action: action))
+    }
+
+    #expect(surfaceView.bridge.state.oscBackgroundColor != nil)
+    #expect(surfaceView.bridge.state.derivedConfig.backgroundOpacity == 0.8)
+    #expect(surfaceView.bridge.state.progressStyleEnabled)
+    #expect(scrollView.hasVerticalScroller)
+    #expect(scrollView.appearance?.name == .aqua)
+  }
+
+  @Test
+  @MainActor
   func surfaceLayoutsDoNotInvalidateWrapper() {
     initializeGhosttyForTests()
 
@@ -138,6 +192,56 @@ struct GhosttySurfaceViewTests {
     #expect(offWindowWrapper.window == nil)
     #expect(surfaceView.window === window)
     #expect(surfaceView.scrollWrapper === attachedWrapper)
+  }
+
+  @Test
+  @MainActor
+  func attachingReplacementWrapperRefreshesSurfaceAppearance() throws {
+    let runtime = try makeGhosttyRuntime(
+      """
+      background = #101010
+      scrollbar = never
+      """
+    )
+    let surfaceView = GhosttySurfaceView(
+      runtime: runtime,
+      tabID: UUID(),
+      workingDirectory: nil,
+      context: GHOSTTY_SURFACE_CONTEXT_TAB,
+      surfaceFactory: { _, _ in nil }
+    )
+    let window = NSWindow(
+      contentRect: NSRect(x: 0, y: 0, width: 800, height: 600),
+      styleMask: [.titled],
+      backing: .buffered,
+      defer: false
+    )
+    defer { window.contentView = nil }
+
+    let attachedWrapper = GhosttySurfaceScrollView(surfaceView: surfaceView)
+    window.contentView?.addSubview(attachedWrapper)
+    let replacementWrapper = GhosttySurfaceScrollView(surfaceView: surfaceView)
+    let replacementScrollView = try #require(
+      replacementWrapper.subviews.compactMap { $0 as? NSScrollView }.first
+    )
+
+    try withConfigChangeAction(
+      """
+      background = #F4E6D8
+      scrollbar = system
+      """
+    ) { action in
+      #expect(surfaceView.bridge.handleAction(target: ghosttySurfaceTarget(), action: action))
+    }
+
+    #expect(!replacementScrollView.hasVerticalScroller)
+    #expect(replacementScrollView.appearance?.name == .darkAqua)
+
+    window.contentView?.addSubview(replacementWrapper)
+
+    #expect(surfaceView.scrollWrapper === replacementWrapper)
+    #expect(replacementScrollView.hasVerticalScroller)
+    #expect(replacementScrollView.appearance?.name == .aqua)
   }
 
   @Test
