@@ -31,7 +31,12 @@ struct TerminalHostStateColorSchemeTests {
 
   @Test
   func selectedSurfaceBackgroundDrivesTerminalChrome() async throws {
-    let runtime = try makeGhosttyRuntime("background = #101010")
+    let runtime = try makeGhosttyRuntime(
+      """
+      background = #101010
+      background-opacity = 0.4
+      """
+    )
     let host = TerminalHostState(
       runtime: runtime,
       zmxClient: .noop,
@@ -64,6 +69,7 @@ struct TerminalHostStateColorSchemeTests {
     #expect(background.redComponent == 244.0 / 255)
     #expect(background.greenComponent == 230.0 / 255)
     #expect(background.blueComponent == 216.0 / 255)
+    #expect(background.alphaComponent == 0.4)
     #expect(host.terminalChromeColorScheme == .light)
     #expect(runtime.chromeColorScheme() == .dark)
     #expect(invalidationCount.withLock { $0 } == 1)

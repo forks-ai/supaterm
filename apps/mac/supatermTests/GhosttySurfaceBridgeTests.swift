@@ -423,6 +423,28 @@ struct GhosttySurfaceBridgeTests {
   }
 
   @Test
+  func disabledProgressStyleDropsProgressReports() throws {
+    let bridge = GhosttySurfaceBridge()
+    var reportedStates: [ghostty_action_progress_report_state_e] = []
+    bridge.onProgressReport = { reportedStates.append($0) }
+
+    try withConfigChangeAction("progress-style = false") { action in
+      #expect(bridge.handleAction(target: ghosttySurfaceTarget(), action: action))
+    }
+
+    var action = ghostty_action_s(tag: GHOSTTY_ACTION_PROGRESS_REPORT, action: ghostty_action_u())
+    action.action.progress_report = ghostty_action_progress_report_s(
+      state: GHOSTTY_PROGRESS_STATE_SET,
+      progress: 42
+    )
+
+    #expect(bridge.handleAction(target: ghosttySurfaceTarget(), action: action))
+    #expect(bridge.state.progressState == nil)
+    #expect(bridge.state.progressValue == nil)
+    #expect(reportedStates == [GHOSTTY_PROGRESS_STATE_REMOVE])
+  }
+
+  @Test
   func undoAndRedoReturnResponderResults() {
     var selectors: [Selector] = []
     let bridge = GhosttySurfaceBridge(sendAction: {

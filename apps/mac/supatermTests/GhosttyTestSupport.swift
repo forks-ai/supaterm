@@ -133,15 +133,20 @@ private func withGhosttyConfigFile<T>(
   _ source: String,
   _ body: (URL) throws -> T
 ) throws -> T {
+  let url = try writeGhosttyConfigFile(source)
+  defer {
+    try? FileManager.default.removeItem(at: url)
+  }
+  return try body(url)
+}
+
+private func writeGhosttyConfigFile(_ source: String) throws -> URL {
   initializeGhosttyForTests()
   let url = FileManager.default.temporaryDirectory
     .appendingPathComponent(UUID().uuidString)
     .appendingPathExtension("ghostty")
   try source.write(to: url, atomically: true, encoding: .utf8)
-  defer {
-    try? FileManager.default.removeItem(at: url)
-  }
-  return try body(url)
+  return url
 }
 
 struct GhosttyRuntimeFixture {
@@ -151,11 +156,7 @@ struct GhosttyRuntimeFixture {
 }
 
 func makePersistentGhosttyRuntime(_ config: String) throws -> GhosttyRuntimeFixture {
-  initializeGhosttyForTests()
-  let url = FileManager.default.temporaryDirectory
-    .appendingPathComponent(UUID().uuidString)
-    .appendingPathExtension("ghostty")
-  try config.write(to: url, atomically: true, encoding: .utf8)
+  let url = try writeGhosttyConfigFile(config)
   return GhosttyRuntimeFixture(
     cleanup: {
       try? FileManager.default.removeItem(at: url)

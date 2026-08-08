@@ -125,10 +125,17 @@ extension TerminalHostState {
 
   var terminalBackgroundColor: Color {
     if let selectedSurfaceState {
-      return Color(nsColor: selectedSurfaceState.effectiveBackgroundColor)
+      return Color(
+        nsColor: selectedSurfaceState.effectiveBackgroundColor.withAlphaComponent(
+          selectedSurfaceState.derivedConfig.backgroundOpacity
+        )
+      )
     }
     _ = runtimeConfigGeneration
-    return Color(nsColor: runtime?.backgroundColor() ?? .windowBackgroundColor)
+    let config = runtime?.surfaceConfig() ?? GhosttySurfaceConfig()
+    return Color(
+      nsColor: config.backgroundColor.withAlphaComponent(config.backgroundOpacity)
+    )
   }
 
   var terminalChromeColorScheme: ColorScheme {

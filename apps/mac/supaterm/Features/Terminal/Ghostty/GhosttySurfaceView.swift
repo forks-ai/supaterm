@@ -103,6 +103,7 @@ final class GhosttySurfaceView: NSView, Identifiable {
   }
   weak var scrollWrapper: GhosttySurfaceScrollView? {
     didSet {
+      scrollWrapper?.refreshAppearance()
       if let lastScrollbar {
         scrollWrapper?.updateScrollbar(
           total: lastScrollbar.total,
@@ -2283,6 +2284,7 @@ final class GhosttySurfaceScrollView: NSView {
     scrollView.appearance = NSAppearance(named: surfaceView.scrollbarAppearanceName())
     scrollView.scrollerStyle = .overlay
     updateTrackingAreas()
+    synchronizeCoreSurface()
   }
 
   private func handleScrollChange() {
@@ -2291,7 +2293,6 @@ final class GhosttySurfaceScrollView: NSView {
 
   private func handleScrollerStyleChange() {
     refreshAppearance()
-    synchronizeCoreSurface()
   }
 
   private func synchronizeSurfaceView() {

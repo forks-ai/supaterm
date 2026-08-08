@@ -487,21 +487,20 @@ final class GhosttySurfaceBridge {
     switch action.tag {
     case GHOSTTY_ACTION_PROGRESS_REPORT:
       let report = action.action.progress_report
+      guard
+        state.progressStyleEnabled,
+        report.state != GHOSTTY_PROGRESS_STATE_REMOVE
+      else {
+        clearProgressReport()
+        return true
+      }
       progressResetTask?.cancel()
+      state.progressState = report.state
       state.progressValue = report.progress == -1 ? nil : Int(report.progress)
-      if report.state == GHOSTTY_PROGRESS_STATE_REMOVE {
-        state.progressState = nil
-        state.progressValue = nil
-        progressResetTask = nil
-      } else {
-        state.progressState = report.state
-        progressResetTask = Task { @MainActor [weak self] in
-          try? await ContinuousClock().sleep(for: .seconds(15))
-          guard let self, !Task.isCancelled else { return }
-          self.state.progressState = nil
-          self.state.progressValue = nil
-          self.onProgressReport?(GHOSTTY_PROGRESS_STATE_REMOVE)
-        }
+      progressResetTask = Task { @MainActor [weak self] in
+        try? await ContinuousClock().sleep(for: .seconds(15))
+        guard let self, !Task.isCancelled else { return }
+        self.clearProgressReport()
       }
       onProgressReport?(report.state)
       return true
@@ -530,6 +529,14 @@ final class GhosttySurfaceBridge {
     default:
       return false
     }
+  }
+
+  private func clearProgressReport() {
+    progressResetTask?.cancel()
+    progressResetTask = nil
+    state.progressState = nil
+    state.progressValue = nil
+    onProgressReport?(GHOSTTY_PROGRESS_STATE_REMOVE)
   }
 
   private func handleMouseAndLink(_ action: ghostty_action_s) -> Bool {
