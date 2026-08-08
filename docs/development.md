@@ -261,6 +261,10 @@ make docs-preview
 make docs-deploy
 ```
 
+## Submodules
+
+For ghostty and zmx, we use `supaterm` branch only, rebase our changes on top of upstream cleanly if we need to update.
+
 ## Testing
 
 Tests that exercise polling or timeout behavior should inject a clock and advance it instead of waiting on wall clock time.
