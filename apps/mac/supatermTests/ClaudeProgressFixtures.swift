@@ -233,6 +233,28 @@ enum ClaudeProgressFixtures {
     )
   }
 
+  static func writePartialWorkflowSubagentSpawn(
+    agentID: String,
+    runID: String,
+    forTranscriptAt transcriptURL: URL
+  ) throws {
+    let directoryURL =
+      transcriptURL
+      .deletingPathExtension()
+      .appendingPathComponent("subagents")
+      .appendingPathComponent("workflows")
+      .appendingPathComponent(runID)
+    try FileManager.default.createDirectory(at: directoryURL, withIntermediateDirectories: true)
+    let metadata = try JSONSerialization.data(
+      withJSONObject: ["agentType": "workflow-subagent", "spawnDepth": 1],
+      options: [.sortedKeys]
+    )
+    try metadata.write(to: directoryURL.appendingPathComponent("agent-\(agentID).meta.json"))
+    try Data(#"{"type":"user","message":{"role":"user","content":"Repo con"#.utf8).write(
+      to: directoryURL.appendingPathComponent("agent-\(agentID).jsonl")
+    )
+  }
+
   static func appendSubagentReply(
     model: String,
     usage: [String: Int],

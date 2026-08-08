@@ -21,14 +21,19 @@ nonisolated enum ClaudeSubagentTranscriptReader {
       return .unwritten
     case .oversized:
       return .unreadable
-    case .complete(let data):
-      guard let object = (try? JSONDecoder().decode(JSONValue.self, from: data))?.objectValue,
-        let prompt = promptText(in: object)
-      else {
-        return .unreadable
-      }
-      return .prompt(prompt)
+    case .terminated(let data):
+      return spawn(from: data, whenUndecodable: .unreadable)
+    case .unterminated(let data):
+      return spawn(from: data, whenUndecodable: .unwritten)
     }
+  }
+
+  private static func spawn(from data: Data, whenUndecodable fallback: Spawn) -> Spawn {
+    guard let object = (try? JSONDecoder().decode(JSONValue.self, from: data))?.objectValue else {
+      return fallback
+    }
+    guard let prompt = promptText(in: object) else { return .unreadable }
+    return .prompt(prompt)
   }
 
   static func read(at url: URL) -> Reading? {
@@ -87,14 +92,19 @@ nonisolated enum ClaudeSubagentTranscriptReader {
   private static let newline = UInt8(0x0A)
 
   private enum FirstLine {
-    case complete(Data)
+    case terminated(Data)
+    case unterminated(Data)
     case empty
     case oversized
   }
 
   private static func firstObject(_ handle: FileHandle) -> JSONObject? {
-    guard case .complete(let data) = firstLine(handle) else { return nil }
-    return (try? JSONDecoder().decode(JSONValue.self, from: data))?.objectValue
+    switch firstLine(handle) {
+    case .terminated(let data), .unterminated(let data):
+      return (try? JSONDecoder().decode(JSONValue.self, from: data))?.objectValue
+    case .empty, .oversized:
+      return nil
+    }
   }
 
   private static func firstLine(_ handle: FileHandle) -> FirstLine {
@@ -102,14 +112,14 @@ nonisolated enum ClaudeSubagentTranscriptReader {
     var line = Data()
     while line.count < maxLineBytes {
       guard let chunk = try? handle.read(upToCount: lineChunkBytes), !chunk.isEmpty else {
-        return line.isEmpty ? .empty : .complete(line)
+        return line.isEmpty ? .empty : .unterminated(line)
       }
       guard let end = chunk.firstIndex(of: newline) else {
         line.append(chunk)
         continue
       }
       line.append(chunk[..<end])
-      return .complete(line)
+      return .terminated(line)
     }
     return .oversized
   }

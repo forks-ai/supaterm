@@ -66,6 +66,7 @@ nonisolated enum ClaudeSubagentMetadataParser {
   private static let maxCountedLines = 256
   private static let maxCountedLineLength = 512
   private static let maxCountedLinesPerRun = 2048
+  private static let maxCountedSpawns = 256
 
   private static let runTable = Mutex(RunTable())
 
@@ -134,11 +135,12 @@ nonisolated enum ClaudeSubagentMetadataParser {
     }
     return runTable.withLock { table in
       var run = table.runs.removeValue(forKey: runDirectory.path) ?? Run()
+      var awaitingASpawn = false
       for spawn in spawns
       where run.countsEveryLine && !run.readSpawns.contains(spawn.lastPathComponent) {
         switch ClaudeSubagentTranscriptReader.spawn(at: spawn) {
         case .unwritten:
-          continue
+          awaitingASpawn = true
         case .unreadable:
           run.countsEveryLine = false
         case .prompt(let prompt):
@@ -158,7 +160,7 @@ nonisolated enum ClaudeSubagentMetadataParser {
       run.lastUsed = table.nextUse
       table.nextUse += 1
       let line =
-        run.countsEveryLine && run.readSpawns.count > 1
+        run.countsEveryLine && !awaitingASpawn && run.readSpawns.count > 1
         ? lines.first { run.lineCounts[$0] == 1 }
         : nil
       table.runs[runDirectory.path] = run
@@ -176,7 +178,9 @@ nonisolated enum ClaudeSubagentMetadataParser {
     for line in Set(lines) {
       run.lineCounts[line, default: 0] += 1
     }
-    run.countsEveryLine = run.lineCounts.count <= maxCountedLinesPerRun
+    run.countsEveryLine =
+      run.lineCounts.count <= maxCountedLinesPerRun
+      && run.readSpawns.count <= maxCountedSpawns
   }
 
   private static func promptLines(_ prompt: String) -> [String] {

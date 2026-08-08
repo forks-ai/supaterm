@@ -649,6 +649,78 @@ struct TerminalAgentEventTranslatorTests {
   }
 
   @Test
+  func claudeWorkflowSubagentWaitsForAHalfWrittenSiblingRatherThanGuessing() throws {
+    let transcript = try ClaudeProgressFixtures.makeTranscript()
+    defer { try? FileManager.default.removeItem(at: transcript.deletingLastPathComponent()) }
+    let preamble = "Repo context (already scouted, trust this):"
+    let sharedWithTheHalfWrittenChild = "Compare the two runners head to head."
+    for (agentID, tail) in [
+      ("child-1", sharedWithTheHalfWrittenChild), ("child-2", "Your research angle: ci-caching"),
+    ] {
+      try ClaudeProgressFixtures.writeWorkflowSubagentSpawn(
+        agentID: agentID,
+        runID: "wf_0c5cf178-0c1",
+        prompt: preamble + "\n" + tail,
+        forTranscriptAt: transcript
+      )
+    }
+    try ClaudeProgressFixtures.writePartialWorkflowSubagentSpawn(
+      agentID: "child-3",
+      runID: "wf_0c5cf178-0c1",
+      forTranscriptAt: transcript
+    )
+    func start(_ agentID: String) -> SupatermAgentHookRequest {
+      SupatermAgentHookRequest(
+        agent: .claude,
+        event: SupatermAgentHookEvent(
+          agentType: "workflow-subagent",
+          hookEventName: .subagentStart,
+          sessionID: "session-1",
+          transcriptPath: transcript.path,
+          agentID: agentID
+        )
+      )
+    }
+
+    #expect(
+      TerminalAgentEventTranslator.events(for: start("child-1")).map(\.action) == [
+        .subagentStarted(
+          nickname: nil,
+          role: "workflow-subagent",
+          task: "\(preamble) \(sharedWithTheHalfWrittenChild)",
+          transcriptPath: subagentTranscriptPath(
+            for: transcript,
+            runID: "wf_0c5cf178-0c1",
+            agentID: "child-1"
+          )
+        )
+      ]
+    )
+
+    try ClaudeProgressFixtures.writeWorkflowSubagentSpawn(
+      agentID: "child-3",
+      runID: "wf_0c5cf178-0c1",
+      prompt: preamble + "\nYour research angle: local-worktrees",
+      forTranscriptAt: transcript
+    )
+
+    #expect(
+      TerminalAgentEventTranslator.events(for: start("child-2")).map(\.action) == [
+        .subagentStarted(
+          nickname: nil,
+          role: "workflow-subagent",
+          task: "Your research angle: ci-caching",
+          transcriptPath: subagentTranscriptPath(
+            for: transcript,
+            runID: "wf_0c5cf178-0c1",
+            agentID: "child-2"
+          )
+        )
+      ]
+    )
+  }
+
+  @Test
   func claudeWorkflowSubagentKeepsWholePromptWhenASiblingIsTooLargeToRead() throws {
     let transcript = try ClaudeProgressFixtures.makeTranscript()
     defer { try? FileManager.default.removeItem(at: transcript.deletingLastPathComponent()) }
