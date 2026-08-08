@@ -649,6 +649,58 @@ struct TerminalAgentEventTranslatorTests {
   }
 
   @Test
+  func claudeWorkflowSubagentKeepsWholePromptWhenASiblingIsTooLargeToRead() throws {
+    let transcript = try ClaudeProgressFixtures.makeTranscript()
+    defer { try? FileManager.default.removeItem(at: transcript.deletingLastPathComponent()) }
+    let preamble = "Repo context (already scouted, trust this):"
+    let sharedWithTheUnreadableChild = "Compare the two runners head to head."
+    try ClaudeProgressFixtures.writeWorkflowSubagentSpawn(
+      agentID: "child-1",
+      runID: "wf_0c5cf178-0c1",
+      prompt: preamble + "\n" + sharedWithTheUnreadableChild,
+      forTranscriptAt: transcript
+    )
+    try ClaudeProgressFixtures.writeWorkflowSubagentSpawn(
+      agentID: "child-2",
+      runID: "wf_0c5cf178-0c1",
+      prompt: preamble + "\n" + sharedWithTheUnreadableChild + "\n"
+        + String(repeating: "x", count: 300_000),
+      forTranscriptAt: transcript
+    )
+    try ClaudeProgressFixtures.writeWorkflowSubagentSpawn(
+      agentID: "child-3",
+      runID: "wf_0c5cf178-0c1",
+      prompt: preamble + "\nYour research angle: ci-caching",
+      forTranscriptAt: transcript
+    )
+    let request = SupatermAgentHookRequest(
+      agent: .claude,
+      event: SupatermAgentHookEvent(
+        agentType: "workflow-subagent",
+        hookEventName: .subagentStart,
+        sessionID: "session-1",
+        transcriptPath: transcript.path,
+        agentID: "child-1"
+      )
+    )
+
+    #expect(
+      TerminalAgentEventTranslator.events(for: request).map(\.action) == [
+        .subagentStarted(
+          nickname: nil,
+          role: "workflow-subagent",
+          task: "\(preamble) \(sharedWithTheUnreadableChild)",
+          transcriptPath: subagentTranscriptPath(
+            for: transcript,
+            runID: "wf_0c5cf178-0c1",
+            agentID: "child-1"
+          )
+        )
+      ]
+    )
+  }
+
+  @Test
   func claudeWorkflowSubagentKeepsWholePromptWhenAPromptIsTooLongToCount() throws {
     let transcript = try ClaudeProgressFixtures.makeTranscript()
     defer { try? FileManager.default.removeItem(at: transcript.deletingLastPathComponent()) }

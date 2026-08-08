@@ -7,10 +7,28 @@ nonisolated enum ClaudeSubagentTranscriptReader {
     let usage: TerminalAgentChildUsage?
   }
 
-  static func spawnPrompt(at url: URL) -> String? {
-    guard let handle = try? FileHandle(forReadingFrom: url) else { return nil }
+  enum Spawn: Equatable {
+    case prompt(String)
+    case unwritten
+    case unreadable
+  }
+
+  static func spawn(at url: URL) -> Spawn {
+    guard let handle = try? FileHandle(forReadingFrom: url) else { return .unwritten }
     defer { try? handle.close() }
-    return firstObject(handle).flatMap(promptText(in:))
+    switch firstLine(handle) {
+    case .empty:
+      return .unwritten
+    case .oversized:
+      return .unreadable
+    case .complete(let data):
+      guard let object = (try? JSONDecoder().decode(JSONValue.self, from: data))?.objectValue,
+        let prompt = promptText(in: object)
+      else {
+        return .unreadable
+      }
+      return .prompt(prompt)
+    }
   }
 
   static func read(at url: URL) -> Reading? {
@@ -68,19 +86,32 @@ nonisolated enum ClaudeSubagentTranscriptReader {
   private static let maxScannedLines = 64
   private static let newline = UInt8(0x0A)
 
+  private enum FirstLine {
+    case complete(Data)
+    case empty
+    case oversized
+  }
+
   private static func firstObject(_ handle: FileHandle) -> JSONObject? {
+    guard case .complete(let data) = firstLine(handle) else { return nil }
+    return (try? JSONDecoder().decode(JSONValue.self, from: data))?.objectValue
+  }
+
+  private static func firstLine(_ handle: FileHandle) -> FirstLine {
     try? handle.seek(toOffset: 0)
     var line = Data()
     while line.count < maxLineBytes {
-      guard let chunk = try? handle.read(upToCount: lineChunkBytes), !chunk.isEmpty else { break }
+      guard let chunk = try? handle.read(upToCount: lineChunkBytes), !chunk.isEmpty else {
+        return line.isEmpty ? .empty : .complete(line)
+      }
       guard let end = chunk.firstIndex(of: newline) else {
         line.append(chunk)
         continue
       }
       line.append(chunk[..<end])
-      break
+      return .complete(line)
     }
-    return (try? JSONDecoder().decode(JSONValue.self, from: line))?.objectValue
+    return .oversized
   }
 
   private static func lastLines(_ handle: FileHandle, size: UInt64) -> [Data] {

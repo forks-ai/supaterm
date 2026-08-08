@@ -134,22 +134,21 @@ nonisolated enum ClaudeSubagentMetadataParser {
     }
     return runTable.withLock { table in
       var run = table.runs.removeValue(forKey: runDirectory.path) ?? Run()
-      for spawn in spawns where !run.readSpawns.contains(spawn.lastPathComponent) {
-        guard let prompt = ClaudeSubagentTranscriptReader.spawnPrompt(at: spawn) else { continue }
-        run.readSpawns.insert(spawn.lastPathComponent)
-        let spawnLines = promptLines(prompt)
-        guard run.countsEveryLine,
-          run.lineCounts.count <= maxCountedLinesPerRun,
-          spawnLines.count <= maxCountedLines,
-          spawnLines.allSatisfy({ $0.count <= maxCountedLineLength })
-        else {
-          run.countsEveryLine = false
-          run.lineCounts = [:]
+      for spawn in spawns
+      where run.countsEveryLine && !run.readSpawns.contains(spawn.lastPathComponent) {
+        switch ClaudeSubagentTranscriptReader.spawn(at: spawn) {
+        case .unwritten:
           continue
+        case .unreadable:
+          run.countsEveryLine = false
+        case .prompt(let prompt):
+          run.readSpawns.insert(spawn.lastPathComponent)
+          merge(promptLines(prompt), into: &run)
         }
-        for line in Set(spawnLines) {
-          run.lineCounts[line, default: 0] += 1
-        }
+      }
+      if !run.countsEveryLine {
+        run.lineCounts = [:]
+        run.readSpawns = []
       }
       if table.runs.count >= maxRememberedRuns,
         let coldest = table.runs.min(by: { $0.value.lastUsed < $1.value.lastUsed })?.key
@@ -165,6 +164,19 @@ nonisolated enum ClaudeSubagentMetadataParser {
       table.runs[runDirectory.path] = run
       return line
     }
+  }
+
+  private static func merge(_ lines: [String], into run: inout Run) {
+    guard lines.count <= maxCountedLines,
+      lines.allSatisfy({ $0.count <= maxCountedLineLength })
+    else {
+      run.countsEveryLine = false
+      return
+    }
+    for line in Set(lines) {
+      run.lineCounts[line, default: 0] += 1
+    }
+    run.countsEveryLine = run.lineCounts.count <= maxCountedLinesPerRun
   }
 
   private static func promptLines(_ prompt: String) -> [String] {
