@@ -337,7 +337,7 @@ private struct SearchButtonLabel: View {
   }
 }
 
-private struct GhosttySearchField: NSViewRepresentable {
+struct GhosttySearchField: NSViewRepresentable {
   @Binding var text: String
   var focusRequest: Int
   var selectionRequest: Int

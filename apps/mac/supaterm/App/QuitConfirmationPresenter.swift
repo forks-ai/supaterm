@@ -4,33 +4,19 @@ import SwiftUI
 
 @MainActor
 final class QuitConfirmationPresenter {
-  func confirmQuit(terminatesSessions: Bool) -> QuitConfirmationDecision {
+  func confirmQuit(
+    parentWindow: NSWindow,
+    terminatesSessions: Bool
+  ) -> QuitConfirmationDecision {
     NSApp.unhide(nil)
-    guard let panelController = panelController(terminatesSessions: terminatesSessions) else {
-      return .cancel
+    if parentWindow.isMiniaturized {
+      parentWindow.deminiaturize(nil)
     }
-    return panelController.runModal()
-  }
-
-  private func panelController(terminatesSessions: Bool) -> QuitConfirmationPanelController? {
-    guard let parentWindow = preferredParentWindow() else { return nil }
+    parentWindow.makeKeyAndOrderFront(nil)
     return QuitConfirmationPanelController(
       parentWindow: parentWindow,
       terminatesSessions: terminatesSessions
-    )
-  }
-
-  private func preferredParentWindow() -> NSWindow? {
-    let candidates = [
-      NSApp.keyWindow,
-      NSApp.mainWindow,
-      NSApp.orderedWindows.first(where: isPresentable),
-    ]
-    return candidates.compactMap { $0 }.first(where: isPresentable)
-  }
-
-  private func isPresentable(_ window: NSWindow) -> Bool {
-    window.isVisible && !window.isMiniaturized
+    ).runModal()
   }
 }
 

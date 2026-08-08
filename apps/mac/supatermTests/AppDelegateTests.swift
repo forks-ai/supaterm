@@ -9,9 +9,9 @@ import Testing
 @MainActor
 struct AppDelegateTests {
   @Test
-  func terminationPlanSkipsConfirmationWithoutAppWindows() {
+  func terminationPlanSkipsConfirmationWithoutTerminalWindows() {
     let plan = AppDelegate.terminationPlan(
-      hasAppWindows: false,
+      hasTerminalWindow: false,
       bypassesQuitConfirmation: false
     ) {
       Issue.record("confirmation should not be shown")
@@ -25,7 +25,7 @@ struct AppDelegateTests {
   @Test
   func terminationPlanConfirmsHiddenQuit() {
     let plan = AppDelegate.terminationPlan(
-      hasAppWindows: true,
+      hasTerminalWindow: true,
       bypassesQuitConfirmation: false
     ) {
       .cancel
@@ -38,7 +38,7 @@ struct AppDelegateTests {
   @Test
   func terminationPlanPreservesSessionsWhenConfirmationRequestsIt() {
     let plan = AppDelegate.terminationPlan(
-      hasAppWindows: true,
+      hasTerminalWindow: true,
       bypassesQuitConfirmation: false
     ) {
       .quitPreservingSessions
@@ -51,7 +51,7 @@ struct AppDelegateTests {
   @Test
   func terminationPlanTerminatesSessionsWhenConfirmationRequestsIt() {
     let plan = AppDelegate.terminationPlan(
-      hasAppWindows: true,
+      hasTerminalWindow: true,
       bypassesQuitConfirmation: false
     ) {
       .quitTerminatingSessions
@@ -64,7 +64,7 @@ struct AppDelegateTests {
   @Test
   func terminationPlanSkipsConfirmationWhenUpdateBypassesQuitConfirmation() {
     let plan = AppDelegate.terminationPlan(
-      hasAppWindows: true,
+      hasTerminalWindow: true,
       bypassesQuitConfirmation: true
     ) {
       Issue.record("confirmation should not be shown")
@@ -78,7 +78,7 @@ struct AppDelegateTests {
   @Test
   func terminationPlanSkipsConfirmationWhenBypassedQuitTerminatesSessions() {
     let plan = AppDelegate.terminationPlan(
-      hasAppWindows: true,
+      hasTerminalWindow: true,
       bypassesQuitConfirmation: true,
       terminatesSessionsOnQuit: true
     ) {
@@ -93,7 +93,7 @@ struct AppDelegateTests {
   @Test
   func terminationPlanConfirmsWhenSessionsTerminateByDefault() {
     let plan = AppDelegate.terminationPlan(
-      hasAppWindows: true,
+      hasTerminalWindow: true,
       bypassesQuitConfirmation: false,
       terminatesSessionsOnQuit: true
     ) {

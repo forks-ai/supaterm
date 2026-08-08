@@ -161,6 +161,10 @@ final class TerminalWindowRegistry {
     preferredActiveEntry()?.terminal.displayedSpaceID
   }
 
+  var preferredTerminalWindow: NSWindow? {
+    preferredActiveEntry()?.windowReference.value
+  }
+
   var spaceCount: Int {
     TerminalSpaceCatalog.sanitized(spaceCatalog).spaces.count
   }
