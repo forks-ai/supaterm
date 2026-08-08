@@ -14,12 +14,12 @@ nonisolated enum ClaudeSubagentTranscriptReader {
   }
 
   static func spawn(at url: URL) -> Spawn {
-    guard let handle = try? FileHandle(forReadingFrom: url) else { return .unwritten }
+    guard let handle = try? FileHandle(forReadingFrom: url) else { return .unreadable }
     defer { try? handle.close() }
     switch firstLine(handle) {
     case .empty:
       return .unwritten
-    case .oversized:
+    case .unreadable:
       return .unreadable
     case .terminated(let data):
       return spawn(from: data, whenUndecodable: .unreadable)
@@ -95,33 +95,39 @@ nonisolated enum ClaudeSubagentTranscriptReader {
     case terminated(Data)
     case unterminated(Data)
     case empty
-    case oversized
+    case unreadable
   }
 
   private static func firstObject(_ handle: FileHandle) -> JSONObject? {
     switch firstLine(handle) {
     case .terminated(let data), .unterminated(let data):
       return (try? JSONDecoder().decode(JSONValue.self, from: data))?.objectValue
-    case .empty, .oversized:
+    case .empty, .unreadable:
       return nil
     }
   }
 
   private static func firstLine(_ handle: FileHandle) -> FirstLine {
-    try? handle.seek(toOffset: 0)
-    var line = Data()
-    while line.count < maxLineBytes {
-      guard let chunk = try? handle.read(upToCount: lineChunkBytes), !chunk.isEmpty else {
-        return line.isEmpty ? .empty : .unterminated(line)
+    do {
+      try handle.seek(toOffset: 0)
+      var line = Data()
+      while true {
+        guard let chunk = try handle.read(upToCount: lineChunkBytes), !chunk.isEmpty else {
+          return line.isEmpty ? .empty : .unterminated(line)
+        }
+        guard let end = chunk.firstIndex(of: newline) else {
+          guard line.count + chunk.count <= maxLineBytes else { return .unreadable }
+          line.append(chunk)
+          continue
+        }
+        let head = chunk[..<end]
+        guard line.count + head.count <= maxLineBytes else { return .unreadable }
+        line.append(head)
+        return .terminated(line)
       }
-      guard let end = chunk.firstIndex(of: newline) else {
-        line.append(chunk)
-        continue
-      }
-      line.append(chunk[..<end])
-      return .terminated(line)
+    } catch {
+      return .unreadable
     }
-    return .oversized
   }
 
   private static func lastLines(_ handle: FileHandle, size: UInt64) -> [Data] {
