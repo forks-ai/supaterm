@@ -12,6 +12,9 @@ enum TerminalSplitMetrics {
 enum TerminalChromeMetrics {
   static let paneInset: CGFloat = 6
   static let paneCornerRadius: CGFloat = 16
+  static var detailToolbarControlShape: ConcentricRectangle {
+    ConcentricRectangle(corners: .concentric(minimum: 6))
+  }
   static var paneShape: RoundedRectangle {
     RoundedRectangle(cornerRadius: paneCornerRadius, style: .continuous)
   }
@@ -145,7 +148,8 @@ struct ToolbarIconButton: View {
       }
       .frame(width: 30, height: 30)
       .background(
-        isHovering ? palette.secondaryText.opacity(0.2) : .clear, in: .rect(cornerRadius: 6)
+        isHovering ? palette.secondaryText.opacity(0.2) : .clear,
+        in: TerminalChromeMetrics.detailToolbarControlShape
       )
       .accessibilityHidden(true)
     }

@@ -180,10 +180,6 @@ private struct SplitZoomButton: View {
     isPaneZoomed ? "Reset split zoom" : "Zoom split"
   }
 
-  private var controlShape: ConcentricRectangle {
-    ConcentricRectangle(corners: .concentric(minimum: 6))
-  }
-
   var body: some View {
     Button(action: action) {
       Image(systemName: symbol)
@@ -198,11 +194,11 @@ private struct SplitZoomButton: View {
           isPaneZoomed
             ? palette.accent.opacity(isHovering ? 0.18 : 0.12)
             : isHovering ? palette.secondaryText.opacity(0.2) : .clear,
-          in: controlShape
+          in: TerminalChromeMetrics.detailToolbarControlShape
         )
         .overlay {
           if isPaneZoomed {
-            controlShape.stroke(
+            TerminalChromeMetrics.detailToolbarControlShape.stroke(
               palette.accent.opacity(isHovering ? 0.32 : 0.22),
               lineWidth: 1
             )
