@@ -112,12 +112,18 @@ struct TerminalSidebarTabSummaryView: View {
 
     HStack(alignment: .center, spacing: 6) {
       VStack(alignment: .leading, spacing: 2) {
-        Text(tab.title)
-          .font(.system(size: 12, weight: .medium))
-          .foregroundStyle(isSelected ? palette.selectedText : palette.selectableRow.title)
-          .lineLimit(1)
-          .truncationMode(Self.titleTruncationMode(tab.title))
-          .frame(maxWidth: .infinity, alignment: .leading)
+        TerminalSidebarTabTitleView(
+          presentation: TerminalSidebarTabTitlePresentation(
+            tabID: tab.id,
+            title: tab.title,
+            isTitleLocked: tab.isTitleLocked
+          )
+        )
+        .font(.system(size: 12, weight: .medium))
+        .foregroundStyle(isSelected ? palette.selectedText : palette.selectableRow.title)
+        .lineLimit(1)
+        .truncationMode(Self.titleTruncationMode(tab.title))
+        .frame(maxWidth: .infinity, alignment: .leading)
 
         if let notificationPreviewText {
           Text(notificationPreviewText)

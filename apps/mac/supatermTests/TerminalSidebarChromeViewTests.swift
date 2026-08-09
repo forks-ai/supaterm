@@ -448,6 +448,69 @@ struct TerminalSidebarChromeViewTests {
   }
 
   @Test
+  func lockedTabTitleChangesTypeUnlessMotionIsReduced() {
+    let tabID = TerminalTabID()
+    let automaticTitle = TerminalSidebarTabTitlePresentation(
+      tabID: tabID,
+      title: "zsh",
+      isTitleLocked: false
+    )
+    let lockedTitle = TerminalSidebarTabTitlePresentation(
+      tabID: tabID,
+      title: "Build",
+      isTitleLocked: true
+    )
+
+    #expect(lockedTitle.shouldType(from: automaticTitle, reduceMotion: false))
+    #expect(!lockedTitle.shouldType(from: automaticTitle, reduceMotion: true))
+  }
+
+  @Test
+  func automaticTabTitleChangesDoNotType() {
+    let tabID = TerminalTabID()
+    let previous = TerminalSidebarTabTitlePresentation(
+      tabID: tabID,
+      title: "zsh",
+      isTitleLocked: false
+    )
+    let current = TerminalSidebarTabTitlePresentation(
+      tabID: tabID,
+      title: "vim README.md",
+      isTitleLocked: false
+    )
+
+    #expect(!current.shouldType(from: previous, reduceMotion: false))
+  }
+
+  @Test
+  func restoringAutomaticTabTitleTypes() {
+    let tabID = TerminalTabID()
+    let lockedTitle = TerminalSidebarTabTitlePresentation(
+      tabID: tabID,
+      title: "Build",
+      isTitleLocked: true
+    )
+    let automaticTitle = TerminalSidebarTabTitlePresentation(
+      tabID: tabID,
+      title: "zsh",
+      isTitleLocked: false
+    )
+
+    #expect(automaticTitle.shouldType(from: lockedTitle, reduceMotion: false))
+  }
+
+  @Test
+  func typingFramesKeepCharactersWholeAndEndAtTheFullTitle() throws {
+    let frames = TerminalSidebarTabTitlePresentation.typingFrames(
+      for: "Build 👨‍👩‍👧‍👦 release candidate"
+    )
+
+    #expect(frames.count == 16)
+    #expect(try #require(frames.first) == "B")
+    #expect(try #require(frames.last) == "Build 👨‍👩‍👧‍👦 release candidate")
+  }
+
+  @Test
   func helpTextIncludesPaneDirectoriesOnly() {
     #expect(
       TerminalSidebarTabSummaryView.helpText(
