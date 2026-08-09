@@ -483,7 +483,7 @@ struct TerminalSidebarChromeViewTests {
   }
 
   @Test
-  func restoringAutomaticTabTitleTypes() {
+  func restoringAutomaticTabTitleDoesNotType() {
     let tabID = TerminalTabID()
     let lockedTitle = TerminalSidebarTabTitlePresentation(
       tabID: tabID,
@@ -496,7 +496,7 @@ struct TerminalSidebarChromeViewTests {
       isTitleLocked: false
     )
 
-    #expect(automaticTitle.shouldType(from: lockedTitle, reduceMotion: false))
+    #expect(!automaticTitle.shouldType(from: lockedTitle, reduceMotion: false))
   }
 
   @Test

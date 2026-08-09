@@ -12,7 +12,7 @@ struct TerminalSidebarTabTitlePresentation: Equatable {
     !reduceMotion
       && tabID == previous.tabID
       && title != previous.title
-      && (isTitleLocked || previous.isTitleLocked)
+      && isTitleLocked
   }
 
   static func typingFrames(for title: String) -> [String] {
