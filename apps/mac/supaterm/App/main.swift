@@ -40,6 +40,9 @@ let app = NSApplication.shared
     refuseLaunch("Supaterm could not start", error.localizedDescription)
   }
   SupatermSettingsMigration.migrateDefaultSettingsIfNeeded()
+  #if SUPATERM_DEMO
+    DemoSeed.seedCatalogs()
+  #endif
   let delegate = AppDelegate()
 #endif
 

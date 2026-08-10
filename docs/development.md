@@ -156,11 +156,11 @@ daemons run and they keep running, orphaned in the shared per-user zmx directory
 
 All Makefile app launch targets set `SUPATERM_VERBOSE_LOGGING=1`, so development runs always emit verbose diagnostics.
 
-`make mac-run-demo` runs the same way under its own `demo` identity and `run-state/demo` state
-home. Demo rewrites its spaces, tabs, panes, `restoreTerminalLayoutEnabled`,
-`codingAgentsShowPanel`, and the acknowledged release version on every launch, so the demo you see
-is always freshly seeded; the state the seed never writes — the remaining settings, launch state,
-and coding-agent state — carries over between demo runs.
+`make mac-run-demo` runs under its own `demo` identity and `run-state/demo` state home without zmx.
+Demo rewrites its spaces, tabs, panes, `restoreTerminalLayoutEnabled`, `codingAgentsShowPanel`,
+`zmxSessionsEnabled`, and the acknowledged release version on every launch, so the demo you see is
+always freshly seeded; the state the seed never writes — the remaining settings, launch state, and
+coding-agent state — carries over between demo runs.
 
 Panes inherit Supaterm context from the running app:
 
