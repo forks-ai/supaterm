@@ -317,11 +317,6 @@ public nonisolated enum ZmxSocketBudget {
   }
 }
 
-public nonisolated struct ZmxLaunch: Equatable, Sendable {
-  public let command: String?
-  public let commandWrapper: [String]
-}
-
 public nonisolated enum ZmxAttach {
   public nonisolated static func buildWrapperArgv(
     executablePath: String,
@@ -330,17 +325,4 @@ public nonisolated enum ZmxAttach {
     [executablePath, "attach", sessionID]
   }
 
-  public nonisolated static func resolveLaunch(
-    executablePath: String,
-    sessionID: String,
-    command: String?
-  ) -> ZmxLaunch {
-    let command = command.flatMap {
-      $0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? nil : $0
-    }
-    return ZmxLaunch(
-      command: command,
-      commandWrapper: buildWrapperArgv(executablePath: executablePath, sessionID: sessionID)
-    )
-  }
 }

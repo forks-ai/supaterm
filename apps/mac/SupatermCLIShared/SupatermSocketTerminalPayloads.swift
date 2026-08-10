@@ -60,14 +60,14 @@ public enum SupatermNewTabTarget: Equatable, Sendable, Codable {
 }
 
 public struct SupatermNewTabRequest: Equatable, Sendable, Codable {
-  public let startupCommand: String?
+  public let startupCommand: SupatermTerminalStartup?
   public let cwd: String?
   public let focus: Bool
   public let target: SupatermNewTabTarget
   public let context: SupatermCLIContext?
 
   public init(
-    startupCommand: String? = nil,
+    startupCommand: SupatermTerminalStartup? = nil,
     cwd: String? = nil,
     focus: Bool,
     target: SupatermNewTabTarget,
@@ -157,7 +157,7 @@ public enum SupatermNewPaneTarget: Equatable, Sendable, Codable {
 }
 
 public struct SupatermNewPaneRequest: Equatable, Sendable, Codable {
-  public let startupCommand: String?
+  public let startupCommand: SupatermTerminalStartup?
   public let cwd: String?
   public let direction: SupatermPaneDirection
   public let focus: Bool
@@ -165,7 +165,7 @@ public struct SupatermNewPaneRequest: Equatable, Sendable, Codable {
   public let target: SupatermNewPaneTarget
 
   public init(
-    startupCommand: String? = nil,
+    startupCommand: SupatermTerminalStartup? = nil,
     cwd: String? = nil,
     direction: SupatermPaneDirection,
     focus: Bool,

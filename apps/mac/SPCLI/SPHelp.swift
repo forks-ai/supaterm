@@ -2,6 +2,14 @@ import ArgumentParser
 import SupatermCLIShared
 
 enum SPHelp {
+  private static let terminalStartupDiscussion = """
+    Arguments after `--` remain exact. When the command exits, the tab or pane returns to its login shell.
+
+    `--script` passes raw code to the login shell. The shell remains open after the script ends.
+
+    Shell startup files must not read from the terminal before the first prompt. Such a read takes the queued command.
+    """
+
   static let socketDefaultValueDescription = "$\(SupatermCLIEnvironment.socketPathKey)"
 
   static let rootDiscussion = """
@@ -66,9 +74,7 @@ enum SPHelp {
 
     `--in` accepts a tab selector, a pane selector, or a UUID.
 
-    Trailing arguments after `--` are treated as a terminal startup command.
-
-    `--script` runs shell script text as the terminal startup command.
+    \(terminalStartupDiscussion)
 
     The new pane does not take focus by default. Add `--focus` to make it active.
 
@@ -96,9 +102,7 @@ enum SPHelp {
     opens its saved tabs first when this window has not displayed it yet. Add `--focus`
     to switch the window to that space as well.
 
-    Trailing arguments after `--` are treated as a terminal startup command.
-
-    `--script` runs shell script text as the terminal startup command.
+    \(terminalStartupDiscussion)
 
     Example:
       sp tab new -- ping 1.1.1.1

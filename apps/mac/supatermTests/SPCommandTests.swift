@@ -764,10 +764,10 @@ struct SPCommandTests {
   }
 
   @Test
-  func startupCommandRejectsEmptyScript() {
+  func terminalStartupRejectsEmptyScript() {
     do {
-      _ = try startupCommand(script: "", tokens: [])
-      Issue.record("Expected startupCommand to reject an empty --script.")
+      _ = try terminalStartup(script: "", tokens: [])
+      Issue.record("Expected terminalStartup to reject an empty --script.")
     } catch {
       let message = String(describing: error)
       #expect(message.contains("--script must not be empty."))
@@ -775,16 +775,20 @@ struct SPCommandTests {
   }
 
   @Test
-  func startupCommandPreservesScriptText() throws {
-    #expect(try startupCommand(script: "echo 1\necho 2", tokens: []) == "echo 1\necho 2")
-    #expect(try startupCommand(script: "echo 1\necho 2\n", tokens: []) == "echo 1\necho 2\n")
+  func terminalStartupPreservesScriptText() throws {
+    #expect(try terminalStartup(script: "echo 1\necho 2", tokens: []) == .script("echo 1\necho 2"))
+    #expect(
+      try terminalStartup(script: "echo 1\necho 2\n", tokens: []) == .script("echo 1\necho 2\n")
+    )
   }
 
   @Test
-  func startupCommandEscapesTokenCommands() throws {
-    #expect(try startupCommand(script: nil, tokens: ["pwd"]) == "pwd")
+  func terminalStartupPreservesArgumentCommands() throws {
+    #expect(try terminalStartup(script: nil, tokens: ["pwd"]) == .arguments(["pwd"]))
     #expect(
-      try startupCommand(script: nil, tokens: ["echo", "hello world"]) == "echo 'hello world'")
+      try terminalStartup(script: nil, tokens: ["echo", "hello world"])
+        == .arguments(["echo", "hello world"])
+    )
   }
 
   @Test(arguments: [

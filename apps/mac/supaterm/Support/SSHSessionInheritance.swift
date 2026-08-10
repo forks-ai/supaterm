@@ -10,7 +10,7 @@ public enum SSHSessionInheritance {
   public static func startupCommand(
     zmxSessionName: String,
     cliPath: String?
-  ) -> String? {
+  ) -> SupatermTerminalStartup? {
     startupCommand(
       zmxSessionName: zmxSessionName,
       cliPath: cliPath,
@@ -24,7 +24,7 @@ public enum SSHSessionInheritance {
     cliPath: String?,
     table: ProcessTable,
     invocation: InvocationProvider
-  ) -> String? {
+  ) -> SupatermTerminalStartup? {
     guard
       let shell = sessionShell(zmxSessionName: zmxSessionName, table: table, invocation: invocation)
     else {
@@ -34,7 +34,7 @@ public enum SSHSessionInheritance {
     for candidate in table.foregroundGroup(onTerminalOf: shell) {
       guard
         let process = invocation(candidate.processID),
-        let command = SupatermSSHCommand.commandLine(
+        let arguments = SupatermSSHCommand.inheritedArguments(
           forArguments: process.arguments,
           terminalType: process.terminalType,
           cliPath: cliPath
@@ -42,7 +42,7 @@ public enum SSHSessionInheritance {
       else {
         continue
       }
-      return SupatermShellCommand.interactiveStartupCommand(for: command)
+      return .arguments(arguments)
     }
 
     return nil

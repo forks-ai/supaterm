@@ -253,8 +253,8 @@ final class TerminalHostState {
     }
   }
 
-  struct SurfaceLaunchCommand: Equatable {
-    let command: String?
+  struct SurfaceLaunch: Equatable {
+    let startupCommand: SupatermTerminalStartup?
     let commandWrapper: [String]
     let usesZmx: Bool
   }
@@ -648,7 +648,7 @@ final class TerminalHostState {
   func splitTree(
     for tabID: TerminalTabID,
     inheritingFromSurfaceID: UUID? = nil,
-    startupCommand: String? = nil,
+    startupCommand: SupatermTerminalStartup? = nil,
     workingDirectory: URL? = nil,
     context: ghostty_surface_context_e = GHOSTTY_SURFACE_CONTEXT_TAB
   ) -> SplitTree<GhosttySurfaceView> {

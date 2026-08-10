@@ -241,7 +241,7 @@ extension SupatermE2ESuite {
         )
         let splitPaneID = try tmuxPaneID(split.stdout)
         let splitPane = SupatermPaneTargetRequest(paneID: splitPaneID)
-        try await app.waitForShellPrompt(splitPane)
+        try await app.waitForShellOutput(splitPane)
 
         let panes = try requireSuccessfulSPResult(
           try runner.run(
@@ -736,7 +736,7 @@ private func exerciseSpaceCommands(
   )
   #expect(created.isSelectedSpace)
   let createdRunner = spRunner(app, tabID: created.tabID, paneID: created.paneID)
-  try await app.waitForShellPrompt(SupatermPaneTargetRequest(paneID: created.paneID))
+  try await app.waitForShellOutput(SupatermPaneTargetRequest(paneID: created.paneID))
 
   let renamed = try decodeSPJSON(
     SupatermSpaceTarget.self,
@@ -1149,11 +1149,11 @@ private func createTmuxFixture(_ tmux: TmuxE2E) async throws -> TmuxFixture {
   let originalPane = try tmuxPaneID(
     tmux.run(["list-panes", "-t", tmuxTabSelector(createdWindow), "-F", "#{pane_id}"]).stdout
   )
-  try await tmux.app.waitForShellPrompt(SupatermPaneTargetRequest(paneID: originalPane))
+  try await tmux.app.waitForShellOutput(SupatermPaneTargetRequest(paneID: originalPane))
   let splitPane = try tmuxPaneID(
     tmux.run(["split-window", "-h", "-P", "-F", "#{pane_id}", "-t", tmuxPaneSelector(originalPane)]).stdout
   )
-  try await tmux.app.waitForShellPrompt(SupatermPaneTargetRequest(paneID: splitPane))
+  try await tmux.app.waitForShellOutput(SupatermPaneTargetRequest(paneID: splitPane))
   return TmuxFixture(
     newSession: newSession,
     createdWindow: createdWindow,

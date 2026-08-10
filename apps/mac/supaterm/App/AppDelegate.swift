@@ -31,7 +31,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
 {
   struct LaunchWindowRequest: Equatable {
     let session: TerminalWindowSession?
-    let startupCommand: String?
+    let startupCommand: SupatermTerminalStartup?
   }
 
   @Shared(.supatermSettings)
@@ -68,13 +68,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
   private var toggleVisibilityState: ToggleVisibilityState?
   private var windowControllers: [UUID: TerminalWindowController] = [:]
 
-  private static var onboardingStartupCommand: String {
-    SupatermShellCommand.interactiveStartupCommand(
-      for: #"sp onboard --socket "$SUPATERM_SOCKET_PATH""#
-    )
-  }
+  private static let onboardingStartup = SupatermTerminalStartup.arguments(["sp", "onboard"])
 
   override init() {
+    SupatermTerminalStartup.reapStaleTransports()
     AppPostHog.setup()
     let ghosttyRuntime = GhosttyRuntime()
     @Shared(.supatermSettings) var launchSupatermSettings = .default
@@ -496,7 +493,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
   private func createWindow(
     session: TerminalWindowSession? = nil,
     spaceID: TerminalSpaceID? = nil,
-    startupCommand: String? = nil
+    startupCommand: SupatermTerminalStartup? = nil
   ) -> TerminalWindowController {
     let controller = TerminalWindowController(
       runtime: ghosttyRuntime,
@@ -578,7 +575,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
     return sessions.enumerated().map { index, session in
       LaunchWindowRequest(
         session: session,
-        startupCommand: index == onboardingWindowIndex ? onboardingStartupCommand : nil
+        startupCommand: index == onboardingWindowIndex ? onboardingStartup : nil
       )
     }
   }

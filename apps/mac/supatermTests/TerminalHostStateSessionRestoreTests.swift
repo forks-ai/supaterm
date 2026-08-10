@@ -11,21 +11,22 @@ import Testing
 @MainActor
 struct TerminalHostStateSessionRestoreTests {
   @Test
-  func disabledZmxSessionsLeaveStartupCommandUnwrapped() {
+  func disabledZmxSessionsPreserveArgumentStartup() {
     let host = TerminalHostState(
       managesTerminalSurfaces: false,
       zmxClient: wrappingZmxClient(),
       zmxSessionsEnabled: false
     )
+    let startup = SupatermTerminalStartup.arguments(["echo", "hello"])
 
-    let command = host.resolvedSurfaceCommand(
-      startupCommand: "echo hello",
+    let launch = host.resolvedSurfaceLaunch(
+      startupCommand: startup,
       surfaceID: UUID()
     )
 
-    #expect(command.command == SupatermShellCommand.ghosttyStartupCommand(for: "echo hello"))
-    #expect(command.commandWrapper.isEmpty)
-    #expect(!command.usesZmx)
+    #expect(launch.startupCommand == startup)
+    #expect(launch.commandWrapper.isEmpty)
+    #expect(!launch.usesZmx)
   }
 
   @Test
@@ -41,18 +42,18 @@ struct TerminalHostStateSessionRestoreTests {
       )
     )
 
-    let command = host.resolvedSurfaceCommand(
+    let launch = host.resolvedSurfaceLaunch(
       startupCommand: nil,
       surfaceID: surfaceID
     )
 
-    #expect(command.command == nil)
-    #expect(command.commandWrapper == ["/tmp/zmx", "attach", ZmxSessionID.make(surfaceID: surfaceID)])
-    #expect(command.usesZmx)
+    #expect(launch.startupCommand == nil)
+    #expect(launch.commandWrapper == ["/tmp/zmx", "attach", ZmxSessionID.make(surfaceID: surfaceID)])
+    #expect(launch.usesZmx)
   }
 
   @Test
-  func enabledZmxSessionsWrapStartupCommandThroughLoginShell() {
+  func enabledZmxSessionsPreserveScriptStartup() {
     let surfaceID = UUID()
     let host = TerminalHostState(
       managesTerminalSurfaces: false,
@@ -64,23 +65,19 @@ struct TerminalHostStateSessionRestoreTests {
       )
     )
 
-    let command = host.resolvedSurfaceCommand(
-      startupCommand: #"sp onboard; exec "${SHELL:-/bin/zsh}" -l"#,
+    let startup = SupatermTerminalStartup.script("sp onboard")
+    let launch = host.resolvedSurfaceLaunch(
+      startupCommand: startup,
       surfaceID: surfaceID
     )
 
-    #expect(
-      command.command
-        == SupatermShellCommand.ghosttyStartupCommand(
-          for: #"sp onboard; exec "${SHELL:-/bin/zsh}" -l"#
-        )
-    )
-    #expect(command.commandWrapper == ["/tmp/zmx", "attach", ZmxSessionID.make(surfaceID: surfaceID)])
-    #expect(command.usesZmx)
+    #expect(launch.startupCommand == startup)
+    #expect(launch.commandWrapper == ["/tmp/zmx", "attach", ZmxSessionID.make(surfaceID: surfaceID)])
+    #expect(launch.usesZmx)
   }
 
   @Test
-  func unavailableZmxFallsBackToRawStartupCommand() {
+  func unavailableZmxPreservesArgumentStartup() {
     let host = TerminalHostState(
       managesTerminalSurfaces: false,
       zmxClient: ZmxClient(
@@ -91,14 +88,15 @@ struct TerminalHostStateSessionRestoreTests {
       )
     )
 
-    let command = host.resolvedSurfaceCommand(
-      startupCommand: "echo hello",
+    let startup = SupatermTerminalStartup.arguments(["echo", "hello"])
+    let launch = host.resolvedSurfaceLaunch(
+      startupCommand: startup,
       surfaceID: UUID()
     )
 
-    #expect(command.command == SupatermShellCommand.ghosttyStartupCommand(for: "echo hello"))
-    #expect(command.commandWrapper.isEmpty)
-    #expect(!command.usesZmx)
+    #expect(launch.startupCommand == startup)
+    #expect(launch.commandWrapper.isEmpty)
+    #expect(!launch.usesZmx)
   }
 
   @Test

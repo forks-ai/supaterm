@@ -286,7 +286,7 @@ extension SupatermE2ESuite {
 }
 
 private func zshStartupCommand(_ script: String) -> String {
-  "exec /bin/zsh -f -c \(SupatermShellCommand.escapedToken(script))"
+  "/bin/sleep 0.1; exec /bin/zsh -f -c \(SupatermShellCommand.escapedToken(script))"
 }
 
 private struct GroupedTopologyFixture {
@@ -461,7 +461,7 @@ private func makeTab(
   try app.send(
     .newTab(
       SupatermNewTabRequest(
-        startupCommand: startupCommand,
+        startupCommand: .script(startupCommand),
         cwd: cwd.path,
         focus: true,
         target: .space(space.target.spaceID)
@@ -479,7 +479,7 @@ private func makeSplit(
   try app.send(
     .newPane(
       SupatermNewPaneRequest(
-        startupCommand: hermeticShellStartupCommand,
+        startupCommand: .script(hermeticShellStartupCommand),
         cwd: cwd.path,
         direction: .right,
         focus: true,

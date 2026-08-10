@@ -20,11 +20,15 @@ sp pane split --in "$pane_id" --no-focus right --cwd "$workspace" -- npm test --
 
 A new space always becomes the one its window displays. `--focus` changes the app's visible selection for tabs and panes. The shell that launched these commands keeps its original ambient IDs, so every later creation targets the captured result explicitly.
 
-Pass startup commands after `--`. Use `--script` for shell script text:
+Pass commands after `--`. Supaterm preserves each argument exactly. When the command exits, the tab or pane returns to its login shell.
+
+Use `--script` for raw code that the login shell should parse. The shell remains open after the script ends:
 
 ```bash
-sp tab new --script 'printf "ready\n"; exec "${SHELL:-/bin/zsh}" -l'
+sp tab new --script 'printf "ready\n"; pwd'
 ```
+
+Shell startup files must not read from the terminal before the first prompt. Such a read takes the queued command.
 
 ## Retain a pane ID
 

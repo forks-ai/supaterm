@@ -8,7 +8,7 @@ struct SupatermSSHCommandTests {
 
   @Test
   func routesTheInheritedSessionThroughTheBundledCLI() {
-    let command = commandLine(
+    let arguments = inheritedArguments(
       arguments: [
         "/usr/bin/ssh",
         "-o", "SendEnv=COLORTERM",
@@ -22,15 +22,18 @@ struct SupatermSSHCommandTests {
       cliPath: Self.cliPath
     )
 
-    let expected =
-      "/usr/bin/env \(Self.cliPath) ssh --term xterm-custom --ssh /usr/bin/ssh -- "
-      + "-o SetEnv=PRODUCT=custom -p 2222 dev@example.com"
-    #expect(command == expected)
+    #expect(
+      arguments
+        == [
+          "/usr/bin/env", Self.cliPath, "ssh", "--term", "xterm-custom", "--ssh", "/usr/bin/ssh",
+          "--", "-o", "SetEnv=PRODUCT=custom", "-p", "2222", "dev@example.com",
+        ]
+    )
   }
 
   @Test
   func preservesCustomSSHExecutableAndTerminalType() {
-    let command = commandLine(
+    let arguments = inheritedArguments(
       arguments: ["/opt/custom/client"] + SupatermSSHCommand.forwardedEnvironmentOptions
         + ["dev@example.com"],
       terminalType: "vt100-custom",
@@ -38,68 +41,78 @@ struct SupatermSSHCommandTests {
     )
 
     #expect(
-      command
-        == "/usr/bin/env \(Self.cliPath) ssh --term vt100-custom --ssh /opt/custom/client -- dev@example.com"
+      arguments
+        == [
+          "/usr/bin/env", Self.cliPath, "ssh", "--term", "vt100-custom", "--ssh",
+          "/opt/custom/client", "--", "dev@example.com",
+        ]
     )
   }
 
   @Test
   func stripsOnlyTheInjectedLeadingForwardingOptions() {
-    let command = commandLine(
+    let arguments = inheritedArguments(
       arguments: ["/usr/bin/ssh"] + SupatermSSHCommand.forwardedEnvironmentOptions
         + ["-o", "SendEnv=COLORTERM", "dev@example.com"],
       cliPath: Self.cliPath
     )
 
     #expect(
-      command
-        == "/usr/bin/env \(Self.cliPath) ssh --ssh /usr/bin/ssh -- -o SendEnv=COLORTERM dev@example.com"
+      arguments
+        == [
+          "/usr/bin/env", Self.cliPath, "ssh", "--ssh", "/usr/bin/ssh", "--", "-o",
+          "SendEnv=COLORTERM", "dev@example.com",
+        ]
     )
   }
 
   @Test
   func preservesTheOriginalInvocationWithoutTheBundledCLI() {
-    let command = commandLine(
+    let arguments = inheritedArguments(
       arguments: ["/usr/bin/ssh"] + SupatermSSHCommand.forwardedEnvironmentOptions
         + ["-p", "2222", "dev@example.com"],
       terminalType: "xterm-custom"
     )
 
-    let expected =
-      "/usr/bin/env TERM=xterm-custom /usr/bin/ssh -o SendEnv=COLORTERM "
-      + "-o SendEnv=TERM_PROGRAM -o SendEnv=TERM_PROGRAM_VERSION -p 2222 dev@example.com"
-    #expect(command == expected)
+    #expect(
+      arguments
+        == [
+          "/usr/bin/env", "TERM=xterm-custom", "/usr/bin/ssh", "-o", "SendEnv=COLORTERM", "-o",
+          "SendEnv=TERM_PROGRAM", "-o", "SendEnv=TERM_PROGRAM_VERSION", "-p", "2222",
+          "dev@example.com",
+        ]
+    )
   }
 
   @Test
-  func quotesOptionValuesThatNeedIt() {
-    let command = commandLine(
+  func preservesOptionValuesThatContainSpaces() {
+    let arguments = inheritedArguments(
       arguments: ["ssh", "-o", "ProxyCommand=nc %h %p", "example.com"]
     )
 
-    #expect(command == "/usr/bin/env ssh -o 'ProxyCommand=nc %h %p' example.com")
+    #expect(arguments == ["/usr/bin/env", "ssh", "-o", "ProxyCommand=nc %h %p", "example.com"])
   }
 
   @Test
   func keepsFlagsClusteredWithTheirValue() {
-    let command = commandLine(
+    let arguments = inheritedArguments(
       arguments: ["ssh", "-tt", "-p2222", "-4", "example.com"]
     )
 
-    #expect(command == "/usr/bin/env ssh -tt -p2222 -4 example.com")
+    #expect(arguments == ["/usr/bin/env", "ssh", "-tt", "-p2222", "-4", "example.com"])
   }
 
   @Test
   func refusesInvocationsThatCarryARemoteCommand() {
-    #expect(commandLine(arguments: ["ssh", "example.com", "echo hi"]) == nil)
+    #expect(inheritedArguments(arguments: ["ssh", "example.com", "echo hi"]) == nil)
     #expect(
-      commandLine(
+      inheritedArguments(
         arguments: ["ssh"] + SupatermSSHCommand.forwardedEnvironmentOptions
           + ["example.com", "-o", "SendEnv=COLORTERM"]
       ) == nil
     )
     #expect(
-      commandLine(
+      inheritedArguments(
         arguments: ["ssh", "-o", "ControlPath=none", "example.com", "git-upload-pack '/repo'"]
       ) == nil
     )
@@ -108,37 +121,37 @@ struct SupatermSSHCommandTests {
   @Test
   func refusesInvocationsThatOpenNoSession() {
     #expect(
-      commandLine(arguments: ["ssh", "-N", "-L", "8080:localhost:8080", "example.com"])
+      inheritedArguments(arguments: ["ssh", "-N", "-L", "8080:localhost:8080", "example.com"])
         == nil
     )
-    #expect(commandLine(arguments: ["ssh", "-f", "-D", "1080", "example.com"]) == nil)
-    #expect(commandLine(arguments: ["ssh", "-W", "example.com:22", "jump.example.com"]) == nil)
+    #expect(inheritedArguments(arguments: ["ssh", "-f", "-D", "1080", "example.com"]) == nil)
+    #expect(inheritedArguments(arguments: ["ssh", "-W", "example.com:22", "jump.example.com"]) == nil)
   }
 
   @Test
   func keepsForwardingOptionsThatStillOpenASession() {
-    let command = commandLine(
+    let arguments = inheritedArguments(
       arguments: ["ssh", "-L", "8080:localhost:8080", "example.com"]
     )
 
-    #expect(command == "/usr/bin/env ssh -L 8080:localhost:8080 example.com")
+    #expect(arguments == ["/usr/bin/env", "ssh", "-L", "8080:localhost:8080", "example.com"])
   }
 
   @Test
   func rejectsUnidentifiedCustomExecutablesAndIncompleteInvocations() {
-    #expect(commandLine(arguments: ["/opt/custom/client", "example.com"]) == nil)
-    #expect(commandLine(arguments: ["/bin/fish", "-l"]) == nil)
-    #expect(commandLine(arguments: ["ssh"]) == nil)
-    #expect(commandLine(arguments: ["ssh", "-p"]) == nil)
-    #expect(commandLine(arguments: []) == nil)
+    #expect(inheritedArguments(arguments: ["/opt/custom/client", "example.com"]) == nil)
+    #expect(inheritedArguments(arguments: ["/bin/fish", "-l"]) == nil)
+    #expect(inheritedArguments(arguments: ["ssh"]) == nil)
+    #expect(inheritedArguments(arguments: ["ssh", "-p"]) == nil)
+    #expect(inheritedArguments(arguments: []) == nil)
   }
 
-  private func commandLine(
+  private func inheritedArguments(
     arguments: [String],
     terminalType: String? = nil,
     cliPath: String? = nil
-  ) -> String? {
-    SupatermSSHCommand.commandLine(
+  ) -> [String]? {
+    SupatermSSHCommand.inheritedArguments(
       forArguments: arguments,
       terminalType: terminalType,
       cliPath: cliPath

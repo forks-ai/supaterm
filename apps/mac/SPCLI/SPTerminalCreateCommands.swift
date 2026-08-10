@@ -2,6 +2,31 @@ import ArgumentParser
 import Foundation
 import SupatermCLIShared
 
+enum SPPaneDirectionArgument: String, CaseIterable, ExpressibleByArgument {
+  case down
+  case left
+  case right
+  case up
+
+  var direction: SupatermPaneDirection {
+    switch self {
+    case .down:
+      return .down
+    case .left:
+      return .left
+    case .right:
+      return .right
+    case .up:
+      return .up
+    }
+  }
+}
+
+enum SPPaneLayoutOption: String, CaseIterable, ExpressibleByArgument {
+  case equalize
+  case keep
+}
+
 extension SP {
   struct NewTab: ParsableCommand {
     static let configuration = CommandConfiguration(
@@ -36,10 +61,10 @@ extension SP {
     @OptionGroup
     var options: SPCommandOptions
 
-    @Option(name: .customLong("script"), help: "Shell script to run as the new tab startup command.")
+    @Option(name: .customLong("script"), help: "Raw code for the new tab's login shell to run.")
     var script: String?
 
-    @Argument(help: "Command and arguments to run when the new tab opens.")
+    @Argument(help: "Exact command and arguments to run when the new tab opens.")
     var input: [String] = []
 
     mutating func run() throws {
@@ -63,12 +88,12 @@ extension SP {
     }
 
     private func requestPayload(client: SPSocketClient) throws -> SupatermNewTabRequest {
-      let command = try startupCommand(script: script, tokens: input)
+      let startup = try terminalStartup(script: script, tokens: input)
       let cwd = try resolvedWorkingDirectory(cwd)
       let destination = group.map(SPGroupDestinationReference.group) ?? (root ? .root : nil)
       let context = SupatermCLIContext.current
       return SupatermNewTabRequest(
-        startupCommand: command,
+        startupCommand: startup,
         cwd: cwd,
         focus: focus,
         target: try resolvePublicNewTabPlacement(
@@ -89,33 +114,8 @@ extension SP {
       discussion: SPHelp.newPaneDiscussion
     )
 
-    enum PaneDirectionArgument: String, CaseIterable, ExpressibleByArgument {
-      case down
-      case left
-      case right
-      case up
-
-      var direction: SupatermPaneDirection {
-        switch self {
-        case .down:
-          return .down
-        case .left:
-          return .left
-        case .right:
-          return .right
-        case .up:
-          return .up
-        }
-      }
-    }
-
-    enum LayoutOption: String, CaseIterable, ExpressibleByArgument {
-      case equalize
-      case keep
-    }
-
     @Argument(help: "Direction for the new pane.")
-    var direction: PaneDirectionArgument = .right
+    var direction: SPPaneDirectionArgument = .right
 
     @Option(
       name: .customLong("in"),
@@ -131,15 +131,15 @@ extension SP {
     var focus = false
 
     @Option(name: .customLong("layout"), help: "Pane layout after splitting.")
-    var layout: LayoutOption = .equalize
+    var layout: SPPaneLayoutOption = .equalize
 
     @OptionGroup
     var options: SPCommandOptions
 
-    @Option(name: .customLong("script"), help: "Shell script to run as the new pane startup command.")
+    @Option(name: .customLong("script"), help: "Raw code for the new pane's login shell to run.")
     var script: String?
 
-    @Argument(help: "Command and arguments to run when the new pane opens.")
+    @Argument(help: "Exact command and arguments to run when the new pane opens.")
     var input: [String] = []
 
     mutating func run() throws {
@@ -162,10 +162,10 @@ extension SP {
     }
 
     private func requestPayload(client: SPSocketClient) throws -> SupatermNewPaneRequest {
-      let command = try startupCommand(script: script, tokens: input)
+      let startup = try terminalStartup(script: script, tokens: input)
       let cwd = try resolvedWorkingDirectory(cwd)
       return SupatermNewPaneRequest(
-        startupCommand: command,
+        startupCommand: startup,
         cwd: cwd,
         direction: direction.direction,
         focus: focus,
@@ -222,7 +222,7 @@ extension SP {
         context: SupatermCLIContext.current,
         snapshot: try treeSnapshot(client)
       )
-      return .init(
+      return SupatermNotifyRequest(
         body: body,
         paneID: target.paneID,
         subtitle: subtitle,

@@ -11,7 +11,7 @@ import SwiftUI
 extension TerminalHostState {
   func ensureInitialTab(
     focusing: Bool,
-    startupCommand: String? = nil,
+    startupCommand: SupatermTerminalStartup? = nil,
     workingDirectoryPath: String? = nil
   ) {
     guard tabs.isEmpty else { return }
@@ -25,7 +25,7 @@ extension TerminalHostState {
   @discardableResult
   func createTab(
     focusing: Bool = true,
-    startupCommand: String? = nil,
+    startupCommand: SupatermTerminalStartup? = nil,
     workingDirectoryPath: String? = nil,
     inheritingFromSurfaceID: UUID? = nil,
     at placement: TerminalTabPlacement? = nil,
@@ -47,7 +47,7 @@ extension TerminalHostState {
   func createTab(
     in spaceID: TerminalSpaceID,
     focusing: Bool = true,
-    startupCommand: String? = nil,
+    startupCommand: SupatermTerminalStartup? = nil,
     workingDirectory: URL? = nil,
     inheritingFromSurfaceID: UUID? = nil,
     at placement: TerminalTabPlacement? = nil,
@@ -146,7 +146,7 @@ extension TerminalHostState {
 
   func createSurface(
     tabID: TerminalTabID,
-    startupCommand: String?,
+    startupCommand: SupatermTerminalStartup?,
     inheritingFromSurfaceID: UUID?,
     workingDirectory: URL? = nil,
     context: ghostty_surface_context_e,
@@ -158,11 +158,11 @@ extension TerminalHostState {
     let inherited = inheritedSurfaceConfig(fromSurfaceID: inheritingFromSurfaceID, context: context)
     let resolvedStartupCommand =
       startupCommand
-      ?? inheritedSSHCommand(
+      ?? inheritedSSHStartup(
         fromSurfaceID: inheritingFromSurfaceID,
         workingDirectory: workingDirectory
       )
-    let launchCommand = resolvedSurfaceCommand(
+    let launch = resolvedSurfaceLaunch(
       startupCommand: resolvedStartupCommand,
       surfaceID: surfaceID
     )
@@ -174,10 +174,9 @@ extension TerminalHostState {
         "tabID=\(tabID.rawValue.uuidString.lowercased())",
         "context=\(Self.surfaceContextLabel(context))",
         "zmxSessionsEnabled=\(zmxSessionsEnabled)",
-        "hasStartupCommand=\(resolvedStartupCommand?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false)",
-        "hasResolvedCommand=\(launchCommand.command != nil)",
-        "hasCommandWrapper=\(!launchCommand.commandWrapper.isEmpty)",
-        "usesZmx=\(launchCommand.usesZmx)",
+        "hasStartupCommand=\(resolvedStartupCommand != nil)",
+        "hasCommandWrapper=\(!launch.commandWrapper.isEmpty)",
+        "usesZmx=\(launch.usesZmx)",
       ]
     )
     let view = GhosttySurfaceView(
@@ -185,12 +184,12 @@ extension TerminalHostState {
       runtime: runtime,
       tabID: tabID.rawValue,
       workingDirectory: workingDirectory ?? inherited.workingDirectory,
-      command: launchCommand.command,
-      commandWrapper: launchCommand.commandWrapper,
+      startupCommand: launch.startupCommand,
+      commandWrapper: launch.commandWrapper,
       fontSize: inherited.fontSize,
       context: context,
       managesWindowAppearance: false,
-      zmxSessionsEnabled: launchCommand.usesZmx
+      zmxSessionsEnabled: launch.usesZmx
     )
     configureBridgeCallbacks(for: view, tabID: tabID)
     configureSurfaceCallbacks(for: view, tabID: tabID)
@@ -198,11 +197,10 @@ extension TerminalHostState {
     return view
   }
 
-  func resolvedSurfaceCommand(
-    startupCommand: String?,
+  func resolvedSurfaceLaunch(
+    startupCommand: SupatermTerminalStartup?,
     surfaceID: UUID
-  ) -> SurfaceLaunchCommand {
-    let command = startupCommand.map { SupatermShellCommand.ghosttyStartupCommand(for: $0) }
+  ) -> SurfaceLaunch {
     let sessionID = ZmxSessionID.make(surfaceID: surfaceID)
     guard zmxSessionsEnabled else {
       SupatermLog.debug(
@@ -214,7 +212,11 @@ extension TerminalHostState {
           "reason=disabled",
         ]
       )
-      return SurfaceLaunchCommand(command: command, commandWrapper: [], usesZmx: false)
+      return SurfaceLaunch(
+        startupCommand: startupCommand,
+        commandWrapper: [],
+        usesZmx: false
+      )
     }
     guard let executable = zmxClient.executableURL() else {
       SupatermLog.error(
@@ -223,15 +225,18 @@ extension TerminalHostState {
         fields: [
           "surfaceID=\(surfaceID.uuidString.lowercased())",
           "sessionID=\(sessionID)",
-          "hasStartupCommand=\(command != nil)",
+          "hasStartupCommand=\(startupCommand != nil)",
         ]
       )
-      return SurfaceLaunchCommand(command: command, commandWrapper: [], usesZmx: false)
+      return SurfaceLaunch(
+        startupCommand: startupCommand,
+        commandWrapper: [],
+        usesZmx: false
+      )
     }
-    let launch = ZmxAttach.resolveLaunch(
+    let commandWrapper = ZmxAttach.buildWrapperArgv(
       executablePath: executable.path(percentEncoded: false),
-      sessionID: sessionID,
-      command: command
+      sessionID: sessionID
     )
     SupatermLog.debug(
       SupatermLog.zmx,
@@ -239,18 +244,21 @@ extension TerminalHostState {
       fields: [
         "surfaceID=\(surfaceID.uuidString.lowercased())",
         "sessionID=\(sessionID)",
-        "hasStartupCommand=\(launch.command != nil)",
-        "hasCommandWrapper=\(!launch.commandWrapper.isEmpty)",
+        "hasStartupCommand=\(startupCommand != nil)",
+        "hasCommandWrapper=\(!commandWrapper.isEmpty)",
       ]
     )
-    return SurfaceLaunchCommand(
-      command: launch.command,
-      commandWrapper: launch.commandWrapper,
+    return SurfaceLaunch(
+      startupCommand: startupCommand,
+      commandWrapper: commandWrapper,
       usesZmx: true
     )
   }
 
-  func inheritedSSHCommand(fromSurfaceID surfaceID: UUID?, workingDirectory: URL?) -> String? {
+  func inheritedSSHStartup(
+    fromSurfaceID surfaceID: UUID?,
+    workingDirectory: URL?
+  ) -> SupatermTerminalStartup? {
     guard zmxSessionsEnabled, workingDirectory == nil, let surfaceID else { return nil }
     return SSHSessionInheritance.startupCommand(
       zmxSessionName: ZmxSessionID.make(surfaceID: surfaceID),
@@ -266,7 +274,8 @@ extension TerminalHostState {
       return InheritedSurfaceConfig(workingDirectory: nil, fontSize: nil)
     }
 
-    let inherited = ghostty_surface_inherited_config(sourceSurface, context)
+    var inherited = ghostty_surface_inherited_config(sourceSurface, context)
+    defer { ghostty_surface_inherited_config_free(sourceSurface, &inherited) }
     let fontSize = inherited.font_size == 0 ? nil : inherited.font_size
     let inheritedWorkingDirectory = inherited.working_directory.flatMap { ptr -> URL? in
       let path = String(cString: ptr)

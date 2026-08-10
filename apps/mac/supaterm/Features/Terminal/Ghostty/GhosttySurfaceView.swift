@@ -59,7 +59,7 @@ final class GhosttySurfaceView: NSView, Identifiable {
   private(set) var surface: ghostty_surface_t?
   private var surfaceRef: GhosttyRuntime.SurfaceReference?
   private let workingDirectoryCString: UnsafeMutablePointer<CChar>?
-  private let commandCString: UnsafeMutablePointer<CChar>?
+  private let launch: GhosttySurfaceLaunch
   private let commandWrapper: [String]
   private let environmentVariables: [SupatermCLIEnvironmentVariable]
   private let fontSize: Float32
@@ -276,7 +276,9 @@ final class GhosttySurfaceView: NSView, Identifiable {
     runtime: GhosttyRuntime,
     tabID: UUID,
     workingDirectory: URL?,
-    command: String? = nil,
+    shellPath: String = SupatermShellCommand.loginShellPath(),
+    cliPath: String? = GhosttySupport.bundledCLIPath(executableURL: Bundle.main.executableURL),
+    startupCommand: SupatermTerminalStartup? = nil,
     commandWrapper: [String] = [],
     fontSize: Float32? = nil,
     context: ghostty_surface_context_e,
@@ -300,13 +302,14 @@ final class GhosttySurfaceView: NSView, Identifiable {
     self.runtime = runtime
     self.id = id
     self.bridge = GhosttySurfaceBridge(findPasteboard: findPasteboard)
-    self.environmentVariables = Self.supatermEnvironmentVariables(
-      surfaceID: id,
-      tabID: tabID,
-      socketPath: SupatermProcessSocketEndpoint.current()?.path,
-      cliPath: GhosttySupport.bundledCLIPath(executableURL: Bundle.main.executableURL),
-      zmxSessionsEnabled: zmxSessionsEnabled
-    )
+    self.environmentVariables =
+      Self.supatermEnvironmentVariables(
+        surfaceID: id,
+        tabID: tabID,
+        socketPath: SupatermProcessSocketEndpoint.current()?.path,
+        cliPath: cliPath,
+        zmxSessionsEnabled: zmxSessionsEnabled
+      )
     self.commandWrapper = commandWrapper
     self.fontSize = fontSize ?? 0
     self.context = context
@@ -326,11 +329,11 @@ final class GhosttySurfaceView: NSView, Identifiable {
       initialWorkingDirectoryPath = nil
       workingDirectoryCString = nil
     }
-    if let command {
-      commandCString = command.withCString { strdup($0) }
-    } else {
-      commandCString = nil
-    }
+    launch = GhosttySurfaceLaunch(
+      shellPath: shellPath,
+      cliPath: cliPath,
+      startup: startupCommand
+    )
     super.init(frame: NSRect(x: 0, y: 0, width: 800, height: 600))
     bridge.state.pwd = initialWorkingDirectoryPath
     bridge.surfaceView = self
@@ -338,9 +341,13 @@ final class GhosttySurfaceView: NSView, Identifiable {
       self?.promptSurfaceTitle()
     }
     bridge.updateSurfaceConfig(runtime.surfaceConfig())
-    createSurface(using: surfaceFactory)
-    if let surface {
-      surfaceRef = runtime.registerSurface(surface)
+    if launch.preparationFailed {
+      bridge.state.failure = .startupPreparationFailed
+    } else {
+      createSurface(using: surfaceFactory)
+      if let surface {
+        surfaceRef = runtime.registerSurface(surface)
+      }
     }
     registerForDraggedTypes(Array(Self.dropTypes))
 
@@ -367,12 +374,10 @@ final class GhosttySurfaceView: NSView, Identifiable {
     if let workingDirectoryCString {
       free(workingDirectoryCString)
     }
-    if let commandCString {
-      free(commandCString)
-    }
   }
 
   func closeSurface() {
+    launch.cancel()
     accessibilitySelectionTask?.cancel()
     accessibilitySelectionTask = nil
     clearNotificationObservers()
@@ -1227,7 +1232,11 @@ final class GhosttySurfaceView: NSView, Identifiable {
   }
 
   private func createSurface(using surfaceFactory: SurfaceFactory) {
-    guard let app = runtime.app else { return }
+    guard let app = runtime.app else {
+      launch.finishSurfaceCreation(created: false)
+      bridge.state.failure = .surfaceCreationFailed
+      return
+    }
     var config = ghostty_surface_config_new()
     config.userdata = Unmanaged.passUnretained(bridge).toOpaque()
     config.platform_tag = GHOSTTY_PLATFORM_MACOS
@@ -1238,7 +1247,7 @@ final class GhosttySurfaceView: NSView, Identifiable {
     config.scale_factor = backingScaleFactor()
     config.font_size = fontSize
     config.working_directory = workingDirectoryCString.map { UnsafePointer($0) }
-    config.command = commandCString.map { UnsafePointer($0) }
+    launch.apply(to: &config)
     config.context = context
     Self.withEnvironmentVariables(environmentVariables) { envVars, count in
       config.env_vars = envVars
@@ -1249,6 +1258,7 @@ final class GhosttySurfaceView: NSView, Identifiable {
         surface = surfaceFactory(app, &config)
       }
     }
+    launch.finishSurfaceCreation(created: surface != nil)
     bridge.surface = surface
     guard surface != nil else {
       bridge.state.failure = .surfaceCreationFailed

@@ -10,14 +10,14 @@ public struct TerminalCreateTabRequest: Equatable, Sendable {
     case space(UUID)
   }
 
-  public let startupCommand: String?
+  public let startupCommand: SupatermTerminalStartup?
   public let cwd: String?
   public let focus: Bool
   public let target: Target
   public let context: SupatermCLIContext?
 
   public init(
-    startupCommand: String?,
+    startupCommand: SupatermTerminalStartup?,
     cwd: String?,
     focus: Bool,
     target: Target,
@@ -37,7 +37,7 @@ public struct TerminalCreatePaneRequest: Equatable, Sendable {
     case tab(UUID)
   }
 
-  public let startupCommand: String?
+  public let startupCommand: SupatermTerminalStartup?
   public let cwd: String?
   public let direction: SupatermPaneDirection
   public let focus: Bool
@@ -45,7 +45,7 @@ public struct TerminalCreatePaneRequest: Equatable, Sendable {
   public let target: Target
 
   public init(
-    startupCommand: String?,
+    startupCommand: SupatermTerminalStartup?,
     cwd: String? = nil,
     direction: SupatermPaneDirection,
     focus: Bool,

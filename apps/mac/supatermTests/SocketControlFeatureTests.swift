@@ -72,7 +72,7 @@ struct SocketControlFeatureLifecycleTests {
       handle: handle,
       payload: try .newTab(
         SupatermNewTabRequest(
-          startupCommand: "pwd",
+          startupCommand: .arguments(["pwd"]),
           focus: false,
           target: .space(UUID())
         ),

@@ -10,8 +10,8 @@ import Testing
 struct GhosttyClipboardConfirmationTests {
   @Test
   func boundedScrollbackCapturePreservesTrailingBlankLines() async throws {
-    let fixture = try ClipboardSurfaceFixture(
-      command: "/bin/sh -c 'printf \"SUPATERM_TAIL_READY\\none\\ntwo\\n\\n\\n\"; stty -echo; cat'"
+    let fixture = try await ClipboardSurfaceFixture(
+      command: "/bin/sh -c 'printf \"SUPATERM_READY\\nSUPATERM_TAIL_READY\\none\\ntwo\\n\\n\\n\"; stty -echo; cat'"
     )
     defer { fixture.close() }
     _ = try await capturedText(from: fixture.surface, containing: "two")
@@ -38,7 +38,7 @@ struct GhosttyClipboardConfirmationTests {
       byteCount: expectedInput.utf8.count
     )
     defer { script.remove() }
-    let fixture = try ClipboardSurfaceFixture(command: script.path)
+    let fixture = try await ClipboardSurfaceFixture(command: script.path)
     defer { fixture.close() }
     _ = try await capturedText(from: fixture.surface, containing: "SUPATERM_READY")
 
@@ -53,7 +53,7 @@ struct GhosttyClipboardConfirmationTests {
 
   @Test
   func unsafeSelectionPasteShowsConfirmationOnOriginatingWindow() async throws {
-    let fixture = try ClipboardSurfaceFixture()
+    let fixture = try await ClipboardSurfaceFixture()
     defer { fixture.close() }
 
     let pasteboard = NSPasteboard.ghosttySelection
@@ -69,7 +69,7 @@ struct GhosttyClipboardConfirmationTests {
 
   @Test
   func unfocusedSplitClipboardRequestIsDeniedBeforeFocusedRequest() async throws {
-    let fixture = try SplitClipboardSurfaceFixture()
+    let fixture = try await SplitClipboardSurfaceFixture()
     defer { fixture.close() }
     let pasteboard = NSPasteboard.ghosttySelection
     pasteboard.clearContents()
@@ -96,7 +96,7 @@ struct GhosttyClipboardConfirmationTests {
 
   @Test
   func confirmationPreviewPreservesLongSelectableMonospacedTextInVerticalScroller() async throws {
-    let fixture = try ClipboardSurfaceFixture()
+    let fixture = try await ClipboardSurfaceFixture()
     defer { fixture.close() }
     let contents = (0..<300).map { "line-\($0)" }.joined(separator: "\n")
     let pasteboard = NSPasteboard.ghosttySelection
@@ -117,7 +117,7 @@ struct GhosttyClipboardConfirmationTests {
 
   @Test
   func cancellingUnsafePasteLeavesTerminalInputUnchanged() async throws {
-    let fixture = try ClipboardSurfaceFixture()
+    let fixture = try await ClipboardSurfaceFixture()
     defer { fixture.close() }
     _ = try await capturedText(from: fixture.surface, containing: "SUPATERM_READY")
     let marker = "SUPATERM_UNSAFE_\(UUID().uuidString)"
@@ -146,7 +146,7 @@ struct GhosttyClipboardConfirmationTests {
 
   @Test
   func allowingUnsafePasteSendsOriginalTextOnce() async throws {
-    let fixture = try ClipboardSurfaceFixture()
+    let fixture = try await ClipboardSurfaceFixture()
     defer { fixture.close() }
     _ = try await capturedText(from: fixture.surface, containing: "SUPATERM_READY")
     let marker = "SUPATERM_ALLOWED_\(UUID().uuidString)"
@@ -171,7 +171,7 @@ struct GhosttyClipboardConfirmationTests {
 
   @Test
   func unsafePasteWithoutWindowIsDeniedAndUnblocksLaterPaste() async throws {
-    let fixture = try ClipboardSurfaceFixture()
+    let fixture = try await ClipboardSurfaceFixture()
     defer { fixture.close() }
     _ = try await capturedText(from: fixture.surface, containing: "SUPATERM_READY")
     let marker = "SUPATERM_DETACHED_\(UUID().uuidString)"
@@ -197,7 +197,7 @@ struct GhosttyClipboardConfirmationTests {
 
   @Test
   func secondClipboardRequestDoesNotReplaceActiveSheet() async throws {
-    let fixture = try ClipboardSurfaceFixture()
+    let fixture = try await ClipboardSurfaceFixture()
     defer { fixture.close() }
     _ = try await capturedText(from: fixture.surface, containing: "SUPATERM_READY")
     let firstMarker = "SUPATERM_FIRST_\(UUID().uuidString)"
@@ -231,7 +231,7 @@ struct GhosttyClipboardConfirmationTests {
 
   @Test
   func closingOriginatingSurfaceCancelsClipboardRequest() async throws {
-    let fixture = try ClipboardSurfaceFixture()
+    let fixture = try await ClipboardSurfaceFixture()
     defer { fixture.close() }
     let pasteboard = NSPasteboard.ghosttySelection
     pasteboard.clearContents()
@@ -247,7 +247,7 @@ struct GhosttyClipboardConfirmationTests {
 
   @Test
   func detachingSurfaceDeniesPendingPasteAndAllowsRequestAfterReattachment() async throws {
-    let fixture = try ClipboardSurfaceFixture()
+    let fixture = try await ClipboardSurfaceFixture()
     defer { fixture.close() }
     _ = try await capturedText(from: fixture.surface, containing: "SUPATERM_READY")
     let deniedMarker = "SUPATERM_DENIED_\(UUID().uuidString)"
@@ -279,7 +279,7 @@ struct GhosttyClipboardConfirmationTests {
 
   @Test
   func escapeDeniesUnsafePaste() async throws {
-    let fixture = try ClipboardSurfaceFixture()
+    let fixture = try await ClipboardSurfaceFixture()
     defer { fixture.close() }
     _ = try await capturedText(from: fixture.surface, containing: "SUPATERM_READY")
     let marker = "SUPATERM_ESCAPE_\(UUID().uuidString)"
@@ -320,7 +320,7 @@ struct GhosttyClipboardConfirmationTests {
   func denyingOSC52WritePreservesSelectionClipboard() async throws {
     let script = try TemporaryExecutableScript.osc52Write()
     defer { script.remove() }
-    let fixture = try ClipboardSurfaceFixture(
+    let fixture = try await ClipboardSurfaceFixture(
       config: "clipboard-write = ask",
       command: script.path
     )
@@ -344,7 +344,7 @@ struct GhosttyClipboardConfirmationTests {
   func allowingOSC52WriteUpdatesSelectionClipboard() async throws {
     let script = try TemporaryExecutableScript.osc52Write()
     defer { script.remove() }
-    let fixture = try ClipboardSurfaceFixture(
+    let fixture = try await ClipboardSurfaceFixture(
       config: "clipboard-write = ask",
       command: script.path
     )
@@ -366,7 +366,7 @@ struct GhosttyClipboardConfirmationTests {
   func closingWindowDeniesPendingOSC52Write() async throws {
     let script = try TemporaryExecutableScript.osc52Write()
     defer { script.remove() }
-    let fixture = try ClipboardSurfaceFixture(
+    let fixture = try await ClipboardSurfaceFixture(
       config: "clipboard-write = ask",
       command: script.path
     )
@@ -389,7 +389,7 @@ struct GhosttyClipboardConfirmationTests {
   func denyingOSC52ReadReturnsEmptyClipboardResponse() async throws {
     let script = try TemporaryExecutableScript.osc52Read()
     defer { script.remove() }
-    let fixture = try ClipboardSurfaceFixture(
+    let fixture = try await ClipboardSurfaceFixture(
       config: "clipboard-read = ask",
       command: script.path
     )
@@ -414,7 +414,7 @@ struct GhosttyClipboardConfirmationTests {
   func allowingOSC52ReadReturnsClipboardContents() async throws {
     let script = try TemporaryExecutableScript.osc52Read()
     defer { script.remove() }
-    let fixture = try ClipboardSurfaceFixture(
+    let fixture = try await ClipboardSurfaceFixture(
       config: "clipboard-read = ask",
       command: script.path
     )
@@ -437,7 +437,7 @@ struct GhosttyClipboardConfirmationTests {
   func closingWindowCompletesPendingOSC52ReadOnceWithEmptyResponse() async throws {
     let script = try TemporaryExecutableScript.countingOSC52Read()
     defer { script.remove() }
-    let fixture = try ClipboardSurfaceFixture(
+    let fixture = try await ClipboardSurfaceFixture(
       config: "clipboard-read = ask",
       command: script.path
     )
@@ -563,26 +563,33 @@ private struct TemporaryExecutableScript {
 
 @MainActor
 private final class ClipboardSurfaceFixture {
-  let runtime: GhosttyRuntime
   let surface: GhosttySurfaceView
   let window: NSWindow
+  private let shellScript: TemporaryExecutableScript
 
   init(
     config: String = "clipboard-paste-protection = true",
     command: String = "/bin/sh -c 'printf SUPATERM_READY; stty -echo; cat'"
-  ) throws {
+  ) async throws {
     initializeGhosttyForTests()
     _ = NSApplication.shared
-    runtime = try makeGhosttyRuntime(
+    let runtime = try makeGhosttyRuntime(
       config,
       applicationIsActive: { false },
       pasteboardProvider: { _ in NSPasteboard.ghosttySelection }
     )
+    let shellScript = try TemporaryExecutableScript(
+      """
+      #!/bin/sh
+      exec \(command)
+      """
+    )
+    self.shellScript = shellScript
     surface = GhosttySurfaceView(
       runtime: runtime,
       tabID: UUID(),
       workingDirectory: nil,
-      command: command,
+      shellPath: shellScript.path,
       context: GHOSTTY_SURFACE_CONTEXT_TAB
     )
     window = NSWindow(
@@ -594,6 +601,7 @@ private final class ClipboardSurfaceFixture {
     window.contentView = surface
     window.makeKeyAndOrderFront(nil)
     window.makeFirstResponder(surface)
+    _ = try await capturedText(from: surface, containing: "SUPATERM_READY")
   }
 
   func close() {
@@ -604,36 +612,45 @@ private final class ClipboardSurfaceFixture {
     window.contentView = nil
     window.orderOut(nil)
     NSPasteboard.ghosttySelection.clearContents()
+    shellScript.remove()
   }
 }
 
 @MainActor
 private final class SplitClipboardSurfaceFixture {
-  let runtime: GhosttyRuntime
   let focusedSurface: GhosttySurfaceView
   let unfocusedSurface: GhosttySurfaceView
   let window: NSWindow
+  private let shellScript: TemporaryExecutableScript
 
-  init() throws {
+  init() async throws {
     initializeGhosttyForTests()
-    runtime = try makeGhosttyRuntime(
+    let runtime = try makeGhosttyRuntime(
       "clipboard-paste-protection = true",
       applicationIsActive: { false },
       pasteboardProvider: { _ in NSPasteboard.ghosttySelection }
     )
+    let shellScript = try TemporaryExecutableScript(
+      """
+      #!/bin/sh
+      printf SUPATERM_READY
+      exec /bin/sh -c 'stty -echo; cat'
+      """
+    )
+    self.shellScript = shellScript
     let tabID = UUID()
     focusedSurface = GhosttySurfaceView(
       runtime: runtime,
       tabID: tabID,
       workingDirectory: nil,
-      command: "/bin/sh -c 'stty -echo; cat'",
+      shellPath: shellScript.path,
       context: GHOSTTY_SURFACE_CONTEXT_TAB
     )
     unfocusedSurface = GhosttySurfaceView(
       runtime: runtime,
       tabID: tabID,
       workingDirectory: nil,
-      command: "/bin/sh -c 'stty -echo; cat'",
+      shellPath: shellScript.path,
       context: GHOSTTY_SURFACE_CONTEXT_TAB
     )
     window = NSWindow(
@@ -650,6 +667,8 @@ private final class SplitClipboardSurfaceFixture {
     container.addSubview(unfocusedSurface)
     window.makeKeyAndOrderFront(nil)
     window.makeFirstResponder(focusedSurface)
+    _ = try await capturedText(from: focusedSurface, containing: "SUPATERM_READY")
+    _ = try await capturedText(from: unfocusedSurface, containing: "SUPATERM_READY")
   }
 
   func close() {
@@ -661,6 +680,7 @@ private final class SplitClipboardSurfaceFixture {
     window.contentView = nil
     window.orderOut(nil)
     NSPasteboard.ghosttySelection.clearContents()
+    shellScript.remove()
   }
 }
 

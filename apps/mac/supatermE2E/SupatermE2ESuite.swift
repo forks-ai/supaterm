@@ -4,7 +4,9 @@ import Testing
 
 @Suite(.serialized) enum SupatermE2ESuite {}
 
-let hermeticShellStartupCommand = "exec /bin/zsh -f"
+let hermeticShellPrompt = "SUPATERM_E2E_READY"
+let hermeticShellStartupCommand =
+  "/bin/sleep 0.1; exec /usr/bin/env PS1=\(hermeticShellPrompt) /bin/zsh -f"
 
 private nonisolated(unsafe) var sharedAppAtExit: SupatermE2EApp?
 
@@ -43,7 +45,7 @@ func withTestSpace<T>(
   return try await body(app, space)
 }
 
-private func makeTestSpace(_ app: SupatermE2EApp) throws -> TestSpace {
+func makeTestSpace(_ app: SupatermE2EApp) throws -> TestSpace {
   let token = String(UUID().uuidString.prefix(8).lowercased())
   let snapshot = try app.debugSnapshot()
   guard snapshot.windows.first != nil else {
@@ -62,7 +64,7 @@ private func makeTestSpace(_ app: SupatermE2EApp) throws -> TestSpace {
   let tab = try app.send(
     .newTab(
       SupatermNewTabRequest(
-        startupCommand: hermeticShellStartupCommand,
+        startupCommand: .script(hermeticShellStartupCommand),
         cwd: directory.path,
         focus: true,
         target: .space(created.target.spaceID)
@@ -82,7 +84,7 @@ func makeTab(_ app: SupatermE2EApp, in space: TestSpace) throws -> SupatermNewTa
   try app.send(
     .newTab(
       SupatermNewTabRequest(
-        startupCommand: hermeticShellStartupCommand,
+        startupCommand: .script(hermeticShellStartupCommand),
         cwd: space.directory.path,
         focus: true,
         target: .pane(space.tab.paneID)
@@ -96,7 +98,7 @@ func makeSplit(_ app: SupatermE2EApp, in space: TestSpace) throws -> SupatermNew
   try app.send(
     .newPane(
       SupatermNewPaneRequest(
-        startupCommand: hermeticShellStartupCommand,
+        startupCommand: .script(hermeticShellStartupCommand),
         cwd: space.directory.path,
         direction: .right,
         focus: true,
@@ -108,7 +110,7 @@ func makeSplit(_ app: SupatermE2EApp, in space: TestSpace) throws -> SupatermNew
   )
 }
 
-private func closeTestSpace(_ app: SupatermE2EApp, spaceID: UUID) throws {
+func closeTestSpace(_ app: SupatermE2EApp, spaceID: UUID) throws {
   let snapshot = try app.debugSnapshot()
   for window in snapshot.windows {
     for space in window.spaces where space.id == spaceID {

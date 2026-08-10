@@ -74,7 +74,7 @@ final class TerminalWindowController: NSWindowController {
     registry: TerminalWindowRegistry,
     session: TerminalWindowSession? = nil,
     spaceID: TerminalSpaceID? = nil,
-    startupCommand: String? = nil,
+    startupCommand: SupatermTerminalStartup? = nil,
     zmxClient: ZmxClient = .live,
     zmxSessionsEnabled: Bool = true,
     onSessionChange: @escaping @MainActor () -> Void = {}
@@ -95,7 +95,6 @@ final class TerminalWindowController: NSWindowController {
     let store = Store(
       initialState: AppFeature.State(
         terminal: TerminalWindowFeature.State(
-          startupCommand: startupCommand,
           sidebarWidth: session?.sidebarWidth.map { CGFloat($0) }
         )
       )
@@ -196,7 +195,7 @@ final class TerminalWindowController: NSWindowController {
   private static func prepareTerminal(
     _ terminal: TerminalHostState,
     session: TerminalWindowSession?,
-    startupCommand: String?
+    startupCommand: SupatermTerminalStartup?
   ) {
     if let session, terminal.restore(from: session) {
       return

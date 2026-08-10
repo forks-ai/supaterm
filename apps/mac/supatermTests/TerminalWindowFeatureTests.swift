@@ -27,7 +27,7 @@ struct TerminalWindowFeatureTests {
   }
 
   @Test
-  func taskBootstrapsTerminalAndRoutesClientEvents() async {
+  func taskRoutesClientEvents() async {
     let recorder = TerminalCommandRecorder()
     let surfaceID = UUID()
     let (stream, continuation) = makeEventStream()
@@ -40,7 +40,7 @@ struct TerminalWindowFeatureTests {
     }
 
     await store.send(.task)
-    #expect(recorder.commands == [.ensureInitialTab(focusing: false, startupCommand: nil)])
+    #expect(recorder.commands.isEmpty)
 
     continuation.yield(.newTabRequested(inheritingFromSurfaceID: surfaceID))
 
@@ -49,54 +49,11 @@ struct TerminalWindowFeatureTests {
 
     #expect(
       recorder.commands == [
-        .ensureInitialTab(focusing: false, startupCommand: nil),
-        .createTab(inheritingFromSurfaceID: surfaceID),
+        .createTab(inheritingFromSurfaceID: surfaceID)
       ])
 
     continuation.finish()
     await store.finish()
-  }
-
-  @Test
-  func taskConsumesInitialStartupCommandOnce() async {
-    let recorder = TerminalCommandRecorder()
-    let store = TestStore(
-      initialState: TerminalWindowFeature.State(
-        startupCommand: "sp onboard"
-      )
-    ) {
-      TerminalWindowFeature()
-    } withDependencies: {
-      $0.terminalClient.send = { recorder.record($0) }
-    }
-
-    await store.send(.task) {
-      $0.startupCommand = nil
-    }
-
-    #expect(
-      recorder.commands == [
-        .ensureInitialTab(
-          focusing: false,
-          startupCommand: "sp onboard",
-        )
-      ]
-    )
-
-    await store.send(.task)
-
-    #expect(
-      recorder.commands == [
-        .ensureInitialTab(
-          focusing: false,
-          startupCommand: "sp onboard"
-        ),
-        .ensureInitialTab(
-          focusing: false,
-          startupCommand: nil,
-        ),
-      ]
-    )
   }
 
   @Test
@@ -1195,9 +1152,7 @@ struct TerminalWindowFeatureTests {
     #expect(
       requests == [
         TerminalCreatePaneRequest(
-          startupCommand: SupatermShellCommand.interactiveStartupCommand(
-            for: "codex fork session-1"
-          ),
+          startupCommand: .arguments(["codex", "fork", "session-1"]),
           cwd: "/tmp/agent-workspace/",
           direction: .down,
           focus: true,

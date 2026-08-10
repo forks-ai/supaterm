@@ -1413,9 +1413,7 @@ struct TerminalWindowRegistryTests {
       #expect(
         requests == [
           TerminalCreatePaneRequest(
-            startupCommand: SupatermShellCommand.interactiveStartupCommand(
-              for: "codex fork session-1"
-            ),
+            startupCommand: .arguments(["codex", "fork", "session-1"]),
             cwd: "/tmp/agent-workspace/",
             direction: .right,
             focus: true,

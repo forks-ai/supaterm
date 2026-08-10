@@ -7,24 +7,24 @@ import Testing
 
 struct SPCommandRuntimeTests {
   @Test
-  func shellCommandInputEscapesTokens() {
-    #expect(shellCommandInput([]) == nil)
+  func argumentStartupPreservesTokens() {
+    #expect(argumentStartup([]) == nil)
     #expect(
-      shellCommandInput(["echo", "hello world"])
-        == [
-          SupatermShellCommand.escapedToken("echo"),
-          SupatermShellCommand.escapedToken("hello world"),
-        ].joined(separator: " ")
+      argumentStartup(["echo", "", "hello world", "bang!", "$(touch nope)"])
+        == .arguments(["echo", "", "hello world", "bang!", "$(touch nope)"])
     )
   }
 
   @Test
-  func startupCommandPrefersScript() throws {
-    #expect(try startupCommand(script: "echo 1\necho 2", tokens: []) == "echo 1\necho 2")
-    #expect(try startupCommand(script: nil, tokens: ["echo", "hello world"]) == "echo 'hello world'")
+  func terminalStartupKeepsScriptsAndArgumentsDistinct() throws {
+    #expect(try terminalStartup(script: "echo 1\necho 2", tokens: []) == .script("echo 1\necho 2"))
+    #expect(
+      try terminalStartup(script: nil, tokens: ["echo", "hello world"])
+        == .arguments(["echo", "hello world"])
+    )
 
     do {
-      _ = try startupCommand(script: "", tokens: [])
+      _ = try terminalStartup(script: "", tokens: [])
       Issue.record("Expected empty script to throw.")
     } catch {
       #expect(String(describing: error).contains("--script must not be empty."))

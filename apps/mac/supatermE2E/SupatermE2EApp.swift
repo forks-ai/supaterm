@@ -25,15 +25,15 @@ final class SupatermE2EApp: @unchecked Sendable {
   private var client: SPSocketClient
   private let logURL: URL
 
-  static func launch() async throws -> SupatermE2EApp {
-    let app = try SupatermE2EApp()
+  static func launch(zmxSessionsEnabled: Bool = true) async throws -> SupatermE2EApp {
+    let app = try SupatermE2EApp(zmxSessionsEnabled: zmxSessionsEnabled)
     try await app.waitUntil("the app socket accepts ping", timeout: 90) {
       (try? app.client.send(.ping()))?.ok == true
     }
     return app
   }
 
-  private init() throws {
+  private init(zmxSessionsEnabled: Bool) throws {
     executable = Self.productsDirectory
       .appendingPathComponent("supaterm.app/Contents/MacOS/supaterm")
     guard FileManager.default.isExecutableFile(atPath: executable.path) else {
@@ -61,6 +61,13 @@ final class SupatermE2EApp: @unchecked Sendable {
 
     try FileManager.default.createDirectory(at: cliHome, withIntermediateDirectories: true)
     try FileManager.default.createDirectory(at: runtimeHome, withIntermediateDirectories: true)
+    if !zmxSessionsEnabled {
+      try "zmx_sessions_enabled = false\n".write(
+        to: stateHome.appendingPathComponent("settings.toml", isDirectory: false),
+        atomically: true,
+        encoding: .utf8
+      )
+    }
     FileManager.default.createFile(atPath: cliHome.appendingPathComponent(".zshrc").path, contents: nil)
     FileManager.default.createFile(atPath: logURL.path, contents: nil)
 
@@ -73,6 +80,7 @@ final class SupatermE2EApp: @unchecked Sendable {
       "SUPATERM_VERBOSE_LOGGING": "1",
       "USER": NSUserName(),
       "XDG_RUNTIME_DIR": runtimeHome.path,
+      "ZDOTDIR": cliHome.path,
       ZmxEnvironment.directoryKey: workspace.zmxDirectory.path,
       SupatermCLIEnvironment.instanceNameKey: instanceName,
       SupatermCLIEnvironment.stateHomeKey: stateHome.path,
@@ -93,6 +101,8 @@ final class SupatermE2EApp: @unchecked Sendable {
     Self.productsDirectory
       .appendingPathComponent("supaterm.app/Contents/MacOS/sp")
   }
+
+  var processIdentifier: pid_t { process.processIdentifier }
 
   func cliEnvironment(context: SupatermCLIContext? = nil) -> [String: String] {
     var result = environment
@@ -211,6 +221,13 @@ final class SupatermE2EApp: @unchecked Sendable {
   func waitForShellPrompt(_ target: SupatermPaneTargetRequest) async throws {
     try await waitForReadyPane(target)
     try await waitUntil("the shell renders a prompt") {
+      try capture(target).contains(hermeticShellPrompt)
+    }
+  }
+
+  func waitForShellOutput(_ target: SupatermPaneTargetRequest) async throws {
+    try await waitForReadyPane(target)
+    try await waitUntil("the shell writes output") {
       try !capture(target).trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
     }
   }

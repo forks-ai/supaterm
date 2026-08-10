@@ -9,6 +9,59 @@ import Testing
 @MainActor
 struct GhosttySurfaceViewEnvironmentTests {
   @Test
+  func surfaceCreationUsesAccountShellAndKeepsArgumentsOutOfItsEnvironment() throws {
+    initializeGhosttyForTests()
+    let secret = "startup-secret-\(UUID().uuidString.lowercased())"
+    var command: String?
+    var initialInput: String?
+    var environment: [String: String] = [:]
+    var payloadArguments: [String]?
+
+    _ = GhosttySurfaceView(
+      runtime: try makeGhosttyRuntime("command = /usr/bin/false"),
+      tabID: UUID(),
+      workingDirectory: nil,
+      shellPath: "/bin/zsh",
+      cliPath: "/usr/bin/true",
+      startupCommand: .arguments(["tool", secret]),
+      context: GHOSTTY_SURFACE_CONTEXT_TAB,
+      surfaceFactory: { _, config in
+        command = config.pointee.command.map(String.init(cString:))
+        initialInput = config.pointee.initial_input.map(String.init(cString:))
+        if let variables = config.pointee.env_vars {
+          for index in 0..<config.pointee.env_var_count {
+            let variable = variables[index]
+            if let key = variable.key, let value = variable.value {
+              environment[String(cString: key)] = String(cString: value)
+            }
+          }
+        }
+        if let initialInput {
+          let launcherURL = URL(fileURLWithPath: initialInput.trimmingCharacters(in: .newlines))
+          let payloadURL = launcherURL.deletingLastPathComponent()
+            .appendingPathComponent("arguments.json")
+          payloadArguments = try? JSONDecoder().decode(
+            [String].self,
+            from: Data(contentsOf: payloadURL)
+          )
+        }
+        return nil
+      }
+    )
+
+    #expect(command == "/bin/zsh")
+    #expect(initialInput?.hasPrefix("/private/tmp/supaterm-startup-") == true)
+    #expect(payloadArguments == ["tool", secret])
+    #expect(!environment.values.contains { $0.contains(secret) })
+    #expect(!environment.keys.contains { $0.hasPrefix("SUPATERM_STARTUP_") })
+    if let initialInput {
+      let directoryPath = URL(fileURLWithPath: initialInput.trimmingCharacters(in: .newlines))
+        .deletingLastPathComponent().path
+      #expect(!FileManager.default.fileExists(atPath: directoryPath))
+    }
+  }
+
+  @Test
   func supatermEnvironmentVariablesIncludePaneSocketCliAndPrependedPath() {
     let surfaceID = UUID(uuidString: "A72F7A7D-B5E8-497E-A5D5-D26A77A0A4C7")!
     let tabID = UUID(uuidString: "9F4EB4BE-9216-4DCA-A866-C8276D9EF2AA")!

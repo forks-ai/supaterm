@@ -4,6 +4,7 @@ import Observation
 
 enum GhosttySurfaceFailure: Equatable {
   case rendererUnavailable
+  case startupPreparationFailed
   case surfaceCreationFailed
 }
 

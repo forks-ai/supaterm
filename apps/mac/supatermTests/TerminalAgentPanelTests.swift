@@ -366,13 +366,11 @@ struct TerminalAgentPanelTests {
 
     #expect(
       codex.forkStartupCommand
-        == SupatermShellCommand.interactiveStartupCommand(for: "codex fork 'session 1'")
+        == .arguments(["codex", "fork", "session 1"])
     )
     #expect(
       claude.forkStartupCommand
-        == SupatermShellCommand.interactiveStartupCommand(
-          for: "claude --fork-session --resume session-1"
-        )
+        == .arguments(["claude", "--fork-session", "--resume", "session-1"])
     )
     #expect(PaneAgentPanelSession.supported(agent: .pi, sessionID: "session-1") == nil)
     #expect(PaneAgentPanelSession.supported(agent: .codex, sessionID: " ") == nil)

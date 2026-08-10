@@ -97,20 +97,16 @@ nonisolated struct PaneAgentPanelSession: Equatable, Sendable {
     )
   }
 
-  var forkStartupCommand: String {
-    SupatermShellCommand.interactiveStartupCommand(for: forkCommand)
+  var forkStartupCommand: SupatermTerminalStartup {
+    .arguments(forkArguments)
   }
 
-  private var forkCommand: String {
+  private var forkArguments: [String] {
     switch agent {
     case .claude:
       return ["claude", "--fork-session", "--resume", sessionID]
-        .map(SupatermShellCommand.escapedToken)
-        .joined(separator: " ")
     case .codex:
       return ["codex", "fork", sessionID]
-        .map(SupatermShellCommand.escapedToken)
-        .joined(separator: " ")
     case .pi:
       preconditionFailure("Unsupported agent")
     }

@@ -2,6 +2,7 @@ import Darwin
 import Foundation
 import Testing
 
+@testable import SupatermCLIShared
 @testable import SupatermSupport
 
 struct SSHSessionInheritanceTests {
@@ -88,13 +89,14 @@ struct SSHSessionInheritanceTests {
       )
     )
 
-    let command = try #require(resolved)
+    let startupCommand = try #require(resolved)
     #expect(
-      command.hasPrefix(
-        "/usr/bin/env \(Self.cliPath) ssh --term xterm-custom --ssh /usr/bin/ssh -- -p 2222 dev@example.com;"
-      )
+      startupCommand
+        == .arguments([
+          "/usr/bin/env", Self.cliPath, "ssh", "--term", "xterm-custom", "--ssh", "/usr/bin/ssh",
+          "--", "-p", "2222", "dev@example.com",
+        ])
     )
-    #expect(!command.contains("SendEnv"))
   }
 
   @Test
@@ -159,8 +161,8 @@ struct SSHSessionInheritanceTests {
   }
 
   @Test
-  func fallsBackToALoginShellAfterTheRemoteSessionEnds() throws {
-    let command = try #require(
+  func runsInheritedSSHInsideTheExistingLoginShell() throws {
+    let startupCommand = try #require(
       SSHSessionInheritance.startupCommand(
         zmxSessionName: Self.sessionName,
         cliPath: Self.cliPath,
@@ -186,7 +188,9 @@ struct SSHSessionInheritanceTests {
       )
     )
 
-    #expect(command.hasPrefix("/usr/bin/env \(Self.cliPath) ssh --ssh ssh -- example.com;"))
-    #expect(command.contains("exec"))
+    #expect(
+      startupCommand
+        == .arguments(["/usr/bin/env", Self.cliPath, "ssh", "--ssh", "ssh", "--", "example.com"])
+    )
   }
 }

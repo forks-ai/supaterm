@@ -30,42 +30,6 @@ struct ZmxClientTests {
   }
 
   @Test
-  func resolveLaunchWrapsInteractiveShellWithoutCommand() {
-    let launch = ZmxAttach.resolveLaunch(
-      executablePath: "/tmp/zmx",
-      sessionID: "spt-session",
-      command: nil
-    )
-
-    #expect(launch.command == nil)
-    #expect(launch.commandWrapper == ["/tmp/zmx", "attach", "spt-session"])
-  }
-
-  @Test
-  func resolveLaunchKeepsStartupCommandAndAddsWrapper() {
-    let launch = ZmxAttach.resolveLaunch(
-      executablePath: "/tmp/zmx",
-      sessionID: "spt-session",
-      command: "/opt/homebrew/bin/fish -l -i -c 'echo hello'"
-    )
-
-    #expect(launch.command == "/opt/homebrew/bin/fish -l -i -c 'echo hello'")
-    #expect(launch.commandWrapper == ["/tmp/zmx", "attach", "spt-session"])
-  }
-
-  @Test
-  func resolveLaunchTreatsBlankCommandAsInteractive() {
-    let launch = ZmxAttach.resolveLaunch(
-      executablePath: "/tmp/zmx",
-      sessionID: "spt-session",
-      command: " \n "
-    )
-
-    #expect(launch.command == nil)
-    #expect(launch.commandWrapper == ["/tmp/zmx", "attach", "spt-session"])
-  }
-
-  @Test
   func socketBudgetUsesShortTemporaryDirectory() {
     #expect(ZmxSocketBudget.socketDir() == "/tmp/zmx-\(getuid())")
   }

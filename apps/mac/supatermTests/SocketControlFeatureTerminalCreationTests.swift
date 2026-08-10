@@ -17,7 +17,7 @@ struct SocketControlCreationTests {
     let handle = UUID(uuidString: "52A01791-C69B-423B-B58E-021239595B1D")!
     let groupID = UUID(uuidString: "BEA0180D-C5AF-4A85-96DD-5B6356C87CD8")!
     let requestPayload = SupatermNewTabRequest(
-      startupCommand: "pwd",
+      startupCommand: .arguments(["pwd"]),
       cwd: "/tmp/example",
       focus: false,
       target: .group(groupID)
@@ -47,7 +47,7 @@ struct SocketControlCreationTests {
         #expect(
           request
             == TerminalCreateTabRequest(
-              startupCommand: "pwd",
+              startupCommand: .arguments(["pwd"]),
               cwd: "/tmp/example",
               focus: false,
               target: .group(groupID)
@@ -164,7 +164,7 @@ struct SocketControlCreationTests {
     let recorder = SocketReplyRecorder()
     let handle = UUID(uuidString: "0708C52C-64A0-4B3D-B469-3AB200CB4128")!
     let requestPayload = SupatermNewPaneRequest(
-      startupCommand: "pwd",
+      startupCommand: .arguments(["pwd"]),
       cwd: "/tmp/example",
       direction: .down,
       focus: false,
@@ -196,7 +196,7 @@ struct SocketControlCreationTests {
         #expect(
           request
             == TerminalCreatePaneRequest(
-              startupCommand: "pwd",
+              startupCommand: .arguments(["pwd"]),
               cwd: "/tmp/example",
               direction: .down,
               focus: false,

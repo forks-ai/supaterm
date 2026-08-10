@@ -15,6 +15,7 @@ extension SP {
       shouldDisplay: false,
       subcommands: [
         Ping.self,
+        Launch.self,
         AgentSettings.self,
         Development.self,
       ]
@@ -56,6 +57,33 @@ extension SP {
     }
   }
 
+  struct Launch: ParsableCommand {
+    static let configuration = CommandConfiguration(
+      commandName: "launch",
+      shouldDisplay: false
+    )
+
+    @Argument
+    var payloadPath: String
+
+    mutating func run() throws {
+      let environment = ProcessInfo.processInfo.environment
+      let arguments = try Self.arguments(payloadPath: payloadPath)
+      try SPStartupLauncher.run(
+        arguments: arguments,
+        environment: environment
+      )
+    }
+
+    static func arguments(payloadPath: String) throws -> [String] {
+      do {
+        return try SupatermTerminalStartup.consumeArguments(payloadPath: payloadPath)
+      } catch {
+        throw ValidationError("Invalid startup arguments.")
+      }
+    }
+  }
+
   struct Development: ParsableCommand {
     static let configuration = CommandConfiguration(
       commandName: "dev",
@@ -67,6 +95,27 @@ extension SP {
     mutating func run() throws {
       print(Self.helpMessage())
     }
+  }
+}
+
+enum SPStartupLauncher {
+  static func run(
+    arguments: [String],
+    environment: [String: String] = ProcessInfo.processInfo.environment
+  ) throws -> Never {
+    guard let command = arguments.first, SupatermTerminalStartup.validArguments(arguments) else {
+      throw ValidationError("Startup requires a command.")
+    }
+    guard let executablePath = SPExecutable.resolve(command, searchPath: environment["PATH"])
+    else {
+      throw ValidationError("Unable to find \(command) on PATH.")
+    }
+    try SPProcess.replaceCurrent(
+      executablePath: executablePath,
+      arguments: arguments,
+      environment: environment,
+      failureDescription: "Failed to launch startup command"
+    )
   }
 }
 
@@ -237,7 +286,7 @@ struct SPDevelopmentClaudeEventBuilder {
     let sessionID = try resolvedSessionID(context: context, sessionIDOverride: sessionIDOverride)
     switch kind {
     case .sessionStart:
-      return .init(
+      return SupatermAgentHookEvent(
         agentType: "assistant",
         cwd: currentDirectoryPath,
         hookEventName: .sessionStart,
@@ -247,14 +296,14 @@ struct SPDevelopmentClaudeEventBuilder {
       )
 
     case .preToolUse:
-      return .init(
+      return SupatermAgentHookEvent(
         cwd: currentDirectoryPath,
         hookEventName: .preToolUse,
         sessionID: sessionID
       )
 
     case .notification:
-      return .init(
+      return SupatermAgentHookEvent(
         cwd: currentDirectoryPath,
         hookEventName: .notification,
         message: "Claude needs your attention",
@@ -264,14 +313,14 @@ struct SPDevelopmentClaudeEventBuilder {
       )
 
     case .userPromptSubmit:
-      return .init(
+      return SupatermAgentHookEvent(
         cwd: currentDirectoryPath,
         hookEventName: .userPromptSubmit,
         sessionID: sessionID
       )
 
     case .stop:
-      return .init(
+      return SupatermAgentHookEvent(
         cwd: currentDirectoryPath,
         hookEventName: .stop,
         lastAssistantMessage: "Done.",
@@ -279,7 +328,7 @@ struct SPDevelopmentClaudeEventBuilder {
       )
 
     case .sessionEnd:
-      return .init(
+      return SupatermAgentHookEvent(
         cwd: currentDirectoryPath,
         hookEventName: .sessionEnd,
         sessionID: sessionID
@@ -331,7 +380,7 @@ private func sendDevelopmentClaudeEvent(
   )
   let response = try client.send(
     .agentHook(
-      .init(
+      SupatermAgentHookRequest(
         agent: .claude,
         context: context,
         event: event
@@ -353,7 +402,7 @@ private func requireDevelopmentBuild(connection: SPConnectionOptions) throws {
   )
   let response = try client.send(
     .debug(
-      .init(context: SupatermCLIContext.current)
+      SupatermDebugRequest(context: SupatermCLIContext.current)
     )
   )
   guard response.ok else {

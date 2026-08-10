@@ -79,7 +79,6 @@ struct TerminalWindowFeature {
   struct State: Equatable {
     var commandPalette: TerminalCommandPaletteState?
     var confirmationRequest: ConfirmationRequest?
-    var startupCommand: String?
     var isFloatingSidebarVisible = false
     var isSidebarCollapsed = false
     var hiddenAgentPanelSurfaceIDs: Set<UUID> = []
@@ -543,23 +542,13 @@ struct TerminalWindowFeature {
         return sendCommand(.selectTab(tabID))
 
       case .task:
-        let startupCommand = state.startupCommand
-        state.startupCommand = nil
-        return .merge(
-          sendCommand(
-            .ensureInitialTab(
-              focusing: false,
-              startupCommand: startupCommand
-            )
-          ),
-          .run { [terminalClient] send in
-            let events = await terminalClient.events()
-            for await event in events {
-              await send(.clientEvent(event))
-            }
+        return .run { [terminalClient] send in
+          let events = await terminalClient.events()
+          for await event in events {
+            await send(.clientEvent(event))
           }
-          .cancellable(id: TerminalWindowCancelID.events, cancelInFlight: true)
-        )
+        }
+        .cancellable(id: TerminalWindowCancelID.events, cancelInFlight: true)
 
       case .spaceCreateButtonTapped:
         state.spaceEditor = TerminalSpaceEditorState(

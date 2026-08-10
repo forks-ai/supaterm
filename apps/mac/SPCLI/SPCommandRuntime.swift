@@ -163,9 +163,9 @@ func treeSnapshot(_ client: SPSocketClient) throws -> SupatermTreeSnapshot {
   return try response.decodeResult(SupatermTreeSnapshot.self)
 }
 
-func shellCommandInput(_ tokens: [String]) -> String? {
+func argumentStartup(_ tokens: [String]) -> SupatermTerminalStartup? {
   guard !tokens.isEmpty else { return nil }
-  return tokens.map(SupatermShellCommand.escapedToken).joined(separator: " ")
+  return .arguments(tokens)
 }
 
 func validateStartupCommand(script: String?, tokens: [String]) throws {
@@ -174,14 +174,14 @@ func validateStartupCommand(script: String?, tokens: [String]) throws {
   }
 }
 
-func startupCommand(script: String?, tokens: [String]) throws -> String? {
+func terminalStartup(script: String?, tokens: [String]) throws -> SupatermTerminalStartup? {
   if let script {
     if script.isEmpty {
       throw ValidationError("--script must not be empty.")
     }
-    return script
+    return .script(script)
   }
-  return shellCommandInput(tokens)
+  return argumentStartup(tokens)
 }
 
 func resolvedWorkingDirectory(_ path: String?) throws -> String? {

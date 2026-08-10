@@ -1,161 +1,165 @@
+import CustomDump
 import Foundation
 import Testing
 
 @testable import SupatermCLIShared
 
 struct SupatermShellCommandTests {
-  private static let supportedShellNames = ["bash", "zsh", "fish", "elvish", "nu"]
-
   @Test
   func escapedTokenLeavesSafeTokensUnquoted() {
-    #expect(SupatermShellCommand.escapedToken("abcXYZ09@%_+=:,./-") == "abcXYZ09@%_+=:,./-")
+    expectNoDifference(
+      SupatermShellCommand.escapedToken("abcXYZ09@%_+=:,./-"),
+      "abcXYZ09@%_+=:,./-"
+    )
   }
 
   @Test
   func escapedTokenQuotesShellSensitiveText() {
-    #expect(SupatermShellCommand.escapedToken("hello world") == "'hello world'")
-    #expect(SupatermShellCommand.escapedToken("echo 'hi'") == #"'echo '"'"'hi'"'"''"#)
-  }
-
-  @Test
-  func ghosttyStartupCommandRunsScriptThroughLoginShell() {
-    #expect(
-      SupatermShellCommand.ghosttyStartupCommand(for: "echo hello", shellPath: "/bin/zsh")
-        == "/bin/zsh -l -i -c 'echo hello'"
+    expectNoDifference(
+      SupatermShellCommand.escapedToken("hello world"),
+      "'hello world'"
     )
-    #expect(
-      SupatermShellCommand.ghosttyStartupCommand(for: "echo hello", shellPath: "/opt/homebrew/bin/fish")
-        == "/opt/homebrew/bin/fish -l -i -c 'echo hello'"
-    )
-    #expect(
-      SupatermShellCommand.ghosttyStartupCommand(for: "echo hello", shellPath: "/opt/homebrew/bin/elvish")
-        == "/opt/homebrew/bin/elvish -l -i -c 'echo hello'"
-    )
-    #expect(
-      SupatermShellCommand.ghosttyStartupCommand(for: "echo hello", shellPath: "/opt/homebrew/bin/nu")
-        == "/opt/homebrew/bin/nu -l -i -c 'echo hello'"
-    )
-    #expect(
-      SupatermShellCommand.ghosttyStartupCommand(for: "echo 1\necho 2", shellPath: "/bin/zsh")
-        == "/bin/zsh -l -i -c 'echo 1\necho 2'"
+    expectNoDifference(
+      SupatermShellCommand.escapedToken("echo 'hi'"),
+      #"'echo '"'"'hi'"'"''"#
     )
   }
 
   @Test
-  func ghosttyStartupCommandQuotesComplexScripts() {
-    #expect(
-      SupatermShellCommand.ghosttyStartupCommand(
-        for: #"sp onboard; exec "${SHELL:-/bin/zsh}" -l"#,
-        shellPath: "/bin/zsh"
+  func loginShellCommandArgumentsKeepTheScriptInOneArgument() {
+    expectNoDifference(
+      SupatermShellCommand.loginShellCommandArguments(for: "printf '%s\\n' hello; exit"),
+      ["-l", "-i", "-c", "printf '%s\\n' hello; exit"]
+    )
+  }
+
+  @Test
+  func loginShellPathPrefersTheCurrentUsersAbsoluteExecutable() {
+    expectNoDifference(
+      SupatermShellCommand.loginShellPath(
+        environment: ["SHELL": "/bin/zsh"],
+        currentUserShellPath: "/bin/sh"
+      ),
+      "/bin/sh"
+    )
+  }
+
+  @Test
+  func loginShellPathUsesTheEnvironmentWhenTheCurrentUserShellIsInvalid() {
+    for invalidPath in ["bin/zsh", "/does/not/exist", "/bin"] {
+      expectNoDifference(
+        SupatermShellCommand.loginShellPath(
+          environment: ["SHELL": "/bin/sh"],
+          currentUserShellPath: invalidPath
+        ),
+        "/bin/sh"
       )
-        == #"/bin/zsh -l -i -c 'sp onboard; exec "${SHELL:-/bin/zsh}" -l'"#
+    }
+  }
+
+  @Test
+  func loginShellPathRejectsAnInvalidEnvironmentShell() {
+    for invalidPath in ["bin/sh", "/does/not/exist", "/bin"] {
+      expectNoDifference(
+        SupatermShellCommand.loginShellPath(
+          environment: ["SHELL": invalidPath],
+          currentUserShellPath: nil
+        ),
+        "/bin/zsh"
+      )
+    }
+  }
+
+  @Test
+  func loginShellPathTrimsAnAbsoluteExecutable() {
+    expectNoDifference(
+      SupatermShellCommand.loginShellPath(
+        environment: [:],
+        currentUserShellPath: "  /bin/sh\n"
+      ),
+      "/bin/sh"
     )
   }
 
   @Test
-  func interactiveStartupCommandLeavesTheSupportedLoginShellBehind() {
+  func availableShellsRunStartupPathAndRemainLoginShells() throws {
     for shellPath in [
       "/bin/bash",
+      "/bin/csh",
+      "/bin/dash",
+      "/bin/ksh",
+      "/bin/sh",
+      "/bin/tcsh",
       "/bin/zsh",
       "/opt/homebrew/bin/elvish",
       "/opt/homebrew/bin/fish",
-      "/opt/homebrew/bin/nu",
-    ] {
-      #expect(
-        SupatermShellCommand.interactiveStartupCommand(
-          for: "echo hello",
-          shellPath: shellPath
-        ) == "echo hello; exec \(shellPath) -l"
-      )
+      "/usr/local/bin/elvish",
+      "/usr/local/bin/fish",
+    ].filter(FileManager.default.isExecutableFile(atPath:)) {
+      try verifyLoginShellStartup(shellPath)
     }
   }
+}
 
-  @Test
-  func installedSupportedShellsParseInteractiveStartupCommand() throws {
-    var tested: Set<String> = []
+private func verifyLoginShellStartup(_ shellPath: String) throws {
+  #expect(FileManager.default.isExecutableFile(atPath: shellPath))
+  let directoryURL = URL(fileURLWithPath: "/private/tmp", isDirectory: true)
+    .appendingPathComponent("supaterm-shell-test-\(UUID().uuidString.lowercased())", isDirectory: true)
+  try FileManager.default.createDirectory(at: directoryURL, withIntermediateDirectories: false)
+  defer { try? FileManager.default.removeItem(at: directoryURL) }
+  let launchedURL = directoryURL.appendingPathComponent("launched")
+  let followUpURL = directoryURL.appendingPathComponent("follow-up")
+  let loginCommandURL = directoryURL.appendingPathComponent("login-command")
+  let recorderURL = directoryURL.appendingPathComponent("recorder")
+  let recorder = """
+    #!/bin/sh
+    /bin/ps -p "$PPID" -o command= > "\(loginCommandURL.path)"
+    /usr/bin/printf launched > "\(launchedURL.path)"
+    """
+  try recorder.write(to: recorderURL, atomically: true, encoding: .utf8)
+  try FileManager.default.setAttributes([.posixPermissions: 0o700], ofItemAtPath: recorderURL.path)
+  let prepared = try SupatermTerminalStartup.script(recorderURL.path).prepare(
+    cliPath: nil,
+    shellPath: shellPath,
+    temporaryDirectory: directoryURL
+  )
+  defer { prepared.cleanupToken?.cleanup() }
+  let transportDirectoryURL = try #require(prepared.cleanupDirectoryURL)
 
-    for name in Self.supportedShellNames {
-      guard let shellPath = executablePath(named: name) else { continue }
-      tested.insert(name)
-
-      let script = SupatermShellCommand.interactiveStartupCommand(
-        for: "exit 0",
-        shellPath: shellPath
-      )
-      let process = try run(script: script, shellPath: shellPath)
-
-      #expect(process.terminationReason == .exit)
-      #expect(process.terminationStatus == 0, "\(name) rejected the startup command")
-    }
-
-    #expect(tested.contains("bash"))
-    #expect(tested.contains("zsh"))
-  }
-
-  @Test
-  func installedSupportedShellsRunQuotedExecutablePaths() throws {
-    let directory = FileManager.default.temporaryDirectory
-      .appendingPathComponent("supaterm shell command \(UUID())", isDirectory: true)
-    try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
-    defer { try? FileManager.default.removeItem(at: directory) }
-
-    let executable = directory.appendingPathComponent("sp", isDirectory: false)
-    try FileManager.default.createSymbolicLink(
-      at: executable,
-      withDestinationURL: URL(fileURLWithPath: "/usr/bin/true")
+  let input = Pipe()
+  let process = Process()
+  process.executableURL = URL(fileURLWithPath: "/bin/bash")
+  process.arguments = [
+    "--noprofile",
+    "--norc",
+    "-c",
+    #"exec -l -- "$@""#,
+    "bash",
+    shellPath,
+  ]
+  process.environment = [
+    "HOME": directoryURL.path,
+    "PATH": "/usr/bin:/bin:/usr/sbin:/sbin",
+    "ZDOTDIR": directoryURL.path,
+  ]
+  process.standardInput = input
+  process.standardOutput = FileHandle.nullDevice
+  process.standardError = FileHandle.nullDevice
+  try process.run()
+  try input.fileHandleForWriting.write(
+    contentsOf: Data(
+      "\(prepared.initialInput)/usr/bin/printf follow-up > \(followUpURL.path)\nexit\n".utf8
     )
-    let command = try #require(
-      SupatermSSHCommand.commandLine(
-        forArguments: ["ssh", "example.com"],
-        terminalType: nil,
-        cliPath: executable.path
-      )
-    )
+  )
+  try input.fileHandleForWriting.close()
+  process.waitUntilExit()
 
-    var tested: Set<String> = []
-    for name in Self.supportedShellNames {
-      guard let shellPath = executablePath(named: name) else { continue }
-      tested.insert(name)
-
-      let process = try run(script: "\(command); exit 0", shellPath: shellPath)
-
-      #expect(process.terminationReason == .exit)
-      #expect(process.terminationStatus == 0, "\(name) rejected the quoted executable path")
-    }
-
-    #expect(tested.contains("bash"))
-    #expect(tested.contains("zsh"))
-  }
-
-  @Test
-  func loginShellPathPrefersCurrentUserShell() {
-    #expect(
-      SupatermShellCommand.loginShellPath(
-        environment: ["SHELL": "/bin/zsh"],
-        currentUserShellPath: "/opt/homebrew/bin/fish"
-      ) == "/opt/homebrew/bin/fish"
-    )
-  }
-
-  private func executablePath(named name: String) -> String? {
-    let pathDirectories =
-      ProcessInfo.processInfo.environment["PATH"]?
-      .split(separator: ":")
-      .map(String.init) ?? []
-    return (["/bin", "/usr/bin", "/opt/homebrew/bin", "/usr/local/bin"] + pathDirectories)
-      .map { URL(fileURLWithPath: $0).appendingPathComponent(name).path }
-      .first(where: FileManager.default.isExecutableFile)
-  }
-
-  private func run(script: String, shellPath: String) throws -> Process {
-    let process = Process()
-    process.executableURL = URL(fileURLWithPath: shellPath)
-    process.arguments = SupatermShellCommand.loginShellCommandArguments(for: script)
-    process.standardInput = FileHandle.nullDevice
-    process.standardOutput = FileHandle.nullDevice
-    process.standardError = FileHandle.nullDevice
-    try process.run()
-    process.waitUntilExit()
-    return process
-  }
+  #expect(process.terminationStatus == 0)
+  #expect(try String(contentsOf: launchedURL, encoding: .utf8) == "launched")
+  #expect(try String(contentsOf: followUpURL, encoding: .utf8) == "follow-up")
+  #expect(!FileManager.default.fileExists(atPath: transportDirectoryURL.path))
+  #expect(
+    try String(contentsOf: loginCommandURL, encoding: .utf8)
+      .trimmingCharacters(in: .whitespacesAndNewlines) == "-\(shellPath)"
+  )
 }

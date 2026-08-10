@@ -25,11 +25,11 @@ public enum SupatermSSHCommand {
     forwardedEnvironmentVariables.flatMap { ["-o", "SendEnv=\($0)"] }
   }
 
-  public static func commandLine(
+  public static func inheritedArguments(
     forArguments arguments: [String],
     terminalType: String?,
     cliPath: String?
-  ) -> String? {
+  ) -> [String]? {
     guard let executable = arguments.first else { return nil }
 
     let sourceArguments = Array(arguments.dropFirst())
@@ -63,10 +63,7 @@ public enum SupatermSSHCommand {
       tokens += [executable] + sourceArguments
     }
 
-    return
-      tokens
-      .map(SupatermShellCommand.escapedToken)
-      .joined(separator: " ")
+    return tokens
   }
 
   private static func sessionArguments(_ arguments: [String]) -> [String]? {

@@ -2,26 +2,6 @@ import Darwin
 import Foundation
 
 public enum SupatermShellCommand {
-  public static func ghosttyStartupCommand(for script: String) -> String {
-    ghosttyStartupCommand(for: script, shellPath: loginShellPath())
-  }
-
-  public static func ghosttyStartupCommand(for script: String, shellPath: String) -> String {
-    let shellPath = normalizedShellPath(shellPath) ?? "/bin/zsh"
-    return ([shellPath] + loginShellCommandArguments(for: script))
-      .map(escapedToken)
-      .joined(separator: " ")
-  }
-
-  public static func interactiveStartupCommand(for command: String) -> String {
-    interactiveStartupCommand(for: command, shellPath: loginShellPath())
-  }
-
-  public static func interactiveStartupCommand(for command: String, shellPath: String) -> String {
-    let shellPath = normalizedShellPath(shellPath) ?? "/bin/zsh"
-    return "\(command); exec \(escapedToken(shellPath)) -l"
-  }
-
   public static func loginShellCommandArguments(for command: String) -> [String] {
     ["-l", "-i", "-c", command]
   }
@@ -30,9 +10,10 @@ public enum SupatermShellCommand {
     environment: [String: String] = ProcessInfo.processInfo.environment,
     currentUserShellPath: String? = currentUserShellPath()
   ) -> String {
-    normalizedShellPath(currentUserShellPath)
-      ?? normalizedShellPath(environment["SHELL"])
-      ?? "/bin/zsh"
+    executableShellPath(currentUserShellPath)
+      ?? executableShellPath(environment["SHELL"])
+      ?? executableShellPath("/bin/zsh")
+      ?? "/bin/sh"
   }
 
   public static func escapedToken(_ token: String) -> String {
@@ -56,6 +37,21 @@ public enum SupatermShellCommand {
 
   private static func normalizedShellPath(_ path: String?) -> String? {
     guard let path = path?.trimmingCharacters(in: .whitespacesAndNewlines), !path.isEmpty else {
+      return nil
+    }
+    return path
+  }
+
+  private static func executableShellPath(_ path: String?) -> String? {
+    guard let path = normalizedShellPath(path), path.hasPrefix("/") else {
+      return nil
+    }
+    var isDirectory = ObjCBool(false)
+    guard
+      FileManager.default.fileExists(atPath: path, isDirectory: &isDirectory),
+      !isDirectory.boolValue,
+      FileManager.default.isExecutableFile(atPath: path)
+    else {
       return nil
     }
     return path
