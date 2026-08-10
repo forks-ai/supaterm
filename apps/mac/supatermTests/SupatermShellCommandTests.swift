@@ -123,8 +123,8 @@ private func verifyLoginShellStartup(_ shellPath: String) throws {
     shellPath: shellPath,
     temporaryDirectory: directoryURL
   )
-  defer { prepared.cleanupToken?.cleanup() }
-  let transportDirectoryURL = try #require(prepared.cleanupDirectoryURL)
+  defer { prepared.cleanupToken.cleanup() }
+  let transportDirectoryURL = prepared.cleanupDirectoryURL
 
   let input = Pipe()
   let process = Process()

@@ -14,19 +14,13 @@ final class GhosttySurfaceLaunch {
     startup: SupatermTerminalStartup?
   ) {
     commandCString = SupatermShellCommand.escapedToken(shellPath).withCString { strdup($0) }
-    let prepared: SupatermPreparedTerminalStartup?
-    let preparationError: Bool
-    do {
-      prepared = try startup?.prepare(cliPath: cliPath, shellPath: shellPath)
-      preparationError = false
-    } catch {
-      prepared = nil
-      preparationError = true
+    let prepared = startup.flatMap {
+      try? $0.prepare(cliPath: cliPath, shellPath: shellPath)
     }
     cleanupToken = prepared?.cleanupToken
     inputCString = prepared?.initialInput.withCString { strdup($0) }
-    preparationFailed =
-      preparationError || commandCString == nil || (prepared != nil && inputCString == nil)
+    let startupFailed = startup != nil && (prepared == nil || inputCString == nil)
+    preparationFailed = commandCString == nil || startupFailed
     if preparationFailed {
       cleanupToken?.cleanup()
     }

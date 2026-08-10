@@ -14,8 +14,8 @@ struct SPInternalLaunchTests {
       cliPath: "/usr/bin/true",
       temporaryDirectory: rootURL
     )
-    defer { prepared.cleanupToken?.cleanup() }
-    let payloadURL = try payloadURL(prepared)
+    defer { prepared.cleanupToken.cleanup() }
+    let payloadURL = payloadURL(prepared)
 
     #expect(try SP.Launch.arguments(payloadPath: payloadURL.path) == expected)
     #expect(!FileManager.default.fileExists(atPath: payloadURL.path))
@@ -30,7 +30,7 @@ struct SPInternalLaunchTests {
     let prepared = try SupatermTerminalStartup.arguments(expected).prepare(
       cliPath: "/usr/bin/true"
     )
-    defer { prepared.cleanupToken?.cleanup() }
+    defer { prepared.cleanupToken.cleanup() }
 
     #expect(try SP.Launch.arguments(payloadPath: payloadURL(prepared).path) == expected)
   }
@@ -43,8 +43,8 @@ struct SPInternalLaunchTests {
       cliPath: "/usr/bin/true",
       temporaryDirectory: rootURL
     )
-    defer { prepared.cleanupToken?.cleanup() }
-    let payloadURL = try payloadURL(prepared)
+    defer { prepared.cleanupToken.cleanup() }
+    let payloadURL = payloadURL(prepared)
     try FileManager.default.setAttributes(
       [.posixPermissions: 0o644],
       ofItemAtPath: payloadURL.path
@@ -66,8 +66,8 @@ struct SPInternalLaunchTests {
       cliPath: "/usr/bin/true",
       temporaryDirectory: rootURL
     )
-    defer { prepared.cleanupToken?.cleanup() }
-    let payloadURL = try payloadURL(prepared)
+    defer { prepared.cleanupToken.cleanup() }
+    let payloadURL = payloadURL(prepared)
     try Data(
       repeating: 0,
       count: SupatermTerminalStartup.maximumArgumentsPayloadSize + 1
@@ -88,8 +88,8 @@ struct SPInternalLaunchTests {
       cliPath: "/usr/bin/true",
       temporaryDirectory: rootURL
     )
-    defer { prepared.cleanupToken?.cleanup() }
-    let payloadURL = try payloadURL(prepared)
+    defer { prepared.cleanupToken.cleanup() }
+    let payloadURL = payloadURL(prepared)
     try FileManager.default.removeItem(
       at: payloadURL.deletingLastPathComponent().appendingPathComponent("launch")
     )
@@ -126,9 +126,9 @@ struct SPInternalLaunchTests {
       cliPath: "/usr/bin/true",
       temporaryDirectory: harness.rootURL
     )
-    defer { prepared.cleanupToken?.cleanup() }
+    defer { prepared.cleanupToken.cleanup() }
 
-    let result = try harness.run(["internal", "launch", try payloadURL(prepared).path])
+    let result = try harness.run(["internal", "launch", payloadURL(prepared).path])
 
     #expect(result.exitCode == 0)
     #expect(try String(contentsOf: outputURL, encoding: .utf8) == "sh")
@@ -153,6 +153,6 @@ private func temporaryRoot() throws -> URL {
   return url
 }
 
-private func payloadURL(_ prepared: SupatermPreparedTerminalStartup) throws -> URL {
-  try #require(prepared.cleanupDirectoryURL).appendingPathComponent("arguments.json")
+private func payloadURL(_ prepared: SupatermPreparedTerminalStartup) -> URL {
+  prepared.cleanupDirectoryURL.appendingPathComponent("arguments.json")
 }

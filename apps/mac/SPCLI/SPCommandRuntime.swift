@@ -163,25 +163,20 @@ func treeSnapshot(_ client: SPSocketClient) throws -> SupatermTreeSnapshot {
   return try response.decodeResult(SupatermTreeSnapshot.self)
 }
 
-func argumentStartup(_ tokens: [String]) -> SupatermTerminalStartup? {
-  guard !tokens.isEmpty else { return nil }
-  return .arguments(tokens)
-}
-
-func validateStartupCommand(script: String?, tokens: [String]) throws {
-  if script != nil && !tokens.isEmpty {
-    throw ValidationError("--script cannot be used with a trailing command.")
-  }
-}
-
 func terminalStartup(script: String?, tokens: [String]) throws -> SupatermTerminalStartup? {
   if let script {
-    if script.isEmpty {
+    guard tokens.isEmpty else {
+      throw ValidationError("--script cannot be used with a trailing command.")
+    }
+    guard !script.isEmpty else {
       throw ValidationError("--script must not be empty.")
     }
     return .script(script)
   }
-  return argumentStartup(tokens)
+  if !tokens.isEmpty {
+    return .arguments(tokens)
+  }
+  return nil
 }
 
 func resolvedWorkingDirectory(_ path: String?) throws -> String? {

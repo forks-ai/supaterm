@@ -81,7 +81,7 @@ extension SP {
     }
 
     func validate() throws {
-      try validateStartupCommand(script: script, tokens: input)
+      _ = try terminalStartup(script: script, tokens: input)
       if group != nil && root {
         throw ValidationError("Provide either --group or --root, not both.")
       }
@@ -158,7 +158,7 @@ extension SP {
     }
 
     func validate() throws {
-      try validateStartupCommand(script: script, tokens: input)
+      _ = try terminalStartup(script: script, tokens: input)
     }
 
     private func requestPayload(client: SPSocketClient) throws -> SupatermNewPaneRequest {

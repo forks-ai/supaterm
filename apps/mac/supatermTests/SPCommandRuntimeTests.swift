@@ -7,10 +7,13 @@ import Testing
 
 struct SPCommandRuntimeTests {
   @Test
-  func argumentStartupPreservesTokens() {
-    #expect(argumentStartup([]) == nil)
+  func terminalStartupPreservesTokens() throws {
+    #expect(try terminalStartup(script: nil, tokens: []) == nil)
     #expect(
-      argumentStartup(["echo", "", "hello world", "bang!", "$(touch nope)"])
+      try terminalStartup(
+        script: nil,
+        tokens: ["echo", "", "hello world", "bang!", "$(touch nope)"]
+      )
         == .arguments(["echo", "", "hello world", "bang!", "$(touch nope)"])
     )
   }
@@ -31,7 +34,7 @@ struct SPCommandRuntimeTests {
     }
 
     do {
-      try validateStartupCommand(script: "echo 1", tokens: ["echo", "2"])
+      _ = try terminalStartup(script: "echo 1", tokens: ["echo", "2"])
       Issue.record("Expected script plus tokens to throw.")
     } catch {
       #expect(String(describing: error).contains("--script cannot be used with a trailing command."))

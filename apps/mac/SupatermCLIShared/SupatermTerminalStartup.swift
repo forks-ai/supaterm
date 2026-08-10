@@ -5,7 +5,7 @@ public enum SupatermTerminalStartup: Equatable, Sendable, Codable {
   case arguments([String])
   case script(String)
 
-  public static let maximumArgumentsPayloadSize = 8 * 1_024 * 1_024
+  static let maximumArgumentsPayloadSize = 8 * 1_024 * 1_024
   private static let transportDirectoryPrefix = "supaterm-startup-"
   private static let argumentsFileName = "arguments.json"
 
@@ -106,17 +106,12 @@ public enum SupatermTerminalStartup: Equatable, Sendable, Codable {
     guard argumentsData.count <= maximumArgumentsPayloadSize else {
       throw SupatermTerminalStartupError.invalidArguments
     }
-    reapStaleTransports(temporaryDirectory: temporaryDirectory)
-    let transport = try makeTransportDirectory(in: temporaryDirectory)
-    let directoryURL = transport.directoryURL
-    let argumentsURL = directoryURL.appendingPathComponent(argumentsFileName, isDirectory: false)
-    let launcherURL = directoryURL.appendingPathComponent("launch", isDirectory: false)
-    let initialInput = launcherURL.path + "\n"
-    guard Self.isShellSafePath(launcherURL.path), initialInput.utf8.count < 1_024 else {
-      transport.cleanupToken.cleanup()
-      throw SupatermTerminalStartupError.invalidTemporaryDirectory
-    }
-    do {
+    return try withTransportDirectory(in: temporaryDirectory) { transport in
+      let directoryURL = transport.directoryURL
+      let argumentsURL = directoryURL.appendingPathComponent(argumentsFileName, isDirectory: false)
+      let launcherURL = directoryURL.appendingPathComponent("launch", isDirectory: false)
+      let initialInput = launcherURL.path + "\n"
+      try validateInitialInput(initialInput, path: launcherURL.path)
       try Self.write(
         argumentsData,
         to: argumentsURL,
@@ -132,9 +127,6 @@ public enum SupatermTerminalStartup: Equatable, Sendable, Codable {
         initialInput: initialInput,
         cleanupToken: transport.cleanupToken
       )
-    } catch {
-      transport.cleanupToken.cleanup()
-      throw error
     }
   }
 
@@ -149,32 +141,45 @@ public enum SupatermTerminalStartup: Equatable, Sendable, Codable {
     else {
       throw SupatermTerminalStartupError.invalidArguments
     }
-    reapStaleTransports(temporaryDirectory: temporaryDirectory)
-    let transport = try makeTransportDirectory(in: temporaryDirectory)
-    let directoryURL = transport.directoryURL
-    let scriptURL = directoryURL.appendingPathComponent(
-      scriptFileName(shellPath: shellPath),
-      isDirectory: false
-    )
-    let initialInput = sourceCommand(scriptPath: scriptURL.path, shellPath: shellPath) + "\n"
-    guard isShellSafePath(scriptURL.path), initialInput.utf8.count < 1_024 else {
-      transport.cleanupToken.cleanup()
-      throw SupatermTerminalStartupError.invalidTemporaryDirectory
-    }
-    let contents = """
-      /bin/rm -f -- \(scriptURL.path)
-      /bin/rmdir \(directoryURL.path)
-      \(script)
-      """
-    do {
+    let shellName = URL(fileURLWithPath: shellPath).lastPathComponent.lowercased()
+    return try withTransportDirectory(in: temporaryDirectory) { transport in
+      let directoryURL = transport.directoryURL
+      let scriptURL = directoryURL.appendingPathComponent(
+        scriptFileName(shellName: shellName),
+        isDirectory: false
+      )
+      let initialInput = sourceCommand(scriptPath: scriptURL.path, shellName: shellName) + "\n"
+      try validateInitialInput(initialInput, path: scriptURL.path)
+      let contents = """
+        /bin/rm -f -- \(scriptURL.path)
+        /bin/rmdir \(directoryURL.path)
+        \(script)
+        """
       try write(Data(contents.utf8), to: scriptURL, permissions: 0o600)
       return SupatermPreparedTerminalStartup(
         initialInput: initialInput,
         cleanupToken: transport.cleanupToken
       )
+    }
+  }
+
+  private static func withTransportDirectory<Result>(
+    in temporaryDirectory: URL,
+    _ operation: (TransportDirectory) throws -> Result
+  ) throws -> Result {
+    reapStaleTransports(temporaryDirectory: temporaryDirectory)
+    let transport = try makeTransportDirectory(in: temporaryDirectory)
+    do {
+      return try operation(transport)
     } catch {
       transport.cleanupToken.cleanup()
       throw error
+    }
+  }
+
+  private static func validateInitialInput(_ initialInput: String, path: String) throws {
+    guard isShellSafePath(path), initialInput.utf8.count < 1_024 else {
+      throw SupatermTerminalStartupError.invalidTemporaryDirectory
     }
   }
 
@@ -249,8 +254,8 @@ public enum SupatermTerminalStartup: Equatable, Sendable, Codable {
       """
   }
 
-  private static func scriptFileName(shellPath: String) -> String {
-    switch URL(fileURLWithPath: shellPath).lastPathComponent.lowercased() {
+  private static func scriptFileName(shellName: String) -> String {
+    switch shellName {
     case "nu", "nushell":
       return "script.nu"
     default:
@@ -258,8 +263,8 @@ public enum SupatermTerminalStartup: Equatable, Sendable, Codable {
     }
   }
 
-  private static func sourceCommand(scriptPath: String, shellPath: String) -> String {
-    switch URL(fileURLWithPath: shellPath).lastPathComponent.lowercased() {
+  private static func sourceCommand(scriptPath: String, shellName: String) -> String {
+    switch shellName {
     case "csh", "tcsh", "fish", "nu", "nushell":
       return "source \(scriptPath)"
     case "elvish":
@@ -317,7 +322,7 @@ public enum SupatermTerminalStartup: Equatable, Sendable, Codable {
     return path.unicodeScalars.allSatisfy(characters.contains)
   }
 
-  public static func transportOwnerProcessID(_ name: String) -> pid_t? {
+  private static func transportOwnerProcessID(_ name: String) -> pid_t? {
     guard name.hasPrefix(transportDirectoryPrefix) else { return nil }
     let value = name.dropFirst(transportDirectoryPrefix.count)
     guard let separator = value.firstIndex(of: "-") else { return nil }
@@ -411,17 +416,17 @@ public enum SupatermTerminalStartup: Equatable, Sendable, Codable {
 
 public struct SupatermPreparedTerminalStartup: Sendable {
   public let initialInput: String
-  public let cleanupToken: SupatermTerminalStartupCleanup?
+  public let cleanupToken: SupatermTerminalStartupCleanup
 
   init(
     initialInput: String,
-    cleanupToken: SupatermTerminalStartupCleanup?
+    cleanupToken: SupatermTerminalStartupCleanup
   ) {
     self.initialInput = initialInput
     self.cleanupToken = cleanupToken
   }
 
-  var cleanupDirectoryURL: URL? { cleanupToken?.directoryURL }
+  var cleanupDirectoryURL: URL { cleanupToken.directoryURL }
 }
 
 public struct SupatermTerminalStartupCleanup: Sendable {

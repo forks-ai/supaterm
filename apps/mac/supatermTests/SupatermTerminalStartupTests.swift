@@ -24,8 +24,8 @@ struct SupatermTerminalStartupTests {
       cliPath: fixture.cliURL.path,
       temporaryDirectory: fixture.rootURL
     )
-    defer { prepared.cleanupToken?.cleanup() }
-    let directoryURL = try #require(prepared.cleanupDirectoryURL)
+    defer { prepared.cleanupToken.cleanup() }
+    let directoryURL = prepared.cleanupDirectoryURL
     let payloadURL = directoryURL.appendingPathComponent("arguments.json")
     let launcherURL = directoryURL.appendingPathComponent("launch")
 
@@ -39,7 +39,7 @@ struct SupatermTerminalStartupTests {
       arguments
     )
 
-    prepared.cleanupToken?.cleanup()
+    prepared.cleanupToken.cleanup()
     #expect(!FileManager.default.fileExists(atPath: directoryURL.path))
   }
 
@@ -81,7 +81,7 @@ struct SupatermTerminalStartupTests {
       cliPath: fixture.cliURL.path,
       temporaryDirectory: fixture.rootURL
     )
-    let directoryURL = try #require(prepared.cleanupDirectoryURL)
+    let directoryURL = prepared.cleanupDirectoryURL
     try FileManager.default.removeItem(at: directoryURL)
     try FileManager.default.createDirectory(
       at: directoryURL,
@@ -89,7 +89,7 @@ struct SupatermTerminalStartupTests {
       attributes: [.posixPermissions: 0o700]
     )
 
-    prepared.cleanupToken?.cleanup()
+    prepared.cleanupToken.cleanup()
 
     #expect(FileManager.default.fileExists(atPath: directoryURL.path))
   }
@@ -130,8 +130,8 @@ struct SupatermTerminalStartupTests {
       shellPath: "/bin/zsh",
       temporaryDirectory: fixture.rootURL
     )
-    defer { prepared.cleanupToken?.cleanup() }
-    let directoryURL = try #require(prepared.cleanupDirectoryURL)
+    defer { prepared.cleanupToken.cleanup() }
+    let directoryURL = prepared.cleanupDirectoryURL
     let scriptURL = directoryURL.appendingPathComponent("script")
 
     #expect(prepared.initialInput == ". \(scriptURL.path)\n")
@@ -159,14 +159,14 @@ struct SupatermTerminalStartupTests {
         shellPath: shellURL.path,
         temporaryDirectory: fixture.rootURL
       )
-      let directoryURL = try #require(prepared.cleanupDirectoryURL)
+      let directoryURL = prepared.cleanupDirectoryURL
       let scriptURL = directoryURL.appendingPathComponent(fileName)
       if name == "elvish" {
         #expect(prepared.initialInput == "\(command) <\(scriptURL.path))\n")
       } else {
         #expect(prepared.initialInput == "\(command) \(scriptURL.path)\n")
       }
-      prepared.cleanupToken?.cleanup()
+      prepared.cleanupToken.cleanup()
     }
   }
 
@@ -199,8 +199,8 @@ struct SupatermTerminalStartupTests {
       shellPath: shellURL.path,
       temporaryDirectory: fixture.rootURL
     )
-    defer { prepared.cleanupToken?.cleanup() }
-    let transportDirectoryURL = try #require(prepared.cleanupDirectoryURL)
+    defer { prepared.cleanupToken.cleanup() }
+    let transportDirectoryURL = prepared.cleanupDirectoryURL
     let process = Process()
     process.executableURL = shellURL
     process.arguments = ["-c", prepared.initialInput]
