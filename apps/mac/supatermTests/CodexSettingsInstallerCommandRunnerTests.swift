@@ -9,8 +9,8 @@ extension CodexSettingsInstallerTests {
     #expect(
       CodingAgentCommandRunner.loginShellURL(
         environment: ["SHELL": "/bin/zsh"],
-        currentUserShellPath: "/opt/homebrew/bin/fish"
-      ).path == "/opt/homebrew/bin/fish"
+        currentUserShellPath: "/bin/sh"
+      ).path == "/bin/sh"
     )
   }
 
