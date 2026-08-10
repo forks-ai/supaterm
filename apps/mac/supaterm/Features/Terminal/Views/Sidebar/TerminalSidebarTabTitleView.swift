@@ -37,8 +37,7 @@ struct TerminalSidebarTabTitleView: View {
       .accessibilityLabel(presentation.title)
       .onChange(of: presentation) { previous, current in
         guard current.shouldType(from: previous, reduceMotion: reduceMotion) else {
-          typedTitle = nil
-          typingTarget = nil
+          stopTyping()
           return
         }
         typedTitle = ""
@@ -46,8 +45,7 @@ struct TerminalSidebarTabTitleView: View {
       }
       .onChange(of: reduceMotion) {
         guard reduceMotion else { return }
-        typedTitle = nil
-        typingTarget = nil
+        stopTyping()
       }
       .task(id: typingTarget) {
         guard let target = typingTarget else { return }
@@ -59,8 +57,12 @@ struct TerminalSidebarTabTitleView: View {
         } catch {
           return
         }
-        typedTitle = nil
-        typingTarget = nil
+        stopTyping()
       }
+  }
+
+  private func stopTyping() {
+    typedTitle = nil
+    typingTarget = nil
   }
 }
