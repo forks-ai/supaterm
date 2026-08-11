@@ -11,19 +11,12 @@ extension SupatermE2ESuite {
         let runner = spRunner(app, tabID: space.tab.tabID, paneID: space.tab.paneID)
 
         for arguments in parentHelpCommands {
-          let result = try requireSuccessfulSPResult(try runner.run(arguments, cwd: space.directory))
+          let result = try requireSuccessfulSPResult(
+            try runner.run(arguments, cwd: space.directory))
           #expect(result.stdout.contains("USAGE:"))
         }
 
-        let onboard = try requireSuccessfulSPResult(
-          try runner.run(["onboard", "--socket", app.socketPath, "--json"], cwd: space.directory)
-        )
-        #expect(try decodeSPJSON(SupatermOnboardingSnapshot.self, from: onboard).items.isEmpty == false)
-
-        let quietOnboard = try requireSuccessfulSPResult(
-          try runner.run(["onboard", "--socket", app.socketPath, "--quiet"], cwd: space.directory)
-        )
-        #expect(quietOnboard.stdout.isEmpty)
+        try expectOnboardingCommands(app: app, space: space, runner: runner)
 
         let diagnostic = try requireSuccessfulSPResult(
           try runner.run(
@@ -83,7 +76,8 @@ extension SupatermE2ESuite {
         let defaultConfig = try requireSuccessfulSPResult(
           try runner.run(["config", "validate", "--json"], cwd: space.directory)
         )
-        let defaultValidation = try decodeSPJSON(SupatermSettingsValidationResult.self, from: defaultConfig)
+        let defaultValidation = try decodeSPJSON(
+          SupatermSettingsValidationResult.self, from: defaultConfig)
         #expect(defaultValidation.status != .invalid)
         #expect(defaultValidation.errors.isEmpty)
         #expect(defaultValidation.path.hasPrefix(app.stateHome.path))
@@ -96,7 +90,9 @@ extension SupatermE2ESuite {
             cwd: space.directory
           )
         )
-        #expect(try decodeSPJSON(SupatermSettingsValidationResult.self, from: validConfig).status == .valid)
+        #expect(
+          try decodeSPJSON(SupatermSettingsValidationResult.self, from: validConfig).status
+            == .valid)
 
         let invalidConfigURL = space.directory.appendingPathComponent("invalid.toml")
         try "appearance = [".write(to: invalidConfigURL, atomically: true, encoding: .utf8)
@@ -106,7 +102,9 @@ extension SupatermE2ESuite {
             cwd: space.directory
           )
         )
-        #expect(try decodeSPJSON(SupatermSettingsValidationResult.self, from: invalidConfig).status == .invalid)
+        #expect(
+          try decodeSPJSON(SupatermSettingsValidationResult.self, from: invalidConfig).status
+            == .invalid)
 
         let missingConfig = try requireFailedSPResult(
           try runner.run(
@@ -203,6 +201,8 @@ extension SupatermE2ESuite {
         #expect(environment["TMUX_PANE"] == "%\(space.tab.paneID.uuidString.lowercased())")
         #expect(environment["TMUX"]?.contains(space.spaceID.uuidString.lowercased()) == true)
         #expect(environment["PATH"]?.contains(app.cliHome.path) == true)
+
+        try await expectShellUsesEmbeddedSP(app: app, space: space)
       }
     }
 
@@ -324,34 +324,6 @@ extension SupatermE2ESuite {
         let decoded = try decodeSPJSON(SupatermTreeSnapshot.self, from: result)
         let socket = try app.send(.tree(), as: SupatermTreeSnapshot.self)
         #expect(stableTreeRows(decoded) == stableTreeRows(socket))
-      }
-    }
-
-    @Test(.timeLimit(.minutes(5)))
-    func developmentHookRoundTripsThroughEmbeddedBinary() async throws {
-      try await withTestSpace { app, space in
-        try await app.waitForShellPrompt(space.pane)
-        let runner = spRunner(app, tabID: space.tab.tabID, paneID: space.tab.paneID)
-        let sessionID = "e2e-\(space.token)"
-        for command in [
-          "session-start",
-          "pre-tool-use",
-          "notification",
-          "user-prompt-submit",
-          "stop",
-          "session-end",
-        ] {
-          let result = try requireSuccessfulSPResult(
-            try runner.run(
-              [
-                "internal", "dev", "claude", command, "--socket", app.socketPath,
-                "--session-id", sessionID,
-              ],
-              cwd: space.directory
-            )
-          )
-          #expect(result.stdout.contains("sent \(command) for session \(sessionID)"))
-        }
       }
     }
 
@@ -481,6 +453,30 @@ private struct CLITabE2E {
   let runner: SPBinaryRunner
 }
 
+private func expectShellUsesEmbeddedSP(app: SupatermE2EApp, space: TestSpace) async throws {
+  try app.type(
+    #"[ "$(command -v sp)" = "$SUPATERM_CLI_PATH" ] && printf 'SP_PATH_MATCHED\n'"# + "\n",
+    into: space.pane
+  )
+  try await app.waitForCapture(space.pane, contains: "SP_PATH_MATCHED")
+}
+
+private func expectOnboardingCommands(
+  app: SupatermE2EApp,
+  space: TestSpace,
+  runner: SPBinaryRunner
+) throws {
+  let onboard = try requireSuccessfulSPResult(
+    try runner.run(["onboard", "--socket", app.socketPath, "--json"], cwd: space.directory)
+  )
+  #expect(try decodeSPJSON(SupatermOnboardingSnapshot.self, from: onboard).items.isEmpty == false)
+
+  let quietOnboard = try requireSuccessfulSPResult(
+    try runner.run(["onboard", "--socket", app.socketPath, "--quiet"], cwd: space.directory)
+  )
+  #expect(quietOnboard.stdout.isEmpty)
+}
+
 private func exerciseGroupCommands(
   app: SupatermE2EApp,
   space: TestSpace,
@@ -593,7 +589,6 @@ private func exerciseGroupedTabs(
   let tab: SupatermNewTabResult = try runSPJSON(
     [
       "tab", "new", "--group", groupID.uuidString, "--in", space.spaceID.uuidString,
-      "--script", hermeticShellStartupCommand,
     ],
     app: app,
     runner: runner,
@@ -632,7 +627,8 @@ private func exerciseGroupedTabs(
   let movedTree: SupatermTreeSnapshot = try runSPJSON(
     ["ls"], app: app, runner: runner, cwd: space.directory
   )
-  let movedSpace = try #require(movedTree.windows.flatMap(\.spaces).first { $0.id == space.spaceID })
+  let movedSpace = try #require(
+    movedTree.windows.flatMap(\.spaces).first { $0.id == space.spaceID })
   #expect(
     movedSpace.rootItems.contains {
       guard case .tab(let rootTab) = $0 else { return false }
@@ -668,7 +664,6 @@ private func exerciseGroupedTabs(
   let closeTab: SupatermNewTabResult = try runSPJSON(
     [
       "tab", "new", "--group", closeGroup.group.id.uuidString,
-      "--script", hermeticShellStartupCommand,
     ],
     app: app,
     runner: runner,
@@ -853,9 +848,9 @@ private func exerciseTabCommands(
       try cliSpace.runner.run(
         [
           "tab", "new", "--socket", app.socketPath, "--json", "--focus",
-          "--cwd", space.directory.path, "--script", hermeticShellStartupCommand,
-          "--in", cliSpace.result.target.spaceID.uuidString,
-        ],
+          "--cwd", space.directory.path, "--in", cliSpace.result.target.spaceID.uuidString,
+          "--",
+        ] + hermeticShellArguments,
         cwd: space.directory
       )
     )
@@ -882,7 +877,8 @@ private func exerciseTabCommands(
     SupatermPinTabResult.self,
     from: try requireSuccessfulSPResult(
       try runner.run(
-        ["tab", "pin", "--socket", app.socketPath, "--json", created.tabID.uuidString], cwd: space.directory)
+        ["tab", "pin", "--socket", app.socketPath, "--json", created.tabID.uuidString],
+        cwd: space.directory)
     )
   )
   #expect(pinned.isPinned)
@@ -891,7 +887,8 @@ private func exerciseTabCommands(
     SupatermPinTabResult.self,
     from: try requireSuccessfulSPResult(
       try runner.run(
-        ["tab", "unpin", "--socket", app.socketPath, "--json", created.tabID.uuidString], cwd: space.directory)
+        ["tab", "unpin", "--socket", app.socketPath, "--json", created.tabID.uuidString],
+        cwd: space.directory)
     )
   )
   #expect(!unpinned.isPinned)
@@ -920,7 +917,10 @@ private func exerciseTabNavigation(
   for command in ["next", "prev", "last"] {
     _ = try requireSuccessfulSPResult(
       try cliSpace.runner.run(
-        ["tab", command, "--socket", app.socketPath, "--plain", cliSpace.result.target.spaceID.uuidString],
+        [
+          "tab", command, "--socket", app.socketPath, "--plain",
+          cliSpace.result.target.spaceID.uuidString,
+        ],
         cwd: space.directory
       )
     )
@@ -941,8 +941,8 @@ private func exercisePaneCommands(
         [
           "pane", "split", "--socket", app.socketPath, "--json", "right",
           "--in", created.paneID.uuidString, "--cwd", space.directory.path,
-          "--script", hermeticShellStartupCommand, "--layout", "keep",
-        ],
+          "--layout", "keep", "--",
+        ] + hermeticShellArguments,
         cwd: space.directory
       )
     )
@@ -950,7 +950,8 @@ private func exercisePaneCommands(
   #expect(split.direction == .right)
   try await app.waitForShellPrompt(SupatermPaneTargetRequest(paneID: split.paneID))
   try await exercisePaneIO(app: app, space: space, cliTab: cliTab)
-  try await closeCLIResources(app: app, space: space, cliSpace: cliSpace, cliTab: cliTab, splitPaneID: split.paneID)
+  try await closeCLIResources(
+    app: app, space: space, cliSpace: cliSpace, cliTab: cliTab, splitPaneID: split.paneID)
 }
 
 private func exercisePaneIO(
@@ -1026,27 +1027,36 @@ private func exercisePaneStatusAndActions(
     SupatermPaneHealthResult.self,
     from: try requireSuccessfulSPResult(
       try cliTab.runner.run(
-        ["pane", "health", "--socket", app.socketPath, "--json", created.paneID.uuidString], cwd: space.directory)
+        ["pane", "health", "--socket", app.socketPath, "--json", created.paneID.uuidString],
+        cwd: space.directory)
     )
   )
   #expect(health.isReady)
 
   _ = try requireSuccessfulSPResult(
     try cliTab.runner.run(
-      ["pane", "wait-ready", "--socket", app.socketPath, "--plain", created.paneID.uuidString, "--timeout", "5"],
+      [
+        "pane", "wait-ready", "--socket", app.socketPath, "--plain", created.paneID.uuidString,
+        "--timeout", "5",
+      ],
       cwd: space.directory
     )
   )
   _ = try requireSuccessfulSPResult(
     try cliTab.runner.run(
-      ["pane", "resize", "--socket", app.socketPath, "--plain", "right", "1", created.paneID.uuidString],
+      [
+        "pane", "resize", "--socket", app.socketPath, "--plain", "right", "1",
+        created.paneID.uuidString,
+      ],
       cwd: space.directory
     )
   )
   for layout in ["equalize", "tile", "main-vertical"] {
     _ = try requireSuccessfulSPResult(
       try cliTab.runner.run(
-        ["pane", "layout", "--socket", app.socketPath, "--plain", layout, created.tabID.uuidString],
+        [
+          "pane", "layout", "--socket", app.socketPath, "--plain", layout, created.tabID.uuidString,
+        ],
         cwd: space.directory)
     )
   }
@@ -1066,7 +1076,8 @@ private func exercisePaneStatusAndActions(
   #expect(notification.resolvedTitle == "CLI \(space.token)")
   let invalidCapture = try requireFailedSPResult(
     try cliTab.runner.run(
-      ["pane", "capture", "--socket", app.socketPath, "--lines", "0", created.paneID.uuidString], cwd: space.directory)
+      ["pane", "capture", "--socket", app.socketPath, "--lines", "0", created.paneID.uuidString],
+      cwd: space.directory)
   )
   #expect(invalidCapture.stderr.contains("--lines must be 1 or greater"))
 }
@@ -1080,15 +1091,20 @@ private func closeCLIResources(
 ) async throws {
   _ = try requireSuccessfulSPResult(
     try cliTab.runner.run(
-      ["pane", "close", "--socket", app.socketPath, "--json", splitPaneID.uuidString], cwd: space.directory)
+      ["pane", "close", "--socket", app.socketPath, "--json", splitPaneID.uuidString],
+      cwd: space.directory)
   )
   _ = try requireSuccessfulSPResult(
     try cliTab.runner.run(
-      ["tab", "close", "--socket", app.socketPath, "--json", cliTab.result.tabID.uuidString], cwd: space.directory)
+      ["tab", "close", "--socket", app.socketPath, "--json", cliTab.result.tabID.uuidString],
+      cwd: space.directory)
   )
   _ = try requireSuccessfulSPResult(
     try cliSpace.runner.run(
-      ["space", "destroy", "--socket", app.socketPath, "--json", "-y", cliSpace.result.target.spaceID.uuidString],
+      [
+        "space", "destroy", "--socket", app.socketPath, "--json", "-y",
+        cliSpace.result.target.spaceID.uuidString,
+      ],
       cwd: space.directory)
   )
   try await app.waitForDebugSnapshot("CLI-created space closes") { snapshot in
@@ -1133,7 +1149,9 @@ private func exerciseTmuxCompatibility(
 
 private func createTmuxFixture(_ tmux: TmuxE2E) async throws -> TmuxFixture {
   let newSession = try tmuxSpaceID(
-    tmux.run(["new-session", "-d", "-n", "tmux-space-\(tmux.space.token)", "-P", "-F", "#{session_id}"]).stdout
+    tmux.run([
+      "new-session", "-d", "-n", "tmux-space-\(tmux.space.token)", "-P", "-F", "#{session_id}",
+    ]).stdout
   )
   let createdWindow = try tmuxTabID(
     tmux.run(
@@ -1144,14 +1162,17 @@ private func createTmuxFixture(_ tmux: TmuxE2E) async throws -> TmuxFixture {
     ).stdout
   )
   _ = try tmux.run(["select-window", "-t", tmuxTabSelector(createdWindow)])
-  _ = try tmux.run(["rename-window", "-t", tmuxTabSelector(createdWindow), "tmux-renamed-\(tmux.space.token)"])
+  _ = try tmux.run([
+    "rename-window", "-t", tmuxTabSelector(createdWindow), "tmux-renamed-\(tmux.space.token)",
+  ])
 
   let originalPane = try tmuxPaneID(
     tmux.run(["list-panes", "-t", tmuxTabSelector(createdWindow), "-F", "#{pane_id}"]).stdout
   )
   try await tmux.app.waitForShellOutput(SupatermPaneTargetRequest(paneID: originalPane))
   let splitPane = try tmuxPaneID(
-    tmux.run(["split-window", "-h", "-P", "-F", "#{pane_id}", "-t", tmuxPaneSelector(originalPane)]).stdout
+    tmux.run(["split-window", "-h", "-P", "-F", "#{pane_id}", "-t", tmuxPaneSelector(originalPane)])
+      .stdout
   )
   try await tmux.app.waitForShellOutput(SupatermPaneTargetRequest(paneID: splitPane))
   return TmuxFixture(
@@ -1165,13 +1186,19 @@ private func exerciseTmuxPaneIO(_ tmux: TmuxE2E, fixture: TmuxFixture) async thr
   _ = try tmux.run(["select-pane", "-t", tmuxPaneSelector(fixture.splitPane)])
   _ = try tmux.run(["select-pane", "-P", "fg=green", "-t", tmuxPaneSelector(fixture.splitPane)])
   let displayed = try tmux.run(
-    ["display-message", "-p", "-t", tmuxPaneSelector(fixture.splitPane), "#{pane_id}:#{window_name}"]
+    [
+      "display-message", "-p", "-t", tmuxPaneSelector(fixture.splitPane),
+      "#{pane_id}:#{window_name}",
+    ]
   )
   #expect(displayed.stdout.contains(tmuxPaneSelector(fixture.splitPane)))
 
   let marker = "tmux-live-\(tmux.space.token)"
   _ = try tmux.run(
-    ["send-keys", "-t", tmuxPaneSelector(fixture.splitPane), "echo \(marker) > tmux-live.txt", "Enter"]
+    [
+      "send-keys", "-t", tmuxPaneSelector(fixture.splitPane), "echo \(marker) > tmux-live.txt",
+      "Enter",
+    ]
   )
   try await tmux.app.waitUntil("tmux send-keys writes a file") {
     fileContents(at: tmux.space.directory.appendingPathComponent("tmux-live.txt")).contains(marker)
@@ -1182,7 +1209,9 @@ private func exerciseTmuxPaneIO(_ tmux: TmuxE2E, fixture: TmuxFixture) async thr
   let shownBuffer = try tmux.run(["show-buffer"])
   #expect(shownBuffer.stdout.contains(marker) || shownBuffer.stdout.contains("echo \(marker)"))
   _ = try tmux.run(["save-buffer", "saved-buffer.txt"])
-  #expect(FileManager.default.fileExists(atPath: tmux.space.directory.appendingPathComponent("saved-buffer.txt").path))
+  #expect(
+    FileManager.default.fileExists(
+      atPath: tmux.space.directory.appendingPathComponent("saved-buffer.txt").path))
   try await exerciseTmuxBuffers(tmux, splitPane: fixture.splitPane)
 }
 
@@ -1192,7 +1221,8 @@ private func exerciseTmuxBuffers(_ tmux: TmuxE2E, splitPane: UUID) async throws 
   #expect(try tmux.run(["list-buffers"]).stdout.contains("custom"))
   #expect(try tmux.run(["show-buffer", "-b", "custom"]).stdout.contains(bufferText))
   _ = try tmux.run(["paste-buffer", "-b", "custom", "-t", tmuxPaneSelector(splitPane)])
-  try await tmux.app.waitForCapture(SupatermPaneTargetRequest(paneID: splitPane), contains: bufferText)
+  try await tmux.app.waitForCapture(
+    SupatermPaneTargetRequest(paneID: splitPane), contains: bufferText)
 }
 
 private func exerciseTmuxControls(_ tmux: TmuxE2E, fixture: TmuxFixture) throws {
@@ -1201,7 +1231,10 @@ private func exerciseTmuxControls(_ tmux: TmuxE2E, fixture: TmuxFixture) throws 
   #expect(try tmux.run(["wait-for", "--timeout", "0.5", waitName]).stdout.contains("OK"))
   let timedOutWait = try requireFailedSPResult(
     try tmux.runner.run(
-      ["tmux", "--socket", tmux.app.socketPath, "--", "wait-for", "--timeout", "0.1", "missing-\(tmux.space.token)"],
+      [
+        "tmux", "--socket", tmux.app.socketPath, "--", "wait-for", "--timeout", "0.1",
+        "missing-\(tmux.space.token)",
+      ],
       cwd: tmux.space.directory
     )
   )
@@ -1213,9 +1246,13 @@ private func exerciseTmuxControls(_ tmux: TmuxE2E, fixture: TmuxFixture) throws 
   for layout in ["tiled", "main-vertical", "even-horizontal"] {
     _ = try tmux.run(["select-layout", "-t", tmuxTabSelector(fixture.createdWindow), layout])
   }
-  let windows = try tmux.run(["list-windows", "-t", tmuxSpaceSelector(tmux.space.spaceID), "-F", "#{window_id}"])
+  let windows = try tmux.run([
+    "list-windows", "-t", tmuxSpaceSelector(tmux.space.spaceID), "-F", "#{window_id}",
+  ])
   #expect(windows.stdout.contains(tmuxTabSelector(fixture.createdWindow)))
-  let panes = try tmux.run(["list-panes", "-t", tmuxTabSelector(fixture.createdWindow), "-F", "#{pane_id}"])
+  let panes = try tmux.run([
+    "list-panes", "-t", tmuxTabSelector(fixture.createdWindow), "-F", "#{pane_id}",
+  ])
   #expect(panes.stdout.contains(tmuxPaneSelector(fixture.splitPane)))
 }
 
@@ -1234,17 +1271,22 @@ private func exerciseTmuxCloseAndFailures(_ tmux: TmuxE2E, fixture: TmuxFixture)
   _ = try tmux.run(["kill-window", "-t", tmuxTabSelector(fixture.createdWindow)])
   _ = try requireSuccessfulSPResult(
     try tmux.runner.run(
-      ["space", "destroy", "--socket", tmux.app.socketPath, "--json", "-y", fixture.newSession.uuidString],
+      [
+        "space", "destroy", "--socket", tmux.app.socketPath, "--json", "-y",
+        fixture.newSession.uuidString,
+      ],
       cwd: tmux.space.directory)
   )
   let unsupported = try requireFailedSPResult(
     try tmux.runner.run(
-      ["tmux", "--socket", tmux.app.socketPath, "--", "unsupported-command"], cwd: tmux.space.directory)
+      ["tmux", "--socket", tmux.app.socketPath, "--", "unsupported-command"],
+      cwd: tmux.space.directory)
   )
   #expect(unsupported.stderr.contains("Unsupported tmux compatibility command"))
   let unsupportedNewSessionFlag = try requireFailedSPResult(
     try tmux.runner.run(
-      ["tmux", "--socket", tmux.app.socketPath, "--", "new-session", "-A", "-n", "bad"], cwd: tmux.space.directory)
+      ["tmux", "--socket", tmux.app.socketPath, "--", "new-session", "-A", "-n", "bad"],
+      cwd: tmux.space.directory)
   )
   #expect(unsupportedNewSessionFlag.stderr.contains("new-session -A is not supported"))
 }

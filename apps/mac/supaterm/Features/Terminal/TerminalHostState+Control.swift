@@ -212,6 +212,8 @@ extension TerminalHostState {
       hasBell: panes.contains(where: { $0.bellCount > 0 }),
       hasReadOnly: panes.contains(where: \.isReadOnly),
       hasSecureInput: panes.contains(where: \.hasSecureInput),
+      latestNotificationText: latestNotificationText(for: tab.id),
+      unreadNotificationCount: unreadNotificationCount(for: tab.id),
       panes: panes
     )
   }
@@ -670,7 +672,9 @@ extension TerminalHostState {
     return try pinTabResult(for: resolvedTarget.tabID)
   }
 
-  func equalizePanes(_ request: TerminalEqualizePanesRequest) throws -> SupatermEqualizePanesResult {
+  func equalizePanes(
+    _ request: TerminalEqualizePanesRequest
+  ) throws -> SupatermEqualizePanesResult {
     let resolvedTarget = try resolveTabTarget(request.target)
     trees[resolvedTarget.tabID] = resolvedTarget.tree.equalized()
     sessionDidChange()
@@ -857,7 +861,9 @@ extension TerminalHostState {
     in tabID: TerminalTabID
   ) -> (tree: SplitTree<GhosttySurfaceView>, surface: GhosttySurfaceView)? {
     guard let tree = trees[tabID] else { return nil }
-    if let focusedSurfaceID = focusHistoryByTab[tabID]?.current, let surface = surfaces[focusedSurfaceID] {
+    if let focusedSurfaceID = focusHistoryByTab[tabID]?.current,
+      let surface = surfaces[focusedSurfaceID]
+    {
       return (tree, surface)
     }
     guard let surface = tree.root?.leftmostLeaf() else { return nil }

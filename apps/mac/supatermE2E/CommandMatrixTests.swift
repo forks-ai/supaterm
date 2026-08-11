@@ -62,7 +62,6 @@ extension SupatermE2ESuite {
       try await withTestSpace { app, space in
         let second = try makeTab(app, in: space)
         let third = try makeTab(app, in: space)
-
         _ = try app.send(
           .selectTab(SupatermTabTargetRequest(tabID: space.tab.tabID)),
           as: SupatermSelectTabResult.self
@@ -198,6 +197,103 @@ extension SupatermE2ESuite {
           try app.debugTab(second.tabID) == nil
         }
         #expect(try app.debugTab(space.tab.tabID)?.isSelected == true)
+      }
+    }
+
+    @Test(.timeLimit(.minutes(5)))
+    func closingSelectedTabChoosesNextThenPrevious() async throws {
+      try await withTestSpace { app, space in
+        let second = try makeTab(app, in: space)
+        let third = try makeTab(app, in: space)
+
+        _ = try app.send(
+          .selectTab(SupatermTabTargetRequest(tabID: second.tabID)),
+          as: SupatermSelectTabResult.self
+        )
+        _ = try app.send(
+          .closeTab(SupatermTabTargetRequest(tabID: second.tabID)),
+          as: SupatermCloseTabResult.self
+        )
+        try await app.waitUntil("the next tab is selected after closing the middle tab") {
+          try app.debugTab(third.tabID)?.isSelected == true
+        }
+
+        _ = try app.send(
+          .closeTab(SupatermTabTargetRequest(tabID: third.tabID)),
+          as: SupatermCloseTabResult.self
+        )
+        try await app.waitUntil("the previous tab is selected after closing the last tab") {
+          try app.debugTab(space.tab.tabID)?.isSelected == true
+        }
+      }
+    }
+
+    @Test(.timeLimit(.minutes(5)))
+    func newTabAppendsWhenMiddleTabIsSelected() async throws {
+      try await withTestSpace { app, space in
+        let second = try makeTab(app, in: space)
+        _ = try makeTab(app, in: space)
+        let tabsBeforeCreation = try #require(
+          app.debugSnapshot().windows.flatMap(\.spaces).first { $0.id == space.spaceID }
+        ).flattenedTabs.map(\.id)
+
+        _ = try app.send(
+          .selectTab(SupatermTabTargetRequest(tabID: second.tabID)),
+          as: SupatermSelectTabResult.self
+        )
+        let fourth = try app.send(
+          .newTab(
+            SupatermNewTabRequest(
+              startupCommand: hermeticShellStartup,
+              cwd: space.directory.path,
+              focus: true,
+              target: .pane(second.paneID)
+            )
+          ),
+          as: SupatermNewTabResult.self
+        )
+
+        let debugSpace = try #require(
+          app.debugSnapshot().windows.flatMap(\.spaces).first { $0.id == space.spaceID }
+        )
+        #expect(debugSpace.flattenedTabs.map(\.id) == tabsBeforeCreation + [fourth.tabID])
+        #expect(debugSpace.flattenedTabs.last?.isSelected == true)
+      }
+    }
+
+    @Test(.timeLimit(.minutes(5)))
+    func selectingTabTargetsLatestUnreadPane() async throws {
+      try await withTestSpace { app, space in
+        let split = try makeSplit(app, in: space)
+        _ = try app.send(
+          .focusPane(SupatermPaneTargetRequest(paneID: space.tab.paneID)),
+          as: SupatermFocusPaneResult.self
+        )
+        let marker = "unread-\(space.token)"
+        let notification = try app.send(
+          .notify(SupatermNotifyRequest(body: marker, paneID: split.paneID)),
+          as: SupatermNotifyResult.self
+        )
+        #expect(notification.attentionState == .unread)
+        try await app.waitUntil("the split pane becomes unread") {
+          guard let tab = try app.debugTab(space.tab.tabID) else { return false }
+          return tab.latestNotificationText == marker && tab.unreadNotificationCount == 1
+        }
+
+        let other = try makeTab(app, in: space)
+        #expect(other.isSelectedTab)
+        _ = try app.send(
+          .selectTab(SupatermTabTargetRequest(tabID: space.tab.tabID)),
+          as: SupatermSelectTabResult.self
+        )
+        try await app.waitForDebugSnapshot("the unread pane receives focus") { snapshot in
+          guard
+            let tab = snapshot.windows.flatMap(\.spaces).flatMap(\.flattenedTabs)
+              .first(where: { $0.id == space.tab.tabID })
+          else { return false }
+          return tab.panes.first { $0.id == split.paneID }?.isFocused == true
+        }
+        #expect(try app.debugTab(space.tab.tabID)?.unreadNotificationCount == 1)
       }
     }
 

@@ -61,43 +61,6 @@ final class MenusFirstRunUITests: SupatermUITestCase {
   }
 
   @MainActor
-  func testOnlyFirstLaunchRunsOnboarding() async throws {
-    try relaunch(removing: ["launch-state.json", "session.json"])
-
-    _ = mainWindow
-
-    let firstTerminal = app.textViews.firstMatch
-    XCTAssertTrue(firstTerminal.waitForExistence(timeout: 30))
-    let didRenderOnboarding = await wait(
-      for: firstTerminal,
-      timeout: .seconds(30)
-    ) { terminal in
-      (terminal.value as? String)?.contains("Welcome to Supaterm!") == true
-    }
-    XCTAssertTrue(didRenderOnboarding)
-
-    let launchState = stateHome.appendingPathComponent("launch-state.json")
-    let didPersistLaunchState = await waitForFile(at: launchState)
-    XCTAssertTrue(didPersistLaunchState)
-
-    try relaunch(removing: ["session.json"])
-
-    let secondTerminal = app.textViews.firstMatch
-    XCTAssertTrue(secondTerminal.waitForExistence(timeout: 30))
-    secondTerminal.click()
-    app.typeText("/usr/bin/printf 'second-launch-%s\\n' ready\n")
-
-    let didStartShell = await wait(
-      for: secondTerminal,
-      timeout: .seconds(30)
-    ) { terminal in
-      (terminal.value as? String)?.contains("second-launch-ready") == true
-    }
-    XCTAssertTrue(didStartShell)
-    XCTAssertFalse((secondTerminal.value as? String)?.contains("Welcome to Supaterm!") == true)
-  }
-
-  @MainActor
   private func openMenu(_ title: String) throws {
     let menu = app.menuBars.menuBarItems[title]
     try require(menu)
@@ -109,13 +72,4 @@ final class MenusFirstRunUITests: SupatermUITestCase {
     app.menuItems.matching(identifier: identifier).firstMatch
   }
 
-  @MainActor
-  private func waitForFile(
-    at url: URL,
-    timeout: Duration = .seconds(10)
-  ) async -> Bool {
-    await wait(timeout: timeout) {
-      FileManager.default.fileExists(atPath: url.path)
-    }
-  }
 }

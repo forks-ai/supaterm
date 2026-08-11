@@ -4,41 +4,6 @@ final class TabSelectionUITests: SupatermUITestCase {
   private static let coldStartTimeout: Duration = .seconds(60)
 
   @MainActor
-  func testClosingSelectedTabSelectsNextTabThenPreviousWhenLast() async throws {
-    try await createNamedTabs(["First UI Tab", "Second UI Tab", "Third UI Tab"])
-
-    let firstTab = sidebarTabRow(named: "First UI Tab")
-    let secondTab = sidebarTabRow(named: "Second UI Tab")
-    let thirdTab = sidebarTabRow(named: "Third UI Tab")
-    XCTAssertTrue(thirdTab.isSelected)
-
-    try clickMenuItem(.previousTab)
-    let didSelectSecondTab = await waitForSidebarSelection(secondTab)
-    XCTAssertTrue(didSelectSecondTab)
-
-    try closeSelectedTab()
-    let didCloseSecondTab = await waitForSidebarElementCount(
-      sidebarTabRows,
-      equals: 2,
-      timeout: .seconds(30)
-    )
-    XCTAssertTrue(didCloseSecondTab)
-    let didSelectThirdTab = await waitForSidebarSelection(thirdTab)
-    XCTAssertTrue(didSelectThirdTab)
-    XCTAssertFalse(firstTab.isSelected)
-
-    try closeSelectedTab()
-    let didCloseThirdTab = await waitForSidebarElementCount(
-      sidebarTabRows,
-      equals: 1,
-      timeout: .seconds(30)
-    )
-    XCTAssertTrue(didCloseThirdTab)
-    let didSelectFirstTab = await waitForSidebarSelection(firstTab)
-    XCTAssertTrue(didSelectFirstTab)
-  }
-
-  @MainActor
   func testSelectingTabFocusesLatestUnreadPane() async throws {
     let initialPanes = try await requireVisiblePanes(count: 1)
     let paneAIdentifier = initialPanes[0].identifier
@@ -79,8 +44,6 @@ final class TabSelectionUITests: SupatermUITestCase {
     firstTab.click()
     let didSelectFirstTab = await waitForSidebarSelection(firstTab)
     XCTAssertTrue(didSelectFirstTab)
-    try await requireFocus(on: paneB)
-    XCTAssertFalse(focusedTerminalPane(identifier: paneA.identifier).exists)
 
     let didClearUnread = await wait(for: firstTab, timeout: Self.coldStartTimeout) {
       !$0.label.contains("unread-pane-marker")

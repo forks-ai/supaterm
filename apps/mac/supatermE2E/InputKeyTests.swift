@@ -48,9 +48,13 @@ extension SupatermE2ESuite {
     @Test(.timeLimit(.minutes(5)))
     func ctrlDClosesShellPane() async throws {
       try await withTestSpace { app, space in
-        let split = try makeSplit(app, in: space)
+        let split = try makeSplit(
+          app,
+          in: space,
+          startupCommand: nil
+        )
         let splitPane = SupatermPaneTargetRequest(paneID: split.paneID)
-        try await app.waitForShellPrompt(splitPane)
+        try await waitForPlainShell(app, target: splitPane, token: "ctrl-d-\(space.token)")
 
         try app.type("exit\n", into: splitPane)
         try await app.waitForShellPrompt(splitPane)
@@ -58,6 +62,29 @@ extension SupatermE2ESuite {
         try await app.waitUntil("the exited pane is removed") {
           try app.debugPane(split.paneID) == nil
         }
+      }
+    }
+
+    @Test(.timeLimit(.minutes(5)))
+    func exitingShellClosesPaneAndFocusesSibling() async throws {
+      try await withTestSpace { app, space in
+        let split = try makeSplit(
+          app,
+          in: space,
+          startupCommand: nil
+        )
+        let splitPane = SupatermPaneTargetRequest(paneID: split.paneID)
+        try await waitForPlainShell(app, target: splitPane, token: "exit-\(space.token)")
+
+        try app.type("exit\n", into: splitPane)
+        try await app.waitUntil("the exited pane is removed") {
+          try app.debugPane(split.paneID) == nil
+        }
+        #expect(try app.debugPane(space.tab.paneID)?.isFocused == true)
+
+        let marker = "exit-survivor-\(space.token)"
+        try app.type("echo \(marker)\n", into: space.pane)
+        try await app.waitForCapture(space.pane, contains: marker)
       }
     }
 
@@ -123,4 +150,14 @@ extension SupatermE2ESuite {
       }
     }
   }
+}
+
+private func waitForPlainShell(
+  _ app: SupatermE2EApp,
+  target: SupatermPaneTargetRequest,
+  token: String
+) async throws {
+  try await app.waitForReadyPane(target)
+  try app.type("/usr/bin/printf '\(token)\\n'\n", into: target)
+  try await app.waitForCapture(target, contains: token)
 }

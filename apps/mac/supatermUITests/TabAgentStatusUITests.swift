@@ -28,11 +28,24 @@ final class TabAgentStatusUITests: SupatermUITestCase {
     }
     XCTAssertTrue(didShowRunning)
 
-    try await sendClaudeEvent("stop")
-    let didBecomeIdle = await wait(for: row, timeout: Self.coldStartTimeout) {
-      !$0.label.contains("Agent activity:")
+    try await sendClaudeEvent("notification")
+    try clickMenuItem(.newTab, timeout: 60)
+    let secondRow = sidebarTabRows.element(boundBy: 1)
+    let didSelectSecondTab = await wait(for: secondRow, timeout: Self.coldStartTimeout) {
+      $0.exists && $0.isSelected
     }
-    XCTAssertTrue(didBecomeIdle)
+    XCTAssertTrue(didSelectSecondTab)
+    let didShowNeedsInput = await wait(for: row, timeout: Self.coldStartTimeout) {
+      $0.label.contains("Agent activity: Needs input")
+    }
+    XCTAssertTrue(didShowNeedsInput)
+
+    await selectTab(row)
+    try await sendClaudeEvent("stop")
+    let didShowCompletion = await wait(for: row, timeout: Self.coldStartTimeout) {
+      $0.label.contains("Done.") && !$0.label.contains("Agent activity:")
+    }
+    XCTAssertTrue(didShowCompletion)
     mainTerminal.click()
     let didRestorePinned = await wait(for: row, timeout: Self.coldStartTimeout) {
       $0.label.contains("Pinned") && !$0.label.contains("Agent activity:")
