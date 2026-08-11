@@ -4,6 +4,37 @@ import SupaTheme
 struct TerminalSidebarDropTargetMap: Equatable {
   let targets: [TerminalSidebarSemanticTarget]
 
+  init(targets: [TerminalSidebarSemanticTarget]) {
+    self.targets = targets
+  }
+
+  init(plan: TerminalSidebarLayoutPlan, activePath: TerminalSidebarSemanticPath?) {
+    guard
+      let activePath,
+      let placeholder = plan.dropPlaceholderFrame,
+      let activeIndex = plan.semanticTargets.firstIndex(where: { $0.path == activePath })
+    else {
+      targets = plan.semanticTargets
+      return
+    }
+    let active = plan.semanticTargets[activeIndex]
+    let verticalDistance = max(
+      active.frame.minY - placeholder.maxY,
+      placeholder.minY - active.frame.maxY,
+      0
+    )
+    guard verticalDistance <= TerminalSidebarLayoutPlan.rootSpacing else {
+      targets = plan.semanticTargets
+      return
+    }
+    var targets = plan.semanticTargets
+    targets[activeIndex] = TerminalSidebarSemanticTarget(
+      path: active.path,
+      frame: active.frame.union(placeholder)
+    )
+    self.targets = targets
+  }
+
   func semanticTarget(at pointerY: CGFloat) -> TerminalSidebarSemanticTarget? {
     targets.first { target in
       pointerY >= target.frame.minY && pointerY < target.frame.maxY
@@ -135,7 +166,12 @@ struct TerminalSidebarLayoutPlan: Equatable {
     }
 
     let itemByID = Dictionary(uniqueKeysWithValues: items.map { ($0.id, $0) })
-    let groups = Self.groups(entries: entries, itemByID: itemByID)
+    let groups = Self.groups(
+      entries: entries,
+      itemByID: itemByID,
+      dropPlaceholderFrame: dropPlaceholderFrame,
+      destinationGroupID: dragDropState?.target?.destinationGroupID
+    )
     let targetGeometry = Self.targetGeometry(
       TargetGeometryContext(
         outline: outline,
@@ -239,7 +275,9 @@ struct TerminalSidebarLayoutPlan: Equatable {
 
   private static func groups(
     entries: [TerminalSidebarEntry],
-    itemByID: [TerminalSidebarEntryID: Item]
+    itemByID: [TerminalSidebarEntryID: Item],
+    dropPlaceholderFrame: CGRect?,
+    destinationGroupID: TerminalTabGroupID?
   ) -> [Group] {
     entries.compactMap { entry -> Group? in
       guard case .group(let id, let color, _, _) = entry.kind,
@@ -255,7 +293,11 @@ struct TerminalSidebarLayoutPlan: Equatable {
       let descendantFrames = descendants.compactMap { itemByID[$0.id]?.frame }.filter {
         $0.height > 0
       }
-      let frame = descendantFrames.reduce(header.frame) { $0.union($1) }
+      let projectedFrames =
+        id == destinationGroupID
+        ? descendantFrames + [dropPlaceholderFrame].compactMap { $0 }
+        : descendantFrames
+      let frame = projectedFrames.reduce(header.frame) { $0.union($1) }
       return Group(
         id: id,
         color: color,
@@ -740,18 +782,6 @@ final class TerminalSidebarCollectionLayout: NSCollectionViewLayout {
         )
       }
     )
-    let hitTestState = dragDropState.map {
-      TerminalSidebarDragDropState(draggingItemIDs: $0.draggingItemIDs, target: nil)
-    }
-    let hitTestPlan = TerminalSidebarLayoutPlan(
-      outline: outline,
-      preferredHeights: heights,
-      visibilityByEntryID: visibilityByEntryID,
-      dragDropState: hitTestState,
-      width: width,
-      viewportHeight: viewportHeight
-    )
-    dropTargetMap = TerminalSidebarDropTargetMap(targets: hitTestPlan.semanticTargets)
     targetPlan = TerminalSidebarLayoutPlan(
       outline: outline,
       preferredHeights: heights,
@@ -759,6 +789,10 @@ final class TerminalSidebarCollectionLayout: NSCollectionViewLayout {
       dragDropState: dragDropState,
       width: width,
       viewportHeight: viewportHeight
+    )
+    dropTargetMap = TerminalSidebarDropTargetMap(
+      plan: targetPlan,
+      activePath: dragDropState?.target?.path
     )
     if let transitionOrigin, transitionOrigin.contentSize.width == targetPlan.contentSize.width {
       plan = targetPlan.interpolated(from: transitionOrigin, progress: transitionProgress)

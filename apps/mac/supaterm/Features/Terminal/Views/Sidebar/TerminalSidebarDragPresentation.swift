@@ -1,6 +1,12 @@
 import AppKit
 import QuartzCore
 
+private enum TerminalSidebarDragProjectionDisposition {
+  case restoreSource
+  case commitWithinSource
+  case commitOutsideSource
+}
+
 @MainActor
 final class TerminalSidebarDragPresentation {
   struct Lift {
@@ -44,7 +50,7 @@ final class TerminalSidebarDragPresentation {
     _ lift: Lift,
     motionPolicy: TerminalSidebarMotionPolicy
   ) {
-    finish()
+    finish(.restoreSource)
     hotspot = lift.hotspot
     velocityTracker = TerminalSidebarDragVelocityTracker()
     velocityTracker.update(point: lift.screenPoint, timestamp: lift.timestamp)
@@ -60,13 +66,23 @@ final class TerminalSidebarDragPresentation {
     if motionPolicy.lift { liveView.lift() }
   }
 
-  func move(to screenPoint: CGPoint) {
+  func move(
+    to screenPoint: CGPoint,
+    presentationState: TerminalTabDragRegistry.PresentationState
+  ) {
     guard
       let collectionView,
       let liveView,
       let window = collectionView.window
     else { return }
     velocityTracker.update(point: screenPoint, timestamp: CACurrentMediaTime())
+    switch presentationState {
+    case .sourceSurface:
+      liveView.isHidden = false
+    case .sharedPreview:
+      liveView.isHidden = true
+      return
+    }
     let windowPoint = window.convertPoint(fromScreen: screenPoint)
     let pointer = collectionView.convert(windowPoint, from: nil)
     let horizontalBounds = TerminalSidebarLayout.cardHorizontalInsets.frame(
@@ -92,6 +108,30 @@ final class TerminalSidebarDragPresentation {
     hapticTracker.reset()
   }
 
+  func handoffToSource(layoutSource: () -> Void) {
+    handoff(.restoreSource, layout: layoutSource)
+  }
+
+  func handoffToDestination(layoutDestination: () -> Void) {
+    handoff(.commitWithinSource, layout: layoutDestination)
+  }
+
+  func handoffAfterExternalSuccess(layoutSource: () -> Void) {
+    handoff(.commitOutsideSource, layout: layoutSource)
+  }
+
+  private func handoff(
+    _ disposition: TerminalSidebarDragProjectionDisposition,
+    layout: () -> Void
+  ) {
+    CATransaction.begin()
+    CATransaction.setDisableActions(true)
+    layout()
+    finish(disposition)
+    layout()
+    CATransaction.commit()
+  }
+
   func settle(
     _ settlement: Settlement,
     completion: @escaping @MainActor @Sendable () -> Void
@@ -100,6 +140,7 @@ final class TerminalSidebarDragPresentation {
       completion()
       return
     }
+    liveView.isHidden = false
     if settlement.accepted, settlement.motionPolicy.ripple {
       applyDropRipple(
         candidates: settlement.rippleCandidates,
@@ -163,9 +204,9 @@ final class TerminalSidebarDragPresentation {
     CATransaction.commit()
   }
 
-  func finish() {
+  private func finish(_ disposition: TerminalSidebarDragProjectionDisposition) {
     guard let collectionView else { return }
-    liveView?.restore(in: collectionView)
+    liveView?.finish(in: collectionView, disposition: disposition)
     liveView?.removeFromSuperview()
     liveView = nil
     hotspot = .zero
@@ -292,8 +333,20 @@ private final class TerminalSidebarLiveDragView: NSView {
     layer.add(TerminalSidebarTransformSpring.animation(from: 0, to: -2), forKey: "lift")
   }
 
-  func restore(in collectionView: NSCollectionView) {
-    for row in rows { row.restore() }
-    groupBackground?.restore(in: collectionView)
+  func finish(
+    in collectionView: NSCollectionView,
+    disposition: TerminalSidebarDragProjectionDisposition
+  ) {
+    switch disposition {
+    case .restoreSource:
+      for row in rows { row.restore() }
+      groupBackground?.restore(in: collectionView)
+    case .commitWithinSource:
+      for row in rows { row.hostedView.removeFromSuperview() }
+      groupBackground?.restore(in: collectionView)
+    case .commitOutsideSource:
+      for row in rows { row.hostedView.removeFromSuperview() }
+      groupBackground?.view.removeFromSuperview()
+    }
   }
 }

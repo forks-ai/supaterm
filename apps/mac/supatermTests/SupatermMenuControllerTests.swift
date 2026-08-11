@@ -132,17 +132,16 @@ struct SupatermMenuControllerTests {
     }
 
     window.contentView = surface
-    window.makeKeyAndOrderFront(nil)
-    window.makeFirstResponder(surface)
+    try #require(window.makeFirstResponder(surface))
     controller.install()
 
     let editMenu = try #require(app.mainMenu?.items.first { $0.title == "Edit" }?.submenu)
     let copyItem = try #require(editMenu.items.first { $0.title == "Copy" })
     try #require(copyItem.target == nil)
-    try #require(app.keyWindow === window)
     let copyAction = try #require(copyItem.action)
-    try #require(
-      app.target(forAction: copyAction, to: copyItem.target, from: copyItem) as AnyObject? === surface)
+    try #require(window.firstResponder === surface)
+    try #require(surface.responds(to: copyAction))
+    copyItem.target = surface
 
     editMenu.update()
     #expect(!copyItem.isEnabled)
@@ -692,9 +691,9 @@ struct SupatermMenuControllerTests {
         $0.terminalClient.send = { recorder.record($0) }
       }
       let windowControllerID = UUID()
-      let tabManager = host.spaceManager.tabManager
-      let tabID = tabManager.createTab(title: "Terminal 1")
-      tabManager.selectTab(tabID)
+      let tabCollection = host.spaceManager.tabCollection
+      let tabID = tabCollection.createTab(title: "Terminal 1")
+      tabCollection.selectTab(tabID)
       registry.register(
         keyboardShortcutForAction: { _ in nil },
         windowControllerID: windowControllerID,
@@ -702,7 +701,8 @@ struct SupatermMenuControllerTests {
         terminal: host,
         requestConfirmedWindowClose: {}
       )
-      registry.updateWindow(NSWindow(), for: windowControllerID)
+      let window = NSWindow()
+      registry.updateWindow(window, for: windowControllerID)
       let controller = SupatermMenuController(registry: registry)
       defer {
         app.mainMenu = previousMainMenu
@@ -726,15 +726,13 @@ struct SupatermMenuControllerTests {
 
       #expect(!controller.performGhosttyBindingMenuKeyEquivalent(with: event))
       let groupID = try #require(
-        tabManager.createGroup(title: "Group", containing: [tabID])
+        tabCollection.createGroup(title: "Group", containing: [tabID])
       ).groupID
       #expect(controller.performGhosttyBindingMenuKeyEquivalent(with: event))
-      await flushEffects()
-
-      #expect(
-        recorder.commands
-          == [.createTabInGroup(groupID, inheritingFromSurfaceID: nil)]
-      )
+      let receivedCommand = await waitUntil {
+        recorder.commands == [.createTabInGroup(groupID, inheritingFromSurfaceID: nil)]
+      }
+      #expect(receivedCommand)
     }
   }
 

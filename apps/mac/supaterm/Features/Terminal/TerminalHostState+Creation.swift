@@ -55,19 +55,19 @@ extension TerminalHostState {
     synchronizesFocus: Bool = true
   ) -> TerminalTabID? {
     warmInstance(for: spaceID)
-    guard let tabManager = spaceManager.tabManager(for: spaceID) else { return nil }
+    guard let tabCollection = spaceManager.tabCollection(for: spaceID) else { return nil }
     let context: ghostty_surface_context_e =
-      tabManager.tabs.isEmpty
+      tabCollection.tabs.isEmpty
       ? GHOSTTY_SURFACE_CONTEXT_WINDOW
       : GHOSTTY_SURFACE_CONTEXT_TAB
     let resolvedPlacement =
       placement
       ?? defaultTabPlacement(
-        in: tabManager,
+        in: tabCollection,
         inheritingFromSurfaceID: inheritingFromSurfaceID
       )
     guard
-      let tabID = tabManager.createTab(
+      let tabID = tabCollection.createTab(
         title: "Terminal \(nextTabIndex(in: spaceID))",
         at: resolvedPlacement
       )
@@ -111,7 +111,7 @@ extension TerminalHostState {
   ) -> TerminalTabID? {
     guard
       let instance = spaceManager.instance(for: groupID),
-      let group = instance.tabManager.group(for: groupID)
+      let group = instance.tabCollection.group(for: groupID)
     else {
       return nil
     }
@@ -124,23 +124,23 @@ extension TerminalHostState {
   }
 
   func defaultTabPlacement(
-    in tabManager: TerminalTabManager,
+    in tabCollection: TerminalTabCollection,
     inheritingFromSurfaceID: UUID?
   ) -> TerminalTabPlacement {
     if let inheritingFromSurfaceID,
       let anchorTabID = tabID(containing: inheritingFromSurfaceID)
     {
-      if let isPinned = tabManager.isPinned(anchorTabID) {
+      if let isPinned = tabCollection.isPinned(anchorTabID) {
         return .root(
           TerminalRootPlacement(
             isPinned: isPinned,
-            index: isPinned ? tabManager.pinnedRootItems.count : tabManager.regularRootItems.count
+            index: isPinned ? tabCollection.pinnedRootItems.count : tabCollection.regularRootItems.count
           )
         )
       }
     }
     return .root(
-      TerminalRootPlacement(isPinned: false, index: tabManager.regularRootItems.count)
+      TerminalRootPlacement(isPinned: false, index: tabCollection.regularRootItems.count)
     )
   }
 
@@ -156,12 +156,6 @@ extension TerminalHostState {
       preconditionFailure("TerminalHostState cannot create surfaces without a GhosttyRuntime")
     }
     let inherited = inheritedSurfaceConfig(fromSurfaceID: inheritingFromSurfaceID, context: context)
-    let resolvedStartupCommand =
-      startupCommand
-      ?? inheritedSSHStartup(
-        fromSurfaceID: inheritingFromSurfaceID,
-        workingDirectory: workingDirectory
-      )
     let commandWrapper = resolvedCommandWrapper(surfaceID: surfaceID)
     let usesZmx = !commandWrapper.isEmpty
     SupatermLog.debug(
@@ -172,7 +166,7 @@ extension TerminalHostState {
         "tabID=\(tabID.rawValue.uuidString.lowercased())",
         "context=\(Self.surfaceContextLabel(context))",
         "zmxSessionsEnabled=\(zmxSessionsEnabled)",
-        "hasStartupCommand=\(resolvedStartupCommand != nil)",
+        "hasStartupCommand=\(startupCommand != nil)",
         "hasCommandWrapper=\(!commandWrapper.isEmpty)",
         "usesZmx=\(usesZmx)",
       ]
@@ -182,7 +176,7 @@ extension TerminalHostState {
       runtime: runtime,
       tabID: tabID.rawValue,
       workingDirectory: workingDirectory ?? inherited.workingDirectory,
-      startupCommand: resolvedStartupCommand,
+      startupCommand: startupCommand,
       commandWrapper: commandWrapper,
       fontSize: inherited.fontSize,
       context: context,
@@ -233,17 +227,6 @@ extension TerminalHostState {
       ]
     )
     return commandWrapper
-  }
-
-  func inheritedSSHStartup(
-    fromSurfaceID surfaceID: UUID?,
-    workingDirectory: URL?
-  ) -> SupatermTerminalStartup? {
-    guard zmxSessionsEnabled, workingDirectory == nil, let surfaceID else { return nil }
-    return SSHSessionInheritance.startupCommand(
-      zmxSessionName: ZmxSessionID.make(surfaceID: surfaceID),
-      cliPath: GhosttySupport.bundledCLIPath(executableURL: Bundle.main.executableURL)
-    )
   }
 
   func inheritedSurfaceConfig(
@@ -336,7 +319,7 @@ extension TerminalHostState {
       let spaceID = TerminalSpaceID(rawValue: rawSpaceID)
       guard
         let space = space(warming: spaceID),
-        let manager = spaceManager.tabManager(for: spaceID)
+        let manager = spaceManager.tabCollection(for: spaceID)
       else {
         throw TerminalCreateTabError.contextPaneNotFound
       }
@@ -354,7 +337,7 @@ extension TerminalHostState {
       guard
         let instance = spaceManager.instance(for: groupID),
         let space = spaceManager.space(for: instance.spaceID),
-        let group = instance.tabManager.group(for: groupID)
+        let group = instance.tabCollection.group(for: groupID)
       else {
         throw TerminalCreateTabError.contextPaneNotFound
       }

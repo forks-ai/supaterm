@@ -38,7 +38,7 @@ sp tab pin
 sp tab next
 ```
 
-A new tab with no command or explicit working directory opens the same remote host when its source pane runs a plain interactive SSH login. Pass `--cwd`, a command after `--`, or `--script` to open a local shell instead. **New Supaterm Tab Here** always opens a local shell in the chosen folder.
+A new tab with no command starts a local login shell. **New Supaterm Tab Here** starts one in the chosen folder.
 
 The first argument after `--` names an executable, and Supaterm preserves every argument exactly. When the executable exits, the tab returns to its login shell. Use `--script` for builtins, aliases, or raw shell code; the tab also returns to the shell when the script ends.
 
@@ -53,7 +53,7 @@ sp pane split right
 sp pane split down --cwd ~/code/project -- npm test
 ```
 
-A split with no command or explicit working directory opens the same remote host when its source pane runs a plain interactive SSH login. Pass `--cwd`, a command after `--`, or `--script` to open a local shell instead.
+A split with no command starts a local login shell.
 
 As with tabs, trailing executable arguments after `--` stay exact, while `--script` takes builtins, aliases, or raw shell code. The pane returns to its login shell after either form finishes.
 

@@ -2,7 +2,6 @@ import Sharing
 import SupaTheme
 import SupatermCLIShared
 import SupatermSupport
-import SupatermUI
 import SwiftUI
 
 enum AgentPanelMetrics {
@@ -40,17 +39,6 @@ struct AgentPanelView: View {
       .accessibilityElement(children: .contain)
       .accessibilityLabel("Agent panel")
       .accessibilityIdentifier(Self.accessibilityIdentifier)
-      .overlay(alignment: .bottom) {
-        if let copyFeedback {
-          ToastSurface(
-            theme: .palette(palette),
-            title: copyFeedback.title,
-            icon: "doc.on.doc.fill",
-            tone: .success
-          )
-          .transition(.move(edge: .bottom).combined(with: .opacity))
-        }
-      }
       .task(id: copyFeedback?.id) {
         guard let feedback = copyFeedback else { return }
         do {
@@ -632,17 +620,6 @@ private struct AgentPanelCopyFeedback {
 
   let id = UUID()
   let target: Target
-
-  var title: String {
-    switch target {
-    case .workingDirectory:
-      "Working directory copied"
-    case .branch:
-      "Branch copied"
-    case .sessionID:
-      "Session ID copied"
-    }
-  }
 }
 
 private enum AgentPanelIcon {

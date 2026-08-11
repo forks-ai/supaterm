@@ -53,6 +53,7 @@ final class TerminalHostState {
     case next
     case previous
     case rename(TerminalSpaceID, String)
+    case reorder(TerminalSpaceID, insertionIndex: Int)
     case select(TerminalSpaceID)
     case selectSlot(Int)
     case setColor(TerminalSpaceID, ThemeTint)
@@ -274,6 +275,9 @@ final class TerminalHostState {
   var runtimeConfigObserver: NSObjectProtocol?
   var onSessionChange: @MainActor () -> Void = {}
   var onSpaceAction: @MainActor (SpaceAction) -> Void = { _ in }
+  var onTabDroppedOnSpace: @MainActor (TerminalTabDragPayload, TerminalSpaceID) -> Bool = { _, _ in
+    false
+  }
   @ObservationIgnored
   var paneCountAcrossWindows: @MainActor (TerminalSpaceID) -> Int = { _ in 0 }
   @ObservationIgnored
@@ -531,8 +535,8 @@ final class TerminalHostState {
 
   func togglePinned(_ tabID: TerminalTabID) {
     guard let instance = spaceManager.instance(for: tabID) else { return }
-    let previousRevision = instance.tabManager.topologyRevision
-    guard let result = instance.tabManager.togglePinned(tabID) else { return }
+    let previousRevision = instance.tabCollection.topologyRevision
+    guard let result = instance.tabCollection.togglePinned(tabID) else { return }
     finishMove(result, previousRevision: previousRevision, spaceID: instance.spaceID)
   }
 
@@ -798,11 +802,11 @@ final class TerminalHostState {
 
   func performCloseTab(_ tabID: TerminalTabID) {
     guard let instance = spaceManager.instance(for: tabID) else { return }
-    let tabManager = instance.tabManager
-    let wasSelectedTab = tabManager.selectedTabId == tabID
+    let tabCollection = instance.tabCollection
+    let wasSelectedTab = tabCollection.selectedTabID == tabID
 
     removeTree(for: tabID, source: .closeTab)
-    guard let result = tabManager.closeTab(tabID) else { return }
+    guard let result = tabCollection.closeTab(tabID) else { return }
     removeCollapsedGroups(result.deletedEmptyGroupIDs, in: instance.spaceID)
     updateSelectionAfterClosingTab(
       in: instance.spaceID,
@@ -824,10 +828,10 @@ final class TerminalHostState {
   func performCloseGroup(_ groupID: TerminalTabGroupID) {
     guard let instance = spaceManager.instance(for: groupID) else { return }
     withBatchedSessionChange {
-      for tabID in instance.tabManager.tabIDs(in: groupID) {
+      for tabID in instance.tabCollection.tabIDs(in: groupID) {
         performCloseTab(tabID)
       }
-      _ = instance.tabManager.deleteEmptyGroup(groupID)
+      _ = instance.tabCollection.deleteEmptyGroup(groupID)
       instance.collapsedTabGroupIDs.remove(groupID)
     }
   }
@@ -1053,7 +1057,7 @@ final class TerminalHostState {
 
   func updateTabTitle(for tabID: TerminalTabID) {
     let resolvedTitle = currentTabTitle(for: tabID)
-    spaceManager.instance(for: tabID)?.tabManager.updateTitle(tabID, title: resolvedTitle)
+    spaceManager.instance(for: tabID)?.tabCollection.updateTitle(tabID, title: resolvedTitle)
   }
 
   func focusSurface(in tabID: TerminalTabID) {
@@ -1182,7 +1186,7 @@ final class TerminalHostState {
     let isRunning = tree.leaves().contains { surface in
       Self.isRunning(progressState: surface.bridge.state.progressState)
     }
-    spaceManager.instance(for: tabID)?.tabManager.updateDirty(tabID, isDirty: isRunning)
+    spaceManager.instance(for: tabID)?.tabCollection.updateDirty(tabID, isDirty: isRunning)
   }
 
   nonisolated static func logSurfaceIDs(_ surfaceIDs: some Sequence<UUID>) -> String {
@@ -1216,7 +1220,7 @@ final class TerminalHostState {
   }
 
   func setLockedTabTitle(_ title: String?, for tabID: TerminalTabID) {
-    spaceManager.instance(for: tabID)?.tabManager.setLockedTitle(tabID, title: title)
+    spaceManager.instance(for: tabID)?.tabCollection.setLockedTitle(tabID, title: title)
     updateTabTitle(for: tabID)
     sessionDidChange()
   }
