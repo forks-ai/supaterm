@@ -1,9 +1,41 @@
+import AppKit
 import Foundation
 import SupatermCLIShared
 import Testing
 
 extension SupatermE2ESuite {
   @Suite struct WindowLifecycleTests {
+    @Test(.timeLimit(.minutes(5)))
+    func appStaysBehindFrontmostApplication() async throws {
+      let app = try await SupatermE2EApp.launch()
+      defer { app.terminate() }
+
+      let runningApp = try #require(
+        NSRunningApplication(processIdentifier: app.processIdentifier)
+      )
+      #expect(!runningApp.isActive)
+      try expectWindowIsBehindFrontmostApplication(processID: app.processIdentifier)
+
+      let paneID = try #require(
+        try app.debugSnapshot()
+          .windows
+          .first?
+          .spaces
+          .first?
+          .flattenedTabs
+          .first?
+          .panes
+          .first?
+          .id
+      )
+      _ = try app.send(
+        .focusPane(SupatermPaneTargetRequest(paneID: paneID)),
+        as: SupatermFocusPaneResult.self
+      )
+      #expect(!runningApp.isActive)
+      try expectWindowIsBehindFrontmostApplication(processID: app.processIdentifier)
+    }
+
     @Test(.timeLimit(.minutes(5)))
     func closingLastPaneClosesWindow() async throws {
       let app = try await SupatermE2EApp.launch()
@@ -49,4 +81,22 @@ extension SupatermE2ESuite {
       #expect(after.windows.first?.spaces.map(\.id) == [space.id])
     }
   }
+}
+
+private func expectWindowIsBehindFrontmostApplication(processID: pid_t) throws {
+  let frontmostProcessID = try #require(
+    NSWorkspace.shared.frontmostApplication?.processIdentifier
+  )
+  #expect(frontmostProcessID != processID)
+  let owners = try #require(
+    CGWindowListCopyWindowInfo([.optionOnScreenOnly, .excludeDesktopElements], kCGNullWindowID)
+      as? [[CFString: Any]]
+  )
+  let processIndex = try #require(
+    owners.firstIndex { ($0[kCGWindowOwnerPID] as? NSNumber)?.int32Value == processID }
+  )
+  let ownerIndex = try #require(
+    owners.firstIndex { ($0[kCGWindowOwnerPID] as? NSNumber)?.int32Value == frontmostProcessID }
+  )
+  #expect(processIndex > ownerIndex)
 }

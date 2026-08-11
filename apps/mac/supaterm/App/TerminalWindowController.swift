@@ -10,6 +10,30 @@ private final class TerminalGestureWindow: NSWindow {
   var onSwipeLeft: (() -> Void)?
   var onSwipeRight: (() -> Void)?
 
+  override func makeKeyAndOrderFront(_ sender: Any?) {
+    guard !orderBackInTestMode(sender, makeKey: true) else { return }
+    super.makeKeyAndOrderFront(sender)
+  }
+
+  override func orderFront(_ sender: Any?) {
+    guard !orderBackInTestMode(sender) else { return }
+    super.orderFront(sender)
+  }
+
+  override func orderFrontRegardless() {
+    guard !orderBackInTestMode(nil) else { return }
+    super.orderFrontRegardless()
+  }
+
+  private func orderBackInTestMode(_ sender: Any?, makeKey: Bool = false) -> Bool {
+    guard AppBuild.isTestMode else { return false }
+    if makeKey {
+      super.makeKey()
+    }
+    super.orderBack(sender)
+    return true
+  }
+
   override func performKeyEquivalent(with event: NSEvent) -> Bool {
     if let slot = TerminalCommandPaletteShortcut.slot(for: event) {
       if onPaletteShortcut?(slot) == true { return true }
