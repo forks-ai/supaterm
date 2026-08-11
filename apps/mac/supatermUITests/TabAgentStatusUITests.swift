@@ -36,21 +36,22 @@ final class TabAgentStatusUITests: SupatermUITestCase {
       $0.exists && $0.isSelected
     }
     XCTAssertTrue(didSelectSecondTab)
-    let pinnedRow = sidebarTabRow(named: tabTitle)
-    let didShowNeedsInput = await wait(for: pinnedRow, timeout: Self.coldStartTimeout) {
-      $0.label.contains("Agent activity: Needs input")
+    let didShowNeedsInput = await wait(timeout: Self.coldStartTimeout) {
+      self.sidebarTabRow(named: tabTitle).label.contains("Agent activity: Needs input")
     }
     XCTAssertTrue(didShowNeedsInput)
 
-    await selectTab(pinnedRow)
+    await selectTab(sidebarTabRow(named: tabTitle))
     try await sendClaudeEvent("stop")
-    let didShowCompletion = await wait(for: pinnedRow, timeout: Self.coldStartTimeout) {
-      $0.label.contains("Done.") && !$0.label.contains("Agent activity:")
+    let didShowCompletion = await wait(timeout: Self.coldStartTimeout) {
+      let currentRow = self.sidebarTabRow(named: tabTitle)
+      return currentRow.label.contains("Done.") && !currentRow.label.contains("Agent activity:")
     }
     XCTAssertTrue(didShowCompletion)
     mainTerminal.click()
-    let didRestorePinned = await wait(for: pinnedRow, timeout: Self.coldStartTimeout) {
-      $0.label.contains("Pinned") && !$0.label.contains("Agent activity:")
+    let didRestorePinned = await wait(timeout: Self.coldStartTimeout) {
+      let currentRow = self.sidebarTabRow(named: tabTitle)
+      return currentRow.label.contains("Pinned") && !currentRow.label.contains("Agent activity:")
     }
     XCTAssertTrue(didRestorePinned)
 

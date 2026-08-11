@@ -19,9 +19,11 @@ final class TabDragUITests: SupatermUITestCase {
 
       _ = try await requireVisiblePanes(count: expectedPaneCount)
       XCTAssertEqual(sidebarTabRows.count, 1)
-      let restoredSource = sidebarTabRow(named: "Only Tab")
-      XCTAssertTrue(restoredSource.exists)
-      XCTAssertTrue(restoredSource.isSelected)
+      let didRestoreSource = await wait {
+        let restoredSource = self.sidebarTabRow(named: "Only Tab")
+        return restoredSource.exists && restoredSource.isHittable && restoredSource.isSelected
+      }
+      XCTAssertTrue(didRestoreSource)
     }
   }
 

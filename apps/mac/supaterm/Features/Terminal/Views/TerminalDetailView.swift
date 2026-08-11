@@ -89,6 +89,7 @@ private struct TerminalDetailTopBar: View {
         showsAttentionIndicator: showsSidebarAttentionIndicator,
         action: toggleSidebar
       )
+      .accessibilityIdentifier("terminal.sidebar-toggle")
       .help(isSidebarCollapsed ? "Show Sidebar" : "Hide Sidebar")
 
       Text(title)

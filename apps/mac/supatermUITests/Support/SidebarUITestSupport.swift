@@ -119,26 +119,21 @@ extension SupatermUITestCase {
   }
 
   @MainActor
-  var showSidebarButton: XCUIElement {
-    app.buttons.matching(NSPredicate(format: "label BEGINSWITH %@", "Show sidebar")).firstMatch
-  }
-
-  @MainActor
-  var hideSidebarButton: XCUIElement {
-    app.buttons["Hide sidebar"]
+  var sidebarToggleButton: XCUIElement {
+    element(SupatermUITestIdentifier.Accessibility.sidebarToggle)
   }
 
   @MainActor
   func waitForSidebarCollapsed(timeout: Duration = .seconds(10)) async -> Bool {
-    await wait(for: showSidebarButton, timeout: timeout) {
-      $0.exists && $0.isHittable
+    await wait(for: sidebarToggleButton, timeout: timeout) {
+      $0.exists && $0.isHittable && $0.label.hasPrefix("Show sidebar")
     }
   }
 
   @MainActor
   func waitForSidebarExpanded(timeout: Duration = .seconds(10)) async -> Bool {
-    await wait(for: hideSidebarButton, timeout: timeout) {
-      $0.exists && $0.isHittable
+    await wait(for: sidebarToggleButton, timeout: timeout) {
+      $0.exists && $0.isHittable && $0.label == "Hide sidebar"
     }
   }
 

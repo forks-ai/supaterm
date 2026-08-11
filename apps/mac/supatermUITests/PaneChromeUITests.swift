@@ -100,8 +100,9 @@ final class PaneChromeUITests: SupatermUITestCase {
     app.typeKey("s", modifierFlags: .command)
 
     let didHideSidebarHeader = await wait {
-      self.showSidebarButton.exists
-        && self.showSidebarButton.isHittable
+      self.sidebarToggleButton.exists
+        && self.sidebarToggleButton.isHittable
+        && self.sidebarToggleButton.label.hasPrefix("Show sidebar")
         && !spaceSwitcher.isHittable
     }
     XCTAssertTrue(didHideSidebarHeader)
