@@ -788,6 +788,25 @@ struct TerminalWindowFeatureTests {
   }
 
   @Test
+  func commandPaletteActivateSelectionTogglesSidebarAndClosesPalette() async {
+    var initialState = TerminalWindowFeature.State()
+    initialState.commandPalette = TerminalCommandPaletteState(
+      selectedRowID: "supaterm:toggle-sidebar"
+    )
+
+    let store = TestStore(initialState: initialState) {
+      TerminalWindowFeature()
+    } withDependencies: {
+      $0.terminalCommandPaletteClient.snapshot = { _ in makeCommandPaletteSnapshot() }
+    }
+
+    await store.send(.commandPaletteActivateSelection) {
+      $0.commandPalette = nil
+      $0.isSidebarCollapsed = true
+    }
+  }
+
+  @Test
   func commandPaletteActivateSelectionOpensGitHubIssueAndClosesPalette() async {
     var openedURLs: [URL] = []
     var initialState = TerminalWindowFeature.State()

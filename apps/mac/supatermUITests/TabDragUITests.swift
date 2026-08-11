@@ -8,11 +8,14 @@ final class TabDragUITests: SupatermUITestCase {
     for expectedPaneCount in 2...3 {
       let source = sidebarTabRow(named: "Only Tab")
       XCTAssertTrue(source.isSelected)
-      let panes = try await requireVisiblePanes(count: expectedPaneCount - 1)
-      let rightmostPane = try XCTUnwrap(panes.max { $0.frame.maxX < $1.frame.maxX })
+      _ = try await requireVisiblePanes(count: expectedPaneCount - 1)
+      let splitGroup = app.splitGroups.matching(
+        NSPredicate(format: "label BEGINSWITH %@", "Terminal split:")
+      ).firstMatch
+      XCTAssertTrue(splitGroup.exists)
       source.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)).press(
         forDuration: 0.5,
-        thenDragTo: rightmostPane.coordinate(
+        thenDragTo: splitGroup.coordinate(
           withNormalizedOffset: CGVector(dx: 0.82, dy: 0.5)
         ),
         withVelocity: .slow,

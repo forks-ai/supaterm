@@ -57,11 +57,11 @@ struct TerminalSidebarResizeTests {
   }
 
   @Test
-  func releaseCollapsesOnlyBelowMinimum() {
+  func releaseCollapsesAtMinimum() {
     let atMinimum = TerminalSidebarResizeState(startingWidth: 300, delta: -156)
     let belowMinimum = TerminalSidebarResizeState(startingWidth: 300, delta: -157)
 
-    #expect(!TerminalSidebarWidthPolicy.shouldCollapse(resizeState: atMinimum, totalWidth: 1_440))
+    #expect(TerminalSidebarWidthPolicy.shouldCollapse(resizeState: atMinimum, totalWidth: 1_440))
     #expect(TerminalSidebarWidthPolicy.shouldCollapse(resizeState: belowMinimum, totalWidth: 1_440))
     #expect(TerminalSidebarWidthPolicy.settledWidth(for: atMinimum, totalWidth: 1_440) == 144)
   }
@@ -162,7 +162,7 @@ struct TerminalSidebarResizeTests {
   }
 
   @Test
-  func resizeEndCollapsesOnlyAfterBelowMinimumRelease() async {
+  func resizeEndCollapsesAtMinimumRelease() async {
     var initialState = TerminalWindowFeature.State()
     initialState.sidebarWidth = 320
     let store = TestStore(initialState: initialState) {
@@ -172,8 +172,8 @@ struct TerminalSidebarResizeTests {
     await store.send(.sidebarResizeInput(.began, totalWidth: 1_440)) {
       $0.sidebarResizeState = TerminalSidebarResizeState(startingWidth: 320, delta: 0)
     }
-    await store.send(.sidebarResizeInput(.changed(delta: -177), totalWidth: 1_440)) {
-      $0.sidebarResizeState?.delta = -177
+    await store.send(.sidebarResizeInput(.changed(delta: -176), totalWidth: 1_440)) {
+      $0.sidebarResizeState?.delta = -176
     }
     await store.send(.sidebarResizeInput(.ended, totalWidth: 1_440)) {
       $0.isSidebarCollapsed = true

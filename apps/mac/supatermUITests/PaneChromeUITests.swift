@@ -22,9 +22,9 @@ final class PaneChromeUITests: SupatermUITestCase {
     let didCollapseSidebar = await waitForSidebarCollapsed()
     XCTAssertTrue(didCollapseSidebar)
 
-    let leftTopBarTitle = app.staticTexts[leftTitle]
-    let didShowLeftTitle = await wait(for: leftTopBarTitle) {
-      $0.exists && $0.isHittable
+    let didShowLeftTitle = await wait {
+      let title = self.app.staticTexts[leftTitle]
+      return title.exists && title.isHittable
     }
     XCTAssertTrue(didShowLeftTitle)
 
@@ -40,30 +40,32 @@ final class PaneChromeUITests: SupatermUITestCase {
     }
     XCTAssertTrue(didSetRightTitle)
 
-    let rightTopBarTitle = app.staticTexts[rightTitle]
-    let didShowRightTitle = await wait(for: rightTopBarTitle) {
-      $0.exists && $0.isHittable
+    let didShowRightTitle = await wait {
+      let title = self.app.staticTexts[rightTitle]
+      return title.exists && title.isHittable
     }
     XCTAssertTrue(didShowRightTitle)
-    let didHideLeftTitle = await wait(for: leftTopBarTitle) { !$0.exists }
+    let didHideLeftTitle = await wait { !self.app.staticTexts[leftTitle].exists }
     XCTAssertTrue(didHideLeftTitle)
 
     try clickMenuItem(.selectSplitLeft)
     try await requireFocus(on: leftPane)
-    let didRestoreLeftTitle = await wait(for: leftTopBarTitle) {
-      $0.exists && $0.isHittable
+    let didRestoreLeftTitle = await wait {
+      let title = self.app.staticTexts[leftTitle]
+      return title.exists && title.isHittable
     }
     XCTAssertTrue(didRestoreLeftTitle)
-    let didHideRightTitle = await wait(for: rightTopBarTitle) { !$0.exists }
+    let didHideRightTitle = await wait { !self.app.staticTexts[rightTitle].exists }
     XCTAssertTrue(didHideRightTitle)
 
     try clickMenuItem(.selectSplitRight)
     try await requireFocus(on: rightPane)
-    let didRestoreRightTitle = await wait(for: rightTopBarTitle) {
-      $0.exists && $0.isHittable
+    let didRestoreRightTitle = await wait {
+      let title = self.app.staticTexts[rightTitle]
+      return title.exists && title.isHittable
     }
     XCTAssertTrue(didRestoreRightTitle)
-    let didRemoveLeftTitle = await wait(for: leftTopBarTitle) { !$0.exists }
+    let didRemoveLeftTitle = await wait { !self.app.staticTexts[leftTitle].exists }
     XCTAssertTrue(didRemoveLeftTitle)
 
     leftPane.click()

@@ -52,7 +52,7 @@ enum TerminalSidebarWidthPolicy {
     resizeState: TerminalSidebarResizeState,
     totalWidth: CGFloat
   ) -> Bool {
-    resizeState.startingWidth + resizeState.delta < widthRange(for: totalWidth).lowerBound
+    resizeState.startingWidth + resizeState.delta <= widthRange(for: totalWidth).lowerBound
   }
 
   static func settledWidth(

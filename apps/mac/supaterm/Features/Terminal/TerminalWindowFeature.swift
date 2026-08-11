@@ -616,9 +616,7 @@ struct TerminalWindowFeature {
         return sendCommand(.ungroup(groupID))
 
       case .toggleSidebarButtonTapped:
-        state.isFloatingSidebarVisible = false
-        state.isSidebarCollapsed.toggle()
-        state.sidebarResizeState = nil
+        toggleSidebar(state: &state)
         return .none
 
       case .confirmationCancelButtonTapped:
@@ -788,7 +786,8 @@ struct TerminalWindowFeature {
         _ = await externalNavigationClient.open(SupatermExternalURL.submitGitHubIssue)
       }
     case .toggleSidebar:
-      return .send(.toggleSidebarButtonTapped)
+      toggleSidebar(state: &state)
+      return .none
     case .createSpace:
       return .send(.spaceCreateButtonTapped)
     case .renameSpace(let space):
@@ -800,6 +799,12 @@ struct TerminalWindowFeature {
     case .selectTab(let tabID):
       return sendCommand(.selectTab(tabID))
     }
+  }
+
+  private func toggleSidebar(state: inout State) {
+    state.isFloatingSidebarVisible = false
+    state.isSidebarCollapsed.toggle()
+    state.sidebarResizeState = nil
   }
 
   private func executeClose(for target: TerminalCloseTarget) -> Effect<Action> {
