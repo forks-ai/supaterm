@@ -18,6 +18,18 @@ struct ZmxClientTests {
   }
 
   @Test
+  func environmentPersistsDisabledSetting() {
+    var settings = SupatermSettings.default
+
+    ZmxEnvironment.applySessionsPolicy(
+      to: &settings,
+      environment: [ZmxEnvironment.disabledKey: "1"]
+    )
+
+    #expect(!settings.zmxSessionsEnabled)
+  }
+
+  @Test
   func sessionIDUsesInstanceNamespaceAndRoundTripsSurfaceID() {
     let surfaceID = UUID(uuidString: "01234567-89AB-CDEF-0123-456789ABCDEF")!
     let environment = [SupatermCLIEnvironment.instanceNameKey: "dev/main"]
