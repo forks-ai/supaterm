@@ -206,7 +206,7 @@ struct TerminalHostStateAgentPersistenceTests {
   private func hostFixture() throws -> (TerminalHostState, UUID) {
     initializeGhosttyForTests()
     let host = TerminalHostState()
-    host.handleCommand(.ensureInitialTab(focusing: false, startupCommand: nil))
+    host.ensureInitialTab(focusing: false, startupCommand: nil)
     return (host, try #require(host.selectedSurfaceView?.id))
   }
 }

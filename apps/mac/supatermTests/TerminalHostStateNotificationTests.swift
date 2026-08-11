@@ -353,7 +353,7 @@ struct TerminalHostStateNotificationTests {
 
     let host = TerminalHostState()
     host.windowActivity = .inactive
-    host.handleCommand(.ensureInitialTab(focusing: false, startupCommand: nil))
+    host.ensureInitialTab(focusing: false, startupCommand: nil)
 
     let surface = try #require(host.selectedSurfaceView)
     #expect(

@@ -540,7 +540,7 @@ struct TerminalHostStateAgentExplainTests {
   private func hostFixture() throws -> HostFixture {
     initializeGhosttyForTests()
     let host = TerminalHostState()
-    host.handleCommand(.ensureInitialTab(focusing: false, startupCommand: nil))
+    host.ensureInitialTab(focusing: false, startupCommand: nil)
     let surfaceID = try #require(host.selectedSurfaceView?.id)
     let tabID = try #require(host.selectedTabID?.rawValue)
     return HostFixture(

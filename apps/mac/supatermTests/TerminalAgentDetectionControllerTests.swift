@@ -414,12 +414,7 @@ struct TerminalAgentDetectionControllerTests {
       window?.orderOut(nil)
       try? FileManager.default.removeItem(at: temporaryDirectory)
     }
-    host.handleCommand(
-      .ensureInitialTab(
-        focusing: false,
-        startupCommand: nil
-      )
-    )
+    host.ensureInitialTab(focusing: false, startupCommand: nil)
     let surface = try #require(host.selectedSurfaceView)
     window = NSWindow(
       contentRect: NSRect(x: 0, y: 0, width: 640, height: 320),
