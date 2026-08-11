@@ -2,6 +2,7 @@ import CoreGraphics
 import Foundation
 import SupaTheme
 import SupatermCLIShared
+import SupatermSupport
 
 nonisolated struct TerminalSessionCatalog: Equatable, Codable, Sendable {
   static let currentVersion = 10

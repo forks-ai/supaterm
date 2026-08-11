@@ -967,7 +967,7 @@ struct TerminalCommandExecutorAgentHookTests {
     )
     #expect(
       harness.host.agentActivity(for: harness.tabID)
-        == TerminalHostState.AgentActivity(kind: .pi, phase: .running)
+        == TerminalHostState.AgentActivity(agent: .pi, phase: .running)
     )
 
     let result = try harness.commandExecutor.handleAgentHook(
@@ -987,7 +987,7 @@ struct TerminalCommandExecutorAgentHookTests {
     #expect(
       harness.host.agentActivity(for: harness.tabID)
         == TerminalHostState.AgentActivity(
-          kind: .pi,
+          agent: .pi,
           phase: .needsInput,
           detail: "Pi run needs attention"
         )

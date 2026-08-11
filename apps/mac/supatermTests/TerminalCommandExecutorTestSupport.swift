@@ -249,10 +249,15 @@ extension TerminalHostState {
     processID: Int32?,
     workingDirectoryPath: String? = nil
   ) -> Bool {
-    guard let sessionID, let tabID = tabID(containing: surfaceID) else { return false }
-    if !hasAgentSession(agent: activity.kind, sessionID: sessionID) {
+    guard let agent = SupatermAgentKind(rawValue: activity.identity.id),
+      let sessionID,
+      let tabID = tabID(containing: surfaceID)
+    else {
+      return false
+    }
+    if !hasAgentSession(agent: agent, sessionID: sessionID) {
       _ = startTestAgentSession(
-        agent: activity.kind,
+        agent: agent,
         for: surfaceID,
         sessionID: sessionID,
         processID: processID
@@ -266,7 +271,7 @@ extension TerminalHostState {
       }
     return applyAgentEvent(
       TerminalAgentEvent(
-        scope: TerminalAgentEvent.Scope(agent: activity.kind, sessionID: sessionID),
+        scope: TerminalAgentEvent.Scope(agent: agent, sessionID: sessionID),
         context: SupatermCLIContext(surfaceID: surfaceID, tabID: tabID.rawValue),
         processID: processID,
         workingDirectoryPath: workingDirectoryPath,

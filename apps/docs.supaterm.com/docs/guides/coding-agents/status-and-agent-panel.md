@@ -13,6 +13,8 @@ The tab row reflects the foreground agent session in that pane:
 - **Needs input** — a permission request, question, or other attention event is waiting.
 - **Idle** — the current turn completed.
 
+Native hooks supply the full lifecycle and remain authoritative. Without them, fallback detection can show basic temporary activity for a recognized foreground agent. Fallback state is read-only and creates no notifications or session actions.
+
 Unread badges and notification previews remain available after activity ends. Hover a tab row to inspect the latest notification without switching tabs.
 
 ## Agent panel
@@ -31,6 +33,8 @@ Click the directory or branch row to copy its full value. Pull requests, checks,
 ![Supaterm agent panel showing progress, workspace, pull request checks, artifacts, and session actions.](/images/agent-panel-branch-pr-checks-dark.png)
 
 The panel follows the foreground root agent. A child agent cannot replace its parent's workspace or session actions.
+
+Fallback detection can supply the agent identity and basic activity state. Native hooks add richer lifecycle detail, progress, transcript, and session data. Fallback data is not saved.
 
 ## Attention
 

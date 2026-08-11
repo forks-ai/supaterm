@@ -63,6 +63,111 @@ struct TerminalAgentStateStoreTests {
   }
 
   @Test
+  func boundSessionRejectsRootAndChildEventsFromAnotherSurface() {
+    let boundSurfaceID = UUID()
+    let otherSurfaceID = UUID()
+    let tabID = UUID()
+    let boundContext = SupatermCLIContext(surfaceID: boundSurfaceID, tabID: tabID)
+    let otherContext = SupatermCLIContext(surfaceID: otherSurfaceID, tabID: tabID)
+    var store = TerminalAgentStateStore(processIdentity: testProcessIdentity)
+    let started = store.apply(
+      event(
+        sessionID: "session-1",
+        context: boundContext,
+        processID: 42,
+        action: .sessionStarted(transcriptPath: nil)
+      )
+    )
+    let turnStarted = store.apply(
+      event(
+        sessionID: "session-1",
+        turnID: "turn-1",
+        context: boundContext,
+        action: .turnStarted
+      )
+    )
+    let childStarted = store.apply(
+      event(
+        sessionID: "session-1",
+        turnID: "turn-1",
+        subagentID: "child-1",
+        context: boundContext,
+        processID: 43,
+        action: .subagentStarted(nickname: nil, role: "reviewer")
+      )
+    )
+    let before = store.snapshots(for: boundSurfaceID)
+    let authority = store.nativeHookAuthorityProcessIdentities(for: boundSurfaceID)
+
+    let acceptedRoot = store.apply(
+      event(
+        sessionID: "session-1",
+        turnID: "turn-1",
+        context: otherContext,
+        processID: 44,
+        action: .turnRunning(detail: "Wrong pane")
+      )
+    )
+    let acceptedChild = store.apply(
+      event(
+        sessionID: "session-1",
+        turnID: "turn-1",
+        subagentID: "child-1",
+        context: otherContext,
+        processID: 45,
+        action: .attentionRequested(requestID: "wrong", message: "Wrong pane")
+      )
+    )
+
+    #expect(started)
+    #expect(turnStarted)
+    #expect(childStarted)
+    #expect(!acceptedRoot)
+    #expect(!acceptedChild)
+    #expect(store.snapshots(for: boundSurfaceID) == before)
+    #expect(store.snapshots(for: otherSurfaceID).isEmpty)
+    #expect(store.nativeHookAuthorityProcessIdentities(for: boundSurfaceID) == authority)
+    #expect(store.nativeHookAuthorityProcessIdentities(for: otherSurfaceID).isEmpty)
+  }
+
+  @Test
+  func sessionStartExplicitlyRebindsAKnownSession() throws {
+    let firstSurfaceID = UUID()
+    let secondSurfaceID = UUID()
+    let tabID = UUID()
+    var store = TerminalAgentStateStore(processIdentity: testProcessIdentity)
+    let firstStart = store.apply(
+      event(
+        sessionID: "session-1",
+        context: SupatermCLIContext(surfaceID: firstSurfaceID, tabID: tabID),
+        processID: 42,
+        action: .sessionStarted(transcriptPath: nil)
+      )
+    )
+    let secondStart = store.apply(
+      event(
+        sessionID: "session-1",
+        context: SupatermCLIContext(surfaceID: secondSurfaceID, tabID: tabID),
+        processID: 43,
+        action: .sessionStarted(transcriptPath: nil)
+      )
+    )
+
+    #expect(firstStart)
+    #expect(secondStart)
+    #expect(store.surfaceID(agent: .codex, sessionID: "session-1") == secondSurfaceID)
+    #expect(store.snapshots(for: firstSurfaceID).isEmpty)
+    #expect(store.snapshots(for: secondSurfaceID).count == 1)
+    #expect(store.presentation(for: firstSurfaceID, agent: .codex) == nil)
+    #expect(store.presentation(for: secondSurfaceID, agent: .codex)?.sessionID == "session-1")
+    #expect(store.nativeHookAuthorityProcessIdentities(for: firstSurfaceID).isEmpty)
+    #expect(
+      store.nativeHookAuthorityProcessIdentities(for: secondSurfaceID)
+        == [try #require(testProcessIdentity(43))]
+    )
+  }
+
+  @Test
   func foregroundTurnCompletionBecomesIdle() throws {
     let surfaceID = UUID()
     let context = SupatermCLIContext(surfaceID: surfaceID, tabID: UUID())
@@ -356,7 +461,8 @@ struct TerminalAgentStateStoreTests {
     context: SupatermCLIContext? = nil,
     processID: Int32? = nil,
     workingDirectoryPath: String? = nil,
-    action: TerminalAgentEvent.Action
+    action: TerminalAgentEvent.Action,
+    origin: TerminalAgentEvent.Origin = .native
   ) -> TerminalAgentEvent {
     TerminalAgentEvent(
       scope: TerminalAgentEvent.Scope(
@@ -368,7 +474,8 @@ struct TerminalAgentStateStoreTests {
       context: context,
       processID: processID,
       workingDirectoryPath: workingDirectoryPath,
-      action: action
+      action: action,
+      origin: origin
     )
   }
 

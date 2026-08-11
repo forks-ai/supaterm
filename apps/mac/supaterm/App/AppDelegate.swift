@@ -44,6 +44,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
   private var spaceCatalog = TerminalSpaceCatalog.default
 
   private let menuController: SupatermMenuController
+  private let agentDetectionRuleService: AgentDetectionRuleService?
   private let configurationDiagnosticsWindowController = ConfigurationDiagnosticsWindowController()
   private let globalKeybindManager: GhosttyGlobalKeybindManager
   private let ghosttyRuntime: GhosttyRuntime
@@ -90,6 +91,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
       tabDragRegistry: terminalWindowRegistry.tabDragRegistry
     )
     let terminalCommandExecutor = TerminalCommandExecutor(registry: terminalWindowRegistry)
+    let agentDetectionRuleService = Self.makeAgentDetectionRuleService()
     let menuController = SupatermMenuController(registry: terminalWindowRegistry)
     let globalKeybindManager = GhosttyGlobalKeybindManager(runtime: ghosttyRuntime)
     let quitConfirmationPresenter = QuitConfirmationPresenter()
@@ -99,6 +101,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
     } withDependencies: {
       $0.socketRequestExecutor = .live(commandExecutor: terminalCommandExecutor)
     }
+    self.agentDetectionRuleService = agentDetectionRuleService
     self.menuController = menuController
     self.globalKeybindManager = globalKeybindManager
     self.ghosttyRuntime = ghosttyRuntime
@@ -146,6 +149,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
     menuController.install()
     socketStore.send(.task)
     refreshInstalledAgentHooks()
+    agentDetectionRuleService?.start()
     restoreWindowsAtLaunch()
     #if SUPATERM_DEMO
       DemoSeed.decorate(windowControllers.values.map(\.terminal))
@@ -212,6 +216,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
       )
     )
     globalKeybindManager.disable()
+    agentDetectionRuleService?.stop()
     socketStore.send(.shutdown)
   }
 
@@ -523,7 +528,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
       startupCommand: startupCommand,
       createsInitialTab: createsInitialTab,
       zmxClient: launchZmxClient,
-      zmxSessionsEnabled: zmxSessionsEnabledAtLaunch
+      zmxSessionsEnabled: zmxSessionsEnabledAtLaunch,
+      agentDetectionRuleRepository: agentDetectionRuleService?.repository
     ) { [weak self] in
       self?.saveSession()
     }
@@ -600,6 +606,51 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
       return true
     }
     return performNewWindow()
+  }
+
+  private static func makeAgentDetectionRuleService() -> AgentDetectionRuleService? {
+    guard let resourceDirectoryURL = Bundle.main.resourceURL else {
+      SupatermLog.error(
+        SupatermLog.terminal,
+        "agent_detection.rules.bootstrap",
+        fields: ["origin=bundle", "result=disabled", "error=missing_resource_directory"]
+      )
+      return nil
+    }
+    guard
+      let cachesDirectoryURL = FileManager.default.urls(
+        for: .cachesDirectory,
+        in: .userDomainMask
+      ).first
+    else {
+      SupatermLog.error(
+        SupatermLog.terminal,
+        "agent_detection.rules.bootstrap",
+        fields: ["origin=cache", "result=disabled", "error=missing_cache_directory"]
+      )
+      return nil
+    }
+    let cacheURL = AgentDetectionRuleService.cacheURL(
+      in: cachesDirectoryURL,
+      bundleIdentifier: Bundle.main.bundleIdentifier ?? SupatermLog.subsystem
+    )
+    do {
+      return try AgentDetectionRuleService(
+        resourceDirectoryURL: resourceDirectoryURL,
+        cacheURL: cacheURL
+      )
+    } catch {
+      SupatermLog.error(
+        SupatermLog.terminal,
+        "agent_detection.rules.bootstrap",
+        fields: [
+          "origin=bundle",
+          "result=disabled",
+          "error=\(String(reflecting: type(of: error)))",
+        ]
+      )
+      return nil
+    }
   }
 
   private func saveSession() {

@@ -49,6 +49,8 @@ const rewriteMeta = async (response: Response, meta: Record<string, string>): Pr
 const cacheControl = "public, max-age=300";
 const noStoreCacheControl = "no-store";
 const downloadCacheHeader = "x-supaterm-cache";
+const agentDetectionCacheControl = "public, max-age=300, must-revalidate";
+const agentDetectionAssetPath = "/agent-detection/v1/rules.toml";
 const byteRangePattern = /^bytes=(\d*)-(\d*)$/;
 const methodNotAllowed = () =>
   new Response("Method Not Allowed", {
@@ -78,6 +80,12 @@ const uncachedDownloadResponse = (response: Response, cacheStatus: string) =>
   withResponseHeaders(response, {
     "cache-control": noStoreCacheControl,
     [downloadCacheHeader]: cacheStatus,
+  });
+
+const serveAgentDetectionAsset = async (request: Request, assets: AssetBinding) =>
+  withResponseHeaders(await assets.fetch(request), {
+    "cache-control": agentDetectionCacheControl,
+    "x-content-type-options": "nosniff",
   });
 
 const upstreamFailureResponse = () =>
@@ -331,7 +339,9 @@ const proxyDownloadAsset = async (request: Request) => {
 
 export default {
   async fetch(request: Request, env: Env) {
-    if (isDownloadPath(new URL(request.url).pathname)) {
+    const pathname = new URL(request.url).pathname;
+
+    if (isDownloadPath(pathname)) {
       return proxyDownloadAsset(request);
     }
 
@@ -340,14 +350,17 @@ export default {
       return new Response("ASSETS binding not available", { status: 500 });
     }
 
-    if (isVideoAsset(new URL(request.url).pathname)) {
+    if (pathname === agentDetectionAssetPath) {
+      return serveAgentDetectionAsset(request, assets);
+    }
+
+    if (isVideoAsset(pathname)) {
       return serveVideoAsset(request, assets);
     }
 
     const response = await assets.fetch(request);
 
-    if (response.status === 404 && !new URL(request.url).pathname.includes(".")) {
-      const pathname = new URL(request.url).pathname;
+    if (response.status === 404 && !pathname.includes(".")) {
       const shell = await assets.fetch(new Request(new URL("/index.html", request.url), request));
       const meta = routeMeta[pathname];
       return meta ? rewriteMeta(shell, meta) : shell;

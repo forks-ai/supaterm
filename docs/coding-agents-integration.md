@@ -58,6 +58,47 @@ without an agent hook.
 
 Future agent integrations should keep that split. The wrapper or adapter should stay thin, and all UI state should stay inside the app.
 
+## Fallback Detection
+
+Supaterm can show basic agent activity when no authoritative native hook state exists for a pane.
+Native hooks remain authoritative whenever a hook and fallback detection identify the same exact
+process ID and start time.
+
+Fallback detection proves the agent process before it reads terminal content:
+
+1. Read the pane's foreground process group.
+2. Match a declared executable, or a declared wrapper with one complete script argument whose
+   suffix is declared.
+3. Record the process ID and process start time as one process identity.
+4. Read at most 64 KiB from the bottom of the active screen and 4 KiB from the start of the raw
+   terminal title.
+5. Apply the rules for the proved agent, then wait for weak state changes to settle.
+
+The process proof prevents terminal text from naming an agent on its own. Password entry, closed
+surfaces, unreadable screens, unknown processes, and ambiguous process matches produce no fallback
+state.
+
+Fallback state is temporary and read-only. It can supply agent identity and `idle`, `running`, or
+`needs input` activity to the panel and tab. It cannot create an action session, notification,
+transcript state, child-agent state, or saved state. It clears when the command ends, the surface
+closes, the process identity changes, or detection can no longer prove the state.
+
+### Rules
+
+The app bundle contains `AgentDetection/rules.toml`, so detection works before any network request.
+The file declares agent process forms and bounded screen or title rules. Supaterm rejects unknown
+keys, invalid expressions, unsafe bounds, and rule files above 256 KiB.
+
+On launch, and then every six hours, the app checks:
+
+```text
+https://supaterm.com/agent-detection/v1/rules.toml
+```
+
+Supaterm applies the same strict parser and size limits to the downloaded file. It writes valid rules
+to an atomic cache and activates them only when their generation is newer than the active rules. A
+bad, stale, conflicting, missing, or unreachable update leaves the current rules active.
+
 ## Supaterm Skill
 
 Supaterm ships its agent skill from `supaterm-skills` inside the app bundle.

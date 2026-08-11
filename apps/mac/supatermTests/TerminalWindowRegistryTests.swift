@@ -1436,7 +1436,7 @@ struct TerminalWindowRegistryTests {
       let surfaceID = try #require(host.selectedSurfaceView?.id)
       #expect(
         host.applyTestAgentActivity(
-          TerminalHostState.AgentActivity(kind: .pi, phase: .running, detail: nil),
+          TerminalHostState.AgentActivity(agent: .pi, phase: .running, detail: nil),
           for: surfaceID,
           sessionID: "session-1",
           processID: nil

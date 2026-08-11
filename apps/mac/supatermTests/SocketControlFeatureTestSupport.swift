@@ -18,6 +18,11 @@ func makeStore(
     @MainActor @Sendable (
       SocketRequestExecutor.AgentIntegrationRequest
     ) async throws -> SocketRequestExecutor.AgentIntegrationResult
+  )? = nil,
+  executeTerminalPane: (
+    @MainActor @Sendable (
+      SocketRequestExecutor.TerminalPaneRequest
+    ) async throws -> SocketRequestExecutor.TerminalPaneResult
   )? = nil
 ) -> TestStoreOf<SocketControlFeature> {
   TestStore(initialState: SocketControlFeature.State()) {
@@ -27,7 +32,8 @@ func makeStore(
     $0.socketRequestExecutor = .testing(
       terminalWindowsClient: $0.terminalWindowsClient,
       executeApp: executeApp,
-      executeAgentIntegration: executeAgentIntegration
+      executeAgentIntegration: executeAgentIntegration,
+      executeTerminalPane: executeTerminalPane
     )
   }
 }
@@ -38,6 +44,9 @@ extension SocketRequestExecutor {
     executeApp: (@MainActor @Sendable (AppRequest) async throws -> AppResult)? = nil,
     executeAgentIntegration: (
       @MainActor @Sendable (AgentIntegrationRequest) async throws -> AgentIntegrationResult
+    )? = nil,
+    executeTerminalPane: (
+      @MainActor @Sendable (TerminalPaneRequest) async throws -> TerminalPaneResult
     )? = nil,
     executeTerminalTabGroup:
       @escaping @MainActor @Sendable (
@@ -62,7 +71,12 @@ extension SocketRequestExecutor {
       executeTerminalCreation: {
         try await testingCreation($0, terminalWindowsClient: terminalWindowsClient)
       },
-      executeTerminalPane: { try await testingPane($0, terminalWindowsClient: terminalWindowsClient) },
+      executeTerminalPane: {
+        if let executeTerminalPane {
+          return try await executeTerminalPane($0)
+        }
+        return try await testingPane($0, terminalWindowsClient: terminalWindowsClient)
+      },
       executeTerminalTab: { try await testingTab($0, terminalWindowsClient: terminalWindowsClient) },
       executeTerminalTabGroup: executeTerminalTabGroup,
       executeTerminalSpace: {
@@ -142,6 +156,8 @@ extension SocketRequestExecutor {
     terminalWindowsClient: TerminalWindowsClient
   ) async throws -> TerminalPaneResult {
     switch request {
+    case .agentExplain:
+      throw TerminalControlError.contextPaneNotFound
     case .focusPane(let target):
       return .focusPane(try await terminalWindowsClient.focusPane(target))
     case .lastPane(let target):

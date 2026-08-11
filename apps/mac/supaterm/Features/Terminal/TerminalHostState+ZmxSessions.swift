@@ -61,6 +61,7 @@ extension TerminalHostState {
       replacementSurface.closeSurface()
       configureBridgeCloseCallbacks(for: previousSurface)
       surfaces[surfaceID] = previousSurface
+      agentDetectionController?.surfaceDidAttach(surfaceID)
       SupatermLog.error(
         SupatermLog.terminal,
         "terminal.close.zmxReattach.failed",

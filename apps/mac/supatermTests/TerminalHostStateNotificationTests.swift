@@ -3,6 +3,7 @@ import Foundation
 import Testing
 
 @testable import SupatermCLIShared
+@testable import SupatermSupport
 @testable import supaterm
 
 @MainActor
@@ -344,6 +345,43 @@ struct TerminalHostStateNotificationTests {
     #expect(result.resolvedTitle == expectedTitle)
     #expect(host.unreadNotificationCount(for: tabID) == 1)
     #expect(host.latestNotificationText(for: tabID) == "Build finished")
+  }
+
+  @Test
+  func fallbackActivityDoesNotSuppressDesktopDelivery() throws {
+    initializeGhosttyForTests()
+
+    let host = TerminalHostState()
+    host.windowActivity = .inactive
+    host.handleCommand(.ensureInitialTab(focusing: false, startupCommand: nil))
+
+    let surface = try #require(host.selectedSurfaceView)
+    #expect(
+      host.applyAgentDetection(
+        TerminalAgentDetectionObservation(
+          agent: AgentDetectionAgentIdentity(id: "codex", displayName: "Codex"),
+          phase: .running,
+          processIdentity: TerminalAgentProcessIdentity(
+            processID: 42,
+            startTimeMicroseconds: 1
+          ),
+          ruleID: "screen_running",
+          generation: 1,
+          sequence: 1
+        ),
+        for: surface.id
+      )
+    )
+
+    let result = try host.notify(
+      TerminalNotifyRequest(
+        body: "Build finished",
+        target: .pane(surface.id),
+        title: nil
+      )
+    )
+
+    #expect(result.desktopNotificationDisposition == .deliver)
   }
 
   @Test
@@ -911,7 +949,7 @@ extension TerminalHostState {
     applyTestAgentActivity(
       activity,
       for: surfaceID,
-      sessionID: "test-\(activity.kind.rawValue)-\(surfaceID.uuidString)",
+      sessionID: "test-\(activity.identity.id)-\(surfaceID.uuidString)",
       processID: nil
     )
   }
