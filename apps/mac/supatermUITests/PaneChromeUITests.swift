@@ -16,7 +16,9 @@ final class PaneChromeUITests: SupatermUITestCase {
     }
     XCTAssertTrue(didSetLeftTitle)
 
-    try clickMenuItem(.toggleSidebar)
+    let hideSidebarButton = app.buttons["Hide sidebar"]
+    try require(hideSidebarButton)
+    hideSidebarButton.click()
     let didCollapseSidebar = await waitForSidebarCollapsed()
     XCTAssertTrue(didCollapseSidebar)
 
@@ -100,9 +102,7 @@ final class PaneChromeUITests: SupatermUITestCase {
     app.typeKey("s", modifierFlags: .command)
 
     let didHideSidebarHeader = await wait {
-      self.sidebarToggleButton.exists
-        && self.sidebarToggleButton.isHittable
-        && self.sidebarToggleButton.label.hasPrefix("Show sidebar")
+      !self.sidebarTabRows.firstMatch.isHittable
         && !spaceSwitcher.isHittable
     }
     XCTAssertTrue(didHideSidebarHeader)

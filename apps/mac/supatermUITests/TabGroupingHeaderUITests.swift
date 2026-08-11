@@ -44,11 +44,19 @@ final class TabGroupingHeaderUITests: SupatermUITestCase {
     let didCollapse = await wait(for: sidebarStructuralTabRow(named: "Seed")) { !$0.exists }
     XCTAssertTrue(didCollapse)
 
-    try clickMenuItem(.toggleSidebar)
+    let hideSidebarButton = app.buttons["Hide sidebar"]
+    try require(hideSidebarButton)
+    hideSidebarButton.click()
     let didCollapseSidebar = await waitForSidebarCollapsed()
     XCTAssertTrue(didCollapseSidebar)
 
-    try clickMenuItem(.toggleSidebar)
+    let showSidebarButton = app.buttons.matching(
+      NSPredicate(format: "label BEGINSWITH %@", "Show sidebar")
+    ).firstMatch
+    try require(showSidebarButton)
+    showSidebarButton.click()
+    let didExpandSidebar = await waitForSidebarExpanded()
+    XCTAssertTrue(didExpandSidebar)
     let restoredHeader = sidebarGroupHeader(named: "Toggle")
     let didRestore = await wait(for: restoredHeader) {
       $0.isHittable && ($0.value as? String) == "Collapsed"

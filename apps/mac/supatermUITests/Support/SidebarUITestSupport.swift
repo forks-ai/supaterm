@@ -119,21 +119,17 @@ extension SupatermUITestCase {
   }
 
   @MainActor
-  var sidebarToggleButton: XCUIElement {
-    element(SupatermUITestIdentifier.Accessibility.sidebarToggle)
-  }
-
-  @MainActor
   func waitForSidebarCollapsed(timeout: Duration = .seconds(10)) async -> Bool {
-    await wait(for: sidebarToggleButton, timeout: timeout) {
-      $0.exists && $0.isHittable && $0.label.hasPrefix("Show sidebar")
+    await wait(timeout: timeout) {
+      !self.sidebarTabRows.firstMatch.isHittable
     }
   }
 
   @MainActor
   func waitForSidebarExpanded(timeout: Duration = .seconds(10)) async -> Bool {
-    await wait(for: sidebarToggleButton, timeout: timeout) {
-      $0.exists && $0.isHittable && $0.label == "Hide sidebar"
+    await wait(timeout: timeout) {
+      let row = self.sidebarTabRows.firstMatch
+      return row.exists && row.isHittable
     }
   }
 

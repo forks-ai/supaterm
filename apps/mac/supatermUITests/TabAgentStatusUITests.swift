@@ -30,6 +30,11 @@ final class TabAgentStatusUITests: SupatermUITestCase {
     XCTAssertTrue(didShowRunning)
 
     try await sendClaudeEvent("notification")
+    mainTerminal.click()
+    let didAcknowledgeNotification = await wait(timeout: Self.coldStartTimeout) {
+      self.sidebarTabRow(named: tabTitle).label.contains("Pinned")
+    }
+    XCTAssertTrue(didAcknowledgeNotification)
     try clickMenuItem(.newTab, timeout: 60)
     let secondRow = sidebarTabRows.element(boundBy: 1)
     let didSelectSecondTab = await wait(for: secondRow, timeout: Self.coldStartTimeout) {
