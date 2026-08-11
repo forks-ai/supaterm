@@ -169,7 +169,7 @@ web-fmt: $(WEB_NODE_MODULES_STAMP)  # Format web app files.
 	@cd "$(WEB_APP_DIR)" && vp fmt
 
 web-test: $(WEB_NODE_MODULES_STAMP)  # Run the web app test suite.
-	@cd "$(WEB_APP_DIR)" && vp test
+	@cd "$(WEB_APP_DIR)" && ./node_modules/.bin/vp test
 
 web-build: $(WEB_NODE_MODULES_STAMP)  # Build the web app for production.
 	@cd "$(WEB_APP_DIR)" && vp build
