@@ -386,9 +386,45 @@ final class TerminalWindowShellController: NSViewController {
       presentation.isSidebarCollapsed && !presentation.isFloatingSidebarVisible
     )
     (view as? TerminalWindowShellView)?.setRevealFrame(layout.revealFrame)
-    setFrame(layout.sidebarFrame, of: sidebarController.view, motion: motion)
+    setSidebarFrame(
+      layout.sidebarFrame,
+      of: sidebarController.view,
+      motion: motion,
+      hidesSidebar: presentation.isSidebarCollapsed && !presentation.isFloatingSidebarVisible
+    )
     setFrame(layout.detailFrame, of: detailController.view, motion: motion)
     splitDropOverlay.frame = layout.detailFrame
+  }
+
+  private func setSidebarFrame(
+    _ frame: CGRect,
+    of sidebarView: NSView,
+    motion: FrameMotion,
+    hidesSidebar: Bool
+  ) {
+    sidebarView.isHidden = false
+    guard hidesSidebar else {
+      setFrame(frame, of: sidebarView, motion: motion)
+      return
+    }
+    guard motion != .immediate, view.window != nil, sidebarView.layer != nil else {
+      setFrame(frame, of: sidebarView, motion: motion)
+      sidebarView.isHidden = true
+      return
+    }
+    CATransaction.begin()
+    CATransaction.setCompletionBlock { [weak self, weak sidebarView] in
+      Task { @MainActor in
+        guard
+          let self,
+          self.presentation.isSidebarCollapsed,
+          !self.presentation.isFloatingSidebarVisible
+        else { return }
+        sidebarView?.isHidden = true
+      }
+    }
+    setFrame(frame, of: sidebarView, motion: motion)
+    CATransaction.commit()
   }
 
   private func frameMotion(

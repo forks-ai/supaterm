@@ -945,6 +945,9 @@ final class TerminalSidebarDragController {
           dragPresentation.handoffAfterExternalSuccess(sourceDisposition) {
             collectionLayout.dragDropState = nil
             host.invalidateLayout()
+            if sourceDisposition == .retained {
+              host.rebindRows(Set(liftedEntryIDs))
+            }
           }
           host.didFinish()
         }
