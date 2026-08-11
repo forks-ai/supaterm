@@ -25,8 +25,8 @@ final class SupatermE2EApp: @unchecked Sendable {
   private var client: SPSocketClient
   private let logURL: URL
 
-  static func launch(zmxSessionsEnabled: Bool = true) async throws -> SupatermE2EApp {
-    let app = try SupatermE2EApp(zmxSessionsEnabled: zmxSessionsEnabled)
+  static func launch() async throws -> SupatermE2EApp {
+    let app = try SupatermE2EApp()
     try await app.waitUntil("the app socket accepts ping", timeout: 90) {
       (try? app.client.send(.ping()))?.ok == true
     }
@@ -34,7 +34,7 @@ final class SupatermE2EApp: @unchecked Sendable {
     return app
   }
 
-  private init(zmxSessionsEnabled: Bool) throws {
+  private init() throws {
     executable = Self.productsDirectory
       .appendingPathComponent("supaterm.app/Contents/MacOS/supaterm")
     guard FileManager.default.isExecutableFile(atPath: executable.path) else {
@@ -67,13 +67,6 @@ final class SupatermE2EApp: @unchecked Sendable {
       withIntermediateDirectories: true
     )
     try FileManager.default.createDirectory(at: runtimeHome, withIntermediateDirectories: true)
-    if !zmxSessionsEnabled {
-      try "zmx_sessions_enabled = false\n".write(
-        to: stateHome.appendingPathComponent("settings.toml", isDirectory: false),
-        atomically: true,
-        encoding: .utf8
-      )
-    }
     FileManager.default.createFile(atPath: cliHome.appendingPathComponent(".zshrc").path, contents: nil)
     FileManager.default.createFile(
       atPath: shellConfigHome.appendingPathComponent("fish/config.fish").path,
@@ -86,6 +79,7 @@ final class SupatermE2EApp: @unchecked Sendable {
       "LOGNAME": NSUserName(),
       "PATH": "/usr/bin:/bin:/usr/sbin:/sbin",
       "SHELL": "/bin/zsh",
+      ZmxEnvironment.disabledKey: "1",
       "SUPATERM_TEST_MODE": "1",
       "SUPATERM_VERBOSE_LOGGING": "1",
       "USER": NSUserName(),
@@ -405,7 +399,7 @@ final class SupatermE2EApp: @unchecked Sendable {
     )
   }
 
-  func terminate(preservingZmxSessions: Bool = false) {
+  func terminate(preservingState: Bool = false) {
     if process.isRunning {
       process.terminate()
       waitForProcessStop(timeout: 5)
@@ -415,7 +409,7 @@ final class SupatermE2EApp: @unchecked Sendable {
       waitForProcessStop(timeout: 2)
     }
 
-    guard !preservingZmxSessions else { return }
+    guard !preservingState else { return }
     try? workspace.cleanup()
   }
 

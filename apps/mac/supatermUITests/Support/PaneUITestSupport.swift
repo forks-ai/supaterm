@@ -47,7 +47,7 @@ extension SupatermUITestCase {
   }
 
   @MainActor
-  func relaunchWithoutCloseConfirmation(zmxSessionsEnabled: Bool? = nil) throws {
+  func relaunchWithoutCloseConfirmation() throws {
     let ghosttyConfigDirectory = stateHome.appendingPathComponent("ghostty", isDirectory: true)
     try FileManager.default.createDirectory(
       at: ghosttyConfigDirectory,
@@ -56,15 +56,6 @@ extension SupatermUITestCase {
     try Data("confirm-close-surface = false\n".utf8).write(
       to: ghosttyConfigDirectory.appendingPathComponent("config")
     )
-    if let zmxSessionsEnabled {
-      try Data(
-        """
-        [terminal]
-        zmx_sessions_enabled = \(zmxSessionsEnabled)
-
-        """.utf8
-      ).write(to: stateHome.appendingPathComponent("settings.toml"))
-    }
     app.launchEnvironment["XDG_CONFIG_HOME"] = stateHome.path
     try relaunch()
   }

@@ -3,18 +3,8 @@ import XCTest
 
 final class PaneContextMenuUITests: SupatermUITestCase {
   @MainActor
-  func testContextMenuClosesClickedPaneWhenSessionPersistenceIsDisabled() async throws {
-    try await assertContextMenuClosesClickedPane(zmxSessionsEnabled: false)
-  }
-
-  @MainActor
-  func testContextMenuClosesClickedPaneWhenSessionPersistenceIsEnabled() async throws {
-    try await assertContextMenuClosesClickedPane(zmxSessionsEnabled: true)
-  }
-
-  @MainActor
-  private func assertContextMenuClosesClickedPane(zmxSessionsEnabled: Bool) async throws {
-    try relaunchWithoutCloseConfirmation(zmxSessionsEnabled: zmxSessionsEnabled)
+  func testContextMenuClosesClickedPane() async throws {
+    try relaunchWithoutCloseConfirmation()
     _ = try await requireVisiblePanes(count: 1)
     try clickMenuItem(.splitRight)
     let panes = try await requireVisiblePanes(count: 2)
