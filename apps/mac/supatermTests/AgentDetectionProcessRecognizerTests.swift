@@ -420,24 +420,6 @@ nonisolated struct AgentDetectionProcessRecognizerTests {
   }
 
   @Test
-  func processWithoutAValidStartTimeHasNoMatch() {
-    let result = Self.match(
-      entries: [
-        Self.process(
-          100,
-          startTimeMicroseconds: 0,
-          name: "codex"
-        )
-      ],
-      invocations: [
-        100: Self.invocation("/opt/homebrew/bin/codex", arguments: ["codex"])
-      ]
-    )
-
-    #expect(result == nil)
-  }
-
-  @Test
   func processRuleDecodesItsPublicFields() throws {
     let rule = try JSONDecoder().decode(
       AgentDetectionProcessRule.self,

@@ -100,6 +100,10 @@ struct AgentDetectionUpdaterTests {
     await waitForRequestCount(1, fetcher: fetcher)
     let second = Task { try await updater.update() }
     await Task.yield()
+
+    #expect(await fixture.repository.snapshot().origin == .bundle)
+    #expect(!FileManager.default.fileExists(atPath: fixture.cacheURL.path))
+
     await gate.open()
 
     #expect(try await first.value == .updated(generation: 2))
@@ -191,36 +195,6 @@ struct AgentDetectionUpdaterTests {
     #expect(try await creator.value == .updated(generation: 2))
     #expect(try await joined.value == .updated(generation: 2))
     #expect(await fetcher.capturedRequests.count == 1)
-    #expect(await fixture.repository.snapshot().origin == .cache)
-  }
-
-  @Test
-  func keepsTheBundleActiveUntilTheRulesArrive() async throws {
-    let fixture = try Fixture(bundleGeneration: 1)
-    let remote = rules(generation: 2)
-    let gate = Gate()
-    let fetcher = Fetcher(
-      plans: [
-        FetchPlan(
-          response: AgentDetectionHTTPResponse(
-            url: fixture.rulesURL,
-            statusCode: 200,
-            data: remote,
-            etag: "\"generation-2\""
-          ),
-          gate: gate
-        )
-      ]
-    )
-    let updater = fixture.updater(fetcher: fetcher)
-    let update = Task { try await updater.update() }
-    await waitForRequestCount(1, fetcher: fetcher)
-
-    #expect(await fixture.repository.snapshot().origin == .bundle)
-    #expect(!FileManager.default.fileExists(atPath: fixture.cacheURL.path))
-
-    await gate.open()
-    #expect(try await update.value == .updated(generation: 2))
     #expect(await fixture.repository.snapshot().origin == .cache)
   }
 

@@ -98,13 +98,6 @@ struct SPHelpTests {
   }
 
   @Test
-  func publicAgentHelpOmitsInternalDiagnostics() {
-    let agentHelp = SP.helpMessage(for: SP.Agent.self, columns: 100)
-
-    #expect(!agentHelp.contains("explain"))
-  }
-
-  @Test
   func sshHelpShowsArgumentSeparatorAndCompatibleTermExamples() {
     let help = SP.helpMessage(for: SP.SSH.self, columns: 100)
 

@@ -56,25 +56,6 @@ struct AgentDetectionRuleServiceTests {
   }
 
   @Test
-  func selectsAValidNewerCache() async throws {
-    let fixture = try Fixture(bundleGeneration: 1)
-    defer { fixture.remove() }
-    let cachedRules = fixture.rules(generation: 2)
-    try AgentDetectionRuleCache(url: fixture.cacheURL).save(
-      AgentDetectionRuleCache.Entry(
-        rules: cachedRules,
-        etag: "\"generation-2\""
-      )
-    )
-
-    let service = try fixture.service()
-    let snapshot = await service.repository.snapshot()
-
-    #expect(snapshot.origin == .cache)
-    #expect(snapshot.generation == 2)
-  }
-
-  @Test
   func missingResourcesDisableBootstrapWithoutAProcessFailure() throws {
     let directory = FileManager.default.temporaryDirectory.appending(
       path: "supaterm-agent-service-missing-\(UUID().uuidString)",

@@ -111,10 +111,7 @@ final class TerminalAgentDetectionController {
   static let screenByteLimit = 64 * 1_024
   static let titleByteLimit = 4 * 1_024
 
-  private struct Proof: Equatable, Sendable {
-    let agentID: String
-    let processIdentity: TerminalAgentProcessIdentity
-  }
+  private typealias Proof = AgentDetectionProcessMatch
 
   private struct Matched: Equatable, Sendable {
     let agent: AgentDetectionAgentIdentity
@@ -337,12 +334,12 @@ final class TerminalAgentDetectionController {
             ? .noForegroundProcess
             : .waiting
         )
-      } else if surface.key.foregroundProcessGroupID.map({ $0 > 0 }) != true {
-        clearPublished(surfaceID)
-        states[surfaceID]?.proof = nil
-        states[surfaceID]?.matched = nil
-        states[surfaceID]?.settler = AgentDetectionSettler()
-        states[surfaceID]?.status = .noForegroundProcess
+      } else if surface.key.foregroundProcessGroupID.map({ $0 > 0 }) != true,
+        var state = states[surfaceID]
+      {
+        resetProof(&state)
+        state.status = .noForegroundProcess
+        states[surfaceID] = state
       }
     }
   }
@@ -368,24 +365,18 @@ final class TerminalAgentDetectionController {
         continue
       }
       guard let match = matches[processGroupID] else {
-        resetProof(&state)
-        state.nextScanAt = now.advanced(by: .seconds(2))
-        state.status = .unrecognizedProcess
+        markUnrecognized(&state, now: now)
         states[key.id] = state
         continue
       }
-      let identity = match.processIdentity
-      guard currentIdentities.contains(identity) else {
-        resetProof(&state)
-        state.nextScanAt = now.advanced(by: .seconds(2))
-        state.status = .unrecognizedProcess
+      guard currentIdentities.contains(match.processIdentity) else {
+        markUnrecognized(&state, now: now)
         states[key.id] = state
         continue
       }
-      let proof = Proof(agentID: match.agentID, processIdentity: identity)
-      if state.proof != proof {
+      if state.proof != match {
         clearPublished(key.id)
-        state.proof = proof
+        state.proof = match
         state.settler = AgentDetectionSettler()
         state.matched = nil
       }
@@ -430,9 +421,7 @@ final class TerminalAgentDetectionController {
   ) -> EvaluationAttempt? {
     guard var state = states[surfaceID], let proof = state.proof else { return nil }
     guard currentIdentities.contains(proof.processIdentity) else {
-      resetProof(&state)
-      state.nextScanAt = now.advanced(by: .seconds(2))
-      state.status = .unrecognizedProcess
+      markUnrecognized(&state, now: now)
       states[surfaceID] = state
       return nil
     }
@@ -478,9 +467,7 @@ final class TerminalAgentDetectionController {
     }
     guard let evaluation, evaluation.generation == generation else {
       var state = attempt.state
-      resetProof(&state)
-      state.nextScanAt = now.advanced(by: .seconds(2))
-      state.status = .unrecognizedProcess
+      markUnrecognized(&state, now: now)
       states[surfaceID] = state
       return true
     }
@@ -526,10 +513,17 @@ final class TerminalAgentDetectionController {
     _ state: inout SurfaceState,
     status: TerminalAgentDetectionExplanation.Status
   ) {
-    clearPublished(state.key.id)
-    state.settler = AgentDetectionSettler()
-    state.matched = nil
+    resetMatch(&state)
     state.status = status
+  }
+
+  private func markUnrecognized(
+    _ state: inout SurfaceState,
+    now: ContinuousClock.Instant
+  ) {
+    resetProof(&state)
+    state.nextScanAt = now.advanced(by: .seconds(2))
+    state.status = .unrecognizedProcess
   }
 
   private func settle(
@@ -648,8 +642,12 @@ final class TerminalAgentDetectionController {
   }
 
   private func resetProof(_ state: inout SurfaceState) {
-    clearPublished(state.key.id)
+    resetMatch(&state)
     state.proof = nil
+  }
+
+  private func resetMatch(_ state: inout SurfaceState) {
+    clearPublished(state.key.id)
     state.settler = AgentDetectionSettler()
     state.matched = nil
   }
