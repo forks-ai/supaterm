@@ -103,9 +103,7 @@ enum SPStartupLauncher {
     arguments: [String],
     environment: [String: String]
   ) throws -> Never {
-    guard let command = arguments.first else {
-      throw ValidationError("Startup requires a command.")
-    }
+    let command = arguments[0]
     guard let executablePath = SPExecutable.resolve(command, searchPath: environment["PATH"])
     else {
       throw ValidationError("Unable to find executable \(command) on PATH.")

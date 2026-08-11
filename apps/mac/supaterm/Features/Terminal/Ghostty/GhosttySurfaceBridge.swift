@@ -171,6 +171,10 @@ final class GhosttySurfaceBridge {
       surfaceView.selectionDidChange()
       return true
     }
+    if action.tag == GHOSTTY_ACTION_SHELL_READY {
+      surfaceView?.shellDidBecomeReady()
+      return true
+    }
     if let handled = handleAppAction(action) { return handled }
     if let handled = handleSplitAction(action) { return handled }
     if let handled = handleTabAction(action) { return handled }

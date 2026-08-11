@@ -21,7 +21,7 @@ struct GhosttySurfaceViewEnvironmentTests {
       runtime: try makeGhosttyRuntime("command = /usr/bin/false"),
       tabID: UUID(),
       workingDirectory: nil,
-      shellPath: "/bin/zsh",
+      shellPath: "/bin/bash",
       cliPath: "/usr/bin/true",
       startupCommand: .arguments(["tool", secret]),
       context: GHOSTTY_SURFACE_CONTEXT_TAB,
@@ -49,7 +49,7 @@ struct GhosttySurfaceViewEnvironmentTests {
       }
     )
 
-    #expect(command == "/bin/zsh")
+    #expect(command == "/bin/bash")
     #expect(initialInput?.hasPrefix("/private/tmp/supaterm-startup-") == true)
     #expect(payloadArguments == ["tool", secret])
     #expect(!environment.values.contains { $0.contains(secret) })
@@ -58,6 +58,39 @@ struct GhosttySurfaceViewEnvironmentTests {
         .deletingLastPathComponent().path
       #expect(!FileManager.default.fileExists(atPath: directoryPath))
     }
+  }
+
+  @Test
+  func integratedShellsDeferStartupInputUntilTheirPromptIsReady() throws {
+    initializeGhosttyForTests()
+    let runtime = try makeGhosttyRuntime("")
+    #expect(runtime.defersInitialInputUntilShellReady(shellPath: "/bin/zsh"))
+    #expect(runtime.defersInitialInputUntilShellReady(shellPath: "/opt/homebrew/bin/fish"))
+    #expect(!runtime.defersInitialInputUntilShellReady(shellPath: "/bin/bash"))
+
+    let launch = GhosttySurfaceLaunch(
+      shellPath: "/bin/zsh",
+      cliPath: "/usr/bin/true",
+      startup: .arguments(["tool"]),
+      defersInputUntilShellReady: true
+    )
+    var config = ghostty_surface_config_new()
+    launch.apply(to: &config)
+    #expect(config.initial_input == nil)
+    #expect(
+      launch.takeDeferredInput()?
+        .hasPrefix("/private/tmp/supaterm-startup-") == true
+    )
+    #expect(launch.takeDeferredInput() == nil)
+    launch.cancel()
+  }
+
+  @Test
+  func disabledShellIntegrationKeepsImmediateStartupInput() throws {
+    initializeGhosttyForTests()
+    let runtime = try makeGhosttyRuntime("shell-integration = none")
+    #expect(!runtime.defersInitialInputUntilShellReady(shellPath: "/bin/zsh"))
+    #expect(!runtime.defersInitialInputUntilShellReady(shellPath: "/opt/homebrew/bin/fish"))
   }
 
   @Test

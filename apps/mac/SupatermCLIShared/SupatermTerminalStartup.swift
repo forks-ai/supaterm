@@ -422,20 +422,10 @@ public enum SupatermTerminalStartup: Equatable, Sendable, Codable {
 public struct SupatermPreparedTerminalStartup: Sendable {
   public let initialInput: String
   public let cleanupToken: SupatermTerminalStartupCleanup
-
-  init(
-    initialInput: String,
-    cleanupToken: SupatermTerminalStartupCleanup
-  ) {
-    self.initialInput = initialInput
-    self.cleanupToken = cleanupToken
-  }
-
-  var cleanupDirectoryURL: URL { cleanupToken.directoryURL }
 }
 
 public struct SupatermTerminalStartupCleanup: Sendable {
-  fileprivate let directoryURL: URL
+  private let directoryURL: URL
   private let device: dev_t
   private let inode: ino_t
 

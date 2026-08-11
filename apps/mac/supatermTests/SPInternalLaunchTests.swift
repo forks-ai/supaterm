@@ -154,5 +154,9 @@ private func temporaryRoot() throws -> URL {
 }
 
 private func payloadURL(_ prepared: SupatermPreparedTerminalStartup) -> URL {
-  prepared.cleanupDirectoryURL.appendingPathComponent("arguments.json")
+  URL(
+    fileURLWithPath: prepared.initialInput.trimmingCharacters(in: .whitespacesAndNewlines)
+  )
+  .deletingLastPathComponent()
+  .appendingPathComponent("arguments.json")
 }

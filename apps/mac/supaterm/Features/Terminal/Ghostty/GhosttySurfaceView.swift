@@ -332,7 +332,10 @@ final class GhosttySurfaceView: NSView, Identifiable {
     launch = GhosttySurfaceLaunch(
       shellPath: shellPath,
       cliPath: cliPath,
-      startup: startupCommand
+      startup: startupCommand,
+      defersInputUntilShellReady: runtime.defersInitialInputUntilShellReady(
+        shellPath: shellPath
+      )
     )
     super.init(frame: NSRect(x: 0, y: 0, width: 800, height: 600))
     bridge.state.pwd = initialWorkingDirectoryPath
@@ -392,6 +395,22 @@ final class GhosttySurfaceView: NSView, Identifiable {
       lastOcclusion = nil
       lastSurfaceFocus = nil
     }
+  }
+
+  func shellDidBecomeReady() {
+    DispatchQueue.main.async { [weak self] in
+      self?.submitDeferredStartupInput()
+    }
+  }
+
+  private func submitDeferredStartupInput() {
+    guard
+      bridge.surface != nil,
+      let input = launch.takeDeferredInput()
+    else {
+      return
+    }
+    bridge.sendText(input)
   }
 
   var processIdentity: TerminalPaneProcessIdentity {

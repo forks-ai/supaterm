@@ -25,7 +25,7 @@ struct SupatermTerminalStartupTests {
       temporaryDirectory: fixture.rootURL
     )
     defer { prepared.cleanupToken.cleanup() }
-    let directoryURL = prepared.cleanupDirectoryURL
+    let directoryURL = try terminalStartupTransportDirectory(prepared)
     let payloadURL = directoryURL.appendingPathComponent("arguments.json")
     let launcherURL = directoryURL.appendingPathComponent("launch")
 
@@ -81,7 +81,7 @@ struct SupatermTerminalStartupTests {
       cliPath: fixture.cliURL.path,
       temporaryDirectory: fixture.rootURL
     )
-    let directoryURL = prepared.cleanupDirectoryURL
+    let directoryURL = try terminalStartupTransportDirectory(prepared)
     try FileManager.default.removeItem(at: directoryURL)
     try FileManager.default.createDirectory(
       at: directoryURL,
@@ -131,7 +131,7 @@ struct SupatermTerminalStartupTests {
       temporaryDirectory: fixture.rootURL
     )
     defer { prepared.cleanupToken.cleanup() }
-    let directoryURL = prepared.cleanupDirectoryURL
+    let directoryURL = try terminalStartupTransportDirectory(prepared)
     let scriptURL = directoryURL.appendingPathComponent("script")
 
     #expect(prepared.initialInput == ". \(scriptURL.path)\n")
@@ -159,7 +159,7 @@ struct SupatermTerminalStartupTests {
         shellPath: shellURL.path,
         temporaryDirectory: fixture.rootURL
       )
-      let directoryURL = prepared.cleanupDirectoryURL
+      let directoryURL = try terminalStartupTransportDirectory(prepared)
       let scriptURL = directoryURL.appendingPathComponent(fileName)
       if name == "elvish" {
         #expect(prepared.initialInput == "\(command) <\(scriptURL.path))\n")
@@ -202,7 +202,7 @@ struct SupatermTerminalStartupTests {
       temporaryDirectory: fixture.rootURL
     )
     defer { prepared.cleanupToken.cleanup() }
-    let transportDirectoryURL = prepared.cleanupDirectoryURL
+    let transportDirectoryURL = try terminalStartupTransportDirectory(prepared)
     let process = Process()
     process.executableURL = shellURL
     process.arguments = ["-c", prepared.initialInput]
@@ -228,6 +228,19 @@ struct SupatermTerminalStartupTests {
       expectNoDifference(decoded, value)
     }
   }
+}
+
+func terminalStartupTransportDirectory(
+  _ prepared: SupatermPreparedTerminalStartup
+) throws -> URL {
+  let trimmedCharacters = CharacterSet(charactersIn: "<()")
+  let path = try #require(
+    prepared.initialInput
+      .split(whereSeparator: \.isWhitespace)
+      .map { String($0).trimmingCharacters(in: trimmedCharacters) }
+      .first { $0.hasPrefix("/") }
+  )
+  return URL(fileURLWithPath: path).deletingLastPathComponent()
 }
 
 private struct StartupTransportFixture {

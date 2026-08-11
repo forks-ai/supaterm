@@ -227,10 +227,14 @@ final class SupatermE2EApp: @unchecked Sendable {
     try await waitForReadyPane(target)
     let suffix = UUID().uuidString.lowercased()
     let marker = "SUPATERM_E2E_\(suffix)"
-    let probe = "/usr/bin/printf '%s%s\\n' SUPATERM_E2E_ \(suffix)\n"
+    let probeURL = cliHome.appendingPathComponent("prompt-probe-\(suffix)", isDirectory: false)
+    try "#!/bin/sh\n/usr/bin/printf '%s\\n' '\(marker)'\n"
+      .write(to: probeURL, atomically: true, encoding: .utf8)
+    try FileManager.default.setAttributes([.posixPermissions: 0o700], ofItemAtPath: probeURL.path)
+    defer { try? FileManager.default.removeItem(at: probeURL) }
     do {
       try await waitUntil("the shell accepts input") {
-        try? type(probe, into: target)
+        try? type("\(probeURL.path)\n", into: target)
         return (try? capture(target).contains(marker)) == true
       }
     } catch {

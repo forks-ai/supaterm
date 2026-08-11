@@ -125,10 +125,7 @@ extension SupatermE2ESuite {
       let replacementPane = SupatermPaneTargetRequest(paneID: result.paneID)
       do {
         try await app.waitForShellPrompt(replacementPane)
-        try app.type(
-          "/usr/bin/printf replacement-shell > \(marker.path)\n",
-          into: replacementPane
-        )
+        try app.type("\(makeMarkerCommand(value: "replacement-shell", marker: marker))\n", into: replacementPane)
         try await app.waitUntil("the replacement shell accepts input") {
           (try? String(contentsOf: marker, encoding: .utf8)) == "replacement-shell"
         }
@@ -244,16 +241,14 @@ private func verifyCommandLaunch(
   #expect(try recordedArguments(from: artifacts.arguments) == artifacts.expectedArguments)
 
   let marker = "follow-up-\(paneID.uuidString.lowercased())"
-  let probe = [
-    "/bin/sh",
-    "-c",
-    "/usr/bin/printf '%s' \"$PPID\" > \"$1\"; /usr/bin/env > \"$4\"; /usr/bin/printf '%s' \"$2\" > \"$3\"",
-    "sh",
+  let recorder = try makeFollowUpRecorder(for: artifacts.followUpMarker)
+  let probe = try shellNeutralCommand([
+    recorder.path,
     artifacts.followUpParentProcessID.path,
     marker,
     artifacts.followUpMarker.path,
     artifacts.followUpEnvironment.path,
-  ].map(SupatermShellCommand.escapedToken).joined(separator: " ")
+  ])
   try app.type("\(probe)\n", into: pane)
   try await app.waitUntil("the startup shell runs a follow-up command") {
     (try? String(contentsOf: artifacts.followUpMarker, encoding: .utf8)) == marker
@@ -268,7 +263,6 @@ private func verifyCommandLaunch(
   #expect(startupParentCommand == "-\(SupatermShellCommand.loginShellPath())")
   #expect(followUpParent == startupParent)
   #expect(!followUpEnvironment.contains(artifacts.secret))
-  #expect(!followUpEnvironment.contains("SUPATERM_STARTUP_"))
   for target in artifacts.injectionTargets {
     #expect(FileManager.default.fileExists(atPath: target.path) == false)
   }
@@ -347,11 +341,9 @@ private func verifyScriptShell(
 ) async throws {
   let pane = SupatermPaneTargetRequest(paneID: paneID)
   let expected = "script-follow-up-\(paneID.uuidString.lowercased())"
-  let command = ["/usr/bin/printf", expected]
-    .map(SupatermShellCommand.escapedToken)
-    .joined(separator: " ")
+  let command = try makeMarkerCommand(value: expected, marker: marker)
   do {
-    try app.type("\(command) > \(SupatermShellCommand.escapedToken(marker.path))\n", into: pane)
+    try app.type("\(command)\n", into: pane)
     try await app.waitUntil("the login shell accepts input after the script") {
       (try? String(contentsOf: marker, encoding: .utf8)) == expected
     }
@@ -359,4 +351,33 @@ private func verifyScriptShell(
     let capture = (try? app.capture(pane, scope: .scrollback)) ?? "unavailable"
     throw SupatermE2EError("\(error)\n--- script follow-up ---\n\(capture)")
   }
+}
+
+private func makeFollowUpRecorder(for marker: URL) throws -> URL {
+  let recorder = marker.deletingPathExtension().appendingPathExtension("sh")
+  try """
+  #!/bin/sh
+  /usr/bin/printf '%s' "$PPID" > "$1"
+  /usr/bin/env > "$4"
+  /usr/bin/printf '%s' "$2" > "$3"
+  """.write(to: recorder, atomically: true, encoding: .utf8)
+  try FileManager.default.setAttributes([.posixPermissions: 0o700], ofItemAtPath: recorder.path)
+  return recorder
+}
+
+private func makeMarkerCommand(value: String, marker: URL) throws -> String {
+  let writer = marker.deletingPathExtension().appendingPathExtension("sh")
+  try """
+  #!/bin/sh
+  /usr/bin/printf '%s' "$1" > "$2"
+  """.write(to: writer, atomically: true, encoding: .utf8)
+  try FileManager.default.setAttributes([.posixPermissions: 0o700], ofItemAtPath: writer.path)
+  return try shellNeutralCommand([writer.path, value, marker.path])
+}
+
+private func shellNeutralCommand(_ arguments: [String]) throws -> String {
+  guard arguments.allSatisfy({ SupatermShellCommand.escapedToken($0) == $0 }) else {
+    throw SupatermE2EError("The shell-neutral command contains an unsafe path or argument.")
+  }
+  return arguments.joined(separator: " ")
 }

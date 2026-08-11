@@ -6,12 +6,14 @@ final class GhosttySurfaceLaunch {
   private let shellCString: UnsafeMutablePointer<CChar>?
   private var inputCString: UnsafeMutablePointer<CChar>?
   private let cleanupToken: SupatermTerminalStartupCleanup?
+  private var deferredInput: String?
   let preparationFailed: Bool
 
   init(
     shellPath: String,
     cliPath: String?,
-    startup: SupatermTerminalStartup?
+    startup: SupatermTerminalStartup?,
+    defersInputUntilShellReady: Bool = false
   ) {
     shellCString = SupatermShellCommand.escapedToken(shellPath).withCString { strdup($0) }
     let prepared: SupatermPreparedTerminalStartup?
@@ -30,8 +32,16 @@ final class GhosttySurfaceLaunch {
       prepared = nil
     }
     cleanupToken = prepared?.cleanupToken
-    inputCString = prepared?.initialInput.withCString { strdup($0) }
-    let startupFailed = startup != nil && (prepared == nil || inputCString == nil)
+    if defersInputUntilShellReady {
+      deferredInput = prepared?.initialInput
+      inputCString = nil
+    } else {
+      deferredInput = nil
+      inputCString = prepared?.initialInput.withCString { strdup($0) }
+    }
+    let startupFailed =
+      startup != nil
+      && (prepared == nil || (!defersInputUntilShellReady && inputCString == nil))
     preparationFailed = shellCString == nil || startupFailed
     if preparationFailed {
       cleanupToken?.cleanup()
@@ -62,6 +72,11 @@ final class GhosttySurfaceLaunch {
 
   func cancel() {
     cleanupToken?.cleanup()
+  }
+
+  func takeDeferredInput() -> String? {
+    defer { deferredInput = nil }
+    return deferredInput
   }
 
   private func releaseInput() {

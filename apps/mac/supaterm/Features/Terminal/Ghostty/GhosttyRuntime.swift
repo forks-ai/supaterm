@@ -771,6 +771,22 @@ final class GhosttyRuntime {
     GhosttySurfaceConfig(config)
   }
 
+  func defersInitialInputUntilShellReady(shellPath: String) -> Bool {
+    guard let config else { return false }
+    let shellName = URL(fileURLWithPath: shellPath).lastPathComponent.lowercased()
+    guard shellName == "fish" || shellName == "zsh" else { return false }
+    var value: UnsafePointer<CChar>?
+    let key = "shell-integration"
+    guard
+      ghostty_config_get(config, &value, key, UInt(key.utf8.count)),
+      let value
+    else {
+      return false
+    }
+    let setting = String(cString: value)
+    return setting == "detect" || setting == shellName
+  }
+
   func backgroundColor() -> NSColor {
     color(forKey: "background") ?? NSColor.windowBackgroundColor
   }
