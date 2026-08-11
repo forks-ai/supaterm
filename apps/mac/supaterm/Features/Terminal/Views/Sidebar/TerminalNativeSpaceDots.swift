@@ -238,6 +238,7 @@ final class TerminalNativeSpaceDotsView: NSView {
 
   private func menu(for space: TerminalSpaceItem) -> NSMenu {
     let menu = NSMenu()
+    menu.autoenablesItems = false
     let editItem = NSMenuItem(title: "Edit Space", action: #selector(editSpace(_:)), keyEquivalent: "")
     editItem.target = self
     editItem.representedObject = space.id.rawValue as NSUUID

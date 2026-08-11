@@ -207,6 +207,7 @@ struct TerminalView: View {
       palette: palette,
       state: commandPalette,
       activate: { _ = store.send(.commandPaletteActivateSelection) },
+      activateSlot: { _ = store.send(.commandPaletteSlotActivated($0)) },
       close: { _ = store.send(.commandPaletteCloseRequested) },
       moveSelection: { _ = store.send(.commandPaletteSelectionMoved($0)) },
       queryChanged: { _ = store.send(.commandPaletteQueryChanged($0)) },

@@ -8,6 +8,7 @@ struct TerminalCommandPalettePanelConfiguration {
   let palette: Palette
   let state: TerminalCommandPaletteState
   let activate: () -> Void
+  let activateSlot: (Int) -> Void
   let close: () -> Void
   let moveSelection: (Int) -> Void
   let queryChanged: (String) -> Void
@@ -94,6 +95,9 @@ final class TerminalCommandPalettePanelController: NSObject, NSWindowDelegate {
     }
     let hostingController = NSHostingController(rootView: rootView)
     let panel = TerminalCommandPalettePanel(contentViewController: hostingController)
+    panel.onPaletteShortcut = { [weak self] slot in
+      self?.configuration?.activateSlot(slot)
+    }
     panel.delegate = self
     panel.appearance = parentWindow.appearance
     updateFrame(panel, parentWindow: parentWindow)
@@ -151,8 +155,18 @@ final class TerminalCommandPalettePanelController: NSObject, NSWindowDelegate {
 
 @MainActor
 final class TerminalCommandPalettePanel: NSPanel {
+  var onPaletteShortcut: ((Int) -> Void)?
+
   override var canBecomeKey: Bool { true }
   override var canBecomeMain: Bool { false }
+
+  override func performKeyEquivalent(with event: NSEvent) -> Bool {
+    guard let slot = TerminalCommandPaletteShortcut.slot(for: event) else {
+      return super.performKeyEquivalent(with: event)
+    }
+    onPaletteShortcut?(slot)
+    return true
+  }
 
   init(contentViewController: NSViewController) {
     super.init(
@@ -170,6 +184,18 @@ final class TerminalCommandPalettePanel: NSPanel {
     isFloatingPanel = true
     isOpaque = false
     isReleasedWhenClosed = false
+  }
+}
+
+enum TerminalCommandPaletteShortcut {
+  static func slot(for event: NSEvent) -> Int? {
+    guard event.type == .keyDown else { return nil }
+    guard event.modifierFlags.intersection(.deviceIndependentFlagsMask) == .command else {
+      return nil
+    }
+    guard let characters = event.charactersIgnoringModifiers else { return nil }
+    guard let slot = Int(characters), (1...9).contains(slot) else { return nil }
+    return slot
   }
 }
 
