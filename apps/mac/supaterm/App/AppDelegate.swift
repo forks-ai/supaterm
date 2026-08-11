@@ -64,6 +64,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
   private var settingsWindowController: SettingsWindowController?
   private var configurationDiagnosticsObserver: NSObjectProtocol?
   private var bypassesConfirmationForNextQuit = false
+  private var shouldPresentLaunchConfigurationDiagnostics = true
   private var sessionPersistenceState = SessionPersistenceState.active
   private var terminatesSessionsForNextQuit = false
   private var toggleVisibilityState: ToggleVisibilityState?
@@ -76,11 +77,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
     AppPostHog.setup()
     let ghosttyRuntime = GhosttyRuntime()
     @Shared(.supatermSettings) var launchSupatermSettings = .default
-    $launchSupatermSettings.withLock {
-      ZmxEnvironment.applySessionsPolicy(to: &$0)
-    }
     SupatermLog.setVerboseLoggingEnabled(launchSupatermSettings.verboseLoggingEnabled)
-    let zmxSessionsEnabledAtLaunch = launchSupatermSettings.zmxSessionsEnabled
+    let zmxSessionsEnabledAtLaunch = ZmxEnvironment.sessionsEnabled(
+      setting: launchSupatermSettings.zmxSessionsEnabled
+    )
     let zmxClient = zmxSessionsEnabledAtLaunch ? ZmxClient.live : .noop
     let terminalWindowRegistry = TerminalWindowRegistry(zmxClient: zmxClient)
     let tabNewWindowDropController = TerminalTabNewWindowDropController(
@@ -144,7 +144,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
     socketStore.send(.task)
     refreshInstalledAgentHooks()
     restoreWindowsAtLaunch()
-    refreshConfigurationDiagnostics()
     #if SUPATERM_DEMO
       DemoSeed.decorate(windowControllers.values.map(\.terminal))
     #endif
@@ -177,6 +176,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
 
   func applicationDidBecomeActive(_ notification: Notification) {
     AppPostHog.captureDebouncedLifecycleEvent(.activatedDebounced)
+    if shouldPresentLaunchConfigurationDiagnostics {
+      shouldPresentLaunchConfigurationDiagnostics = false
+      refreshConfigurationDiagnostics()
+    }
     guard toggleVisibilityState == nil else { return }
     guard !NSApp.windows.contains(where: \.isVisible) else { return }
     _ = showExistingWindowOrCreate()

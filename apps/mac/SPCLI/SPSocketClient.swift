@@ -3,6 +3,8 @@ import Foundation
 import SupatermCLIShared
 
 struct SPSocketClient {
+  static let defaultConnectRetryTimeout: TimeInterval = 2
+
   private enum SocketClientError: LocalizedError {
     case connectFailed(String)
     case invalidResponse
@@ -45,7 +47,7 @@ struct SPSocketClient {
   init(
     path: String,
     connectRetryInterval: TimeInterval = 0.1,
-    connectRetryTimeout: TimeInterval = 2,
+    connectRetryTimeout: TimeInterval = SPSocketClient.defaultConnectRetryTimeout,
     responseTimeout: TimeInterval = 5
   ) throws {
     guard let normalized = SupatermSocketPath.normalized(path) else {
@@ -285,7 +287,7 @@ struct SPSocketResolutionStrategy: Equatable {
     environmentPathStatus: SupatermManagedSocketCandidateStatus?,
     discoveryPolicy: SPSocketDiscoveryPolicy
   ) -> Self {
-    .init(
+    Self(
       environmentPath: resolvedEnvironmentPath(
         explicitSocketPath: explicitSocketPath,
         environmentSocketPath: environmentSocketPath,
@@ -348,7 +350,15 @@ enum SPSocketSelection {
   ) -> SPSocketSelectionDiagnostics {
     let explicitSocketPath = SupatermSocketPath.normalized(explicitPath)
     let environmentSocketPath = SupatermSocketPath.normalized(environment[SupatermCLIEnvironment.socketPathKey])
-    let environmentPathStatus = explicitSocketPath == nil ? environmentSocketPath.map(probeEndpoint) : nil
+    let environmentPathStatus =
+      explicitSocketPath == nil
+      ? environmentSocketPath.map {
+        probeEndpoint(
+          at: $0,
+          connectRetryTimeout: SPSocketClient.defaultConnectRetryTimeout
+        )
+      }
+      : nil
     let strategy = SPSocketResolutionStrategy.make(
       explicitSocketPath: explicitSocketPath,
       environmentSocketPath: environmentSocketPath,
@@ -365,13 +375,16 @@ enum SPSocketSelection {
       )
       discovery = SupatermManagedSocketDiscovery.discover(
         candidatePaths: candidatePaths,
-        probe: probeEndpoint,
+        probe: { probeEndpoint(at: $0, connectRetryTimeout: discoveryConnectRetryTimeout) },
         removeStalePath: { path in
           removeManagedSocketPath(path)
         }
       )
     } else {
-      discovery = .init(reachableEndpoints: [], removedStalePaths: [])
+      discovery = SupatermManagedSocketDiscoveryResult(
+        reachableEndpoints: [],
+        removedStalePaths: []
+      )
     }
 
     do {
@@ -381,7 +394,7 @@ enum SPSocketSelection {
         instance: instance,
         discoveredEndpoints: discovery.reachableEndpoints
       )
-      return .init(
+      return SPSocketSelectionDiagnostics(
         explicitSocketPath: explicitSocketPath,
         environmentSocketPath: environmentSocketPath,
         requestedInstance: SupatermSocketPath.normalized(instance),
@@ -391,7 +404,7 @@ enum SPSocketSelection {
         errorMessage: nil
       )
     } catch {
-      return .init(
+      return SPSocketSelectionDiagnostics(
         explicitSocketPath: explicitSocketPath,
         environmentSocketPath: environmentSocketPath,
         requestedInstance: SupatermSocketPath.normalized(instance),
@@ -425,12 +438,15 @@ enum SPSocketSelection {
     endpoint.displayString
   }
 
-  private static func probeEndpoint(at path: String) -> SupatermManagedSocketCandidateStatus {
+  private static func probeEndpoint(
+    at path: String,
+    connectRetryTimeout: TimeInterval
+  ) -> SupatermManagedSocketCandidateStatus {
     guard
       let client = try? SPSocketClient(
         path: path,
         connectRetryInterval: discoveryConnectRetryInterval,
-        connectRetryTimeout: discoveryConnectRetryTimeout,
+        connectRetryTimeout: connectRetryTimeout,
         responseTimeout: discoveryResponseTimeout
       )
     else {

@@ -67,16 +67,6 @@ public nonisolated enum ZmxEnvironment {
   ) -> Bool {
     setting && environment[disabledKey] != "1"
   }
-
-  public static func applySessionsPolicy(
-    to settings: inout SupatermSettings,
-    environment: [String: String] = ProcessInfo.processInfo.environment
-  ) {
-    settings.zmxSessionsEnabled = sessionsEnabled(
-      setting: settings.zmxSessionsEnabled,
-      environment: environment
-    )
-  }
 }
 
 public nonisolated struct ZmxClient: Sendable {

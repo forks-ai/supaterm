@@ -942,7 +942,7 @@ final class TerminalSidebarDragController {
           )
         ) { [weak self] in
           guard let self else { return }
-          dragPresentation.handoffAfterExternalSuccess {
+          dragPresentation.handoffAfterExternalSuccess(sourceDisposition) {
             collectionLayout.dragDropState = nil
             host.invalidateLayout()
           }

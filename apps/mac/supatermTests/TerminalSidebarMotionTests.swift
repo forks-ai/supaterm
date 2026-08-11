@@ -515,11 +515,47 @@ struct TerminalSidebarMotionTests {
       motionPolicy: TerminalSidebarMotionPolicy(reduceMotion: true)
     )
 
-    presentation.handoffAfterExternalSuccess {}
+    presentation.handoffAfterExternalSuccess(.removed) {}
 
     #expect(restoreCount == 0)
     #expect(hostedView.superview == nil)
     #expect(background.superview == nil)
+  }
+
+  @Test @MainActor
+  func retainedExternalSuccessRestoresTheCapturedSourceProjection() {
+    let collectionView = NSCollectionView(frame: CGRect(x: 0, y: 0, width: 240, height: 400))
+    let source = NSView(frame: CGRect(x: 12, y: 40, width: 216, height: 52))
+    let hostedView = NSView(frame: source.bounds)
+    source.addSubview(hostedView)
+    var restoreCount = 0
+    let presentation = TerminalSidebarDragPresentation(collectionView: collectionView)
+    presentation.begin(
+      TerminalSidebarDragPresentation.Lift(
+        rows: [
+          TerminalSidebarLiftedRow(
+            hostedView: hostedView,
+            sourceFrame: source.frame,
+            restore: {
+              restoreCount += 1
+              source.addSubview(hostedView)
+            }
+          )
+        ],
+        groupBackground: nil,
+        fanAnchorIndex: nil,
+        sourceFrame: source.frame,
+        hotspot: .zero,
+        screenPoint: .zero,
+        timestamp: 0
+      ),
+      motionPolicy: TerminalSidebarMotionPolicy(reduceMotion: true)
+    )
+
+    presentation.handoffAfterExternalSuccess(.retained) {}
+
+    #expect(restoreCount == 1)
+    #expect(hostedView.superview === source)
   }
 
   @Test
