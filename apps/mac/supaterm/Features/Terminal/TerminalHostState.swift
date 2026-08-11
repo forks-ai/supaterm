@@ -1080,7 +1080,9 @@ final class TerminalHostState {
       focusSurface(surface, in: tabID)
       return
     }
-    if let focusedSurfaceID = focusHistoryByTab[tabID]?.current, let surface = surfaces[focusedSurfaceID] {
+    if let focusedSurfaceID = focusHistoryByTab[tabID]?.current,
+      let surface = surfaces[focusedSurfaceID]
+    {
       focusSurface(surface, in: tabID)
       return
     }
@@ -1175,7 +1177,9 @@ final class TerminalHostState {
   }
 
   func clearNotificationAttention(for surfaceID: UUID) {
-    guard let tabID = tabID(containing: surfaceID), let surface = surfaces[surfaceID] else { return }
+    guard let tabID = tabID(containing: surfaceID), let surface = surfaces[surfaceID] else {
+      return
+    }
     let activity = Self.surfaceActivity(
       isSelectedTab: tabID == spaceManager.selectedTabID,
       windowIsVisible: windowActivity.isVisible,
@@ -1366,7 +1370,8 @@ final class TerminalHostState {
       lastChildExitCode: state.childExitCode,
       lastChildExitTimeMs: state.childExitTimeMs,
       foregroundProcessGroupID: processIdentity.foregroundProcessGroupID,
-      ttyName: processIdentity.ttyName
+      ttyName: processIdentity.ttyName,
+      agent: debugAgentSnapshot(for: id)
     )
   }
 

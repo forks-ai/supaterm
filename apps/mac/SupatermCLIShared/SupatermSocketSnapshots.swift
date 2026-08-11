@@ -122,6 +122,28 @@ public enum SupatermSnapshotRootItem<Tab: Equatable & Sendable & Codable>:
 }
 
 public struct SupatermAppDebugSnapshot: Equatable, Sendable, Codable {
+  public enum AgentPhase: String, Equatable, Sendable, Codable {
+    case idle
+    case running
+    case needsInput = "needs_input"
+  }
+
+  public struct Agent: Equatable, Sendable, Codable {
+    public let kind: SupatermAgentKind
+    public let sessionID: String
+    public let phase: AgentPhase
+
+    public init(
+      kind: SupatermAgentKind,
+      sessionID: String,
+      phase: AgentPhase
+    ) {
+      self.kind = kind
+      self.sessionID = sessionID
+      self.phase = phase
+    }
+  }
+
   public struct Build: Equatable, Sendable, Codable {
     public let version: String
     public let buildNumber: String
@@ -278,6 +300,8 @@ public struct SupatermAppDebugSnapshot: Equatable, Sendable, Codable {
     public let hasBell: Bool
     public let hasReadOnly: Bool
     public let hasSecureInput: Bool
+    public let latestNotificationText: String?
+    public let unreadNotificationCount: Int
     public let panes: [Pane]
 
     public init(
@@ -290,6 +314,8 @@ public struct SupatermAppDebugSnapshot: Equatable, Sendable, Codable {
       hasBell: Bool,
       hasReadOnly: Bool,
       hasSecureInput: Bool,
+      latestNotificationText: String? = nil,
+      unreadNotificationCount: Int = 0,
       panes: [Pane]
     ) {
       self.id = id
@@ -301,6 +327,8 @@ public struct SupatermAppDebugSnapshot: Equatable, Sendable, Codable {
       self.hasBell = hasBell
       self.hasReadOnly = hasReadOnly
       self.hasSecureInput = hasSecureInput
+      self.latestNotificationText = latestNotificationText
+      self.unreadNotificationCount = unreadNotificationCount
       self.panes = panes
     }
   }
@@ -324,6 +352,7 @@ public struct SupatermAppDebugSnapshot: Equatable, Sendable, Codable {
     public let lastChildExitTimeMs: UInt64?
     public let foregroundProcessGroupID: Int32?
     public let ttyName: String?
+    public let agent: Agent?
 
     public init(
       index: Int,
@@ -343,7 +372,8 @@ public struct SupatermAppDebugSnapshot: Equatable, Sendable, Codable {
       lastChildExitCode: UInt32?,
       lastChildExitTimeMs: UInt64?,
       foregroundProcessGroupID: Int32?,
-      ttyName: String?
+      ttyName: String?,
+      agent: Agent? = nil
     ) {
       self.index = index
       self.id = id
@@ -363,6 +393,7 @@ public struct SupatermAppDebugSnapshot: Equatable, Sendable, Codable {
       self.lastChildExitTimeMs = lastChildExitTimeMs
       self.foregroundProcessGroupID = foregroundProcessGroupID
       self.ttyName = ttyName
+      self.agent = agent
     }
   }
 

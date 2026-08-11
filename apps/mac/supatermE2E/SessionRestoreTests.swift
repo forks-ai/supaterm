@@ -64,8 +64,10 @@ extension SupatermE2ESuite {
           let selectedTab = selectedSpace.flattenedTabs.first(where: { $0.id == secondTab.tabID }),
           let focusedPane = selectedTab.panes.first(where: { $0.id == split.paneID })
         else { return false }
-        return [initialPaneID, firstSpace.paneID, secondTab.paneID, split.paneID, secondSpace.paneID]
-          .allSatisfy { paneIDs.contains($0) }
+        return [
+          initialPaneID, firstSpace.paneID, secondTab.paneID, split.paneID, secondSpace.paneID,
+        ]
+        .allSatisfy { paneIDs.contains($0) }
           && selectedTab.isSelected
           && focusedPane.isFocused
       }
@@ -177,6 +179,7 @@ extension SupatermE2ESuite {
         as: SupatermPinTabResult.self
       )
       #expect(pinned.isPinned)
+      #expect(try app.debugTab(tab.tabID)?.isSelected == true)
 
       try await app.waitForPersistedStateQuiescence(containing: [title, tab.paneID.uuidString])
       try await app.quit()
@@ -192,6 +195,7 @@ extension SupatermE2ESuite {
       #expect(restored.id == space.target.spaceID)
       let restoredTab = try restoredTab(titled: title, in: restored)
       #expect(e2eRootTab(withID: restoredTab.id, in: restored)?.isPinned == true)
+      #expect(restoredTab.isSelected)
       #expect(restoredTab.isTitleLocked)
       #expect(restoredTab.panes.map(\.id) == [tab.paneID])
     }
@@ -365,12 +369,12 @@ private func makeTab(
   _ app: SupatermE2EApp,
   in space: SupatermCreateSpaceResult,
   cwd: URL,
-  startupCommand: String = hermeticShellStartupCommand
+  startupCommand: SupatermTerminalStartup = hermeticShellStartup
 ) throws -> SupatermNewTabResult {
   try app.send(
     .newTab(
       SupatermNewTabRequest(
-        startupCommand: .script(startupCommand),
+        startupCommand: startupCommand,
         cwd: cwd.path,
         focus: true,
         target: .space(space.target.spaceID)
@@ -388,7 +392,7 @@ private func makeSplit(
   try app.send(
     .newPane(
       SupatermNewPaneRequest(
-        startupCommand: .script(hermeticShellStartupCommand),
+        startupCommand: hermeticShellStartup,
         cwd: cwd.path,
         direction: .right,
         focus: true,

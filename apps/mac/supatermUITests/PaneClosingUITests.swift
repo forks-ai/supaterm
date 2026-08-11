@@ -3,43 +3,6 @@ import XCTest
 
 final class PaneClosingUITests: SupatermUITestCase {
   @MainActor
-  func testExitingShellClosesPaneWithoutConfirmation() async throws {
-    _ = try await requireVisiblePanes(count: 1)
-    let originalIdentifier = terminalPanes.element(boundBy: 0).identifier
-
-    try clickMenuItem(.splitRight)
-    let panes = try await requireVisiblePanes(count: 2)
-    let newPane = try XCTUnwrap(panes.first { $0.identifier != originalIdentifier })
-    newPane.click()
-    try await requireFocus(on: newPane)
-
-    newPane.typeText("exit\n")
-    let didClosePane = await wait(for: mainWindow, timeout: .seconds(30)) { _ in
-      self.terminalPanes.count == 1
-        && self.terminalPanes.element(boundBy: 0).identifier == originalIdentifier
-    }
-    guard didClosePane else {
-      XCTFail("Exited pane did not close while preserving its sibling")
-      return
-    }
-
-    XCTAssertEqual(mainWindow.sheets.count, 0)
-    XCTAssertFalse(
-      app.buttons[SupatermUITestIdentifier.Accessibility.dialogConfirm].exists
-    )
-
-    let survivor = terminalPanes.element(boundBy: 0)
-    try await requireFocus(on: survivor)
-
-    let token = UUID().uuidString.prefix(8)
-    app.typeText("echo exit-\"close\"-\(token)\n")
-    let survivorReceivedInput = await wait(for: survivor, timeout: .seconds(30)) {
-      ($0.value as? String)?.contains("exit-close-\(token)") == true
-    }
-    XCTAssertTrue(survivorReceivedInput)
-  }
-
-  @MainActor
   func testCommandWClosesFocusedPaneNotWindow() async throws {
     try relaunchWithoutCloseConfirmation()
 

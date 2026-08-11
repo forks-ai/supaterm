@@ -7,6 +7,10 @@ import Testing
 let hermeticShellPrompt = "SUPATERM_E2E_READY"
 let hermeticShellStartupCommand =
   "/bin/sleep 0.1; exec /usr/bin/env PS1=\(hermeticShellPrompt) /bin/zsh -f"
+let hermeticShellArguments = [
+  "/usr/bin/env", "PS1=\(hermeticShellPrompt)", "/bin/zsh", "-f",
+]
+let hermeticShellStartup = SupatermTerminalStartup.arguments(hermeticShellArguments)
 
 private nonisolated(unsafe) var sharedAppAtExit: SupatermE2EApp?
 
@@ -64,7 +68,7 @@ func makeTestSpace(_ app: SupatermE2EApp) throws -> TestSpace {
   let tab = try app.send(
     .newTab(
       SupatermNewTabRequest(
-        startupCommand: .script(hermeticShellStartupCommand),
+        startupCommand: hermeticShellStartup,
         cwd: directory.path,
         focus: true,
         target: .space(created.target.spaceID)
@@ -84,7 +88,7 @@ func makeTab(_ app: SupatermE2EApp, in space: TestSpace) throws -> SupatermNewTa
   try app.send(
     .newTab(
       SupatermNewTabRequest(
-        startupCommand: .script(hermeticShellStartupCommand),
+        startupCommand: hermeticShellStartup,
         cwd: space.directory.path,
         focus: true,
         target: .pane(space.tab.paneID)
@@ -94,11 +98,15 @@ func makeTab(_ app: SupatermE2EApp, in space: TestSpace) throws -> SupatermNewTa
   )
 }
 
-func makeSplit(_ app: SupatermE2EApp, in space: TestSpace) throws -> SupatermNewPaneResult {
+func makeSplit(
+  _ app: SupatermE2EApp,
+  in space: TestSpace,
+  startupCommand: SupatermTerminalStartup? = hermeticShellStartup
+) throws -> SupatermNewPaneResult {
   try app.send(
     .newPane(
       SupatermNewPaneRequest(
-        startupCommand: .script(hermeticShellStartupCommand),
+        startupCommand: startupCommand,
         cwd: space.directory.path,
         direction: .right,
         focus: true,
