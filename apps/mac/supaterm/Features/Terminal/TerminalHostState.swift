@@ -253,12 +253,6 @@ final class TerminalHostState {
     }
   }
 
-  struct SurfaceLaunch: Equatable {
-    let startupCommand: SupatermTerminalStartup?
-    let commandWrapper: [String]
-    let usesZmx: Bool
-  }
-
   @ObservationIgnored
   let runtime: GhosttyRuntime?
   @ObservationIgnored
@@ -387,7 +381,6 @@ final class TerminalHostState {
       .createTab,
       .createTabInGroup,
       .createTabInSpace,
-      .ensureInitialTab,
       .createSpace:
       handleCreationCommand(command)
     case .navigateSearch,
@@ -458,12 +451,6 @@ final class TerminalHostState {
       _ = createTab(in: groupID, inheritingFromSurfaceID: inheritingFromSurfaceID)
     case .createTabInSpace(let spaceID):
       createTabInSpace(spaceID)
-    case .ensureInitialTab(let focusing, let startupCommand, let workingDirectoryPath):
-      ensureInitialTab(
-        focusing: focusing,
-        startupCommand: startupCommand,
-        workingDirectoryPath: workingDirectoryPath
-      )
     case .createSpace(let name, let color):
       onSpaceAction(.create(name, color))
     default:

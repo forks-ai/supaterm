@@ -161,6 +161,35 @@ struct SSHSessionInheritanceTests {
   }
 
   @Test
+  func doesNotInheritWithoutTheBundledCLI() {
+    let command = SSHSessionInheritance.startupCommand(
+      zmxSessionName: Self.sessionName,
+      cliPath: nil,
+      table: Self.table(
+        shellForegroundGroup: 300,
+        extra: [
+          ProcessEntry(
+            processID: 300,
+            parentProcessID: 201,
+            processGroupID: 300,
+            foregroundProcessGroupID: 300,
+            terminalDevice: Self.sessionTerminal,
+            name: "ssh"
+          )
+        ]
+      ),
+      invocation: Self.invocations([
+        100: ["zmx", "attach", Self.sessionName],
+        101: ["zmx", "attach", Self.sessionName],
+        200: ["/usr/bin/login", "-flp", "khoi"],
+        300: ["ssh", "example.com"],
+      ])
+    )
+
+    #expect(command == nil)
+  }
+
+  @Test
   func runsInheritedSSHInsideTheExistingLoginShell() throws {
     let startupCommand = try #require(
       SSHSessionInheritance.startupCommand(

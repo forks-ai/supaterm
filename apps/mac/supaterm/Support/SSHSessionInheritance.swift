@@ -26,6 +26,7 @@ public enum SSHSessionInheritance {
     invocation: InvocationProvider
   ) -> SupatermTerminalStartup? {
     guard
+      let cliPath,
       let shell = sessionShell(zmxSessionName: zmxSessionName, table: table, invocation: invocation)
     else {
       return nil

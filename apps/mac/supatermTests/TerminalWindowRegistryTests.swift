@@ -781,7 +781,7 @@ struct TerminalWindowRegistryTests {
       let registry = TerminalWindowRegistry()
       let host = TerminalHostState()
       host.windowActivity = .inactive
-      host.handleCommand(.ensureInitialTab(focusing: false, startupCommand: nil))
+      host.ensureInitialTab(focusing: false, startupCommand: nil)
       let firstTabID = try #require(host.selectedTabID)
       let secondTabID = try #require(host.createTab(focusing: false))
       let targetSurfaceID = try #require(host.trees[secondTabID]?.root?.leftmostLeaf().id)
@@ -939,10 +939,10 @@ struct TerminalWindowRegistryTests {
       let secondFrame = NSRect(x: 160, y: 220, width: 1_180, height: 760)
       let registry = TerminalWindowRegistry()
       let firstHost = TerminalHostState()
-      firstHost.handleCommand(.ensureInitialTab(focusing: false, startupCommand: nil))
+      firstHost.ensureInitialTab(focusing: false, startupCommand: nil)
 
       let secondHost = TerminalHostState()
-      secondHost.handleCommand(.ensureInitialTab(focusing: false, startupCommand: nil))
+      secondHost.ensureInitialTab(focusing: false, startupCommand: nil)
       secondHost.handleCommand(.createTab(inheritingFromSurfaceID: nil))
 
       var firstState = AppFeature.State()
@@ -1575,7 +1575,7 @@ private func registerWindow(
   let id = UUID()
   let host = TerminalHostState(managesTerminalSurfaces: createsInitialTab, spaceID: spaceID)
   if createsInitialTab {
-    host.handleCommand(.ensureInitialTab(focusing: false, startupCommand: nil))
+    host.ensureInitialTab(focusing: false, startupCommand: nil)
   }
   let store = Store(initialState: AppFeature.State()) {
     AppFeature()
@@ -1603,7 +1603,7 @@ private func makeCommandPaletteHost(
   workingDirectory: String?
 ) throws -> TerminalHostState {
   let host = TerminalHostState()
-  host.handleCommand(.ensureInitialTab(focusing: false, startupCommand: nil))
+  host.ensureInitialTab(focusing: false, startupCommand: nil)
   host.selectedSurfaceView?.bridge.state.title = title
   host.selectedSurfaceView?.bridge.state.titleOverride = nil
   host.selectedSurfaceView?.bridge.state.pwd = workingDirectory

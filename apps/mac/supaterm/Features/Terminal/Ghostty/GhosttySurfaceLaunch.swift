@@ -3,7 +3,7 @@ import GhosttyKit
 import SupatermCLIShared
 
 final class GhosttySurfaceLaunch {
-  private let commandCString: UnsafeMutablePointer<CChar>?
+  private let shellCString: UnsafeMutablePointer<CChar>?
   private var inputCString: UnsafeMutablePointer<CChar>?
   private let cleanupToken: SupatermTerminalStartupCleanup?
   let preparationFailed: Bool
@@ -13,14 +13,26 @@ final class GhosttySurfaceLaunch {
     cliPath: String?,
     startup: SupatermTerminalStartup?
   ) {
-    commandCString = SupatermShellCommand.escapedToken(shellPath).withCString { strdup($0) }
-    let prepared = startup.flatMap {
-      try? $0.prepare(cliPath: cliPath, shellPath: shellPath)
+    shellCString = SupatermShellCommand.escapedToken(shellPath).withCString { strdup($0) }
+    let prepared: SupatermPreparedTerminalStartup?
+    if let startup {
+      do {
+        prepared = try startup.prepare(cliPath: cliPath, shellPath: shellPath)
+      } catch {
+        SupatermLog.error(
+          SupatermLog.terminal,
+          "terminal.startup.prepare.failed",
+          fields: ["error=\(String(describing: error))"]
+        )
+        prepared = nil
+      }
+    } else {
+      prepared = nil
     }
     cleanupToken = prepared?.cleanupToken
     inputCString = prepared?.initialInput.withCString { strdup($0) }
     let startupFailed = startup != nil && (prepared == nil || inputCString == nil)
-    preparationFailed = commandCString == nil || startupFailed
+    preparationFailed = shellCString == nil || startupFailed
     if preparationFailed {
       cleanupToken?.cleanup()
     }
@@ -28,8 +40,8 @@ final class GhosttySurfaceLaunch {
 
   isolated deinit {
     cleanupToken?.cleanup()
-    if let commandCString {
-      free(commandCString)
+    if let shellCString {
+      free(shellCString)
     }
     if let inputCString {
       free(inputCString)
@@ -37,7 +49,7 @@ final class GhosttySurfaceLaunch {
   }
 
   func apply(to config: inout ghostty_surface_config_s) {
-    config.command = commandCString.map { UnsafePointer($0) }
+    config.command = shellCString.map { UnsafePointer($0) }
     config.initial_input = inputCString.map { UnsafePointer($0) }
   }
 

@@ -1471,7 +1471,7 @@ struct TerminalCommandExecutorAgentHookTests {
     let registry = TerminalWindowRegistry()
     _ = makeCommandExecutor(registry: registry)
     let host = TerminalHostState()
-    host.handleCommand(.ensureInitialTab(focusing: false, startupCommand: nil))
+    host.ensureInitialTab(focusing: false, startupCommand: nil)
     let surfaceID = try #require(host.selectedSurfaceView?.id)
     let tabID = try #require(host.selectedTabID)
     let process = try #require(TerminalAgentProcessInspector.identity(for: getpid()))

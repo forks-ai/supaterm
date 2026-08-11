@@ -99,7 +99,7 @@ struct TerminalHostStateCloseTests {
         $0 = TerminalSpaceCatalog(defaultSelectedSpaceID: spaces[0].id, spaces: spaces)
       }
       let host = TerminalHostState(spaceID: spaces[0].id, zmxSessionsEnabled: false)
-      host.handleCommand(.ensureInitialTab(focusing: false, startupCommand: nil))
+      host.ensureInitialTab(focusing: false, startupCommand: nil)
       let tabID = try #require(host.selectedTabID)
       let coldTabID = TerminalTabID()
       let coldSurfaceID = UUID()
@@ -142,7 +142,7 @@ struct TerminalHostStateCloseTests {
       runtime: runtime,
       zmxSessionsEnabled: false
     )
-    host.handleCommand(.ensureInitialTab(focusing: false, startupCommand: nil))
+    host.ensureInitialTab(focusing: false, startupCommand: nil)
     let tabID = try #require(host.selectedTabID)
     let firstSurfaceID = try #require(host.currentFocusedSurfaceID())
     let secondPane = try host.createPane(

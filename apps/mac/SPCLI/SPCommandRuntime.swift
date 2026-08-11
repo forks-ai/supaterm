@@ -174,7 +174,11 @@ func terminalStartup(script: String?, tokens: [String]) throws -> SupatermTermin
     return .script(script)
   }
   if !tokens.isEmpty {
-    return .arguments(tokens)
+    let startup = SupatermTerminalStartup.arguments(tokens)
+    guard startup.isValid else {
+      throw ValidationError("Trailing command must start with an executable.")
+    }
+    return startup
   }
   return nil
 }

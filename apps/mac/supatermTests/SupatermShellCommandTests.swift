@@ -83,7 +83,7 @@ struct SupatermShellCommandTests {
 
   @Test
   func availableShellsRunStartupPathAndRemainLoginShells() throws {
-    for shellPath in [
+    let shellPaths = [
       "/bin/bash",
       "/bin/csh",
       "/bin/dash",
@@ -95,14 +95,17 @@ struct SupatermShellCommandTests {
       "/opt/homebrew/bin/fish",
       "/usr/local/bin/elvish",
       "/usr/local/bin/fish",
-    ].filter(FileManager.default.isExecutableFile(atPath:)) {
+    ].filter(FileManager.default.isExecutableFile(atPath:))
+    #expect(shellPaths.contains("/bin/bash"))
+    #expect(shellPaths.contains("/bin/zsh"))
+
+    for shellPath in shellPaths {
       try verifyLoginShellStartup(shellPath)
     }
   }
 }
 
 private func verifyLoginShellStartup(_ shellPath: String) throws {
-  #expect(FileManager.default.isExecutableFile(atPath: shellPath))
   let directoryURL = URL(fileURLWithPath: "/private/tmp", isDirectory: true)
     .appendingPathComponent("supaterm-shell-test-\(UUID().uuidString.lowercased())", isDirectory: true)
   try FileManager.default.createDirectory(at: directoryURL, withIntermediateDirectories: false)
@@ -127,6 +130,7 @@ private func verifyLoginShellStartup(_ shellPath: String) throws {
   let transportDirectoryURL = prepared.cleanupDirectoryURL
 
   let input = Pipe()
+  let error = Pipe()
   let process = Process()
   process.executableURL = URL(fileURLWithPath: "/bin/bash")
   process.arguments = [
@@ -144,7 +148,7 @@ private func verifyLoginShellStartup(_ shellPath: String) throws {
   ]
   process.standardInput = input
   process.standardOutput = FileHandle.nullDevice
-  process.standardError = FileHandle.nullDevice
+  process.standardError = error
   try process.run()
   try input.fileHandleForWriting.write(
     contentsOf: Data(
@@ -153,8 +157,14 @@ private func verifyLoginShellStartup(_ shellPath: String) throws {
   )
   try input.fileHandleForWriting.close()
   process.waitUntilExit()
+  let standardError = try #require(
+    String(
+      bytes: try error.fileHandleForReading.readToEnd() ?? Data(),
+      encoding: .utf8
+    )
+  )
 
-  #expect(process.terminationStatus == 0)
+  #expect(process.terminationStatus == 0, "\(shellPath): \(standardError)")
   #expect(try String(contentsOf: launchedURL, encoding: .utf8) == "launched")
   #expect(try String(contentsOf: followUpURL, encoding: .utf8) == "follow-up")
   #expect(!FileManager.default.fileExists(atPath: transportDirectoryURL.path))

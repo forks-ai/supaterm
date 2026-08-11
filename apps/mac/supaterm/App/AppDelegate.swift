@@ -68,7 +68,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
   private var toggleVisibilityState: ToggleVisibilityState?
   private var windowControllers: [UUID: TerminalWindowController] = [:]
 
-  private static let onboardingStartup = SupatermTerminalStartup.arguments(["sp", "onboard"])
+  private static var onboardingStartup: SupatermTerminalStartup? {
+    guard let socketPath = SupatermProcessSocketEndpoint.current()?.path else { return nil }
+    return .arguments(["sp", "onboard", "--socket", socketPath])
+  }
 
   override init() {
     SupatermTerminalStartup.reapStaleTransports()

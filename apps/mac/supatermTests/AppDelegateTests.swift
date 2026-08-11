@@ -192,7 +192,8 @@ struct AppDelegateTests {
   }
 
   @Test
-  func initialWindowRequestsInjectOnboardingIntoFirstBlankWindowOnFirstLaunch() {
+  func initialWindowRequestsInjectOnboardingIntoFirstBlankWindowOnFirstLaunch() throws {
+    let socketPath = try #require(SupatermProcessSocketEndpoint.current()?.path)
     let requests = AppDelegate.initialWindowRequests(
       from: TerminalSessionCatalog(windows: []),
       validSpaceIDs: [],
@@ -204,7 +205,7 @@ struct AppDelegateTests {
       requests == [
         AppDelegate.LaunchWindowRequest(
           session: nil,
-          startupCommand: .arguments(["sp", "onboard"]),
+          startupCommand: .arguments(["sp", "onboard", "--socket", socketPath]),
         )
       ]
     )

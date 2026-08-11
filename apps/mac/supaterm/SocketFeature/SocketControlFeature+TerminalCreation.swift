@@ -10,6 +10,7 @@ extension SocketControlFeature {
     switch request.method {
     case SupatermSocketMethod.terminalNewTab:
       let payload = try request.decodeParams(SupatermNewTabRequest.self)
+      try validateTerminalStartup(payload.startupCommand)
       let createTabRequest = createTabRequest(from: payload)
       let execution = try await socketRequestExecutor.executeTerminalCreation(
         .createTab(createTabRequest)
@@ -21,6 +22,7 @@ extension SocketControlFeature {
 
     case SupatermSocketMethod.terminalNewPane:
       let payload = try request.decodeParams(SupatermNewPaneRequest.self)
+      try validateTerminalStartup(payload.startupCommand)
       let createPaneRequest = createPaneRequest(from: payload)
       let execution = try await socketRequestExecutor.executeTerminalCreation(
         .createPane(createPaneRequest)
@@ -83,6 +85,12 @@ extension SocketControlFeature {
       return .pane(id)
     case .tab(let id):
       return .tab(id)
+    }
+  }
+
+  private func validateTerminalStartup(_ startup: SupatermTerminalStartup?) throws {
+    guard startup?.isValid != false else {
+      throw SocketRequestError.invalidStartupCommand
     }
   }
 }

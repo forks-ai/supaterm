@@ -10,6 +10,7 @@ private enum SocketControlCancelID {
 
 enum SocketRequestError: Error, Equatable, LocalizedError {
   case invalidIndex(String)
+  case invalidStartupCommand
   case missingTarget
   case missingSpaceTarget
   case onboardingUnavailable
@@ -22,6 +23,8 @@ enum SocketRequestError: Error, Equatable, LocalizedError {
     switch self {
     case .invalidIndex(let field):
       return "\(field) must be 1 or greater."
+    case .invalidStartupCommand:
+      return "Startup command is invalid."
     case .missingTarget:
       return "Provide a target space and tab or run the command inside a Supaterm pane."
     case .missingSpaceTarget:

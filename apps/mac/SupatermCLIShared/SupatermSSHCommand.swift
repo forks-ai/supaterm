@@ -28,7 +28,7 @@ public enum SupatermSSHCommand {
   public static func inheritedArguments(
     forArguments arguments: [String],
     terminalType: String?,
-    cliPath: String?
+    cliPath: String
   ) -> [String]? {
     guard let executable = arguments.first else { return nil }
 
@@ -48,21 +48,11 @@ public enum SupatermSSHCommand {
       terminalType
       .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
       .flatMap { $0.isEmpty ? nil : $0 }
-    var tokens: [String]
-    if let cliPath {
-      tokens = ["/usr/bin/env", cliPath, program]
-      if let terminalType {
-        tokens += ["--term", terminalType]
-      }
-      tokens += ["--ssh", executable, "--"] + sessionArguments
-    } else {
-      tokens = ["/usr/bin/env"]
-      if let terminalType {
-        tokens.append("TERM=\(terminalType)")
-      }
-      tokens += [executable] + sourceArguments
+    var tokens = ["/usr/bin/env", cliPath, program]
+    if let terminalType {
+      tokens += ["--term", terminalType]
     }
-
+    tokens += ["--ssh", executable, "--"] + sessionArguments
     return tokens
   }
 

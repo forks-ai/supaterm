@@ -5,8 +5,7 @@ import Testing
 @Suite(.serialized) enum SupatermE2ESuite {}
 
 let hermeticShellPrompt = "SUPATERM_E2E_READY"
-let hermeticShellStartupCommand =
-  "/bin/sleep 0.1; exec /usr/bin/env PS1=\(hermeticShellPrompt) /bin/zsh -f"
+let hermeticShellStartupCommand = "/usr/bin/env PS1=\(hermeticShellPrompt) /bin/zsh -f"
 
 private nonisolated(unsafe) var sharedAppAtExit: SupatermE2EApp?
 
@@ -40,12 +39,12 @@ func withTestSpace<T>(
   _ body: (SupatermE2EApp, TestSpace) async throws -> T
 ) async throws -> T {
   let app = try await SharedApp.current()
-  let space = try makeTestSpace(app)
+  let space = try await makeTestSpace(app)
   defer { try? closeTestSpace(app, spaceID: space.spaceID) }
   return try await body(app, space)
 }
 
-func makeTestSpace(_ app: SupatermE2EApp) throws -> TestSpace {
+func makeTestSpace(_ app: SupatermE2EApp) async throws -> TestSpace {
   let token = String(UUID().uuidString.prefix(8).lowercased())
   let snapshot = try app.debugSnapshot()
   guard snapshot.windows.first != nil else {
@@ -61,6 +60,7 @@ func makeTestSpace(_ app: SupatermE2EApp) throws -> TestSpace {
     ),
     as: SupatermCreateSpaceResult.self
   )
+  try await app.waitForReadyPane(in: created.target.spaceID)
   let tab = try app.send(
     .newTab(
       SupatermNewTabRequest(
@@ -72,6 +72,7 @@ func makeTestSpace(_ app: SupatermE2EApp) throws -> TestSpace {
     ),
     as: SupatermNewTabResult.self
   )
+  try await app.waitForShellPrompt(SupatermPaneTargetRequest(paneID: tab.paneID))
   return TestSpace(
     token: token,
     directory: directory,

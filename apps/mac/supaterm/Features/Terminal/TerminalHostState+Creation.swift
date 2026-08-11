@@ -162,10 +162,8 @@ extension TerminalHostState {
         fromSurfaceID: inheritingFromSurfaceID,
         workingDirectory: workingDirectory
       )
-    let launch = resolvedSurfaceLaunch(
-      startupCommand: resolvedStartupCommand,
-      surfaceID: surfaceID
-    )
+    let commandWrapper = resolvedCommandWrapper(surfaceID: surfaceID)
+    let usesZmx = !commandWrapper.isEmpty
     SupatermLog.debug(
       SupatermLog.terminal,
       "terminal.surface.create",
@@ -175,8 +173,8 @@ extension TerminalHostState {
         "context=\(Self.surfaceContextLabel(context))",
         "zmxSessionsEnabled=\(zmxSessionsEnabled)",
         "hasStartupCommand=\(resolvedStartupCommand != nil)",
-        "hasCommandWrapper=\(!launch.commandWrapper.isEmpty)",
-        "usesZmx=\(launch.usesZmx)",
+        "hasCommandWrapper=\(!commandWrapper.isEmpty)",
+        "usesZmx=\(usesZmx)",
       ]
     )
     let view = GhosttySurfaceView(
@@ -184,12 +182,12 @@ extension TerminalHostState {
       runtime: runtime,
       tabID: tabID.rawValue,
       workingDirectory: workingDirectory ?? inherited.workingDirectory,
-      startupCommand: launch.startupCommand,
-      commandWrapper: launch.commandWrapper,
+      startupCommand: resolvedStartupCommand,
+      commandWrapper: commandWrapper,
       fontSize: inherited.fontSize,
       context: context,
       managesWindowAppearance: false,
-      zmxSessionsEnabled: launch.usesZmx
+      zmxSessionsEnabled: usesZmx
     )
     configureBridgeCallbacks(for: view, tabID: tabID)
     configureSurfaceCallbacks(for: view, tabID: tabID)
@@ -197,10 +195,7 @@ extension TerminalHostState {
     return view
   }
 
-  func resolvedSurfaceLaunch(
-    startupCommand: SupatermTerminalStartup?,
-    surfaceID: UUID
-  ) -> SurfaceLaunch {
+  func resolvedCommandWrapper(surfaceID: UUID) -> [String] {
     let sessionID = ZmxSessionID.make(surfaceID: surfaceID)
     guard zmxSessionsEnabled else {
       SupatermLog.debug(
@@ -212,11 +207,7 @@ extension TerminalHostState {
           "reason=disabled",
         ]
       )
-      return SurfaceLaunch(
-        startupCommand: startupCommand,
-        commandWrapper: [],
-        usesZmx: false
-      )
+      return []
     }
     guard let executable = zmxClient.executableURL() else {
       SupatermLog.error(
@@ -225,14 +216,9 @@ extension TerminalHostState {
         fields: [
           "surfaceID=\(surfaceID.uuidString.lowercased())",
           "sessionID=\(sessionID)",
-          "hasStartupCommand=\(startupCommand != nil)",
         ]
       )
-      return SurfaceLaunch(
-        startupCommand: startupCommand,
-        commandWrapper: [],
-        usesZmx: false
-      )
+      return []
     }
     let commandWrapper = ZmxAttach.buildWrapperArgv(
       executablePath: executable.path(percentEncoded: false),
@@ -244,15 +230,9 @@ extension TerminalHostState {
       fields: [
         "surfaceID=\(surfaceID.uuidString.lowercased())",
         "sessionID=\(sessionID)",
-        "hasStartupCommand=\(startupCommand != nil)",
-        "hasCommandWrapper=\(!commandWrapper.isEmpty)",
       ]
     )
-    return SurfaceLaunch(
-      startupCommand: startupCommand,
-      commandWrapper: commandWrapper,
-      usesZmx: true
-    )
+    return commandWrapper
   }
 
   func inheritedSSHStartup(

@@ -203,7 +203,7 @@ struct TerminalWindowControllerTests {
         controller.window?.delegate = nil
         controller.window?.close()
       }
-      controller.terminal.handleCommand(.ensureInitialTab(focusing: false, startupCommand: nil))
+      controller.terminal.ensureInitialTab(focusing: false, startupCommand: nil)
       let window = try #require(controller.window)
 
       #expect(!controller.terminal.liveSurfaceIDs().isEmpty)

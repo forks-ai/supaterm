@@ -1032,7 +1032,7 @@ struct GhosttySurfaceViewTests {
     initializeGhosttyForTests()
 
     let host = TerminalHostState(runtime: GhosttyRuntime())
-    host.handleCommand(.ensureInitialTab(focusing: false, startupCommand: nil))
+    host.ensureInitialTab(focusing: false, startupCommand: nil)
     let sourceSurface = try #require(host.selectedSurfaceView)
     sourceSurface.bridge.state.searchNeedle = ""
     sourceSurface.bridge.state.searchFocusCount = 1

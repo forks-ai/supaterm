@@ -5,32 +5,24 @@ import SupaTheme
 import SupatermSupport
 import Testing
 
-@testable import SupatermCLIShared
 @testable import supaterm
 
 @MainActor
 struct TerminalHostStateSessionRestoreTests {
   @Test
-  func disabledZmxSessionsPreserveArgumentStartup() {
+  func disabledZmxSessionsDoNotWrapTheShell() {
     let host = TerminalHostState(
       managesTerminalSurfaces: false,
       zmxClient: wrappingZmxClient(),
       zmxSessionsEnabled: false
     )
-    let startup = SupatermTerminalStartup.arguments(["echo", "hello"])
+    let commandWrapper = host.resolvedCommandWrapper(surfaceID: UUID())
 
-    let launch = host.resolvedSurfaceLaunch(
-      startupCommand: startup,
-      surfaceID: UUID()
-    )
-
-    #expect(launch.startupCommand == startup)
-    #expect(launch.commandWrapper.isEmpty)
-    #expect(!launch.usesZmx)
+    #expect(commandWrapper.isEmpty)
   }
 
   @Test
-  func enabledZmxSessionsWrapInteractiveShellWithoutCommand() {
+  func enabledZmxSessionsWrapTheShell() {
     let surfaceID = UUID()
     let host = TerminalHostState(
       managesTerminalSurfaces: false,
@@ -42,42 +34,15 @@ struct TerminalHostStateSessionRestoreTests {
       )
     )
 
-    let launch = host.resolvedSurfaceLaunch(
-      startupCommand: nil,
-      surfaceID: surfaceID
-    )
+    let commandWrapper = host.resolvedCommandWrapper(surfaceID: surfaceID)
 
-    #expect(launch.startupCommand == nil)
-    #expect(launch.commandWrapper == ["/tmp/zmx", "attach", ZmxSessionID.make(surfaceID: surfaceID)])
-    #expect(launch.usesZmx)
+    #expect(
+      commandWrapper == ["/tmp/zmx", "attach", ZmxSessionID.make(surfaceID: surfaceID)]
+    )
   }
 
   @Test
-  func enabledZmxSessionsPreserveScriptStartup() {
-    let surfaceID = UUID()
-    let host = TerminalHostState(
-      managesTerminalSurfaces: false,
-      zmxClient: ZmxClient(
-        executableURL: { URL(fileURLWithPath: "/tmp/zmx") },
-        isBundled: { true },
-        killSession: { _ in },
-        listSessions: { [] }
-      )
-    )
-
-    let startup = SupatermTerminalStartup.script("sp onboard")
-    let launch = host.resolvedSurfaceLaunch(
-      startupCommand: startup,
-      surfaceID: surfaceID
-    )
-
-    #expect(launch.startupCommand == startup)
-    #expect(launch.commandWrapper == ["/tmp/zmx", "attach", ZmxSessionID.make(surfaceID: surfaceID)])
-    #expect(launch.usesZmx)
-  }
-
-  @Test
-  func unavailableZmxPreservesArgumentStartup() {
+  func unavailableZmxDoesNotWrapTheShell() {
     let host = TerminalHostState(
       managesTerminalSurfaces: false,
       zmxClient: ZmxClient(
@@ -88,15 +53,9 @@ struct TerminalHostStateSessionRestoreTests {
       )
     )
 
-    let startup = SupatermTerminalStartup.arguments(["echo", "hello"])
-    let launch = host.resolvedSurfaceLaunch(
-      startupCommand: startup,
-      surfaceID: UUID()
-    )
+    let commandWrapper = host.resolvedCommandWrapper(surfaceID: UUID())
 
-    #expect(launch.startupCommand == startup)
-    #expect(launch.commandWrapper.isEmpty)
-    #expect(!launch.usesZmx)
+    #expect(commandWrapper.isEmpty)
   }
 
   @Test
@@ -134,12 +93,10 @@ struct TerminalHostStateSessionRestoreTests {
       )
       let host = TerminalHostState()
 
-      host.handleCommand(
-        .ensureInitialTab(
-          focusing: false,
-          startupCommand: nil,
-          workingDirectoryPath: path
-        )
+      host.ensureInitialTab(
+        focusing: false,
+        startupCommand: nil,
+        workingDirectoryPath: path
       )
 
       #expect(host.selectedSurfaceState?.pwd == path)
@@ -164,7 +121,7 @@ struct TerminalHostStateSessionRestoreTests {
       }
 
       let host = TerminalHostState()
-      host.handleCommand(.ensureInitialTab(focusing: false, startupCommand: nil))
+      host.ensureInitialTab(focusing: false, startupCommand: nil)
 
       let spaceID = host.displayedSpaceID
       let firstSurfaceID = try #require(host.selectedSurfaceView?.id)

@@ -52,6 +52,8 @@ extension SupatermE2ESuite {
         let splitPane = SupatermPaneTargetRequest(paneID: split.paneID)
         try await app.waitForShellPrompt(splitPane)
 
+        try app.type("exit\n", into: splitPane)
+        try await app.waitForShellPrompt(splitPane)
         try app.press(.ctrlD, in: splitPane)
         try await app.waitUntil("the exited pane is removed") {
           try app.debugPane(split.paneID) == nil

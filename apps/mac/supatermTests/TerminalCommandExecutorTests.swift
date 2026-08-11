@@ -203,8 +203,8 @@ struct TerminalCommandExecutorTests {
     let firstWindowControllerID = UUID()
     let secondWindowControllerID = UUID()
 
-    firstHost.handleCommand(.ensureInitialTab(focusing: false, startupCommand: nil))
-    secondHost.handleCommand(.ensureInitialTab(focusing: false, startupCommand: nil))
+    firstHost.ensureInitialTab(focusing: false, startupCommand: nil)
+    secondHost.ensureInitialTab(focusing: false, startupCommand: nil)
     let secondSurfaceID = try #require(secondHost.selectedSurfaceView?.id)
 
     registry.register(
@@ -239,7 +239,7 @@ struct TerminalCommandExecutorTests {
     let registry = TerminalWindowRegistry()
     let commandExecutor = makeCommandExecutor(registry: registry)
     let host = TerminalHostState()
-    host.handleCommand(.ensureInitialTab(focusing: false, startupCommand: nil))
+    host.ensureInitialTab(focusing: false, startupCommand: nil)
     let tabID = try #require(host.selectedTabID)
     let store = Store(initialState: AppFeature.State()) {
       AppFeature()
@@ -268,7 +268,7 @@ struct TerminalCommandExecutorTests {
     let registry = TerminalWindowRegistry()
     let commandExecutor = makeCommandExecutor(registry: registry)
     let host = TerminalHostState()
-    host.handleCommand(.ensureInitialTab(focusing: false, startupCommand: nil))
+    host.ensureInitialTab(focusing: false, startupCommand: nil)
     let tabID = try #require(host.selectedTabID)
     host.handleCommand(.togglePinned(tabID))
     let store = Store(initialState: AppFeature.State()) {
@@ -299,7 +299,7 @@ struct TerminalCommandExecutorTests {
     let registry = TerminalWindowRegistry()
     let commandExecutor = makeCommandExecutor(registry: registry)
     let host = TerminalHostState()
-    host.handleCommand(.ensureInitialTab(focusing: false, startupCommand: nil))
+    host.ensureInitialTab(focusing: false, startupCommand: nil)
     let paneID = try #require(host.selectedSurfaceView?.id)
     let store = Store(initialState: AppFeature.State()) {
       AppFeature()
@@ -326,7 +326,7 @@ struct TerminalCommandExecutorTests {
     initializeGhosttyForTests()
 
     let host = TerminalHostState()
-    host.handleCommand(.ensureInitialTab(focusing: false, startupCommand: nil))
+    host.ensureInitialTab(focusing: false, startupCommand: nil)
     let tabID = try #require(host.selectedTabID)
     let firstSurface = try #require(host.selectedSurfaceView)
     host.focusSurface(firstSurface, in: tabID)
@@ -354,7 +354,7 @@ struct TerminalCommandExecutorTests {
     let registry = TerminalWindowRegistry()
     let commandExecutor = makeCommandExecutor(registry: registry)
     let host = TerminalHostState()
-    host.handleCommand(.ensureInitialTab(focusing: false, startupCommand: nil))
+    host.ensureInitialTab(focusing: false, startupCommand: nil)
     let firstTabID = try #require(host.selectedTabID)
     host.handleCommand(.createTab(inheritingFromSurfaceID: nil))
     let secondTabID = try #require(host.selectedTabID)
@@ -398,7 +398,7 @@ struct TerminalCommandExecutorTests {
     let registry = TerminalWindowRegistry()
     let commandExecutor = makeCommandExecutor(registry: registry)
     let host = TerminalHostState()
-    host.handleCommand(.ensureInitialTab(focusing: false, startupCommand: nil))
+    host.ensureInitialTab(focusing: false, startupCommand: nil)
     let firstTabID = try #require(host.selectedTabID)
     let firstPaneID = try #require(host.selectedSurfaceView?.id)
     host.handleCommand(.createTab(inheritingFromSurfaceID: nil))
@@ -443,7 +443,7 @@ struct TerminalCommandExecutorTests {
     let registry = TerminalWindowRegistry()
     let commandExecutor = makeCommandExecutor(registry: registry)
     let host = TerminalHostState()
-    host.handleCommand(.ensureInitialTab(focusing: false, startupCommand: nil))
+    host.ensureInitialTab(focusing: false, startupCommand: nil)
     host.handleCommand(.createTab(inheritingFromSurfaceID: nil))
     let targetTabID = try #require(host.selectedTabID)
     let request = TerminalRenameTabRequest(
@@ -605,7 +605,7 @@ struct TerminalCommandExecutorTests {
       let registry = TerminalWindowRegistry()
       let commandExecutor = makeCommandExecutor(registry: registry)
       let host = TerminalHostState()
-      host.handleCommand(.ensureInitialTab(focusing: false, startupCommand: nil))
+      host.ensureInitialTab(focusing: false, startupCommand: nil)
       let firstTabID = try #require(host.selectedTabID)
       host.handleCommand(.createTab(inheritingFromSurfaceID: nil))
       let secondTabID = try #require(host.selectedTabID)
@@ -652,7 +652,7 @@ struct TerminalCommandExecutorTests {
       let registry = TerminalWindowRegistry()
       let commandExecutor = makeCommandExecutor(registry: registry)
       let host = TerminalHostState()
-      host.handleCommand(.ensureInitialTab(focusing: false, startupCommand: nil))
+      host.ensureInitialTab(focusing: false, startupCommand: nil)
       let firstTabID = try #require(host.selectedTabID)
       host.handleCommand(.createTab(inheritingFromSurfaceID: nil))
       let groupedTabID = try #require(host.selectedTabID)
@@ -697,7 +697,7 @@ private func registerSpaceCommandWindow(
   onClose: @escaping @MainActor @Sendable () -> Void = {}
 ) -> SpaceCommandWindow {
   let host = TerminalHostState(spaceID: spaceID)
-  host.handleCommand(.ensureInitialTab(focusing: false, startupCommand: nil))
+  host.ensureInitialTab(focusing: false, startupCommand: nil)
   host.windowActivity = WindowActivityState(isKeyWindow: isKey, isVisible: true)
   let store = Store(initialState: AppFeature.State()) {
     AppFeature()

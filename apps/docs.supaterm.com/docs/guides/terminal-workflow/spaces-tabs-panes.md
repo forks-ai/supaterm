@@ -40,7 +40,7 @@ sp tab next
 
 A new tab with no command or explicit working directory opens the same remote host when its source pane runs a plain interactive SSH login. Pass `--cwd`, a command after `--`, or `--script` to open a local shell instead. **New Supaterm Tab Here** always opens a local shell in the chosen folder.
 
-Supaterm preserves each argument after `--` exactly. When the command exits, the tab returns to its login shell. `--script` takes raw code for that shell to parse and also returns to the shell when the script ends.
+The first argument after `--` names an executable, and Supaterm preserves every argument exactly. When the executable exits, the tab returns to its login shell. Use `--script` for builtins, aliases, or raw shell code; the tab also returns to the shell when the script ends.
 
 Shell startup files must not read from the terminal before the first prompt. Such a read takes the queued command.
 
@@ -55,7 +55,7 @@ sp pane split down --cwd ~/code/project -- npm test
 
 A split with no command or explicit working directory opens the same remote host when its source pane runs a plain interactive SSH login. Pass `--cwd`, a command after `--`, or `--script` to open a local shell instead.
 
-As with tabs, trailing arguments after `--` stay exact, while `--script` takes raw shell code. The pane returns to its login shell after either form finishes.
+As with tabs, trailing executable arguments after `--` stay exact, while `--script` takes builtins, aliases, or raw shell code. The pane returns to its login shell after either form finishes.
 
 Use the **Splits** menu or command palette to focus and resize panes. `Command-Shift-Return` zooms the selected pane without changing the split tree.
 

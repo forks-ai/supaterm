@@ -177,9 +177,11 @@ sp pane health 1/2/3
 sp pane wait-ready 1/2/3
 ```
 
-For `sp tab new` and `sp pane split`, arguments after `--` remain exact process arguments. Supaterm does not parse them as shell code. When the process exits, the new terminal returns to its login shell.
+For `sp tab new` and `sp pane split`, arguments after `--` remain exact process arguments. The first argument names an executable. Supaterm does not parse them as shell code. When the process exits, the new terminal returns to its login shell.
 
-`--script` takes raw shell code instead. The login shell parses that code and remains open after the script ends.
+Use `--script` for builtins, aliases, or raw shell code. The login shell parses that code and remains open after the script ends.
+
+Supaterm starts the account login shell for every pane. Terminal configuration cannot replace it.
 
 Shell startup files must not read from the terminal before the first prompt. Such a read takes the queued command before the shell can run it.
 

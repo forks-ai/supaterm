@@ -792,6 +792,16 @@ struct SPCommandTests {
   }
 
   @Test(arguments: [
+    ["pane", "split", "right", "--", ""],
+    ["tab", "new", "--", ""],
+  ])
+  func parserRejectsAnEmptyExecutable(arguments: [String]) {
+    #expect(throws: (any Error).self) {
+      try SP.parseAsRoot(arguments)
+    }
+  }
+
+  @Test(arguments: [
     ["tab", "new", "--in", "0"],
     ["pane", "split", "right", "--in", "bad-target"],
   ])

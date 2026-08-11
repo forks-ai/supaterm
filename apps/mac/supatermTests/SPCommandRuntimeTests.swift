@@ -19,6 +19,13 @@ struct SPCommandRuntimeTests {
   }
 
   @Test
+  func terminalStartupRejectsAnEmptyExecutable() {
+    #expect(throws: ValidationError.self) {
+      try terminalStartup(script: nil, tokens: [""])
+    }
+  }
+
+  @Test
   func terminalStartupKeepsScriptsAndArgumentsDistinct() throws {
     #expect(try terminalStartup(script: "echo 1\necho 2", tokens: []) == .script("echo 1\necho 2"))
     #expect(

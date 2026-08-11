@@ -324,5 +324,4 @@ public nonisolated enum ZmxAttach {
   ) -> [String] {
     [executablePath, "attach", sessionID]
   }
-
 }

@@ -10,7 +10,7 @@ struct TerminalHostStateSessionChangeTests {
     initializeGhosttyForTests()
 
     let host = TerminalHostState()
-    host.handleCommand(.ensureInitialTab(focusing: false, startupCommand: nil))
+    host.ensureInitialTab(focusing: false, startupCommand: nil)
     let firstTabID = try #require(host.selectedTabID)
     let secondTabID = try #require(host.createTab(focusing: false))
 
@@ -28,7 +28,7 @@ struct TerminalHostStateSessionChangeTests {
     initializeGhosttyForTests()
 
     let host = TerminalHostState()
-    host.handleCommand(.ensureInitialTab(focusing: false, startupCommand: nil))
+    host.ensureInitialTab(focusing: false, startupCommand: nil)
 
     var sessionChangeCount = 0
     host.onSessionChange = { sessionChangeCount += 1 }
@@ -43,7 +43,7 @@ struct TerminalHostStateSessionChangeTests {
     initializeGhosttyForTests()
 
     let host = TerminalHostState()
-    host.handleCommand(.ensureInitialTab(focusing: false, startupCommand: nil))
+    host.ensureInitialTab(focusing: false, startupCommand: nil)
 
     var sessionChangeCount = 0
     host.onSessionChange = { sessionChangeCount += 1 }

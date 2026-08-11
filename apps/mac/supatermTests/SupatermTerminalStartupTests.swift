@@ -171,15 +171,17 @@ struct SupatermTerminalStartupTests {
   }
 
   @Test
-  func scriptStartupRejectsNul() throws {
+  func scriptStartupRejectsEmptyAndNulInput() throws {
     let fixture = try StartupTransportFixture()
     defer { fixture.remove() }
-    #expect(throws: SupatermTerminalStartupError.self) {
-      try SupatermTerminalStartup.script("printf ready\0ignored").prepare(
-        cliPath: nil,
-        shellPath: "/bin/zsh",
-        temporaryDirectory: fixture.rootURL
-      )
+    for script in ["", "printf ready\0ignored"] {
+      #expect(throws: SupatermTerminalStartupError.self) {
+        try SupatermTerminalStartup.script(script).prepare(
+          cliPath: nil,
+          shellPath: "/bin/zsh",
+          temporaryDirectory: fixture.rootURL
+        )
+      }
     }
   }
 

@@ -301,4 +301,79 @@ struct SocketControlCreationTests {
         )
     )
   }
+
+  @Test
+  func rejectsInvalidStartupBeforeCreatingATerminal() async throws {
+    let recorder = SocketReplyRecorder()
+    let tabHandle = UUID()
+    let paneHandle = UUID()
+    let tabRequest = SocketControlClient.Request(
+      handle: tabHandle,
+      payload: try .newTab(
+        SupatermNewTabRequest(
+          startupCommand: .arguments([""]),
+          focus: false,
+          target: .space(UUID())
+        ),
+        id: "invalid-tab-startup"
+      )
+    )
+    let paneRequest = SocketControlClient.Request(
+      handle: paneHandle,
+      payload: try .newPane(
+        SupatermNewPaneRequest(
+          startupCommand: .script(""),
+          direction: .right,
+          focus: false,
+          equalize: true,
+          target: .tab(UUID())
+        ),
+        id: "invalid-pane-startup"
+      )
+    )
+
+    let store = makeStore {
+      $0.socketControlClient.reply = { handle, response in
+        await recorder.record(handle: handle, response: response)
+      }
+      $0.terminalWindowsClient.createTab = { _ in
+        Issue.record("Invalid startup created a tab.")
+        throw CancellationError()
+      }
+      $0.terminalWindowsClient.createPane = { _ in
+        Issue.record("Invalid startup created a pane.")
+        throw CancellationError()
+      }
+    }
+
+    await store.send(.requestReceived(tabRequest))
+    await store.send(.requestReceived(paneRequest))
+
+    let records = await recorder.snapshot()
+    #expect(records.count == 2)
+    #expect(
+      records.contains(
+        SocketReplyRecorder.Record(
+          handle: tabHandle,
+          response: .error(
+            id: "invalid-tab-startup",
+            code: "invalid_request",
+            message: "Startup command is invalid."
+          )
+        )
+      )
+    )
+    #expect(
+      records.contains(
+        SocketReplyRecorder.Record(
+          handle: paneHandle,
+          response: .error(
+            id: "invalid-pane-startup",
+            code: "invalid_request",
+            message: "Startup command is invalid."
+          )
+        )
+      )
+    )
+  }
 }

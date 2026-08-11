@@ -155,9 +155,9 @@ struct SPHelpTests {
     let notifyHelp = SP.helpMessage(for: SP.Notify.self, columns: 100)
 
     #expect(newTabHelp.contains("space selector or UUID"))
-    #expect(newTabHelp.contains("Arguments after `--` remain exact."))
-    #expect(newTabHelp.contains("When the command exits"))
-    #expect(newTabHelp.contains("`--script` passes raw code to the login shell."))
+    #expect(newTabHelp.contains("Arguments after `--` remain exact, and the first must name an executable."))
+    #expect(newTabHelp.contains("When it exits"))
+    #expect(newTabHelp.contains("Use `--script` for builtins, aliases, or raw shell code."))
     #expect(newTabHelp.contains("Shell startup files must not read from the terminal before the first prompt."))
     #expect(newTabHelp.contains("sp tab new --script 'echo hi; pwd'"))
     #expect(newTabHelp.contains("sp tab new --group Build"))

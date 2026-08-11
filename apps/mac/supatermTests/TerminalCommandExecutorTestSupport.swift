@@ -155,7 +155,7 @@ func makeClaudeHookHarness<C: Clock<Duration>>(
     requestConfirmedWindowClose: {}
   )
   let window = makeWindow()
-  host.handleCommand(.ensureInitialTab(focusing: false, startupCommand: nil))
+  host.ensureInitialTab(focusing: false, startupCommand: nil)
 
   let surface = try #require(host.selectedSurfaceView)
   attachTerminalSurfaces([surface], to: window, focusing: surface)

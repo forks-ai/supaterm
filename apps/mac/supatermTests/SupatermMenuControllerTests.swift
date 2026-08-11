@@ -617,7 +617,7 @@ struct SupatermMenuControllerTests {
       let registry = TerminalWindowRegistry()
       let host = TerminalHostState()
       host.windowActivity = .inactive
-      host.handleCommand(.ensureInitialTab(focusing: false, startupCommand: nil))
+      host.ensureInitialTab(focusing: false, startupCommand: nil)
       let tabID = try #require(host.selectedTabID)
       let surface = try #require(host.selectedSurfaceView)
       let surfaceID = surface.id

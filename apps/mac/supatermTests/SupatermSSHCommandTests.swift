@@ -67,30 +67,18 @@ struct SupatermSSHCommandTests {
   }
 
   @Test
-  func preservesTheOriginalInvocationWithoutTheBundledCLI() {
-    let arguments = inheritedArguments(
-      arguments: ["/usr/bin/ssh"] + SupatermSSHCommand.forwardedEnvironmentOptions
-        + ["-p", "2222", "dev@example.com"],
-      terminalType: "xterm-custom"
-    )
-
-    #expect(
-      arguments
-        == [
-          "/usr/bin/env", "TERM=xterm-custom", "/usr/bin/ssh", "-o", "SendEnv=COLORTERM", "-o",
-          "SendEnv=TERM_PROGRAM", "-o", "SendEnv=TERM_PROGRAM_VERSION", "-p", "2222",
-          "dev@example.com",
-        ]
-    )
-  }
-
-  @Test
   func preservesOptionValuesThatContainSpaces() {
     let arguments = inheritedArguments(
       arguments: ["ssh", "-o", "ProxyCommand=nc %h %p", "example.com"]
     )
 
-    #expect(arguments == ["/usr/bin/env", "ssh", "-o", "ProxyCommand=nc %h %p", "example.com"])
+    #expect(
+      arguments
+        == [
+          "/usr/bin/env", Self.cliPath, "ssh", "--ssh", "ssh", "--", "-o",
+          "ProxyCommand=nc %h %p", "example.com",
+        ]
+    )
   }
 
   @Test
@@ -99,7 +87,13 @@ struct SupatermSSHCommandTests {
       arguments: ["ssh", "-tt", "-p2222", "-4", "example.com"]
     )
 
-    #expect(arguments == ["/usr/bin/env", "ssh", "-tt", "-p2222", "-4", "example.com"])
+    #expect(
+      arguments
+        == [
+          "/usr/bin/env", Self.cliPath, "ssh", "--ssh", "ssh", "--", "-tt", "-p2222", "-4",
+          "example.com",
+        ]
+    )
   }
 
   @Test
@@ -134,7 +128,13 @@ struct SupatermSSHCommandTests {
       arguments: ["ssh", "-L", "8080:localhost:8080", "example.com"]
     )
 
-    #expect(arguments == ["/usr/bin/env", "ssh", "-L", "8080:localhost:8080", "example.com"])
+    #expect(
+      arguments
+        == [
+          "/usr/bin/env", Self.cliPath, "ssh", "--ssh", "ssh", "--", "-L",
+          "8080:localhost:8080", "example.com",
+        ]
+    )
   }
 
   @Test
@@ -149,7 +149,7 @@ struct SupatermSSHCommandTests {
   private func inheritedArguments(
     arguments: [String],
     terminalType: String? = nil,
-    cliPath: String? = nil
+    cliPath: String = Self.cliPath
   ) -> [String]? {
     SupatermSSHCommand.inheritedArguments(
       forArguments: arguments,

@@ -5,6 +5,15 @@ public enum SupatermTerminalStartup: Equatable, Sendable, Codable {
   case arguments([String])
   case script(String)
 
+  public var isValid: Bool {
+    switch self {
+    case .arguments(let arguments):
+      Self.validArguments(arguments)
+    case .script(let script):
+      !script.isEmpty && !script.unicodeScalars.contains(where: { $0.value == 0 })
+    }
+  }
+
   static let maximumArgumentsPayloadSize = 8 * 1_024 * 1_024
   private static let transportDirectoryPrefix = "supaterm-startup-"
   private static let argumentsFileName = "arguments.json"
@@ -46,6 +55,9 @@ public enum SupatermTerminalStartup: Equatable, Sendable, Codable {
     shellPath: String = SupatermShellCommand.loginShellPath(),
     temporaryDirectory: URL = URL(fileURLWithPath: "/private/tmp", isDirectory: true)
   ) throws -> SupatermPreparedTerminalStartup {
+    guard isValid else {
+      throw SupatermTerminalStartupError.invalidArguments
+    }
     switch self {
     case .arguments(let arguments):
       return try Self.prepareArguments(
@@ -79,7 +91,7 @@ public enum SupatermTerminalStartup: Equatable, Sendable, Codable {
     return arguments
   }
 
-  public static func validArguments(_ arguments: [String]) -> Bool {
+  static func validArguments(_ arguments: [String]) -> Bool {
     guard
       let command = arguments.first,
       !command.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
@@ -96,9 +108,6 @@ public enum SupatermTerminalStartup: Equatable, Sendable, Codable {
     cliPath: String?,
     temporaryDirectory: URL
   ) throws -> SupatermPreparedTerminalStartup {
-    guard validArguments(arguments) else {
-      throw SupatermTerminalStartupError.invalidArguments
-    }
     guard let cliPath, Self.isExecutableFile(atPath: cliPath) else {
       throw SupatermTerminalStartupError.invalidCLIPath
     }
@@ -135,10 +144,7 @@ public enum SupatermTerminalStartup: Equatable, Sendable, Codable {
     shellPath: String,
     temporaryDirectory: URL
   ) throws -> SupatermPreparedTerminalStartup {
-    guard
-      !script.unicodeScalars.contains(where: { $0.value == 0 }),
-      isExecutableFile(atPath: shellPath)
-    else {
+    guard isExecutableFile(atPath: shellPath) else {
       throw SupatermTerminalStartupError.invalidArguments
     }
     let shellName = URL(fileURLWithPath: shellPath).lastPathComponent.lowercased()
@@ -167,7 +173,6 @@ public enum SupatermTerminalStartup: Equatable, Sendable, Codable {
     in temporaryDirectory: URL,
     _ operation: (TransportDirectory) throws -> Result
   ) throws -> Result {
-    reapStaleTransports(temporaryDirectory: temporaryDirectory)
     let transport = try makeTransportDirectory(in: temporaryDirectory)
     do {
       return try operation(transport)

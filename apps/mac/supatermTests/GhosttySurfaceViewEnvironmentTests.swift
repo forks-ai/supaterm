@@ -53,12 +53,34 @@ struct GhosttySurfaceViewEnvironmentTests {
     #expect(initialInput?.hasPrefix("/private/tmp/supaterm-startup-") == true)
     #expect(payloadArguments == ["tool", secret])
     #expect(!environment.values.contains { $0.contains(secret) })
-    #expect(!environment.keys.contains { $0.hasPrefix("SUPATERM_STARTUP_") })
     if let initialInput {
       let directoryPath = URL(fileURLWithPath: initialInput.trimmingCharacters(in: .newlines))
         .deletingLastPathComponent().path
       #expect(!FileManager.default.fileExists(atPath: directoryPath))
     }
+  }
+
+  @Test
+  func missingCLIShowsStartupPreparationFailure() throws {
+    initializeGhosttyForTests()
+    var createdSurface = false
+
+    let surfaceView = GhosttySurfaceView(
+      runtime: try makeGhosttyRuntime(""),
+      tabID: UUID(),
+      workingDirectory: nil,
+      shellPath: "/bin/zsh",
+      cliPath: nil,
+      startupCommand: .arguments(["pwd"]),
+      context: GHOSTTY_SURFACE_CONTEXT_TAB,
+      surfaceFactory: { _, _ in
+        createdSurface = true
+        return nil
+      }
+    )
+
+    #expect(!createdSurface)
+    #expect(surfaceView.bridge.state.failure == .startupPreparationFailed)
   }
 
   @Test

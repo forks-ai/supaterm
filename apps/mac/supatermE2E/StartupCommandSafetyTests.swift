@@ -58,7 +58,7 @@ extension SupatermE2ESuite {
     func trailingCommandsStayExactWithoutZmx() async throws {
       let app = try await SupatermE2EApp.launch(zmxSessionsEnabled: false)
       defer { app.terminate() }
-      let space = try makeTestSpace(app)
+      let space = try await makeTestSpace(app)
       defer { try? closeTestSpace(app, spaceID: space.spaceID) }
       let runner = startupSPRunner(app, tabID: space.tab.tabID, paneID: space.tab.paneID)
       let recorder = try makeArgumentRecorder(in: space.directory)
@@ -142,45 +142,26 @@ extension SupatermE2ESuite {
     }
 
     @Test(.timeLimit(.minutes(5)))
-    func scriptsCanReplaceTheLoginShellAndRemainInteractive() async throws {
+    func scriptsCanRunInteractiveShells() async throws {
       let app = try await SupatermE2EApp.launch(zmxSessionsEnabled: false)
       defer { app.terminate() }
-      let space = try makeTestSpace(app)
+      let space = try await makeTestSpace(app)
       defer { try? closeTestSpace(app, spaceID: space.spaceID) }
+      let result = try makeTab(app, in: space)
+      let marker = space.directory.appendingPathComponent("replacement-shell.txt")
+      let replacementPane = SupatermPaneTargetRequest(paneID: result.paneID)
       do {
-        let runner = startupSPRunner(app, tabID: space.tab.tabID, paneID: space.tab.paneID)
-        let result = try decodeSPJSON(
-          SupatermNewTabResult.self,
-          from: try requireSuccessfulSPResult(
-            try runner.run(
-              [
-                "tab", "new", "--socket", app.socketPath, "--json", "--focus",
-                "--cwd", space.directory.path, "--in", space.spaceID.uuidString,
-                "--script", hermeticShellStartupCommand,
-              ],
-              cwd: space.directory
-            )
-          )
+        try await app.waitForShellPrompt(replacementPane)
+        try app.type(
+          "/usr/bin/printf replacement-shell > \(marker.path)\n",
+          into: replacementPane
         )
-        let marker = space.directory.appendingPathComponent("replacement-shell.txt")
-        try await Task.sleep(for: .milliseconds(250))
-        let capture =
-          (try? app.capture(
-            SupatermPaneTargetRequest(paneID: result.paneID),
-            scope: .scrollback
-          )) ?? "unavailable"
-        try await Task.sleep(for: .seconds(1))
-        do {
-          try app.type(
-            "/usr/bin/printf replacement-shell > \(marker.path)\n",
-            into: SupatermPaneTargetRequest(paneID: result.paneID)
-          )
-        } catch {
-          throw SupatermE2EError("\(error)\n--- replacement shell ---\n\(capture)")
-        }
         try await app.waitUntil("the replacement shell accepts input") {
           (try? String(contentsOf: marker, encoding: .utf8)) == "replacement-shell"
         }
+      } catch {
+        let capture = (try? app.capture(replacementPane, scope: .scrollback)) ?? "unavailable"
+        throw SupatermE2EError("\(error)\n--- replacement shell ---\n\(capture)")
       }
     }
   }

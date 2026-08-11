@@ -101,14 +101,14 @@ extension SP {
 enum SPStartupLauncher {
   static func run(
     arguments: [String],
-    environment: [String: String] = ProcessInfo.processInfo.environment
+    environment: [String: String]
   ) throws -> Never {
-    guard let command = arguments.first, SupatermTerminalStartup.validArguments(arguments) else {
+    guard let command = arguments.first else {
       throw ValidationError("Startup requires a command.")
     }
     guard let executablePath = SPExecutable.resolve(command, searchPath: environment["PATH"])
     else {
-      throw ValidationError("Unable to find \(command) on PATH.")
+      throw ValidationError("Unable to find executable \(command) on PATH.")
     }
     try SPProcess.replaceCurrent(
       executablePath: executablePath,

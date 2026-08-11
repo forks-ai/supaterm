@@ -171,7 +171,7 @@ Panes inherit Supaterm context from the running app:
 - `SUPATERM_TAB_ID`
 - `ZMX_DIR`, `ZMX_SESSION`, and `ZMX_SESSION_PREFIX` when zmx sessions are enabled (the default)
 
-The app also prepends its `Contents/MacOS` directory to pane `PATH`. The directory includes the matching `sp` CLI.
+The app also prepends its `Contents/MacOS` directory to pane `PATH`. The directory includes the matching `sp` CLI. Supaterm starts the account login shell for every pane. Terminal configuration cannot replace it.
 
 ### SSH entry point
 
@@ -181,7 +181,7 @@ Typing `ssh` in a pane runs `sp ssh`. The bundled shell integrations define the 
 
 ### SSH inheritance
 
-A new tab or split with no startup command or explicit working directory opens the same remote host as the pane it came from. The app reads the kernel process table, walks the source pane's zmx session to the shell's terminal, and takes the argument vector and `TERM` value of the `ssh` in that terminal's foreground process group. It rebuilds the command as the bundled `sp ssh`, preserves the resolved SSH executable and `TERM`, and removes only the leading `SendEnv` options the first `sp ssh` injected because the new one adds them again. Every pane starts its login shell first. The inherited command names the bundled CLI outright, then returns to that shell when SSH exits. Without a bundled CLI the command reuses the original process invocation.
+A new tab or split with no startup command or explicit working directory opens the same remote host as the pane it came from. The app reads the kernel process table, walks the source pane's zmx session to the shell's terminal, and takes the argument vector and `TERM` value of the `ssh` in that terminal's foreground process group. It rebuilds the command as the bundled `sp ssh`, preserves the resolved SSH executable and `TERM`, and removes only the leading `SendEnv` options the first `sp ssh` injected because the new one adds them again. Every pane starts its login shell first. The inherited command names the bundled CLI outright, then returns to that shell when SSH exits. Without a bundled CLI the new pane opens its local login shell.
 
 Only a session worth reopening is inherited: an `ssh` with a destination, no remote command, and none of `-N`, `-f`, or `-W`. That leaves alone the `ssh` children of `git`, `rsync`, and `scp`, and tunnels that carry no shell. The new pane falls back to a login shell when the remote session ends.
 

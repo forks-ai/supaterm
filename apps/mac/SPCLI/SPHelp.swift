@@ -3,9 +3,10 @@ import SupatermCLIShared
 
 enum SPHelp {
   private static let terminalStartupDiscussion = """
-    Arguments after `--` remain exact. When the command exits, the tab or pane returns to its login shell.
+    Arguments after `--` remain exact. The first must name an executable.
+    When it exits, the tab or pane returns to its login shell.
 
-    `--script` passes raw code to the login shell. The shell remains open after the script ends.
+    Use `--script` for builtins, aliases, or raw shell code. The shell remains open after the script ends.
 
     Shell startup files must not read from the terminal before the first prompt. Such a read takes the queued command.
     """
