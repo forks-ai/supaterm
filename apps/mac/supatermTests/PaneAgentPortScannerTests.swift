@@ -597,8 +597,6 @@ nonisolated private func processEntry(
     ),
     parentProcessID: parentProcessID,
     processGroupID: processGroupID,
-    foregroundProcessGroupID: processGroupID,
-    terminalDevice: 0,
     name: ""
   )
 }

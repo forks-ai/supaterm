@@ -8,8 +8,7 @@ struct ProcessTableTests {
   private static func entry(
     _ processID: pid_t,
     parentProcessID: pid_t,
-    groups: (process: pid_t, foreground: pid_t),
-    terminalDevice: dev_t,
+    processGroupID: pid_t,
     name: String
   ) -> ProcessEntry {
     ProcessEntry(
@@ -18,9 +17,7 @@ struct ProcessTableTests {
         startTimeMicroseconds: UInt64(processID)
       ),
       parentProcessID: parentProcessID,
-      processGroupID: groups.process,
-      foregroundProcessGroupID: groups.foreground,
-      terminalDevice: terminalDevice,
+      processGroupID: processGroupID,
       name: name
     )
   }
@@ -160,29 +157,25 @@ struct ProcessTableTests {
     let root = Self.entry(
       10,
       parentProcessID: 1,
-      groups: (process: 10, foreground: 20),
-      terminalDevice: 5,
+      processGroupID: 10,
       name: "root"
     )
     let child = Self.entry(
       20,
       parentProcessID: 10,
-      groups: (process: 20, foreground: 20),
-      terminalDevice: 5,
+      processGroupID: 20,
       name: "child"
     )
     let grandchild = Self.entry(
       30,
       parentProcessID: 20,
-      groups: (process: 30, foreground: 20),
-      terminalDevice: 5,
+      processGroupID: 30,
       name: "grandchild"
     )
     let groupMember = Self.entry(
       40,
       parentProcessID: 1,
-      groups: (process: 20, foreground: 20),
-      terminalDevice: 6,
+      processGroupID: 20,
       name: "group"
     )
     let snapshot = TerminalAgentProcessTreeSnapshot(
@@ -201,15 +194,13 @@ struct ProcessTableTests {
     let current = Self.entry(
       10,
       parentProcessID: 1,
-      groups: (process: 10, foreground: 10),
-      terminalDevice: 5,
+      processGroupID: 10,
       name: "root"
     )
     let child = Self.entry(
       20,
       parentProcessID: 10,
-      groups: (process: 10, foreground: 10),
-      terminalDevice: 5,
+      processGroupID: 10,
       name: "child"
     )
     let snapshot = TerminalAgentProcessTreeSnapshot(entries: [current, child])

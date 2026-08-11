@@ -38,8 +38,6 @@ nonisolated struct AgentDetectionProcessRecognizerTests {
       ),
       parentProcessID: parentProcessID,
       processGroupID: processGroupID,
-      foregroundProcessGroupID: processGroupID,
-      terminalDevice: 5,
       name: name
     )
   }

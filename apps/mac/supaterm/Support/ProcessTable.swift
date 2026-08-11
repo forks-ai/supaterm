@@ -11,8 +11,6 @@ struct ProcessEntry: Sendable, Equatable {
   let identity: TerminalAgentProcessIdentity
   let parentProcessID: pid_t
   let processGroupID: pid_t
-  let foregroundProcessGroupID: pid_t
-  let terminalDevice: dev_t
   let name: String
 
   var processID: pid_t {
@@ -122,8 +120,6 @@ struct ProcessTable: Sendable, Equatable {
       identity: identity,
       parentProcessID: process.kp_eproc.e_ppid,
       processGroupID: process.kp_eproc.e_pgid,
-      foregroundProcessGroupID: process.kp_eproc.e_tpgid,
-      terminalDevice: process.kp_eproc.e_tdev,
       name: name(from: process)
     )
   }
