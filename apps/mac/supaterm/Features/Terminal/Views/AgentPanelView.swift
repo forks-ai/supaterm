@@ -2,7 +2,6 @@ import Sharing
 import SupaTheme
 import SupatermCLIShared
 import SupatermSupport
-import SupatermUI
 import SwiftUI
 
 enum AgentPanelMetrics {
