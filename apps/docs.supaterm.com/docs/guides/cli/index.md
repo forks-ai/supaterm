@@ -15,6 +15,15 @@ sp instance ls
 
 `sp ls` prints the current window, space, group, tab, and pane tree. Add `--json` for stable IDs and machine-readable output.
 
+Resolve a project icon from the current directory or a given project root:
+
+```bash
+sp project icon
+sp project icon ~/code/project --json
+```
+
+This command reads the local filesystem and needs no running Supaterm app.
+
 ## Create terminal surfaces
 
 ```bash

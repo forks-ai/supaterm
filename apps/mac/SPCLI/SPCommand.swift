@@ -14,6 +14,7 @@ struct SP: ParsableCommand {
     Diagnostic.self,
     Instance.self,
     Config.self,
+    Project.self,
     Run.self,
     SSH.self,
     Space.self,

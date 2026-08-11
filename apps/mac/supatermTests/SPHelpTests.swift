@@ -19,6 +19,7 @@ struct SPHelpTests {
     #expect(help.contains("sp group new Work --color blue"))
     #expect(help.contains("sp tab new --focus -- ping 1.1.1.1"))
     #expect(help.contains("sp pane split down -- tail -f /tmp/server.log"))
+    #expect(help.contains("sp project icon"))
     #expect(help.contains("sp skills"))
     #expect(help.contains("sp diagnostic"))
     #expect(help.contains("sp instance ls"))
@@ -37,6 +38,8 @@ struct SPHelpTests {
       SP.helpMessage(for: SP.Instances.self, columns: 100),
       SP.helpMessage(for: SP.Config.self, columns: 100),
       SP.helpMessage(for: SP.ValidateConfig.self, columns: 100),
+      SP.helpMessage(for: SP.Project.self, columns: 100),
+      SP.helpMessage(for: SP.ProjectIcon.self, columns: 100),
       SP.helpMessage(for: SP.Space.self, columns: 100),
       SP.helpMessage(for: SP.SpaceNew.self, columns: 100),
       SP.helpMessage(for: SP.SpaceDestroy.self, columns: 100),

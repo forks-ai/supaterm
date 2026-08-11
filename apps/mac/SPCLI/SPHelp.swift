@@ -25,6 +25,7 @@ enum SPHelp {
       sp group new Work --color blue
       sp tab new --focus -- ping 1.1.1.1
       sp pane split down -- tail -f /tmp/server.log
+      sp project icon
       sp skills
       sp diagnostic
       sp instance ls
@@ -378,6 +379,28 @@ enum SPHelp {
       sp config validate
       sp config validate --path ~/.config/supaterm/settings.toml
       sp config validate --json
+    """
+
+  static let projectDiscussion = """
+    Project commands read the local filesystem and do not need a running Supaterm app.
+
+    Example:
+      sp project icon
+      sp project icon ~/code/project
+      sp project icon --json
+    """
+
+  static let projectIconDiscussion = """
+    Checks common favicon, app icon, and logo paths in order. If none exist, it
+    reads common HTML and root route files for icon metadata.
+
+    The path must stay within the project directory and use a supported image extension.
+
+    Example:
+      sp project icon
+      sp project icon ~/code/project
+      sp project icon --plain
+      sp project icon --json
     """
 
   static let validateConfigDiscussion = """
