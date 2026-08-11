@@ -43,11 +43,7 @@ final class SpaceLifecycleUITests: SupatermUITestCase {
     XCTAssertTrue(greenSwatch.waitForExistence(timeout: 10))
     greenSwatch.click()
 
-    let confirm = app.buttons[
-      SupatermUITestIdentifier.Accessibility.dialogConfirm
-    ]
-    XCTAssertTrue(confirm.waitForExistence(timeout: 10))
-    confirm.click()
+    try await saveSpaceEditor()
 
     let didRenameSpace = await waitForDisplayedSpace(named: "Renamed UI Space")
     XCTAssertTrue(didRenameSpace)
@@ -85,12 +81,15 @@ final class SpaceLifecycleUITests: SupatermUITestCase {
     )
     nameField.typeText(name)
 
-    let confirm = try require(
-      app.buttons[SupatermUITestIdentifier.Accessibility.dialogConfirm]
-    )
-    confirm.click()
+    try await saveSpaceEditor()
+  }
 
-    let didDismissEditor = await wait(for: nameField) { !$0.exists }
+  @MainActor
+  private func saveSpaceEditor() async throws {
+    try require(app.buttons[SupatermUITestIdentifier.Accessibility.dialogConfirm]).click()
+    let didDismissEditor = await wait {
+      !self.app.textFields[SupatermUITestIdentifier.Accessibility.dialogSpaceName].exists
+    }
     XCTAssertTrue(didDismissEditor)
   }
 }
