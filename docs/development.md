@@ -273,6 +273,12 @@ In tests, use `TestClock` from `Clocks` and call `advance(by:)` rather than slee
 
 When parsing Codex, Claude Code, or any coding-agent integration, inspect real JSONL files, transcript files, or hook payloads before designing parser behavior. Do not infer event shapes from UI text, source names, or assumptions.
 
+## Code Review
+
+Before creating a PR or pushing stuff to main, always run a round of "thermos" review on and address what's valid and worth fixing.
+
+For subagents models, use luna xhigh or opus xhigh latest whatever is available.
+
 ## Misc
 
 Icons can be pulled by using apps/mac/scripts/fetch-icon.sh if something is not available in SF Symbols. Sources: `lucide` for general glyphs, `simple-icons` for brand marks (padded so edge-to-edge glyphs survive template rasterization), e.g. `./scripts/fetch-icon.sh simple-icons github`
