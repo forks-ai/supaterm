@@ -79,6 +79,25 @@ struct TerminalWindowShellControllerTests {
   }
 
   @Test @MainActor
+  func collapsedSidebarLeavesTheAccessibilityTreeUntilRevealed() {
+    let fixture = shellMotionFixture(
+      presentation: presentation(collapsed: false, visible: false, width: 240)
+    )
+
+    fixture.shell.apply(presentation(collapsed: true, visible: false, width: 240))
+
+    #expect(fixture.sidebar.view.isAccessibilityHidden())
+
+    fixture.shell.apply(presentation(collapsed: true, visible: true, width: 240))
+
+    #expect(!fixture.sidebar.view.isAccessibilityHidden())
+
+    fixture.shell.apply(presentation(collapsed: false, visible: false, width: 240))
+
+    #expect(!fixture.sidebar.view.isAccessibilityHidden())
+  }
+
+  @Test @MainActor
   func floatingRevealUsesEaseOutWithoutMovingDetail() throws {
     let fixture = shellMotionFixture(
       presentation: presentation(collapsed: true, visible: false, width: 240)

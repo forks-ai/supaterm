@@ -382,6 +382,9 @@ final class TerminalWindowShellController: NSViewController {
     guard let sidebarController, let detailController else { return }
     let layout = currentLayout
     state.apply(layout: layout, presentation: presentation)
+    sidebarController.view.setAccessibilityHidden(
+      presentation.isSidebarCollapsed && !presentation.isFloatingSidebarVisible
+    )
     (view as? TerminalWindowShellView)?.setRevealFrame(layout.revealFrame)
     setFrame(layout.sidebarFrame, of: sidebarController.view, motion: motion)
     setFrame(layout.detailFrame, of: detailController.view, motion: motion)

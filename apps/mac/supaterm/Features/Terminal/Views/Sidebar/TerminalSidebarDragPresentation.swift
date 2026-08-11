@@ -116,8 +116,16 @@ final class TerminalSidebarDragPresentation {
     handoff(.commitWithinSource, layout: layoutDestination)
   }
 
-  func handoffAfterExternalSuccess(layoutSource: () -> Void) {
-    handoff(.commitOutsideSource, layout: layoutSource)
+  func handoffAfterExternalSuccess(
+    _ sourceDisposition: TerminalTabDragRegistry.SourceDisposition,
+    layoutSource: () -> Void
+  ) {
+    switch sourceDisposition {
+    case .retained:
+      handoff(.restoreSource, layout: layoutSource)
+    case .removed:
+      handoff(.commitOutsideSource, layout: layoutSource)
+    }
   }
 
   private func handoff(

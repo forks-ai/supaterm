@@ -22,7 +22,7 @@ sp project icon
 sp project icon ~/code/project --json
 ```
 
-This command reads the local filesystem and needs no running Supaterm app.
+This command reads local icon declarations first, then common icon paths. It needs no running Supaterm app.
 
 ## Create terminal surfaces
 

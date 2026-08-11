@@ -16,6 +16,17 @@ struct SPProjectIconTests {
   }
 
   @Test
+  func resolvesDeclaredIconsBeforeWellKnownIcons() throws {
+    let fixture = try SPProjectIconFixture()
+    defer { fixture.remove() }
+    _ = try fixture.write("favicon.svg")
+    try fixture.writeText("index.html", #"<link rel="icon" href="/brand/icon.svg">"#)
+    let expectedURL = try fixture.write("public/brand/icon.svg")
+
+    #expect(SPProjectIconResolver.resolve(in: fixture.rootURL) == expectedURL)
+  }
+
+  @Test
   func resolvesHTMLIconMetadataFromPublic() throws {
     let fixture = try SPProjectIconFixture()
     defer { fixture.remove() }
@@ -34,6 +45,81 @@ struct SPProjectIconTests {
       #"const links = [{ href: "/brand/logo.png", rel: "shortcut icon" }];"#
     )
     let expectedURL = try fixture.write("public/brand/logo.png")
+
+    #expect(SPProjectIconResolver.resolve(in: fixture.rootURL) == expectedURL)
+  }
+
+  @Test
+  func resolvesVectorIconsFromLinkedWebManifests() throws {
+    let fixture = try SPProjectIconFixture()
+    defer { fixture.remove() }
+    try fixture.writeText(
+      "index.html",
+      #"<link href="/site.webmanifest" rel="manifest">"#
+    )
+    try fixture.writeText(
+      "public/site.webmanifest",
+      #"{"icons":[{"src":"icons/app.png","sizes":"512x512"},{"src":"icons/mark.svg","sizes":"any"}]}"#
+    )
+    _ = try fixture.write("public/icons/app.png")
+    let expectedURL = try fixture.write("public/icons/mark.svg")
+
+    #expect(SPProjectIconResolver.resolve(in: fixture.rootURL) == expectedURL)
+  }
+
+  @Test
+  func resolvesLargestSquareRasterFromLinkedWebManifests() throws {
+    let fixture = try SPProjectIconFixture()
+    defer { fixture.remove() }
+    try fixture.writeText(
+      "index.html",
+      #"<link rel="manifest" href="/site.webmanifest">"#
+    )
+    try fixture.writeText(
+      "public/site.webmanifest",
+      #"{"icons":[{"src":"icons/small.png","sizes":"128x128"},{"src":"icons/large.png","sizes":"512x512"}]}"#
+    )
+    _ = try fixture.write("public/icons/small.png")
+    let expectedURL = try fixture.write("public/icons/large.png")
+
+    #expect(SPProjectIconResolver.resolve(in: fixture.rootURL) == expectedURL)
+  }
+
+  @Test
+  func ignoresNestedProjectMetadata() throws {
+    let fixture = try SPProjectIconFixture()
+    defer { fixture.remove() }
+    try fixture.writeText(
+      "packages/app/index.html",
+      #"<link rel="icon" href="icon.svg">"#
+    )
+    _ = try fixture.write("packages/app/icon.svg")
+
+    #expect(SPProjectIconResolver.resolve(in: fixture.rootURL) == nil)
+  }
+
+  @Test
+  func ignoresRemoteIconDeclarations() throws {
+    let fixture = try SPProjectIconFixture()
+    defer { fixture.remove() }
+    try fixture.writeText(
+      "index.html",
+      #"<link rel="icon" href="https://example.com/icon.svg">"#
+    )
+    let expectedURL = try fixture.write("favicon.svg")
+
+    #expect(SPProjectIconResolver.resolve(in: fixture.rootURL) == expectedURL)
+  }
+
+  @Test
+  func ignoresOversizedMetadata() throws {
+    let fixture = try SPProjectIconFixture()
+    defer { fixture.remove() }
+    var source = Data(#"<link rel="icon" href="/brand/icon.svg">"#.utf8)
+    source.append(Data(repeating: 0x20, count: 1024 * 1024))
+    try fixture.writeData("index.html", source)
+    _ = try fixture.write("public/brand/icon.svg")
+    let expectedURL = try fixture.write("favicon.svg")
 
     #expect(SPProjectIconResolver.resolve(in: fixture.rootURL) == expectedURL)
   }
@@ -110,12 +196,16 @@ private struct SPProjectIconFixture {
   }
 
   func writeText(_ relativePath: String, _ text: String) throws {
+    try writeData(relativePath, Data(text.utf8))
+  }
+
+  func writeData(_ relativePath: String, _ data: Data) throws {
     let url = rootURL.appendingPathComponent(relativePath, isDirectory: false)
     try FileManager.default.createDirectory(
       at: url.deletingLastPathComponent(),
       withIntermediateDirectories: true
     )
-    try Data(text.utf8).write(to: url)
+    try data.write(to: url)
   }
 
   func remove() {

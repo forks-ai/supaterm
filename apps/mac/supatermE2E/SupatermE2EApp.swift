@@ -30,7 +30,6 @@ final class SupatermE2EApp: @unchecked Sendable {
     try await app.waitUntil("the app socket accepts ping", timeout: 90) {
       (try? app.client.send(.ping()))?.ok == true
     }
-    try await app.waitForReadyPane(in: nil, timeout: 90)
     return app
   }
 
@@ -57,21 +56,12 @@ final class SupatermE2EApp: @unchecked Sendable {
       .appendingPathComponent("supaterm-\(instanceName)", isDirectory: true)
     workspace = try ZmxTestWorkspace(stateHome: stateHome, instanceName: instanceName)
     cliHome = stateHome.appendingPathComponent("home", isDirectory: true)
-    let shellConfigHome = cliHome.appendingPathComponent(".config", isDirectory: true)
     let runtimeHome = URL(fileURLWithPath: "/tmp/\(instanceName)", isDirectory: true)
     logURL = stateHome.appendingPathComponent("app.log", isDirectory: false)
 
     try FileManager.default.createDirectory(at: cliHome, withIntermediateDirectories: true)
-    try FileManager.default.createDirectory(
-      at: shellConfigHome.appendingPathComponent("fish", isDirectory: true),
-      withIntermediateDirectories: true
-    )
     try FileManager.default.createDirectory(at: runtimeHome, withIntermediateDirectories: true)
     FileManager.default.createFile(atPath: cliHome.appendingPathComponent(".zshrc").path, contents: nil)
-    FileManager.default.createFile(
-      atPath: shellConfigHome.appendingPathComponent("fish/config.fish").path,
-      contents: nil
-    )
     FileManager.default.createFile(atPath: logURL.path, contents: nil)
 
     environment = [
@@ -83,7 +73,6 @@ final class SupatermE2EApp: @unchecked Sendable {
       "SUPATERM_TEST_MODE": "1",
       "SUPATERM_VERBOSE_LOGGING": "1",
       "USER": NSUserName(),
-      "XDG_CONFIG_HOME": shellConfigHome.path,
       "XDG_RUNTIME_DIR": runtimeHome.path,
       "ZDOTDIR": cliHome.path,
       ZmxEnvironment.directoryKey: workspace.zmxDirectory.path,
@@ -225,36 +214,13 @@ final class SupatermE2EApp: @unchecked Sendable {
 
   func waitForShellPrompt(_ target: SupatermPaneTargetRequest) async throws {
     try await waitForReadyPane(target)
-    let suffix = UUID().uuidString.lowercased()
-    let marker = "SUPATERM_E2E_\(suffix)"
-    let probeURL = cliHome.appendingPathComponent("prompt-probe-\(suffix)", isDirectory: false)
-    try "#!/bin/sh\n/usr/bin/printf '%s\\n' '\(marker)'\n"
-      .write(to: probeURL, atomically: true, encoding: .utf8)
-    try FileManager.default.setAttributes([.posixPermissions: 0o700], ofItemAtPath: probeURL.path)
-    defer { try? FileManager.default.removeItem(at: probeURL) }
-    do {
-      try await waitUntil("the shell accepts input") {
-        try? type("\(probeURL.path)\n", into: target)
-        return (try? capture(target).contains(marker)) == true
-      }
-    } catch {
-      let text = (try? capture(target, scope: .scrollback)) ?? "unavailable"
-      let snapshot = (try? debugSnapshot()).map(String.init(describing:)) ?? "unavailable"
-      throw SupatermE2EError(
-        [
-          "\(error)",
-          "--- target ---\n\(target.paneID)",
-          "--- shell capture ---\n\(text)",
-          "--- snapshot ---\n\(snapshot)",
-        ].joined(separator: "\n")
-      )
-    }
+    try await waitForCapture(target, contains: hermeticShellPrompt)
   }
 
   func waitForShellOutput(_ target: SupatermPaneTargetRequest) async throws {
     try await waitForReadyPane(target)
     try await waitUntil("the shell writes output") {
-      try !capture(target).trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+      (try? capture(target).trimmingCharacters(in: .whitespacesAndNewlines).isEmpty) == false
     }
   }
 
@@ -324,28 +290,6 @@ final class SupatermE2EApp: @unchecked Sendable {
     }
   }
 
-  func waitForReadyPane(in spaceID: UUID?, timeout: TimeInterval = 30) async throws {
-    try await waitUntil("the space has a ready pane", timeout: timeout) {
-      let spaces = try debugSnapshot().windows.flatMap(\.spaces)
-      let paneID =
-        spaces
-        .filter { spaceID == nil || $0.id == spaceID }
-        .flatMap(\.flattenedTabs)
-        .flatMap(\.panes)
-        .first?
-        .id
-      guard let paneID else { return false }
-      let target = SupatermPaneTargetRequest(paneID: paneID)
-      let health = try send(
-        .paneHealth(SupatermPaneHealthRequest(target: target)),
-        as: SupatermPaneHealthResult.self
-      )
-      guard health.isReady, health.canCaptureText else { return false }
-      let text = try capture(target)
-      return !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-    }
-  }
-
   func quit() async throws {
     _ = try client.send(.quit())
     try await waitForProcessExit(timeout: 10)
@@ -395,12 +339,7 @@ final class SupatermE2EApp: @unchecked Sendable {
         lastFingerprint = nextSnapshot.fingerprint
       }
     }
-    let contents = files.map { url in
-      "--- \(url.lastPathComponent) ---\n\((try? String(contentsOf: url, encoding: .utf8)) ?? "unavailable")"
-    }
-    throw SupatermE2EError(
-      "Timed out waiting for persisted state quiescence.\n\(contents.joined(separator: "\n"))"
-    )
+    throw SupatermE2EError("Timed out waiting for persisted state quiescence.")
   }
 
   func terminate(preservingState: Bool = false) {

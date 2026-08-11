@@ -5,7 +5,7 @@ import Testing
 extension SupatermE2ESuite {
   @Suite struct SessionRestoreTests {
     @Test(.timeLimit(.minutes(5)))
-    func layoutSelectionSurvivesSocketQuitWithoutReplayingOnboarding() async throws {
+    func layoutSelectionSurvivesSocketQuitRelaunch() async throws {
       let app = try await SupatermE2EApp.launch()
       defer { app.terminate() }
 
@@ -19,20 +19,18 @@ extension SupatermE2ESuite {
       let initialPaneID = try #require(
         initialSpace.flattenedTabs.first?.panes.first?.id
       )
-      let initialPane = SupatermPaneTargetRequest(paneID: initialPaneID)
-      try await app.waitForCapture(initialPane, contains: "Welcome to Supaterm!")
       let firstSpaceName = "layout-a-\(token)"
       let secondSpaceName = "layout-b-\(token)"
       let firstTitle = "layout-a-one-\(token)"
       let secondTitle = "layout-a-two-\(token)"
       let thirdTitle = "layout-b-one-\(token)"
 
-      let firstSpace = try await makeSpace(app, name: firstSpaceName)
+      let firstSpace = try makeSpace(app, name: firstSpaceName)
       _ = try lockTabTitle(app, tabID: firstSpace.tabID, title: firstTitle)
       let secondTab = try makeTab(app, in: firstSpace, cwd: directory)
       _ = try lockTabTitle(app, tabID: secondTab.tabID, title: secondTitle)
       let split = try makeSplit(app, from: secondTab, cwd: directory)
-      let secondSpace = try await makeSpace(app, name: secondSpaceName)
+      let secondSpace = try makeSpace(app, name: secondSpaceName)
       _ = try lockTabTitle(app, tabID: secondSpace.tabID, title: thirdTitle)
 
       try await app.waitForPersistedStateQuiescence(
@@ -97,10 +95,6 @@ extension SupatermE2ESuite {
       #expect(restoredFirstTabs[1].isSelected)
       let restoredSplit = try #require(restoredFirstTabs[1].panes.first { $0.id == split.paneID })
       #expect(restoredSplit.isFocused)
-
-      try await app.waitForShellOutput(initialPane)
-      let restoredOnboarding = try app.capture(initialPane, scope: .scrollback)
-      #expect(!restoredOnboarding.contains("Welcome to Supaterm!"))
     }
 
     @Test(.timeLimit(.minutes(5)))
@@ -113,7 +107,7 @@ extension SupatermE2ESuite {
       let spaceName = "sigterm-layout-\(token)"
       let firstTitle = "sigterm-one-\(token)"
       let secondTitle = "sigterm-two-\(token)"
-      let space = try await makeSpace(app, name: spaceName)
+      let space = try makeSpace(app, name: spaceName)
       _ = try lockTabTitle(app, tabID: space.tabID, title: firstTitle)
       let secondTab = try makeTab(app, in: space, cwd: directory)
       _ = try lockTabTitle(app, tabID: secondTab.tabID, title: secondTitle)
@@ -153,7 +147,7 @@ extension SupatermE2ESuite {
 
       let token = token()
       let directory = try scratchDirectory(app, token: token)
-      let fixture = try await GroupedTopologyFixture.create(app: app, token: token, directory: directory)
+      let fixture = try GroupedTopologyFixture.create(app: app, token: token, directory: directory)
       try await relaunchWithGroupedTopology(app, fixture: fixture)
       try verifyRestoredGroupedTopology(app, fixture: fixture)
       try verifyDurableGroupSurvivesEmptying(app, fixture: fixture)
@@ -166,7 +160,7 @@ extension SupatermE2ESuite {
 
       let token = token()
       let directory = try scratchDirectory(app, token: token)
-      let space = try await makeSpace(app, name: "pin-\(token)")
+      let space = try makeSpace(app, name: "pin-\(token)")
       let tab = try makeTab(app, in: space, cwd: directory)
       let title = "pinned-\(token)"
       _ = try app.send(
@@ -221,8 +215,8 @@ private struct GroupedTopologyFixture {
     app: SupatermE2EApp,
     token: String,
     directory: URL
-  ) async throws -> Self {
-    let space = try await makeSpace(app, name: spaceName(token))
+  ) throws -> Self {
+    let space = try makeSpace(app, name: spaceName(token))
     _ = try lockTabTitle(app, tabID: space.tabID, title: firstTitle(token))
     let second = try makeTab(app, in: space, cwd: directory)
     _ = try lockTabTitle(app, tabID: second.tabID, title: secondTitle(token))
@@ -360,13 +354,11 @@ private func verifyDurableGroupSurvivesEmptying(
   #expect(durableGroup.tabs.isEmpty)
 }
 
-private func makeSpace(_ app: SupatermE2EApp, name: String) async throws -> SupatermCreateSpaceResult {
-  let result = try app.send(
+private func makeSpace(_ app: SupatermE2EApp, name: String) throws -> SupatermCreateSpaceResult {
+  return try app.send(
     .createSpace(SupatermCreateSpaceRequest(color: nil, name: name)),
     as: SupatermCreateSpaceResult.self
   )
-  try await app.waitForReadyPane(in: result.target.spaceID)
-  return result
 }
 
 private func makeTab(

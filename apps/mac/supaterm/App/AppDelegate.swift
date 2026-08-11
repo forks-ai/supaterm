@@ -64,6 +64,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
   private var settingsWindowController: SettingsWindowController?
   private var configurationDiagnosticsObserver: NSObjectProtocol?
   private var bypassesConfirmationForNextQuit = false
+  private var shouldPresentLaunchConfigurationDiagnostics = true
   private var sessionPersistenceState = SessionPersistenceState.active
   private var terminatesSessionsForNextQuit = false
   private var toggleVisibilityState: ToggleVisibilityState?
@@ -146,7 +147,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
     socketStore.send(.task)
     refreshInstalledAgentHooks()
     restoreWindowsAtLaunch()
-    refreshConfigurationDiagnostics()
     #if SUPATERM_DEMO
       DemoSeed.decorate(windowControllers.values.map(\.terminal))
     #endif
@@ -179,6 +179,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
 
   func applicationDidBecomeActive(_ notification: Notification) {
     AppPostHog.captureDebouncedLifecycleEvent(.activatedDebounced)
+    if shouldPresentLaunchConfigurationDiagnostics {
+      shouldPresentLaunchConfigurationDiagnostics = false
+      refreshConfigurationDiagnostics()
+    }
     guard toggleVisibilityState == nil else { return }
     guard !NSApp.windows.contains(where: \.isVisible) else { return }
     _ = showExistingWindowOrCreate()

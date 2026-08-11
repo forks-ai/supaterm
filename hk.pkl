@@ -35,6 +35,15 @@ hooks {
         check = "git lfs pre-push {{ hook_args }}"
         stdin = "{{ hook_stdin }}"
       }
+      ["validate-submodule-branches"] {
+        check = """
+          repo_root=$(git rev-parse --show-toplevel)
+          cd "$repo_root"
+          python3 .github/scripts/validate_submodule_branches.py
+          """
+        stdin = "{{ hook_stdin }}"
+        depends = "git-lfs"
+      }
       ["validate-release-tags"] {
         check = """
           repo_root=$(git rev-parse --show-toplevel)
@@ -42,7 +51,7 @@ hooks {
           [ ! -d apps/mac ] || python3 .github/scripts/bump_and_release.py validate-pre-push
           """
         stdin = "{{ hook_stdin }}"
-        depends = "git-lfs"
+        depends = "validate-submodule-branches"
       }
       ["web-install"] {
         check = "\(prePushBranchCheck)\nmake web-install"

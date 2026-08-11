@@ -168,6 +168,41 @@ struct SPSocketClientTests {
   }
 
   @Test
+  func environmentSocketResolutionWaitsForTheAppToStartListening() async throws {
+    let rootURL = try makeSocketClientTemporaryDirectory()
+    let socketURL = rootURL.appendingPathComponent("control.sock", isDirectory: false)
+    let endpoint = socketClientEndpoint(path: socketURL.path)
+    let socketPath = socketURL.path
+    let resolutionTask = Task.detached {
+      SPSocketSelection.resolve(
+        explicitPath: nil,
+        instance: nil,
+        environment: [SupatermCLIEnvironment.socketPathKey: socketPath],
+        rootDirectory: rootURL
+      )
+    }
+
+    try await Task.sleep(for: .milliseconds(400))
+
+    let runtime = SocketControlRuntime(endpointProvider: { endpoint })
+    let responder = try await startSocketResponder(
+      runtime: runtime,
+      endpoint: endpoint,
+      replying: { request, endpoint in
+        try .ok(id: request.id, encodableResult: endpoint)
+      }
+    )
+
+    let diagnostics = await resolutionTask.value
+    #expect(diagnostics.resolvedTarget?.path == endpoint.path)
+    #expect(diagnostics.resolvedTarget?.source == .environmentPath)
+
+    responder.cancel()
+    await runtime.stop()
+    try? FileManager.default.removeItem(at: rootURL)
+  }
+
+  @Test
   func socketResolutionStrategyUsesExplicitPathWithoutDiscoveryWhenNeeded() {
     let strategy = SPSocketResolutionStrategy.make(
       explicitSocketPath: "/tmp/explicit.sock",
