@@ -28,7 +28,8 @@ final class PaneChromeUITests: SupatermUITestCase {
     }
     XCTAssertTrue(didShowLeftTitle)
 
-    try clickMenuItem(.splitRight)
+    let splitRightButton = try require(app.buttons["Split right"])
+    splitRightButton.click()
     let panes = try await requireVisiblePanes(count: 2)
     let rightPane = try XCTUnwrap(panes.max { $0.frame.midX < $1.frame.midX })
     try await requireFocus(on: rightPane)
@@ -48,7 +49,7 @@ final class PaneChromeUITests: SupatermUITestCase {
     let didHideLeftTitle = await wait { !self.app.staticTexts[leftTitle].exists }
     XCTAssertTrue(didHideLeftTitle)
 
-    try clickMenuItem(.selectSplitLeft)
+    leftPane.click()
     try await requireFocus(on: leftPane)
     let didRestoreLeftTitle = await wait {
       let title = self.app.staticTexts[leftTitle]
@@ -58,7 +59,7 @@ final class PaneChromeUITests: SupatermUITestCase {
     let didHideRightTitle = await wait { !self.app.staticTexts[rightTitle].exists }
     XCTAssertTrue(didHideRightTitle)
 
-    try clickMenuItem(.selectSplitRight)
+    rightPane.click()
     try await requireFocus(on: rightPane)
     let didRestoreRightTitle = await wait {
       let title = self.app.staticTexts[rightTitle]

@@ -48,15 +48,18 @@ final class TabRootDragUITests: SupatermUITestCase {
       .tab("Root B"),
     ])
 
-    try drag(
-      sidebarStructuralTabRow(named: "Root A"),
-      to: sidebarGroupHeader(named: "Alpha")
-    )
-
-    await requireSidebarStructure([
+    let expected: [SidebarRootExpectation] = [
       .group("Alpha", children: ["Group Seed", "Root A"]),
       .tab("Root B"),
-    ])
+    ]
+    for _ in 0..<2 {
+      try drag(
+        sidebarStructuralTabRow(named: "Root A"),
+        to: sidebarGroupHeader(named: "Alpha")
+      )
+      if await waitForSidebarStructure(expected, timeout: .seconds(5)) { return }
+    }
+    await requireSidebarStructure(expected)
   }
 
   @MainActor

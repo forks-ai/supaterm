@@ -143,7 +143,7 @@ enum SidebarResizeGestureRouting {
     case .ended:
       [.changed(delta: delta), .ended]
     case .cancelled:
-      [.ended]
+      [.changed(delta: delta), .ended]
     case .failed:
       [.failed]
     default:

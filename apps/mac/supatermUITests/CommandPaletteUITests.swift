@@ -128,6 +128,7 @@ final class CommandPaletteUITests: SupatermUITestCase {
     terminal.click()
 
     try await executePaletteCommand("Toggle Sidebar")
+    terminal.hover()
 
     let didCollapseSidebar = await waitForSidebarCollapsed()
     XCTAssertTrue(didCollapseSidebar)

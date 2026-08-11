@@ -87,7 +87,11 @@ struct TerminalSidebarResizeTests {
         .changed(delta: 72), .ended,
       ]
     )
-    #expect(SidebarResizeGestureRouting.inputs(for: .cancelled, delta: 72) == [.ended])
+    #expect(
+      SidebarResizeGestureRouting.inputs(for: .cancelled, delta: 72) == [
+        .changed(delta: 72), .ended,
+      ]
+    )
     #expect(SidebarResizeGestureRouting.inputs(for: .failed, delta: 72) == [.failed])
   }
 

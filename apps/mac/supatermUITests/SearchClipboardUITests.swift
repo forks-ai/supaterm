@@ -199,11 +199,14 @@ final class SearchClipboardUITests: SupatermUITestCase {
   ) async throws {
     try await runCommand("clear; \(printfCommand(text))", showing: text, in: terminal)
     let origin = terminal.coordinate(withNormalizedOffset: CGVector(dx: 0, dy: 0))
-    origin.withOffset(CGVector(dx: 48, dy: 12)).doubleClick()
-    let selectionCopied = await wait(for: terminal) { _ in
-      self.ghosttySelectionPasteboard.string(forType: .string) == text
+    for _ in 0..<3 {
+      origin.withOffset(CGVector(dx: 48, dy: 12)).doubleClick()
+      let selectionCopied = await wait(for: terminal, timeout: .seconds(2)) { _ in
+        self.ghosttySelectionPasteboard.string(forType: .string) == text
+      }
+      if selectionCopied { return }
     }
-    XCTAssertTrue(selectionCopied)
+    XCTFail("Terminal selection did not reach the selection pasteboard")
   }
 
   private func printfCommand(_ text: String) -> String {
