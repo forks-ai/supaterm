@@ -12,6 +12,10 @@ extension SupatermE2ESuite {
         try await app.waitForShellPrompt(
           SupatermPaneTargetRequest(paneID: focusedPane.paneID)
         )
+        _ = try app.send(
+          .focusPane(SupatermPaneTargetRequest(paneID: focusedPane.paneID)),
+          as: SupatermFocusPaneResult.self
+        )
         try await app.waitUntil("the source pane loses focus") {
           try app.debugPane(space.tab.paneID)?.isFocused == false
         }

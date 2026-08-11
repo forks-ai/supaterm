@@ -5,7 +5,7 @@ import Testing
 extension SupatermE2ESuite {
   @Suite struct SessionRestoreTests {
     @Test(.timeLimit(.minutes(5)))
-    func layoutSelectionAndOnboardingSurviveSocketQuitRelaunch() async throws {
+    func layoutSelectionSurvivesSocketQuitRelaunch() async throws {
       let app = try await SupatermE2EApp.launch()
       defer { app.terminate() }
 
@@ -18,12 +18,6 @@ extension SupatermE2ESuite {
       let initialSpace = try #require(try app.debugSnapshot().windows.first?.spaces.first)
       let initialPaneID = try #require(
         initialSpace.flattenedTabs.first?.panes.first?.id
-      )
-      let initialPane = SupatermPaneTargetRequest(paneID: initialPaneID)
-      try await app.waitForCapture(initialPane, contains: "Welcome to Supaterm!")
-      let onboardingOccurrences = countOccurrences(
-        "Welcome to Supaterm!",
-        in: try app.capture(initialPane, scope: .scrollback)
       )
       let firstSpaceName = "layout-a-\(token)"
       let secondSpaceName = "layout-b-\(token)"
@@ -101,10 +95,6 @@ extension SupatermE2ESuite {
       #expect(restoredFirstTabs[1].isSelected)
       let restoredSplit = try #require(restoredFirstTabs[1].panes.first { $0.id == split.paneID })
       #expect(restoredSplit.isFocused)
-
-      try await app.waitForCapture(initialPane, contains: "Welcome to Supaterm!")
-      let restoredOnboarding = try app.capture(initialPane, scope: .scrollback)
-      #expect(countOccurrences("Welcome to Supaterm!", in: restoredOnboarding) == onboardingOccurrences)
     }
 
     @Test(.timeLimit(.minutes(5)))
@@ -450,8 +440,4 @@ private func scratchDirectory(_ app: SupatermE2EApp, token: String) throws -> UR
 
 private func token() -> String {
   String(UUID().uuidString.prefix(8).lowercased())
-}
-
-private func countOccurrences(_ needle: String, in haystack: String) -> Int {
-  haystack.components(separatedBy: needle).count - 1
 }

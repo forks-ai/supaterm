@@ -214,15 +214,13 @@ final class SupatermE2EApp: @unchecked Sendable {
 
   func waitForShellPrompt(_ target: SupatermPaneTargetRequest) async throws {
     try await waitForReadyPane(target)
-    try await waitUntil("the shell renders a prompt") {
-      try capture(target).contains(hermeticShellPrompt)
-    }
+    try await waitForCapture(target, contains: hermeticShellPrompt)
   }
 
   func waitForShellOutput(_ target: SupatermPaneTargetRequest) async throws {
     try await waitForReadyPane(target)
     try await waitUntil("the shell writes output") {
-      try !capture(target).trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+      (try? capture(target).trimmingCharacters(in: .whitespacesAndNewlines).isEmpty) == false
     }
   }
 
