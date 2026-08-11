@@ -541,8 +541,7 @@ extension TerminalHostState {
         nativePresentation: nativePresentation,
         revision: observation.sequence,
         surfaceID: surfaceID,
-        hasActivity: true,
-        allowsActionSession: false
+        isFallback: true
       )
       return ResolvedAgentState(
         resolution: resolution,
@@ -590,8 +589,7 @@ extension TerminalHostState {
       nativePresentation: presentation,
       revision: UInt64(max(0, candidate.revision)),
       surfaceID: surfaceID,
-      hasActivity: presentation.hasActivity,
-      allowsActionSession: true
+      isFallback: false
     )
   }
 

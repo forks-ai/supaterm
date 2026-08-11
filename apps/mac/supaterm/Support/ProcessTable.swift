@@ -18,25 +18,10 @@ struct ProcessEntry: Sendable, Equatable {
   var processID: pid_t {
     identity.processID
   }
-
-  var startTimeMicroseconds: UInt64 {
-    identity.startTimeMicroseconds
-  }
 }
 
 struct ProcessTable: Sendable, Equatable {
   let entries: [ProcessEntry]
-
-  func children(of processID: pid_t) -> [ProcessEntry] {
-    entries.filter { $0.parentProcessID == processID }
-  }
-
-  func foregroundGroup(onTerminalOf entry: ProcessEntry) -> [ProcessEntry] {
-    entries.filter {
-      $0.terminalDevice == entry.terminalDevice
-        && $0.processGroupID == entry.foregroundProcessGroupID
-    }
-  }
 
   static func snapshot() -> ProcessTable {
     var request: [Int32] = [CTL_KERN, KERN_PROC, KERN_PROC_ALL, 0]

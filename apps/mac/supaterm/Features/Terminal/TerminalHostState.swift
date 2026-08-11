@@ -242,8 +242,15 @@ final class TerminalHostState {
     let nativePresentation: TerminalAgentStatePresentation?
     let revision: UInt64
     let surfaceID: UUID
-    let hasActivity: Bool
-    let allowsActionSession: Bool
+    let isFallback: Bool
+
+    var hasActivity: Bool {
+      isFallback || nativePresentation?.hasActivity == true
+    }
+
+    var allowsActionSession: Bool {
+      !isFallback
+    }
   }
 
   struct FocusHistory: Equatable {

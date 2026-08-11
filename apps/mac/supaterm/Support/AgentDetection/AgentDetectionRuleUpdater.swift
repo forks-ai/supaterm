@@ -118,18 +118,11 @@ public actor AgentDetectionRuleUpdater {
       )
     }
     inFlightUpdate = update
-
-    do {
-      let result = try await withTaskCancellationHandler {
-        try await update.value
-      } onCancel: {
-        update.cancel()
-      }
-      inFlightUpdate = nil
-      return result
-    } catch {
-      inFlightUpdate = nil
-      throw error
+    defer { inFlightUpdate = nil }
+    return try await withTaskCancellationHandler {
+      try await update.value
+    } onCancel: {
+      update.cancel()
     }
   }
 

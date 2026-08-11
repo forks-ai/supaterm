@@ -90,7 +90,7 @@ struct ProcessTableTests {
 
     #expect(current.parentProcessID == getppid())
     #expect(current.processGroupID == getpgrp())
-    #expect(current.startTimeMicroseconds > 0)
+    #expect(current.identity.startTimeMicroseconds > 0)
   }
 
   @Test
@@ -156,35 +156,6 @@ struct ProcessTableTests {
   }
 
   @Test
-  func selectsChildrenAndForegroundGroupMembers() {
-    let leader = Self.entry(
-      10,
-      parentProcessID: 1,
-      groups: (process: 10, foreground: 20),
-      terminalDevice: 5,
-      name: "login"
-    )
-    let foreground = Self.entry(
-      20,
-      parentProcessID: 10,
-      groups: (process: 20, foreground: 20),
-      terminalDevice: 5,
-      name: "ssh"
-    )
-    let otherTerminal = Self.entry(
-      30,
-      parentProcessID: 10,
-      groups: (process: 20, foreground: 20),
-      terminalDevice: 6,
-      name: "ssh"
-    )
-    let table = ProcessTable(entries: [leader, foreground, otherTerminal])
-
-    #expect(table.children(of: 10) == [foreground, otherTerminal])
-    #expect(table.foregroundGroup(onTerminalOf: leader) == [foreground])
-  }
-
-  @Test
   func processTreeReturnsExactGroupMembersAndDescendants() {
     let root = Self.entry(
       10,
@@ -244,7 +215,7 @@ struct ProcessTableTests {
     let snapshot = TerminalAgentProcessTreeSnapshot(entries: [current, child])
     let reused = TerminalAgentProcessIdentity(
       processID: current.processID,
-      startTimeMicroseconds: current.startTimeMicroseconds + 1
+      startTimeMicroseconds: current.identity.startTimeMicroseconds + 1
     )
 
     #expect(snapshot.descendants(of: [reused]).isEmpty)

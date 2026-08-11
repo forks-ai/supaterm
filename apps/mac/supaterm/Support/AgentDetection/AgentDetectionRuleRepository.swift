@@ -153,26 +153,20 @@ public actor AgentDetectionRuleRepository {
         current: source.ruleSet.generation
       )
     }
-    if generation == source.ruleSet.generation {
+    let advancesGeneration = generation > source.ruleSet.generation
+    if !advancesGeneration {
       guard candidate.rawRules == source.rawRules else {
         throw AgentDetectionRuleRepositoryError.conflictingGeneration(generation)
       }
-      let entry = AgentDetectionRuleCache.Entry(
-        rules: rules,
-        etag: etag
-      )
-      try cache.save(entry)
-      cachedEntryForRevalidation = entry
-      return .unchanged(generation: generation)
     }
 
-    let entry = AgentDetectionRuleCache.Entry(
-      rules: rules,
-      etag: etag
-    )
+    let entry = AgentDetectionRuleCache.Entry(rules: rules, etag: etag)
     try cache.save(entry)
     cachedEntryForRevalidation = entry
-    source = candidate
-    return .updated(generation: generation)
+    if advancesGeneration {
+      source = candidate
+      return .updated(generation: generation)
+    }
+    return .unchanged(generation: generation)
   }
 }

@@ -118,15 +118,10 @@ final class AgentDetectionRuleService {
   }
 
   func stop() {
-    let task: Task<Void, Never>?
-    switch lifecycle {
-    case .ready, .stopped:
-      task = nil
-    case .running(let runningTask):
-      task = runningTask
+    if case .running(let task) = lifecycle {
+      task.cancel()
     }
     lifecycle = .stopped
-    task?.cancel()
   }
 
   private static func log(snapshot: AgentDetectionRuleSnapshot) {

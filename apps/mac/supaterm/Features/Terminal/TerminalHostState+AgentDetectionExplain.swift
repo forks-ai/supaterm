@@ -48,7 +48,11 @@ extension TerminalHostState {
             ? observation.processIdentity
             : nil
         }
-      let processIdentity = exactAuthorityProcess ?? candidate.authorityProcessIdentities.only
+      let singleAuthorityProcess =
+        candidate.authorityProcessIdentities.count == 1
+        ? candidate.authorityProcessIdentities.first
+        : nil
+      let processIdentity = exactAuthorityProcess ?? singleAuthorityProcess
       let presentation = candidate.presentation
       return SupatermAgentExplainResult(
         target: target,
@@ -160,11 +164,5 @@ extension TerminalHostState {
     case .unrecognizedProcess: .unrecognizedProcess
     case .waiting: .waiting
     }
-  }
-}
-
-extension Set {
-  fileprivate var only: Element? {
-    count == 1 ? first : nil
   }
 }

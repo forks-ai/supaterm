@@ -87,14 +87,8 @@ public enum AgentDetectionProcessRecognizer {
       grouping: table.entries.filter {
         processGroupIDs.contains($0.processGroupID)
       }, by: \.processGroupID)
-    return entriesByProcessGroupID.keys.sorted().reduce(into: [:]) { matches, processGroupID in
-      guard
-        let entries = entriesByProcessGroupID[processGroupID],
-        let match = match(entries: entries, manifests: manifests, invocation: invocation)
-      else {
-        return
-      }
-      matches[processGroupID] = match
+    return entriesByProcessGroupID.compactMapValues { entries in
+      match(entries: entries, manifests: manifests, invocation: invocation)
     }
   }
 
@@ -103,11 +97,10 @@ public enum AgentDetectionProcessRecognizer {
     manifests: [AgentDetectionProcessManifest],
     invocation: InvocationProvider
   ) -> AgentDetectionProcessMatch? {
-    let foregroundEntries = entries
-    let entriesByProcessID = foregroundEntries.reduce(into: [pid_t: ProcessEntry]()) {
+    let entriesByProcessID = entries.reduce(into: [pid_t: ProcessEntry]()) {
       $0[$1.processID] = $1
     }
-    let candidates = foregroundEntries.flatMap { entry in
+    let candidates = entries.flatMap { entry in
       guard let invocation = invocation(entry.processID) else { return [Candidate]() }
       return manifests.compactMap { manifest in
         candidate(entry: entry, invocation: invocation, manifest: manifest)
@@ -136,7 +129,6 @@ public enum AgentDetectionProcessRecognizer {
     invocation: ProcessInvocation,
     manifest: AgentDetectionProcessManifest
   ) -> Candidate? {
-    guard entry.startTimeMicroseconds > 0 else { return nil }
     let executable = URL(fileURLWithPath: invocation.executablePath).lastPathComponent
     guard !executable.isEmpty, entry.name == executable else { return nil }
     if manifest.processes.contains(where: {

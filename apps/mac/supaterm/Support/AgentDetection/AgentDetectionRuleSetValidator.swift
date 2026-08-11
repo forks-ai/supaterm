@@ -42,14 +42,14 @@ enum AgentDetectionRuleSetValidator {
 
     var expressionCount = 0
     for agent in ruleSet.agents {
-      expressionCount += try validateAgent(agent)
-      guard expressionCount <= maximumExpressions else {
-        throw AgentDetectionRuleSetError.limitExceeded("agents.rules.when")
-      }
+      try validateAgent(agent, expressionCount: &expressionCount)
     }
   }
 
-  private static func validateAgent(_ agent: AgentDetectionAgentRule) throws -> Int {
+  private static func validateAgent(
+    _ agent: AgentDetectionAgentRule,
+    expressionCount: inout Int
+  ) throws {
     let path = "agents[\(agent.id)]"
     guard validID(agent.id) else {
       throw AgentDetectionRuleSetError.invalidValue("\(path).id")
@@ -77,7 +77,6 @@ enum AgentDetectionRuleSetValidator {
       throw AgentDetectionRuleSetError.duplicateValue("\(path).rules.priority")
     }
 
-    var expressionCount = 0
     for rule in agent.rules {
       guard validID(rule.id) else {
         throw AgentDetectionRuleSetError.invalidValue("\(path).rules[\(rule.id)].id")
@@ -87,11 +86,7 @@ enum AgentDetectionRuleSetValidator {
         path: "\(path).rules[\(rule.id)]",
         expressionCount: &expressionCount
       )
-      guard expressionCount <= maximumExpressions else {
-        throw AgentDetectionRuleSetError.limitExceeded("\(path).rules.when")
-      }
     }
-    return expressionCount
   }
 
   private static func validate(

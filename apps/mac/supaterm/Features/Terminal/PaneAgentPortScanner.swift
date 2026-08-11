@@ -137,19 +137,16 @@ final class PaneAgentPortScanner {
     isProcessCurrent: @Sendable (TerminalAgentProcessIdentity) -> Bool,
     runner: TerminalAgentPanelCommandRunner
   ) async -> [UUID: [Int]] {
-    let surfaceIDs = Set(contextsBySurfaceID.keys)
     guard
-      surfaceIDs.contains(where: {
-        contextsBySurfaceID[$0]?.nativeProcessIdentities.isEmpty == false
-          || contextsBySurfaceID[$0]?.fallbackProcessIdentity != nil
+      contextsBySurfaceID.values.contains(where: {
+        !$0.nativeProcessIdentities.isEmpty || $0.fallbackProcessIdentity != nil
       })
     else {
       return [:]
     }
     let processTree = captureProcessTree()
     var scopesBySurfaceID: [UUID: [PaneAgentPortScanScope]] = [:]
-    for surfaceID in surfaceIDs {
-      guard let context = contextsBySurfaceID[surfaceID] else { continue }
+    for (surfaceID, context) in contextsBySurfaceID {
       var scopes: [PaneAgentPortScanScope] = []
       let nativeScopes: [PaneAgentPortScanScope] = context.nativeProcessIdentities.compactMap {
         identity -> PaneAgentPortScanScope? in
