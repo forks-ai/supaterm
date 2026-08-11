@@ -186,109 +186,6 @@ final class TerminalWindowRegistry {
     activeEntries().reduce(0) { $0 + $1.terminal.paneCount(inSpace: spaceID) }
   }
 
-  func transferTab(
-    _ payload: TerminalTabDragPayload,
-    to destination: TerminalTabDragRegistry.Destination
-  ) -> TerminalTabTransferResult? {
-    guard
-      let sourceEntry = entry(forWindowControllerID: payload.sourceWindowID),
-      let destinationEntry = entry(forWindowControllerID: destination.windowControllerID)
-    else { return nil }
-    destinationEntry.terminal.warmInstance(for: destination.spaceID)
-    let request = TerminalTabTransferRequest(
-      expectedSourceRevision: payload.sourceTopologyRevision,
-      expectedDestinationRevision: destination.expectedTopologyRevision,
-      itemIDs: payload.itemIDs,
-      destination: destination.placement
-    )
-    guard
-      let plan = try? TerminalHostState.prepareLiveTabTransfer(
-        request,
-        from: sourceEntry.terminal,
-        sourceSpaceID: payload.sourceSpaceID,
-        to: destinationEntry.terminal,
-        destinationSpaceID: destination.spaceID
-      )
-    else { return nil }
-    let hiddenSurfaceIDs = sourceEntry.store.terminal.hiddenAgentPanelSurfaceIDs.intersection(
-      plan.surfaceIDs
-    )
-    guard
-      let result = try? TerminalHostState.commitLiveTabTransfer(
-        plan,
-        from: sourceEntry.terminal,
-        to: destinationEntry.terminal
-      )
-    else { return nil }
-    if sourceEntry.windowControllerID != destinationEntry.windowControllerID {
-      sourceEntry.store.send(
-        .terminal(
-          .hiddenAgentPanelsTransferred(remove: hiddenSurfaceIDs, insert: [])
-        )
-      )
-      destinationEntry.store.send(
-        .terminal(
-          .hiddenAgentPanelsTransferred(remove: [], insert: hiddenSurfaceIDs)
-        )
-      )
-    }
-    onChange()
-    return result
-  }
-
-  func splitTab(
-    _ payload: TerminalTabDragPayload,
-    to destination: TerminalTabDragRegistry.SplitDestination
-  ) -> Bool {
-    guard
-      let sourceTabID = payload.singleTabID,
-      let sourceEntry = entry(forWindowControllerID: payload.sourceWindowID),
-      let destinationEntry = entry(forWindowControllerID: destination.windowControllerID)
-    else { return false }
-    if destination.sourceDisposition(for: payload) == .retained {
-      let didSplit = sourceEntry.terminal.splitSelectedTabWithNewPane(
-        sourceTabID,
-        expectedTopologyRevision: payload.sourceTopologyRevision,
-        keepingExistingContentOn: destination.side,
-        in: destination.spaceID
-      )
-      if didSplit { onChange() }
-      return didSplit
-    }
-    guard
-      let plan = try? TerminalHostState.prepareLiveTabMerge(
-        payload: payload,
-        from: sourceEntry.terminal,
-        to: TerminalHostState.LiveTabSplitTarget(
-          host: destinationEntry.terminal,
-          side: destination.side,
-          spaceID: destination.spaceID,
-          tabID: destination.tabID
-        )
-      )
-    else { return false }
-    let hiddenSurfaceIDs = sourceEntry.store.terminal.hiddenAgentPanelSurfaceIDs.intersection(
-      plan.surfaceIDs
-    )
-    guard
-      (try? TerminalHostState.commitLiveTabMerge(
-        plan,
-        from: sourceEntry.terminal,
-        to: destinationEntry.terminal
-      )) != nil
-    else { return false }
-    if sourceEntry.windowControllerID != destinationEntry.windowControllerID {
-      sourceEntry.store.send(
-        .terminal(.hiddenAgentPanelsTransferred(remove: hiddenSurfaceIDs, insert: []))
-      )
-      destinationEntry.store.send(
-        .terminal(.hiddenAgentPanelsTransferred(remove: [], insert: hiddenSurfaceIDs))
-      )
-    }
-    onChange()
-    return true
-  }
-
   @discardableResult
   func selectSpace(_ spaceID: TerminalSpaceID, in windowControllerID: UUID? = nil) -> Bool {
     guard let entry = entry(in: windowControllerID), entry.terminal.switchSpace(to: spaceID) else {
@@ -1120,7 +1017,7 @@ final class TerminalWindowRegistry {
     }
   }
 
-  private func entry(forWindowControllerID windowControllerID: UUID) -> Entry? {
+  func entry(forWindowControllerID windowControllerID: UUID) -> Entry? {
     activeEntries().first { $0.windowControllerID == windowControllerID }
   }
 

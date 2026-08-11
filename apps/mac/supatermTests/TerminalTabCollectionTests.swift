@@ -42,6 +42,16 @@ struct TerminalTabCollectionTests {
   }
 
   @Test
+  func selectingUnknownTabKeepsCurrentSelection() {
+    let collection = TerminalTabCollection()
+    let selectedTabID = collection.createTab(title: "Selected")
+
+    collection.selectTab(TerminalTabID())
+
+    #expect(collection.selectedTabID == selectedTabID)
+  }
+
+  @Test
   func createGroupUsesTargetPositionAndSuppliedTabOrder() throws {
     let manager = TerminalTabCollection()
     let first = manager.createTab(title: "First")
