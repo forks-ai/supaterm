@@ -6,6 +6,18 @@ import Testing
 
 struct ZmxClientTests {
   @Test
+  func environmentDisablesSessions() {
+    #expect(ZmxEnvironment.sessionsEnabled(setting: true, environment: [:]))
+    #expect(!ZmxEnvironment.sessionsEnabled(setting: false, environment: [:]))
+    #expect(
+      !ZmxEnvironment.sessionsEnabled(
+        setting: true,
+        environment: [ZmxEnvironment.disabledKey: "1"]
+      )
+    )
+  }
+
+  @Test
   func sessionIDUsesInstanceNamespaceAndRoundTripsSurfaceID() {
     let surfaceID = UUID(uuidString: "01234567-89AB-CDEF-0123-456789ABCDEF")!
     let environment = [SupatermCLIEnvironment.instanceNameKey: "dev/main"]

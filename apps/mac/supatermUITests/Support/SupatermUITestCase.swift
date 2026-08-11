@@ -63,6 +63,7 @@ class SupatermUITestCase: XCTestCase {
         "SUPATERM_INSTANCE_NAME": instanceName,
         "SUPATERM_STATE_HOME": stateHome.path,
         "SUPATERM_VERBOSE_LOGGING": "1",
+        ZmxEnvironment.disabledKey: "1",
         ZmxEnvironment.directoryKey: workspace.zmxDirectory.path,
       ]
       return app

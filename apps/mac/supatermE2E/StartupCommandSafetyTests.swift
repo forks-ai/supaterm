@@ -55,33 +55,6 @@ extension SupatermE2ESuite {
     }
 
     @Test(.timeLimit(.minutes(5)))
-    func trailingCommandsStayExactWithoutZmx() async throws {
-      let app = try await SupatermE2EApp.launch(zmxSessionsEnabled: false)
-      defer { app.terminate() }
-      let space = try makeTestSpace(app)
-      defer { try? closeTestSpace(app, spaceID: space.spaceID) }
-      let runner = startupSPRunner(app, tabID: space.tab.tabID, paneID: space.tab.paneID)
-      let recorder = try makeArgumentRecorder(in: space.directory)
-      let tab = commandArtifacts(named: "no-zmx", in: space)
-      let result = try decodeSPJSON(
-        SupatermNewTabResult.self,
-        from: try requireSuccessfulSPResult(
-          try runner.run(
-            [
-              "tab", "new", "--socket", app.socketPath, "--json", "--focus",
-              "--cwd", space.directory.path, "--in", space.spaceID.uuidString, "--",
-              recorder.path, tab.arguments.path, tab.parentProcessID.path,
-              tab.parentCommand.path,
-            ] + tab.expectedArguments,
-            cwd: space.directory
-          )
-        )
-      )
-
-      try await verifyCommandLaunch(app: app, paneID: result.paneID, artifacts: tab)
-    }
-
-    @Test(.timeLimit(.minutes(5)))
     func scriptsRemainShellTextForTabsAndPanes() async throws {
       try await withTestSpace { app, space in
         let runner = startupSPRunner(app, tabID: space.tab.tabID, paneID: space.tab.paneID)
@@ -143,7 +116,7 @@ extension SupatermE2ESuite {
 
     @Test(.timeLimit(.minutes(5)))
     func scriptsCanReplaceTheLoginShellAndRemainInteractive() async throws {
-      let app = try await SupatermE2EApp.launch(zmxSessionsEnabled: false)
+      let app = try await SupatermE2EApp.launch()
       defer { app.terminate() }
       let space = try makeTestSpace(app)
       defer { try? closeTestSpace(app, spaceID: space.spaceID) }

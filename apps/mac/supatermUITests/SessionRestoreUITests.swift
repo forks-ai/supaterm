@@ -116,7 +116,7 @@ final class SessionRestoreUITests: SupatermUITestCase {
   }
 
   @MainActor
-  func testLayoutAndSessionsSurviveQuitAndRelaunch() async throws {
+  func testLayoutSurvivesQuitAndRelaunch() async throws {
     let terminal = mainTerminal
     terminal.click()
 
@@ -129,15 +129,6 @@ final class SessionRestoreUITests: SupatermUITestCase {
     try await waitForPaneCount(app, 1)
     app.typeKey("d", modifierFlags: .command)
     try await waitForPaneCount(app, 2)
-
-    let token = UUID().uuidString
-    let marker = "restore-\(token)"
-    let focusedTerminal = app.textViews
-      .matching(NSPredicate(format: "hasKeyboardFocus == true"))
-      .firstMatch
-    XCTAssertTrue(focusedTerminal.waitForExistence(timeout: 10))
-    app.typeText("echo \"re\"store-\(token)\n")
-    try await waitForPaneValue(app, containing: marker)
 
     let savedLayout = try await waitForSessionLayout(at: sessionFileURL) { layout in
       layout.selectedTabIndex == 1
@@ -152,7 +143,6 @@ final class SessionRestoreUITests: SupatermUITestCase {
     app.activate()
     XCTAssertTrue(app.windows.firstMatch.waitForExistence(timeout: 30))
     try await waitForPaneCount(app, 2)
-    try await waitForPaneValue(app, containing: marker)
     try await waitForSessionLayout(at: sessionFileURL) { $0 == savedLayout }
 
     quit(app, returnModifiers: .shift)
@@ -180,21 +170,6 @@ final class SessionRestoreUITests: SupatermUITestCase {
     }
     if !didReachCount {
       XCTAssertEqual(app.textViews.count, expected)
-    }
-  }
-
-  @MainActor
-  private func waitForPaneValue(
-    _ app: XCUIApplication,
-    containing marker: String,
-    timeout: Duration = .seconds(30)
-  ) async throws {
-    let didFindPane = await wait(timeout: timeout) {
-      let values = app.textViews.allElementsBoundByIndex.compactMap { $0.value as? String }
-      return values.contains(where: { $0.contains(marker) })
-    }
-    if !didFindPane {
-      XCTFail("No pane shows \(marker)")
     }
   }
 

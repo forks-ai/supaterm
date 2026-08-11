@@ -56,9 +56,17 @@ nonisolated private func zmxLogRunFinished(_ argumentLabel: String, stdoutLineCo
 }
 
 public nonisolated enum ZmxEnvironment {
+  public static let disabledKey = "SUPATERM_DISABLE_ZMX"
   public static let directoryKey = "ZMX_DIR"
   public static let sessionKey = "ZMX_SESSION"
   public static let sessionPrefixKey = "ZMX_SESSION_PREFIX"
+
+  public static func sessionsEnabled(
+    setting: Bool,
+    environment: [String: String] = ProcessInfo.processInfo.environment
+  ) -> Bool {
+    setting && environment[disabledKey] != "1"
+  }
 }
 
 public nonisolated struct ZmxClient: Sendable {

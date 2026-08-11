@@ -77,7 +77,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
     let ghosttyRuntime = GhosttyRuntime()
     @Shared(.supatermSettings) var launchSupatermSettings = .default
     SupatermLog.setVerboseLoggingEnabled(launchSupatermSettings.verboseLoggingEnabled)
-    let zmxSessionsEnabledAtLaunch = launchSupatermSettings.zmxSessionsEnabled
+    let zmxSessionsEnabledAtLaunch = ZmxEnvironment.sessionsEnabled(
+      setting: launchSupatermSettings.zmxSessionsEnabled
+    )
     let zmxClient = zmxSessionsEnabledAtLaunch ? ZmxClient.live : .noop
     let terminalWindowRegistry = TerminalWindowRegistry(zmxClient: zmxClient)
     let tabNewWindowDropController = TerminalTabNewWindowDropController(
