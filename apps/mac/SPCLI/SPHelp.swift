@@ -391,8 +391,8 @@ enum SPHelp {
     """
 
   static let projectIconDiscussion = """
-    Checks common favicon, app icon, and logo paths in order. If none exist, it
-    reads common HTML and root route files for icon metadata.
+    Reads icon declarations from common HTML and root route files, including
+    linked local web manifests. If none resolve, it checks common icon paths.
 
     The path must stay within the project directory and use a supported image extension.
 
