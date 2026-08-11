@@ -241,13 +241,14 @@ extension TerminalHostState {
   }
 
   func debugAgentSnapshot(for surfaceID: UUID) -> SupatermAppDebugSnapshot.Agent? {
-    guard let current = currentAgentStateInstance(in: agentStateInstances(for: surfaceID)) else {
+    guard let presentation = resolvedAgentState(for: surfaceID).currentNativeCandidate?.presentation
+    else {
       return nil
     }
     return SupatermAppDebugSnapshot.Agent(
-      kind: current.presentation.agent,
-      sessionID: current.presentation.sessionID,
-      phase: debugAgentPhase(current.presentation.phase)
+      kind: presentation.agent,
+      sessionID: presentation.sessionID,
+      phase: debugAgentPhase(presentation.phase)
     )
   }
 
