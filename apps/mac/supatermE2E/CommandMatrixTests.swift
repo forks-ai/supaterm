@@ -232,7 +232,7 @@ extension SupatermE2ESuite {
     func newTabAppendsWhenMiddleTabIsSelected() async throws {
       try await withTestSpace { app, space in
         let second = try makeTab(app, in: space)
-        let third = try makeTab(app, in: space)
+        _ = try makeTab(app, in: space)
         let tabsBeforeCreation = try #require(
           app.debugSnapshot().windows.flatMap(\.spaces).first { $0.id == space.spaceID }
         ).flattenedTabs.map(\.id)
