@@ -79,6 +79,10 @@ final class ConfigurationDiagnosticsWindowController: NSWindowController {
     }
     guard let window, !window.isVisible else { return }
     window.makeKeyAndOrderFront(nil)
+    Task { @MainActor [weak window] in
+      guard let window, window.isVisible else { return }
+      window.makeKey()
+    }
   }
 
   private func ignore() {
