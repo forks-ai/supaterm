@@ -76,9 +76,11 @@ final class SpaceLifecycleUITests: SupatermUITestCase {
     let createSpace = try require(app.menuItems["New Space"])
     createSpace.click()
 
-    let nameField = try require(
-      app.textFields[SupatermUITestIdentifier.Accessibility.dialogSpaceName]
-    )
+    let nameField = app.textFields[SupatermUITestIdentifier.Accessibility.dialogSpaceName]
+    if !nameField.waitForExistence(timeout: 5), createSpace.exists {
+      createSpace.click()
+    }
+    try require(nameField)
     nameField.typeText(name)
 
     try await saveSpaceEditor()
