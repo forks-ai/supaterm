@@ -52,6 +52,13 @@ jobs:
       - name: Install Vite+
         run: npm install --global "vite-plus@${{ steps.vite_plus.outputs.version }}"
       - run: make web-install
+      - name: Check agent detection generation
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
+        run: >-
+          node apps/supaterm.com/scripts/check-agent-detection-generation.mjs
+          "$BASE_SHA"
+          apps/mac/supaterm/Resources/AgentDetection/rules.toml
       - run: make web-check
       - run: make web-test
       - name: Audit production dependencies
