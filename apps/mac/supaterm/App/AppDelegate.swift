@@ -50,6 +50,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
   private let quitConfirmationPresenter: QuitConfirmationPresenter
   private let socketStore: StoreOf<SocketControlFeature>
   private let terminalWindowRegistry: TerminalWindowRegistry
+  private let tabNewWindowDropController: TerminalTabNewWindowDropController
   private let zmxSessionsEnabledAtLaunch: Bool
   private lazy var serviceProvider = SupatermServiceProvider(
     openTabs: { [weak self] paths in
@@ -79,6 +80,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
     let zmxSessionsEnabledAtLaunch = launchSupatermSettings.zmxSessionsEnabled
     let zmxClient = zmxSessionsEnabledAtLaunch ? ZmxClient.live : .noop
     let terminalWindowRegistry = TerminalWindowRegistry(zmxClient: zmxClient)
+    let tabNewWindowDropController = TerminalTabNewWindowDropController(
+      tabDragRegistry: terminalWindowRegistry.tabDragRegistry
+    )
     let terminalCommandExecutor = TerminalCommandExecutor(registry: terminalWindowRegistry)
     let menuController = SupatermMenuController(registry: terminalWindowRegistry)
     let globalKeybindManager = GhosttyGlobalKeybindManager(runtime: ghosttyRuntime)
@@ -95,10 +99,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
     self.quitConfirmationPresenter = quitConfirmationPresenter
     self.socketStore = socketStore
     self.terminalWindowRegistry = terminalWindowRegistry
+    self.tabNewWindowDropController = tabNewWindowDropController
     self.zmxSessionsEnabledAtLaunch = zmxSessionsEnabledAtLaunch
     super.init()
     globalKeybindManager.refresh()
     terminalWindowRegistry.commandExecutor = terminalCommandExecutor
+    terminalWindowRegistry.tabDragRegistry.detach = { [weak self] payload, frame in
+      self?.detachTab(payload, previewFrame: frame) == true
+    }
     terminalCommandExecutor.onQuitRequested = { [weak self] in
       self?.performSocketQuit()
     }
@@ -114,6 +122,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
   }
 
   isolated deinit {
+    tabNewWindowDropController.stop()
     if let configurationDiagnosticsObserver {
       NotificationCenter.default.removeObserver(configurationDiagnosticsObserver)
     }
@@ -493,7 +502,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
   private func createWindow(
     session: TerminalWindowSession? = nil,
     spaceID: TerminalSpaceID? = nil,
-    startupCommand: SupatermTerminalStartup? = nil
+    startupCommand: SupatermTerminalStartup? = nil,
+    createsInitialTab: Bool = true,
+    ordersFront: Bool = true
   ) -> TerminalWindowController {
     let controller = TerminalWindowController(
       runtime: ghosttyRuntime,
@@ -501,6 +512,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
       session: session,
       spaceID: spaceID,
       startupCommand: startupCommand,
+      createsInitialTab: createsInitialTab,
       zmxClient: launchZmxClient,
       zmxSessionsEnabled: zmxSessionsEnabledAtLaunch
     ) { [weak self] in
@@ -511,9 +523,62 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
       self?.saveSession()
     }
     windowControllers[controller.windowControllerID] = controller
-    controller.window?.orderFront(nil)
+    if ordersFront {
+      controller.window?.orderFront(nil)
+    }
     saveSession()
     return controller
+  }
+
+  private func detachTab(
+    _ payload: TerminalTabDragPayload,
+    previewFrame: CGRect
+  ) -> Bool {
+    guard spaceCatalog.spaces.contains(where: { $0.id == payload.sourceSpaceID }) else {
+      return false
+    }
+    let controller = createWindow(
+      spaceID: payload.sourceSpaceID,
+      createsInitialTab: false,
+      ordersFront: false
+    )
+    guard
+      let expectedTopologyRevision = controller.terminal.spaceManager.tabCollection(
+        for: payload.sourceSpaceID
+      )?.topologyRevision
+    else {
+      controller.window?.close()
+      return false
+    }
+    let destination = TerminalTabDragRegistry.Destination(
+      windowControllerID: controller.windowControllerID,
+      spaceID: payload.sourceSpaceID,
+      expectedTopologyRevision: expectedTopologyRevision,
+      placement: .root(TerminalRootPlacement(isPinned: false, index: 0))
+    )
+    guard terminalWindowRegistry.transferTab(payload, to: destination) != nil else {
+      controller.window?.close()
+      return false
+    }
+    if let window = controller.window {
+      let previewCenter = CGPoint(x: previewFrame.midX, y: previewFrame.midY)
+      let visibleFrame =
+        NSScreen.screens.first(where: { $0.frame.contains(previewCenter) })?.visibleFrame
+        ?? NSScreen.main?.visibleFrame
+        ?? window.frame
+      window.setFrame(
+        TerminalTabNewWindowLayout.frame(
+          previewFrame: previewFrame,
+          windowSize: window.frame.size,
+          visibleFrame: visibleFrame
+        ),
+        display: false
+      )
+      activateForWindowPresentation()
+      window.makeKeyAndOrderFront(nil)
+    }
+    AppPostHog.capture("window_created")
+    return true
   }
 
   private func showExistingWindowOrCreate() -> Bool {

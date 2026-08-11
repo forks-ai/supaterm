@@ -1,73 +1,70 @@
 import AppKit
 import ComposableArchitecture
+import Sharing
 import SupaTheme
+import SupatermSettingsFeature
 import SupatermUpdateFeature
 import SwiftUI
 
-struct TerminalSplitView: View {
+struct TerminalWindowSidebarRoot: View {
   let store: StoreOf<TerminalWindowFeature>
   let updateStore: StoreOf<UpdateFeature>
   let releaseAnnouncement: ReleaseAnnouncement?
-  let palette: Palette
   let terminal: TerminalHostState
-  let totalWidth: CGFloat
-  let isSidebarCollapsed: Bool
-  let sidebarWidth: CGFloat?
-  let sidebarResizeState: TerminalSidebarResizeState?
+  let shellState: TerminalWindowShellState
   let onResizeInput: (TerminalSidebarResizeInput) -> Void
+  let sidebarControllerCache: TerminalSidebarControllerCache
+  let spacePagingDidEnd: () -> Void
   let dismissReleaseAnnouncement: () -> Void
 
+  @Shared(.supatermSettings) private var supatermSettings = .default
+
+  private var chromeColorScheme: ColorScheme {
+    supatermSettings.appearanceMode.colorScheme ?? terminal.terminalChromeColorScheme
+  }
+
+  private var palette: Palette {
+    Palette(colorScheme: chromeColorScheme, tint: terminal.displayedSpace.color)
+  }
+
   var body: some View {
-    let currentSidebarWidth = TerminalSidebarWidthPolicy.displayedWidth(
-      preferredWidth: sidebarWidth,
-      resizeState: sidebarResizeState,
-      totalWidth: totalWidth
-    )
-    let visibleSidebarWidth = isSidebarCollapsed ? 0 : currentSidebarWidth
-
-    ZStack(alignment: .leading) {
-      HStack(spacing: 0) {
-        TerminalSidebarView(
-          store: store,
-          updateStore: updateStore,
-          releaseAnnouncement: releaseAnnouncement,
-          palette: palette,
-          terminal: terminal,
-          isPagingActive: !isSidebarCollapsed,
-          dismissReleaseAnnouncement: dismissReleaseAnnouncement
-        )
-        .frame(width: currentSidebarWidth)
-        .frame(maxHeight: .infinity)
-        .offset(x: isSidebarCollapsed ? -(currentSidebarWidth + 12) : 0)
-        .frame(width: visibleSidebarWidth, alignment: .leading)
-        .mask(alignment: .leading) {
-          Rectangle()
-            .padding(.trailing, -TerminalChromeMetrics.paneInset)
-        }
-        .allowsHitTesting(!isSidebarCollapsed)
-
-        if let selectedTabID = terminal.selectedTabID {
-          TerminalDetailView(
-            store: store,
-            palette: palette,
-            terminal: terminal,
-            selectedTabID: selectedTabID
-          )
-          .frame(maxWidth: .infinity, maxHeight: .infinity)
-          .zIndex(1)
-        } else {
-          Color.clear
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-        }
+    ZStack(alignment: .trailing) {
+      TerminalSidebarSurfaceShell(
+        palette: palette,
+        isFloating: shellState.isFloating
+      ) {
+        sidebar
       }
 
-      if !isSidebarCollapsed {
-        SidebarResizeHandle(sidebarWidth: currentSidebarWidth, onInput: onResizeInput)
-          .offset(x: TerminalSidebarWidthPolicy.stripOffset(for: currentSidebarWidth))
-          .zIndex(2)
-      }
+      SidebarResizeHandle(
+        sidebarWidth: shellState.sidebarWidth,
+        onInput: onResizeInput
+      )
     }
-    .coordinateSpace(name: TerminalCoordinateSpace.split)
+    .frame(maxWidth: .infinity, maxHeight: .infinity)
+    .coordinateSpace(
+      name: shellState.isFloating
+        ? TerminalCoordinateSpace.floatingSidebar
+        : TerminalCoordinateSpace.split
+    )
+    .onChange(of: terminal.spacePager?.isTracking == true) { wasTracking, isTracking in
+      guard wasTracking, !isTracking else { return }
+      spacePagingDidEnd()
+    }
+    .environment(\.colorScheme, chromeColorScheme)
+  }
+
+  private var sidebar: some View {
+    TerminalSidebarView(
+      store: store,
+      updateStore: updateStore,
+      releaseAnnouncement: releaseAnnouncement,
+      palette: palette,
+      terminal: terminal,
+      isPagingActive: true,
+      sidebarControllerCache: sidebarControllerCache,
+      dismissReleaseAnnouncement: dismissReleaseAnnouncement
+    )
   }
 }
 
@@ -78,6 +75,7 @@ struct TerminalSidebarView: View {
   let palette: Palette
   let terminal: TerminalHostState
   let isPagingActive: Bool
+  let sidebarControllerCache: TerminalSidebarControllerCache
   let dismissReleaseAnnouncement: () -> Void
 
   var body: some View {
@@ -88,6 +86,7 @@ struct TerminalSidebarView: View {
       palette: palette,
       terminal: terminal,
       isPagingActive: isPagingActive,
+      sidebarControllerCache: sidebarControllerCache,
       fixedHoveredGroupID: nil,
       dismissReleaseAnnouncement: dismissReleaseAnnouncement
     )
@@ -103,95 +102,7 @@ struct TerminalSidebarView: View {
   }
 }
 
-struct FloatingSidebarOverlay: View {
-  let store: StoreOf<TerminalWindowFeature>
-  let updateStore: StoreOf<UpdateFeature>
-  let releaseAnnouncement: ReleaseAnnouncement?
-  let palette: Palette
-  let terminal: TerminalHostState
-  let totalWidth: CGFloat
-  let sidebarWidth: CGFloat?
-  let sidebarResizeState: TerminalSidebarResizeState?
-  @Binding var isVisible: Bool
-  let onResizeInput: (TerminalSidebarResizeInput) -> Void
-  let dismissReleaseAnnouncement: () -> Void
-
-  @Environment(\.accessibilityReduceMotion) private var reduceMotion
-  @State private var hidesAfterPaging = false
-
-  var body: some View {
-    let floatingWidth = TerminalSidebarWidthPolicy.displayedWidth(
-      preferredWidth: sidebarWidth,
-      resizeState: sidebarResizeState,
-      totalWidth: totalWidth
-    )
-
-    ZStack(alignment: .leading) {
-      if isVisible {
-        FloatingSidebarView(
-          store: store,
-          updateStore: updateStore,
-          releaseAnnouncement: releaseAnnouncement,
-          palette: palette,
-          terminal: terminal,
-          width: floatingWidth,
-          dismissReleaseAnnouncement: dismissReleaseAnnouncement
-        )
-        .terminalTransition(.move(edge: .leading), reduceMotion: reduceMotion)
-        .zIndex(1)
-      }
-
-      HStack(spacing: 0) {
-        hoverStrip(width: isVisible ? floatingWidth : 10)
-        Spacer(minLength: 0)
-      }
-
-      if isVisible {
-        SidebarResizeHandle(sidebarWidth: floatingWidth, onInput: onResizeInput)
-          .offset(x: TerminalSidebarWidthPolicy.stripOffset(for: floatingWidth))
-          .zIndex(2)
-      }
-    }
-    .coordinateSpace(name: TerminalCoordinateSpace.floatingSidebar)
-    .onChange(of: isPaging) { _, isPaging in
-      guard !isPaging, hidesAfterPaging else { return }
-      hidesAfterPaging = false
-      isVisible = false
-    }
-  }
-
-  private var isPaging: Bool {
-    terminal.spacePager?.isTracking == true
-  }
-
-  private var hoverBinding: Binding<Bool> {
-    Binding(
-      get: { isVisible },
-      set: { hovering in
-        guard !hovering, isPaging else {
-          isVisible = hovering
-          return
-        }
-        hidesAfterPaging = true
-      }
-    )
-  }
-
-  private func hoverStrip(width: CGFloat) -> some View {
-    Color.clear
-      .frame(width: width)
-      .overlay {
-        GlobalMouseTrackingArea(
-          mouseEntered: hoverBinding,
-          edge: .left,
-          padding: 40,
-          slack: 8
-        )
-      }
-  }
-}
-
-private struct SidebarResizeHandle: View {
+struct SidebarResizeHandle: View {
   let sidebarWidth: CGFloat
   let onInput: (TerminalSidebarResizeInput) -> Void
 
@@ -335,31 +246,6 @@ final class SidebarResizeInteractionNSView: NSView {
 
   private func translationX(for recognizer: NSPanGestureRecognizer) -> CGFloat {
     recognizer.translation(in: window?.contentView).x
-  }
-}
-
-private struct FloatingSidebarView: View {
-  let store: StoreOf<TerminalWindowFeature>
-  let updateStore: StoreOf<UpdateFeature>
-  let releaseAnnouncement: ReleaseAnnouncement?
-  let palette: Palette
-  let terminal: TerminalHostState
-  let width: CGFloat
-  let dismissReleaseAnnouncement: () -> Void
-
-  var body: some View {
-    TerminalFloatingSidebarShell(palette: palette) {
-      TerminalSidebarView(
-        store: store,
-        updateStore: updateStore,
-        releaseAnnouncement: releaseAnnouncement,
-        palette: palette,
-        terminal: terminal,
-        isPagingActive: true,
-        dismissReleaseAnnouncement: dismissReleaseAnnouncement
-      )
-    }
-    .frame(width: width)
   }
 }
 

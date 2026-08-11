@@ -15,8 +15,8 @@ extension TerminalHostState {
     if currentSelectedTabID != tabID, let currentSelectedTabID {
       instance.previousSelectedTabID = currentSelectedTabID
     }
-    instance.tabManager.selectTab(tabID)
-    if let groupID = instance.tabManager.groupID(containing: tabID) {
+    instance.tabCollection.selectTab(tabID)
+    if let groupID = instance.tabCollection.groupID(containing: tabID) {
       instance.collapsedTabGroupIDs.remove(groupID)
     }
   }
@@ -31,8 +31,8 @@ extension TerminalHostState {
 
   func selectTab(slot: Int) {
     let index = slot - 1
-    guard visibleTabs.indices.contains(index) else { return }
-    selectTab(visibleTabs[index].id)
+    guard tabs.indices.contains(index) else { return }
+    selectTab(tabs[index].id)
   }
 
   func nextTab() {
@@ -84,20 +84,26 @@ extension TerminalHostState {
       return
     }
 
-    spaceManager.instance(for: spaceID)?.tabManager.clearSelection()
+    spaceManager.instance(for: spaceID)?.tabCollection.clearSelection()
 
     lastEmittedFocusSurfaceID = nil
   }
 
-  func replacementLiveTabID(in spaceID: TerminalSpaceID) -> TerminalTabID? {
+  func replacementLiveTabID(
+    in spaceID: TerminalSpaceID,
+    excluding excludedTabID: TerminalTabID? = nil
+  ) -> TerminalTabID? {
     let tabs = spaceManager.tabs(in: spaceID)
     if let previousTabID = spaceManager.instance(for: spaceID)?.previousSelectedTabID,
+      previousTabID != excludedTabID,
       tabs.contains(where: { $0.id == previousTabID }),
       isSelectableTab(previousTabID)
     {
       return previousTabID
     }
-    return tabs.reversed().first { isSelectableTab($0.id) }?.id
+    return tabs.reversed().first {
+      $0.id != excludedTabID && isSelectableTab($0.id)
+    }?.id
   }
 
   func isSelectableTab(_ tabID: TerminalTabID) -> Bool {
