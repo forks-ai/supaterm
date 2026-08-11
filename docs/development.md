@@ -89,6 +89,8 @@ E2E tests in `apps/mac/supatermE2E` spawn their own `supaterm.app` with a fresh 
 
 UI tests in `apps/mac/supatermUITests` control the shared macOS desktop, input focus, and pasteboards. Never run them locally. They're meant for CI.
 
+Also prefer to write E2E tests over UI Tests if possible.
+
 Use `$SUPATERM_CLI_PATH` inside Supaterm panes to call the Debug CLI injected by the running app instead of an installed `sp`:
 
 ```bash
