@@ -60,7 +60,6 @@ func makeTestSpace(_ app: SupatermE2EApp) async throws -> TestSpace {
     ),
     as: SupatermCreateSpaceResult.self
   )
-  try await app.waitForReadyPane(in: created.target.spaceID)
   let tab = try app.send(
     .newTab(
       SupatermNewTabRequest(
