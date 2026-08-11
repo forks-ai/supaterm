@@ -31,8 +31,8 @@ extension TerminalHostState {
 
   func selectTab(slot: Int) {
     let index = slot - 1
-    guard visibleTabs.indices.contains(index) else { return }
-    selectTab(visibleTabs[index].id)
+    guard tabs.indices.contains(index) else { return }
+    selectTab(tabs[index].id)
   }
 
   func nextTab() {

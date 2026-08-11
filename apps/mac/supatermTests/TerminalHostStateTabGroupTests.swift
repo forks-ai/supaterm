@@ -76,6 +76,37 @@ struct TerminalHostStateTabGroupTests {
   }
 
   @Test
+  func numberedTabSelectionUsesTabOrderAcrossCollapsedGroups() throws {
+    try withDependencies {
+      $0.defaultFileStorage = .inMemory
+    } operation: {
+      let host = TerminalHostState(managesTerminalSurfaces: false)
+      let manager = host.spaceManager.tabCollection
+      let first = manager.createTab(title: "First")
+      let second = manager.createTab(title: "Second")
+      let firstGroupID = try #require(
+        manager.createGroup(title: "First", containing: [first])
+      ).groupID
+      let secondGroupID = try #require(
+        manager.createGroup(title: "Second", containing: [second])
+      ).groupID
+      #expect(host.setGroupCollapsed(firstGroupID, isCollapsed: true))
+      #expect(host.setGroupCollapsed(secondGroupID, isCollapsed: true))
+
+      host.selectTab(slot: 1)
+
+      #expect(host.selectedTabID == first)
+      #expect(!host.collapsedTabGroupIDs.contains(firstGroupID))
+      #expect(host.collapsedTabGroupIDs.contains(secondGroupID))
+
+      host.selectTab(slot: 2)
+
+      #expect(host.selectedTabID == second)
+      #expect(!host.collapsedTabGroupIDs.contains(secondGroupID))
+    }
+  }
+
+  @Test
   func desiredPinExtractsGroupedChildToPinnedRoot() throws {
     try withDependencies {
       $0.defaultFileStorage = .inMemory
