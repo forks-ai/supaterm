@@ -11,6 +11,8 @@ import SwiftUI
 
 @MainActor
 final class TerminalWindowRegistry {
+  let tabDragRegistry: TerminalTabDragRegistry
+
   struct CloseAllWindowsCandidate {
     let windowID: ObjectIdentifier
     let needsConfirmation: Bool
@@ -80,7 +82,15 @@ final class TerminalWindowRegistry {
   var onChange: @MainActor () -> Void = {}
 
   init(zmxClient: ZmxClient = .live) {
+    let tabDragRegistry = TerminalTabDragRegistry()
+    self.tabDragRegistry = tabDragRegistry
     self.zmxClient = zmxClient
+    tabDragRegistry.transfer = { [weak self] payload, destination in
+      self?.transferTab(payload, to: destination)
+    }
+    tabDragRegistry.split = { [weak self] payload, destination in
+      self?.splitTab(payload, to: destination) == true
+    }
   }
 
   var hasShortcutSource: Bool {
@@ -108,6 +118,9 @@ final class TerminalWindowRegistry {
     }
     terminal.onSpaceAction = { [weak self] action in
       self?.performSpaceAction(action, from: windowControllerID)
+    }
+    terminal.onTabDroppedOnSpace = { [weak self] payload, spaceID in
+      self?.dropTab(payload, on: spaceID, in: windowControllerID) == true
     }
     terminal.paneCountAcrossWindows = { [weak self] spaceID in
       self?.paneCount(inSpace: spaceID) ?? 0
@@ -259,6 +272,33 @@ final class TerminalWindowRegistry {
     for entry in activeEntries() {
       entry.terminal.applyObservedSpaceCatalog(catalog)
     }
+  }
+
+  func reorderSpace(_ spaceID: TerminalSpaceID, toInsertionIndex insertionIndex: Int) {
+    var catalog = TerminalSpaceCatalog.sanitized(spaceCatalog)
+    guard catalog.moveSpace(spaceID, toInsertionIndex: insertionIndex) else { return }
+    replaceSpaceCatalog(catalog)
+  }
+
+  @discardableResult
+  func dropTab(
+    _ payload: TerminalTabDragPayload,
+    on spaceID: TerminalSpaceID,
+    in windowControllerID: UUID
+  ) -> Bool {
+    guard
+      let entry = entry(forWindowControllerID: windowControllerID),
+      let collection = entry.terminal.spaceManager.tabCollection(for: spaceID)
+    else { return false }
+    let regularIndex = collection.rootItems.filter { !$0.isPinned }.count
+    let destination = TerminalTabDragRegistry.Destination(
+      windowControllerID: windowControllerID,
+      spaceID: spaceID,
+      expectedTopologyRevision: collection.topologyRevision,
+      placement: .root(TerminalRootPlacement(isPinned: false, index: regularIndex))
+    )
+    guard tabDragRegistry.performTransfer(payload, to: destination) != nil else { return false }
+    return selectSpace(spaceID, in: windowControllerID)
   }
 
   @discardableResult
@@ -791,7 +831,7 @@ final class TerminalWindowRegistry {
 
   private func selectedGroupID(in entry: Entry) -> TerminalTabGroupID? {
     guard let tabID = entry.terminal.selectedTabID else { return nil }
-    return entry.terminal.spaceManager.displayedInstance.tabManager.groupID(containing: tabID)
+    return entry.terminal.spaceManager.displayedInstance.tabCollection.groupID(containing: tabID)
   }
 
   private func commandAvailability(for entry: Entry) -> CommandAvailability {
@@ -867,6 +907,8 @@ final class TerminalWindowRegistry {
       selectAdjacentSpace(step: -1, in: windowControllerID)
     case .rename(let spaceID, let name):
       try? renameSpace(spaceID, to: name)
+    case .reorder(let spaceID, let insertionIndex):
+      reorderSpace(spaceID, toInsertionIndex: insertionIndex)
     case .select(let spaceID):
       selectSpace(spaceID, in: windowControllerID)
     case .selectSlot(let slot):
@@ -975,7 +1017,7 @@ final class TerminalWindowRegistry {
     }
   }
 
-  private func entry(forWindowControllerID windowControllerID: UUID) -> Entry? {
+  func entry(forWindowControllerID windowControllerID: UUID) -> Entry? {
     activeEntries().first { $0.windowControllerID == windowControllerID }
   }
 

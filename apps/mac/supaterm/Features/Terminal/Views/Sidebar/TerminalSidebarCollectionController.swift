@@ -3,6 +3,46 @@ import QuartzCore
 import SupaTheme
 import SwiftUI
 
+@MainActor
+final class TerminalSidebarControllerCache {
+  private var controllersBySpaceID: [TerminalSpaceID: TerminalSidebarListController] = [:]
+  private let tabDragRegistry: TerminalTabDragRegistry
+  private let windowControllerID: UUID
+  private let captureRequest: () -> TerminalTabDragCaptureRequest?
+
+  init(
+    windowControllerID: UUID,
+    tabDragRegistry: TerminalTabDragRegistry,
+    captureRequest: @escaping () -> TerminalTabDragCaptureRequest?
+  ) {
+    self.windowControllerID = windowControllerID
+    self.tabDragRegistry = tabDragRegistry
+    self.captureRequest = captureRequest
+  }
+
+  var count: Int {
+    controllersBySpaceID.count
+  }
+
+  func controller(for spaceID: TerminalSpaceID) -> TerminalSidebarListController {
+    if let controller = controllersBySpaceID[spaceID] {
+      return controller
+    }
+    let controller = TerminalSidebarListController(
+      windowControllerID: windowControllerID,
+      tabDragRegistry: tabDragRegistry,
+      captureRequest: captureRequest
+    )
+    controllersBySpaceID[spaceID] = controller
+    return controller
+  }
+
+  func retain(_ spaceIDs: [TerminalSpaceID]) {
+    let retained = Set(spaceIDs)
+    controllersBySpaceID = controllersBySpaceID.filter { retained.contains($0.key) }
+  }
+}
+
 final class TerminalSidebarScrollView: NSScrollView {
   nonisolated override var hasVerticalScroller: Bool {
     get { false }
@@ -28,11 +68,9 @@ final class TerminalSidebarListController: NSViewController, NSCollectionViewDel
     let height: CGFloat
   }
 
-  private struct ReconciliationCandidate {
-    let update: Update
-    let isPending: Bool
-
-    var outline: TerminalSidebarOutline { update.outline }
+  private struct PendingDropHandoff {
+    let requirement: TerminalSidebarDropHandoff
+    let completion: TerminalSidebarDragController.DropHandoffCompletion
   }
 
   private enum UpdatePhase {
@@ -66,6 +104,7 @@ final class TerminalSidebarListController: NSViewController, NSCollectionViewDel
     topologyRevision: 0
   )
   private var pendingUpdate: Update?
+  private var pendingDropHandoff: PendingDropHandoff?
   private var updatePhase = UpdatePhase.idle
   private var hasAppliedSnapshot = false
   private var selectedTabID: TerminalTabID?
@@ -73,6 +112,9 @@ final class TerminalSidebarListController: NSViewController, NSCollectionViewDel
   private var pendingRevealTabID: TerminalTabID?
   private var motionPolicy = TerminalSidebarMotionPolicy(reduceMotion: false)
   private var isLayingOut = false
+  private let tabDragRegistry: TerminalTabDragRegistry
+  private let windowControllerID: UUID
+  private let captureRequest: () -> TerminalTabDragCaptureRequest?
 
   private lazy var collapseAnimator = TerminalSidebarCollapseAnimator(
     collectionView: collectionView,
@@ -86,10 +128,14 @@ final class TerminalSidebarListController: NSViewController, NSCollectionViewDel
     collectionView: collectionView,
     collectionLayout: collectionLayout,
     scrollView: scrollView,
+    sourceSurfaceView: view,
+    sourceWindowID: windowControllerID,
+    tabDragRegistry: tabDragRegistry,
+    captureRequest: captureRequest,
     host: TerminalSidebarDragController.Host(
       content: { [weak self] in
         guard let self, let context else { return nil }
-        let canBeginDrag = if case .idle = updatePhase { true } else { false }
+        let canBeginDrag = if case .idle = updatePhase { pendingDropHandoff == nil } else { false }
         return TerminalSidebarDragController.Content(
           outline: appliedOutline,
           selectedTabID: selectedTabID,
@@ -102,14 +148,31 @@ final class TerminalSidebarListController: NSViewController, NSCollectionViewDel
         )
       },
       indexPath: { [weak self] in self?.dataSource?.indexPath(for: $0) },
-      entryID: { [weak self] in self?.dataSource?.itemIdentifier(for: $0) },
       invalidateLayout: { [weak self] in self?.invalidateLayout() },
-      reconcileCompletedDrop: { [weak self] in self?.reconcileCompletedDrop() },
-      hasPendingUpdate: { [weak self] in self?.pendingUpdate != nil },
+      rebindRows: { [weak self] in self?.refreshVisibleRows(ids: $0) },
       didFinish: { [weak self] in self?.consumePendingUpdate() },
+      completeDropHandoff: { [weak self] requirement, completion in
+        self?.completeDropHandoff(requirement, completion: completion)
+      },
       setHoveredGroupID: { [weak self] in self?.setHoveredGroupID($0) }
     )
   )
+
+  init(
+    windowControllerID: UUID,
+    tabDragRegistry: TerminalTabDragRegistry,
+    captureRequest: @escaping () -> TerminalTabDragCaptureRequest?
+  ) {
+    self.windowControllerID = windowControllerID
+    self.tabDragRegistry = tabDragRegistry
+    self.captureRequest = captureRequest
+    super.init(nibName: nil, bundle: nil)
+  }
+
+  @available(*, unavailable)
+  required init?(coder: NSCoder) {
+    fatalError("init(coder:) is unavailable")
+  }
 
   override func loadView() {
     view = NSView()
@@ -169,6 +232,11 @@ final class TerminalSidebarListController: NSViewController, NSCollectionViewDel
       handleActiveDragUpdate(update)
       return
     }
+    if pendingDropHandoff != nil {
+      queue(update)
+      consumeDropHandoffUpdate()
+      return
+    }
     guard case .idle = updatePhase else {
       pendingUpdate = update
       return
@@ -198,8 +266,8 @@ final class TerminalSidebarListController: NSViewController, NSCollectionViewDel
       TerminalSidebarCollectionItem.self,
       forItemWithIdentifier: TerminalSidebarCollectionItem.identifier
     )
-    collectionView.registerForDraggedTypes([.terminalSidebarOutlineItem])
-    collectionView.setDraggingSourceOperationMask([.copy, .move], forLocal: true)
+    collectionView.registerForDraggedTypes([.terminalTabDrag])
+    collectionView.setDraggingSourceOperationMask(.move, forLocal: true)
     collectionView.delegate = self
     collectionView.addSubview(selectionGlowView, positioned: .below, relativeTo: nil)
     collectionView.onPointerMoved = { [weak self] point in
@@ -213,7 +281,10 @@ final class TerminalSidebarListController: NSViewController, NSCollectionViewDel
         for: indexPath
       )
       guard let item = item as? TerminalSidebarCollectionItem else { return nil }
-      item.host(TerminalSidebarHostedRow(presentation: presentation, context: context))
+      item.host(
+        entryID: entryID,
+        TerminalSidebarHostedRow(presentation: presentation, context: context)
+      )
       item.view.setAccessibilityElement(true)
       item.view.setAccessibilityRole(.row)
       item.view.setAccessibilityIdentifier(accessibilityIdentifier(for: presentation))
@@ -297,6 +368,8 @@ final class TerminalSidebarListController: NSViewController, NSCollectionViewDel
       hasAppliedSnapshot = true
       updatePhase = .idle
       collectionLayout.finishStructuralUpdate()
+      refreshVisibleRows(ids: Set(rows.keys))
+      additionalCompletion?()
       invalidateLayout()
       if isInitialSnapshot {
         let contentView = scrollView.contentView
@@ -304,8 +377,12 @@ final class TerminalSidebarListController: NSViewController, NSCollectionViewDel
         scrollView.reflectScrolledClipView(contentView)
       }
       revealSelectedTabIfNeeded()
-      additionalCompletion?()
       consumePendingUpdate()
+    }
+    if isInitialSnapshot {
+      dataSource.apply(snapshot, animatingDifferences: false)
+      completion()
+      return
     }
     guard animated else {
       dataSource.apply(snapshot, animatingDifferences: false, completion: completion)
@@ -320,12 +397,40 @@ final class TerminalSidebarListController: NSViewController, NSCollectionViewDel
 
   private func consumePendingUpdate() {
     Task { @MainActor [weak self] in
-      guard let self, case .idle = updatePhase, !dragController.isActive, let pendingUpdate else {
+      guard let self, case .idle = updatePhase, !dragController.isActive else { return }
+      if pendingDropHandoff != nil {
+        consumeDropHandoffUpdate()
         return
       }
+      guard let pendingUpdate else { return }
       self.pendingUpdate = nil
       process(pendingUpdate)
     }
+  }
+
+  private func completeDropHandoff(
+    _ requirement: TerminalSidebarDropHandoff,
+    completion: @escaping TerminalSidebarDragController.DropHandoffCompletion
+  ) {
+    precondition(pendingDropHandoff == nil)
+    pendingDropHandoff = PendingDropHandoff(
+      requirement: requirement,
+      completion: completion
+    )
+    consumeDropHandoffUpdate()
+  }
+
+  private func consumeDropHandoffUpdate() {
+    guard
+      case .idle = updatePhase,
+      !dragController.isActive,
+      let handoff = pendingDropHandoff,
+      let update = pendingUpdate,
+      handoff.requirement.accepts(update.outline.topologyStamp)
+    else { return }
+    pendingDropHandoff = nil
+    pendingUpdate = nil
+    applySnapshot(update, animated: false, completion: handoff.completion)
   }
 
   private func handleActiveDragUpdate(_ update: Update) {
@@ -339,45 +444,9 @@ final class TerminalSidebarListController: NSViewController, NSCollectionViewDel
       return
     case .queue:
       queue(update)
-    case .queueAndReconcile:
-      queue(update)
-      reconcileCompletedDrop()
     case .replaceAndCancel(let reason):
-      applyIncompatibleSnapshotAndCancel(update, reason: reason)
-    }
-  }
-
-  private func reconcileCompletedDrop() {
-    let candidate = reconciliationCandidate()
-    guard let disposition = dragController.snapshotDisposition(for: candidate.outline) else { return }
-    switch disposition {
-    case .waiting, .rejected:
-      return
-    case .exact:
-      if candidate.isPending {
-        pendingUpdate = nil
-        applySnapshot(candidate.update, animated: false) { [weak self] in
-          self?.dragController.recordSnapshot(.exact, outline: candidate.outline)
-        }
-      } else {
-        dragController.recordSnapshot(.exact, outline: candidate.outline)
-      }
-    case .superseding:
-      dragController.stopDropTargetPresentation()
-      if candidate.isPending {
-        pendingUpdate = nil
-        applySnapshot(candidate.update, animated: false) { [weak self] in
-          self?.dragController.recordSnapshot(.superseding, outline: candidate.outline)
-        }
-      } else {
-        dragController.recordSnapshot(.superseding, outline: candidate.outline)
-      }
-    case .incompatible:
-      if candidate.isPending {
-        applyIncompatibleSnapshotAndCancel(candidate.update, reason: "receiptSnapshotMismatch")
-      } else {
-        dragController.cancelTopologyChange(reason: "receiptSnapshotMismatch")
-      }
+      queue(update)
+      dragController.cancelTopologyChange(reason: reason)
     }
   }
 
@@ -395,32 +464,6 @@ final class TerminalSidebarListController: NSViewController, NSCollectionViewDel
       return
     }
     if nextStamp.revision >= currentStamp.revision { pendingUpdate = update }
-  }
-
-  private func reconciliationCandidate() -> ReconciliationCandidate {
-    if let pendingUpdate {
-      guard
-        let pendingStamp = pendingUpdate.outline.topologyStamp,
-        let appliedStamp = appliedOutline.topologyStamp,
-        pendingStamp.spaceID == appliedStamp.spaceID
-      else { return ReconciliationCandidate(update: pendingUpdate, isPending: true) }
-      if pendingStamp.revision >= appliedStamp.revision {
-        return ReconciliationCandidate(update: pendingUpdate, isPending: true)
-      }
-      self.pendingUpdate = nil
-    }
-    return ReconciliationCandidate(
-      update: Update(outline: appliedOutline, reduceMotion: motionPolicy.reduceMotion),
-      isPending: false
-    )
-  }
-
-  private func applyIncompatibleSnapshotAndCancel(_ update: Update, reason: String) {
-    guard let operationID = dragController.operationID else { return }
-    pendingUpdate = nil
-    applySnapshot(update, animated: false) { [weak self] in
-      self?.dragController.cancelTopologyChange(reason: reason, operationID: operationID)
-    }
   }
 
   private func preferredHeight(for id: TerminalSidebarEntryID, width: CGFloat) -> CGFloat {
@@ -455,12 +498,14 @@ final class TerminalSidebarListController: NSViewController, NSCollectionViewDel
     for item in collectionView.visibleItems() {
       guard
         let item = item as? TerminalSidebarCollectionItem,
-        let indexPath = collectionView.indexPath(for: item),
-        let id = dataSource?.itemIdentifier(for: indexPath),
+        let id = item.entryID,
         ids.contains(id),
         let presentation = rows[id]
       else { continue }
-      item.host(TerminalSidebarHostedRow(presentation: presentation, context: context))
+      item.host(
+        entryID: id,
+        TerminalSidebarHostedRow(presentation: presentation, context: context)
+      )
       item.view.setAccessibilityIdentifier(accessibilityIdentifier(for: presentation))
     }
   }
@@ -635,7 +680,10 @@ final class TerminalSidebarListController: NSViewController, NSCollectionViewDel
     willDisplay item: NSCollectionViewItem,
     forRepresentedObjectAt indexPath: IndexPath
   ) {
-    guard let id = dataSource.itemIdentifier(for: indexPath) else { return }
+    guard
+      let item = item as? TerminalSidebarCollectionItem,
+      let id = item.entryID
+    else { return }
     measuredHeights[id] = nil
     invalidateLayout()
   }

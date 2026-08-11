@@ -9,14 +9,16 @@ struct TerminalSpaceSwitcherPresentation: Equatable {
   let selectedSpace: TerminalSpaceItem
   let canDelete: Bool
 
-  init?(spaces: [TerminalSpaceItem], selectedSpaceID: TerminalSpaceID?) {
+  init?(spaces: [TerminalSpaceItem], selectedSpaceID: TerminalSpaceID) {
     guard let selectedSpace = spaces.first(where: { $0.id == selectedSpaceID }) else {
       return nil
     }
     self.selectedSpace = selectedSpace
-    self.canDelete = spaces.count > 1
+    canDelete = spaces.count > 1
   }
+}
 
+enum TerminalSpaceShortcut {
   static func shortcutBinding(
     forSpaceAt index: Int,
     overrides: [SupatermShortcutID: SupatermShortcutOverride]
@@ -81,7 +83,7 @@ struct TerminalSpaceSwitcher: View {
   let store: StoreOf<TerminalWindowFeature>
   let palette: Palette
   let spaces: [TerminalSpaceItem]
-  let selectedSpaceID: TerminalSpaceID?
+  let selectedSpaceID: TerminalSpaceID
 
   @Environment(\.accessibilityReduceMotion) private var reduceMotion
   @Shared(.supatermSettings) private var supatermSettings = .default
@@ -108,7 +110,7 @@ struct TerminalSpaceSwitcher: View {
             }
           }
           .supatermKeyboardShortcut(
-            TerminalSpaceSwitcherPresentation.shortcutBinding(
+            TerminalSpaceShortcut.shortcutBinding(
               forSpaceAt: index,
               overrides: supatermSettings.shortcutOverrides
             )?.keyboardShortcut

@@ -15,9 +15,12 @@ struct TerminalSidebarPointerTests {
   private struct Fixture {
     let firstTabID: TerminalTabID
     let secondTabID: TerminalTabID
+    let secondTab: TerminalTabItem
     let recorder: TerminalCommandRecorder
     let selectionState: TerminalSidebarTabSelectionState
     let outline: TerminalSidebarOutline
+    let context: TerminalSidebarRowContext
+    let item: TerminalSidebarCollectionItem
     let pointerEvents: PointerEvents
     let window: NSWindow
     let location: NSPoint
@@ -111,13 +114,159 @@ struct TerminalSidebarPointerTests {
     #expect(pressedStates == [true, false])
   }
 
+  @Test
+  func tabRowKeepsMouseUpAfterDragActivationFails() throws {
+    let collectionView = TerminalSidebarCollectionView(
+      frame: NSRect(x: 0, y: 0, width: 240, height: 60)
+    )
+    let entryID = TerminalSidebarEntryID.tab(TerminalTabID())
+    var pressedStates: [Bool] = []
+    var mouseUpCount = 0
+    collectionView.onRowMouseDown = { id, _ in id == entryID }
+    collectionView.onRowMouseDragged = { _, _ in false }
+    collectionView.onRowMouseUp = { id, _ in
+      mouseUpCount += 1
+      return id == entryID
+    }
+    let pointer = TerminalSidebarRowPointerNSView(entryID: entryID) {
+      pressedStates.append($0)
+    }
+    pointer.frame = collectionView.bounds
+    collectionView.addSubview(pointer)
+    let window = NSWindow(
+      contentRect: collectionView.frame,
+      styleMask: .borderless,
+      backing: .buffered,
+      defer: false
+    )
+    window.contentView = collectionView
+    defer { window.contentView = nil }
+    let mouseDown = try #require(
+      mouseEvent(.leftMouseDown, at: .zero, in: window, eventNumber: 1)
+    )
+    let mouseDragged = try #require(
+      mouseEvent(.leftMouseDragged, at: NSPoint(x: 8, y: 0), in: window, eventNumber: 2)
+    )
+    let mouseUp = try #require(
+      mouseEvent(.leftMouseUp, at: NSPoint(x: 8, y: 0), in: window, eventNumber: 3)
+    )
+
+    pointer.mouseDown(with: mouseDown)
+    pointer.mouseDragged(with: mouseDragged)
+    #expect(pressedStates == [true])
+    pointer.mouseUp(with: mouseUp)
+    #expect(pressedStates == [true, false])
+    #expect(mouseUpCount == 1)
+  }
+
+  @Test
+  func nativeDragActivationEndsRowPointerTracking() throws {
+    let collectionView = TerminalSidebarCollectionView(
+      frame: NSRect(x: 0, y: 0, width: 240, height: 60)
+    )
+    let entryID = TerminalSidebarEntryID.tab(TerminalTabID())
+    var pressedStates: [Bool] = []
+    var mouseUpCount = 0
+    collectionView.onRowMouseDown = { id, _ in id == entryID }
+    collectionView.onRowMouseUp = { _, _ in
+      mouseUpCount += 1
+      return true
+    }
+    let pointer = TerminalSidebarRowPointerNSView(entryID: entryID) {
+      pressedStates.append($0)
+    }
+    pointer.frame = collectionView.bounds
+    collectionView.addSubview(pointer)
+    let window = NSWindow(
+      contentRect: collectionView.frame,
+      styleMask: .borderless,
+      backing: .buffered,
+      defer: false
+    )
+    window.contentView = collectionView
+    defer { window.contentView = nil }
+    let mouseDown = try #require(
+      mouseEvent(.leftMouseDown, at: .zero, in: window, eventNumber: 1)
+    )
+    let mouseUp = try #require(
+      mouseEvent(.leftMouseUp, at: .zero, in: window, eventNumber: 2)
+    )
+
+    pointer.mouseDown(with: mouseDown)
+    collectionView.finishTrackingRowPointer(entryID: entryID)
+    pointer.mouseUp(with: mouseUp)
+
+    #expect(pressedStates == [true, false])
+    #expect(mouseUpCount == 0)
+  }
+
+  @Test
+  func liftedRowCannotBeReboundThroughItsCollectionItem() async throws {
+    let fixture = try await fixture()
+    defer {
+      fixture.window.contentView = nil
+      fixture.window.orderOut(nil)
+    }
+    let lifted = try #require(
+      fixture.item.liftHostedView(sourceFrame: fixture.item.view.frame)
+    )
+    let preview = try #require(
+      lifted.hostedView as? NSHostingView<TerminalSidebarHostedRow>
+    )
+    let previewPresentation = preview.rootView.presentation
+
+    fixture.item.host(
+      entryID: .tab(fixture.secondTabID),
+      TerminalSidebarHostedRow(
+        presentation: .tab(presentation(fixture.secondTab)),
+        context: fixture.context
+      )
+    )
+
+    #expect(fixture.item.entryID == .tab(fixture.secondTabID))
+    #expect(fixture.item.view.subviews.first !== preview)
+    #expect(preview.rootView.presentation == previewPresentation)
+  }
+
+  @Test
+  func restoringLiftedRowKeepsTheFreshHostLiftable() async throws {
+    let fixture = try await fixture()
+    defer {
+      fixture.window.contentView = nil
+      fixture.window.orderOut(nil)
+    }
+    let entryID = try #require(fixture.item.entryID)
+    let lifted = try #require(
+      fixture.item.liftHostedView(sourceFrame: fixture.item.view.frame)
+    )
+    let preview = try #require(
+      lifted.hostedView as? NSHostingView<TerminalSidebarHostedRow>
+    )
+
+    fixture.item.host(entryID: entryID, preview.rootView)
+    let freshHost = try #require(fixture.item.view.subviews.first)
+    lifted.restore()
+
+    #expect(fixture.item.view.subviews.first === freshHost)
+    #expect(freshHost !== preview)
+    let freshLift = try #require(
+      fixture.item.liftHostedView(sourceFrame: fixture.item.view.frame)
+    )
+    lifted.restore()
+    #expect(fixture.item.view.subviews.isEmpty)
+    freshLift.restore()
+    #expect(fixture.item.view.subviews.first === freshHost)
+    #expect(fixture.item.liftHostedView(sourceFrame: fixture.item.view.frame) != nil)
+  }
+
   private func fixture() async throws -> Fixture {
     let host = TerminalHostState(managesTerminalSurfaces: false)
-    let manager = host.spaceManager.tabManager
+    let manager = host.spaceManager.tabCollection
     let firstTabID = manager.createTab(title: "First")
     let secondTabID = manager.createTab(title: "Second")
     manager.selectTab(secondTabID)
     let firstTab = try #require(host.tabs.first { $0.id == firstTabID })
+    let secondTab = try #require(host.tabs.first { $0.id == secondTabID })
     let recorder = TerminalCommandRecorder()
     let store = Store(initialState: TerminalWindowFeature.State()) {
       TerminalWindowFeature()
@@ -156,20 +305,22 @@ struct TerminalSidebarPointerTests {
       return entryID == .tab(firstTabID)
     }
     let item = TerminalSidebarCollectionItem()
+    let rowContext = TerminalSidebarRowContext(
+      store: store,
+      terminal: host,
+      palette: Palette(colorScheme: .dark),
+      renameState: TerminalSidebarRenameState(),
+      groupHeaderHoverState: TerminalSidebarGroupHoverState(),
+      tabSelectionState: selectionState,
+      outline: outline,
+      fixedHoveredGroupID: nil,
+      actions: rowActions
+    )
     item.host(
+      entryID: .tab(firstTabID),
       TerminalSidebarHostedRow(
         presentation: .tab(presentation(firstTab)),
-        context: TerminalSidebarRowContext(
-          store: store,
-          terminal: host,
-          palette: Palette(colorScheme: .dark),
-          renameState: TerminalSidebarRenameState(),
-          groupHeaderHoverState: TerminalSidebarGroupHoverState(),
-          tabSelectionState: selectionState,
-          outline: outline,
-          fixedHoveredGroupID: nil,
-          actions: rowActions
-        )
+        context: rowContext
       )
     )
     item.view.frame = NSRect(x: 0, y: 0, width: 240, height: 60)
@@ -193,9 +344,12 @@ struct TerminalSidebarPointerTests {
     return Fixture(
       firstTabID: firstTabID,
       secondTabID: secondTabID,
+      secondTab: secondTab,
       recorder: recorder,
       selectionState: selectionState,
       outline: outline,
+      context: rowContext,
+      item: item,
       pointerEvents: pointerEvents,
       window: window,
       location: location

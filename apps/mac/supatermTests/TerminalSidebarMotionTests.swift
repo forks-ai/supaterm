@@ -1,5 +1,6 @@
 import AppKit
 import QuartzCore
+import SupaTheme
 import Testing
 
 @testable import supaterm
@@ -34,29 +35,213 @@ struct TerminalSidebarMotionTests {
   }
 
   @Test
-  func activationRequiresThresholdAcrossMouseEvents() {
+  func plainSingleTabDragRestoresOnlyItsPriorSelection() throws {
+    let prior = TerminalTabID()
+    let dragged = TerminalTabID()
+
+    let handoff = try #require(
+      TerminalSidebarTabDragSelectionHandoff.resolve(
+        entryID: .tab(dragged),
+        primaryTabID: prior,
+        modifiers: [],
+        selectedTabIDs: [dragged]
+      )
+    )
+
+    #expect(handoff.priorTabID == prior)
+    #expect(
+      handoff.tabIDToRestore(
+        draggedTabID: dragged,
+        liveSelectedTabID: dragged
+      ) == prior
+    )
+    #expect(
+      handoff.tabIDToRestore(
+        draggedTabID: dragged,
+        liveSelectedTabID: prior
+      ) == nil
+    )
+    #expect(
+      handoff.tabIDToRestore(
+        draggedTabID: dragged,
+        liveSelectedTabID: TerminalTabID()
+      ) == nil
+    )
+  }
+
+  @Test
+  func selectionHandoffExcludesSelectedModifiedAndBatchDrags() {
+    let prior = TerminalTabID()
+    let dragged = TerminalTabID()
+
+    #expect(
+      TerminalSidebarTabDragSelectionHandoff.resolve(
+        entryID: .tab(dragged),
+        primaryTabID: dragged,
+        modifiers: [],
+        selectedTabIDs: [dragged]
+      ) == nil
+    )
+    for modifiers in [
+      NSEvent.ModifierFlags.command,
+      .shift,
+      .option,
+      .control,
+    ] {
+      #expect(
+        TerminalSidebarTabDragSelectionHandoff.resolve(
+          entryID: .tab(dragged),
+          primaryTabID: prior,
+          modifiers: modifiers,
+          selectedTabIDs: [dragged]
+        ) == nil
+      )
+    }
+    #expect(
+      TerminalSidebarTabDragSelectionHandoff.resolve(
+        entryID: .tab(dragged),
+        primaryTabID: prior,
+        modifiers: [],
+        selectedTabIDs: [prior, dragged]
+      ) == nil
+    )
+    #expect(
+      TerminalSidebarTabDragSelectionHandoff.resolve(
+        entryID: .tab(dragged),
+        primaryTabID: nil,
+        modifiers: [],
+        selectedTabIDs: [dragged]
+      ) == nil
+    )
+    #expect(
+      TerminalSidebarTabDragSelectionHandoff.resolve(
+        entryID: .group(TerminalTabGroupID()),
+        primaryTabID: prior,
+        modifiers: [],
+        selectedTabIDs: [dragged]
+      ) == nil
+    )
+  }
+
+  @Test
+  func collapsedGroupSelectionUpdateQueuesDuringDrag() throws {
+    let groupID = TerminalTabGroupID()
+    let roots = [
+      TerminalSidebarOutline.Root(
+        content: .group(groupID, .red, .automatic, [TerminalTabID()]),
+        isPinned: false
+      )
+    ]
+    let applied = TerminalSidebarTestFixture.outline(
+      roots: roots,
+      revision: 4,
+      collapsedGroupIDs: [groupID]
+    )
+    let expanded = TerminalSidebarTestFixture.outline(roots: roots, revision: 4)
+    let sourceTopologyStamp = try #require(applied.topologyStamp)
+
+    #expect(
+      TerminalSidebarDragOutlineDisposition.tracking(
+        incoming: expanded,
+        applied: applied,
+        sourceTopologyStamp: sourceTopologyStamp
+      ) == .queue
+    )
+  }
+
+  @Test
+  func activeDragOutlinePolicyCancelsTopologyAndStructureChanges() throws {
+    let source = TerminalTabID()
+    let applied = TerminalSidebarTestFixture.outline(
+      roots: [TerminalSidebarOutline.Root(content: .tab(source), isPinned: false)],
+      revision: 4
+    )
+    let changedTopology = TerminalSidebarTestFixture.outline(
+      roots: applied.roots,
+      revision: 5
+    )
+    let changedRoots = TerminalSidebarTestFixture.outline(
+      roots: [
+        TerminalSidebarOutline.Root(content: .tab(source), isPinned: false),
+        TerminalSidebarOutline.Root(content: .tab(TerminalTabID()), isPinned: false),
+      ],
+      revision: 4
+    )
+    let sourceTopologyStamp = try #require(applied.topologyStamp)
+
+    #expect(
+      TerminalSidebarDragOutlineDisposition.tracking(
+        incoming: changedTopology,
+        applied: applied,
+        sourceTopologyStamp: sourceTopologyStamp
+      ) == .replaceAndCancel(reason: "sourceTopologyChanged")
+    )
+    #expect(
+      TerminalSidebarDragOutlineDisposition.tracking(
+        incoming: changedRoots,
+        applied: applied,
+        sourceTopologyStamp: sourceTopologyStamp
+      ) == .replaceAndCancel(reason: "sourceSnapshotMismatch")
+    )
+  }
+
+  @Test
+  func activationUsesTheEightPointThreshold() {
     #expect(
       TerminalSidebarDragActivation.decision(
         origin: CGPoint(x: 30, y: 20),
-        location: CGPoint(x: 37.9, y: 20)
+        location: CGPoint(x: 37.9, y: 20),
+        sourceFrame: CGRect(x: 0, y: 0, width: 240, height: 40)
       ) == .pending
     )
     #expect(
       TerminalSidebarDragActivation.decision(
         origin: CGPoint(x: 30, y: 20),
-        location: CGPoint(x: 38, y: 20)
+        location: CGPoint(x: 38, y: 20),
+        sourceFrame: CGRect(x: 0, y: 0, width: 240, height: 40)
       ) == .begin
     )
   }
 
   @Test
-  func coalescedJumpFarFromTheRowStillBeginsTheDrag() {
+  func thresholdCrossingOutsideTheExpandedRowFailsTheDrag() {
     #expect(
       TerminalSidebarDragActivation.decision(
         origin: CGPoint(x: 30, y: 20),
-        location: CGPoint(x: 34, y: 260)
+        location: CGPoint(x: 34, y: 260),
+        sourceFrame: CGRect(x: 0, y: 0, width: 240, height: 40)
+      ) == .failed
+    )
+  }
+
+  @Test
+  func thresholdCrossingInsideTheExpandedRowBeginsTheDrag() {
+    #expect(
+      TerminalSidebarDragActivation.decision(
+        origin: CGPoint(x: 30, y: 20),
+        location: CGPoint(x: 30, y: 47.9),
+        sourceFrame: CGRect(x: 0, y: 0, width: 240, height: 40)
       ) == .begin
     )
+  }
+
+  @Test
+  func failedGroupDragTogglesOnlyWhenReleaseReturnsInsideTheLiveHeader() {
+    let frame = CGRect(x: 12, y: 40, width: 216, height: 37)
+
+    #expect(
+      TerminalSidebarGroupClick.acceptsRelease(
+        CGPoint(x: frame.midX, y: frame.midY),
+        frame: frame
+      )
+    )
+    #expect(
+      !TerminalSidebarGroupClick.acceptsRelease(
+        CGPoint(x: frame.midX, y: frame.maxY + 1),
+        frame: frame
+      )
+    )
+    #expect(!TerminalSidebarGroupClick.acceptsRelease(.zero, frame: nil))
   }
 
   @Test
@@ -158,13 +343,17 @@ struct TerminalSidebarMotionTests {
     let payload = try #require(outline.dragPayload(for: .tab(source)))
     let visibleRect = CGRect(x: 0, y: 100, width: 220, height: 300)
     let pointerY = TerminalSidebarPinnedDropRouting.autoscrollPointerY(in: visibleRect)
-    let dropPlan = TerminalSidebarPinnedDropRouting.target(payload: payload, outline: outline)
+    let resolution = TerminalSidebarDropResolution(
+      payload: payload,
+      path: .trailingRoot,
+      outline: outline
+    )
 
     #expect(pointerY == visibleRect.maxY)
     #expect(TerminalSidebarAutoscrollBehavior.direction(pointerY: pointerY, visibleRect: visibleRect) == .down)
-    #expect(dropPlan?.path == .trailingRoot)
-    #expect(dropPlan?.destination == .root(isPinned: false, index: 1))
-    #expect(dropPlan?.placeholder == .beforeFooter)
+    #expect(resolution.path == .trailingRoot)
+    #expect(resolution.plan?.destination == .root(isPinned: false, index: 1))
+    #expect(resolution.plan?.placeholder == .beforeFooter)
   }
 
   @Test @MainActor
@@ -200,6 +389,137 @@ struct TerminalSidebarMotionTests {
         targetFrame: CGRect(x: 4, y: 300, width: 212, height: 180)
       ) == CGPoint(x: 0, y: 250)
     )
+  }
+
+  @Test @MainActor
+  func destinationHandoffKeepsThenDiscardsThePreviewRows() {
+    let collectionView = NSCollectionView(frame: CGRect(x: 0, y: 0, width: 240, height: 400))
+    let source = NSView(frame: CGRect(x: 12, y: 40, width: 216, height: 52))
+    let hostedView = NSView(frame: source.bounds)
+    source.addSubview(hostedView)
+    var restored = false
+    let row = TerminalSidebarLiftedRow(
+      hostedView: hostedView,
+      sourceFrame: source.frame,
+      restore: {
+        restored = true
+        source.addSubview(hostedView)
+        hostedView.frame = source.bounds
+      }
+    )
+    let presentation = TerminalSidebarDragPresentation(collectionView: collectionView)
+    presentation.begin(
+      TerminalSidebarDragPresentation.Lift(
+        rows: [row],
+        groupBackground: nil,
+        fanAnchorIndex: nil,
+        sourceFrame: source.frame,
+        hotspot: .zero,
+        screenPoint: .zero,
+        timestamp: 0
+      ),
+      motionPolicy: TerminalSidebarMotionPolicy(reduceMotion: true)
+    )
+    var previewWasInstalled = false
+    var destinationWasCompleted = false
+    var layoutPass = 0
+
+    presentation.handoffToDestination {
+      layoutPass += 1
+      if layoutPass == 1 {
+        previewWasInstalled = true
+      } else {
+        destinationWasCompleted = true
+      }
+    }
+
+    #expect(previewWasInstalled)
+    #expect(destinationWasCompleted)
+    #expect(!restored)
+    #expect(hostedView.superview == nil)
+  }
+
+  @Test @MainActor
+  func cancellationRestoresTheCapturedSourceProjection() {
+    let collectionView = NSCollectionView(frame: CGRect(x: 0, y: 0, width: 240, height: 400))
+    let source = NSView(frame: CGRect(x: 12, y: 40, width: 216, height: 52))
+    let hostedView = NSView(frame: source.bounds)
+    let background = TerminalSidebarGroupBackgroundView(frame: source.frame)
+    source.addSubview(hostedView)
+    collectionView.addSubview(background)
+    var restoreCount = 0
+    let presentation = TerminalSidebarDragPresentation(collectionView: collectionView)
+    presentation.begin(
+      TerminalSidebarDragPresentation.Lift(
+        rows: [
+          TerminalSidebarLiftedRow(
+            hostedView: hostedView,
+            sourceFrame: source.frame,
+            restore: {
+              restoreCount += 1
+              source.addSubview(hostedView)
+            }
+          )
+        ],
+        groupBackground: TerminalSidebarLiftedGroupBackground(
+          id: TerminalTabGroupID(),
+          view: background,
+          sourceFrame: background.frame
+        ),
+        fanAnchorIndex: nil,
+        sourceFrame: source.frame,
+        hotspot: .zero,
+        screenPoint: .zero,
+        timestamp: 0
+      ),
+      motionPolicy: TerminalSidebarMotionPolicy(reduceMotion: true)
+    )
+
+    presentation.handoffToSource {}
+
+    #expect(restoreCount == 1)
+    #expect(hostedView.superview === source)
+    #expect(background.superview === collectionView)
+  }
+
+  @Test @MainActor
+  func externalSuccessDiscardsTheCapturedSourceProjection() {
+    let collectionView = NSCollectionView(frame: CGRect(x: 0, y: 0, width: 240, height: 400))
+    let source = NSView(frame: CGRect(x: 12, y: 40, width: 216, height: 52))
+    let hostedView = NSView(frame: source.bounds)
+    let background = TerminalSidebarGroupBackgroundView(frame: source.frame)
+    source.addSubview(hostedView)
+    collectionView.addSubview(background)
+    var restoreCount = 0
+    let presentation = TerminalSidebarDragPresentation(collectionView: collectionView)
+    presentation.begin(
+      TerminalSidebarDragPresentation.Lift(
+        rows: [
+          TerminalSidebarLiftedRow(
+            hostedView: hostedView,
+            sourceFrame: source.frame,
+            restore: { restoreCount += 1 }
+          )
+        ],
+        groupBackground: TerminalSidebarLiftedGroupBackground(
+          id: TerminalTabGroupID(),
+          view: background,
+          sourceFrame: background.frame
+        ),
+        fanAnchorIndex: nil,
+        sourceFrame: source.frame,
+        hotspot: .zero,
+        screenPoint: .zero,
+        timestamp: 0
+      ),
+      motionPolicy: TerminalSidebarMotionPolicy(reduceMotion: true)
+    )
+
+    presentation.handoffAfterExternalSuccess {}
+
+    #expect(restoreCount == 0)
+    #expect(hostedView.superview == nil)
+    #expect(background.superview == nil)
   }
 
   @Test

@@ -35,6 +35,14 @@ extension SnapshotCatalog {
     ) { appearance in
       AnyView(FloatingSidebarSnapshotFixture(appearance: appearance))
     },
+    scenario(
+      "split-drop-target",
+      group: "Terminal Chrome",
+      title: "Split drop target",
+      size: CGSize(width: 760, height: 420)
+    ) { appearance in
+      AnyView(SplitDropTargetSnapshotFixture(appearance: appearance))
+    },
   ]
 }
 
@@ -68,7 +76,7 @@ private struct SpaceSwitcherHoverSnapshotFixture: View {
   var body: some View {
     TerminalSpaceSwitcherLabel(
       palette: palette,
-      name: "supaterm",
+      name: SidebarChromeSnapshotContext.selectedGroupTerminal.displayedSpace.name,
       isHovered: true
     )
     .padding(10)
@@ -81,6 +89,11 @@ private struct SpaceSwitcherHoverSnapshotFixture: View {
 @MainActor
 private struct TerminalChromeSnapshotFixture: View {
   let appearance: SnapshotAppearance
+  @State private var sidebarControllerCache = TerminalSidebarControllerCache(
+    windowControllerID: UUID(),
+    tabDragRegistry: TerminalTabDragRegistry(),
+    captureRequest: { nil }
+  )
 
   private var palette: Palette {
     Palette(
@@ -90,28 +103,50 @@ private struct TerminalChromeSnapshotFixture: View {
   }
 
   var body: some View {
-    TerminalSplitView(
-      store: SidebarChromeSnapshotContext.windowStore(),
-      updateStore: SidebarChromeSnapshotContext.updateStore(),
-      releaseAnnouncement: nil,
-      palette: palette,
-      terminal: SidebarChromeSnapshotContext.selectedGroupTerminal,
-      totalWidth: 760,
-      isSidebarCollapsed: false,
-      sidebarWidth: 228,
-      sidebarResizeState: nil,
-      onResizeInput: { _ in },
-      dismissReleaseAnnouncement: {}
-    )
+    HStack(spacing: 0) {
+      TerminalSidebarView(
+        store: SidebarChromeSnapshotContext.windowStore(),
+        updateStore: SidebarChromeSnapshotContext.updateStore(),
+        releaseAnnouncement: nil,
+        palette: palette,
+        terminal: SidebarChromeSnapshotContext.selectedGroupTerminal,
+        isPagingActive: true,
+        sidebarControllerCache: sidebarControllerCache,
+        dismissReleaseAnnouncement: {}
+      )
+      .frame(width: 228)
+
+      detail
+    }
+    .coordinateSpace(name: TerminalCoordinateSpace.split)
     .environment(SidebarChromeSnapshotContext.commandHold)
     .environment(SidebarChromeSnapshotContext.ghosttyShortcuts)
     .background(ChromeBackgroundView(palette: palette))
+  }
+
+  @ViewBuilder
+  private var detail: some View {
+    if let selectedTabID = SidebarChromeSnapshotContext.selectedGroupTerminal.selectedTabID {
+      TerminalDetailView(
+        store: SidebarChromeSnapshotContext.windowStore(),
+        palette: palette,
+        terminal: SidebarChromeSnapshotContext.selectedGroupTerminal,
+        selectedTabID: selectedTabID
+      )
+    } else {
+      Color.clear
+    }
   }
 }
 
 @MainActor
 private struct FloatingSidebarSnapshotFixture: View {
   let appearance: SnapshotAppearance
+  @State private var sidebarControllerCache = TerminalSidebarControllerCache(
+    windowControllerID: UUID(),
+    tabDragRegistry: TerminalTabDragRegistry(),
+    captureRequest: { nil }
+  )
 
   private var palette: Palette {
     Palette(
@@ -121,23 +156,67 @@ private struct FloatingSidebarSnapshotFixture: View {
   }
 
   var body: some View {
-    FloatingSidebarOverlay(
-      store: SidebarChromeSnapshotContext.windowStore(),
-      updateStore: SidebarChromeSnapshotContext.updateStore(),
-      releaseAnnouncement: nil,
-      palette: palette,
-      terminal: SidebarChromeSnapshotContext.selectedGroupTerminal,
-      totalWidth: 760,
-      sidebarWidth: 228,
-      sidebarResizeState: nil,
-      isVisible: .constant(true),
-      onResizeInput: { _ in },
-      dismissReleaseAnnouncement: {}
-    )
-    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
+    ZStack(alignment: .leading) {
+      if let selectedTabID = SidebarChromeSnapshotContext.selectedGroupTerminal.selectedTabID {
+        TerminalDetailView(
+          store: SidebarChromeSnapshotContext.windowStore(),
+          palette: palette,
+          terminal: SidebarChromeSnapshotContext.selectedGroupTerminal,
+          selectedTabID: selectedTabID
+        )
+      } else {
+        Color.clear
+      }
+
+      TerminalSidebarSurfaceShell(palette: palette, isFloating: true) {
+        TerminalSidebarView(
+          store: SidebarChromeSnapshotContext.windowStore(),
+          updateStore: SidebarChromeSnapshotContext.updateStore(),
+          releaseAnnouncement: nil,
+          palette: palette,
+          terminal: SidebarChromeSnapshotContext.selectedGroupTerminal,
+          isPagingActive: true,
+          sidebarControllerCache: sidebarControllerCache,
+          dismissReleaseAnnouncement: {}
+        )
+      }
+      .frame(width: 228)
+    }
     .environment(SidebarChromeSnapshotContext.commandHold)
     .environment(SidebarChromeSnapshotContext.ghosttyShortcuts)
     .background(ChromeBackgroundView(palette: palette))
     .environment(\.colorScheme, appearance.colorScheme)
+  }
+}
+
+private struct SplitDropTargetSnapshotFixture: View {
+  let appearance: SnapshotAppearance
+
+  private var palette: Palette {
+    Palette(colorScheme: appearance.colorScheme)
+  }
+
+  var body: some View {
+    SplitDropTargetSnapshotView(appearance: appearance)
+      .background(ChromeBackgroundView(palette: palette))
+      .environment(\.colorScheme, appearance.colorScheme)
+  }
+}
+
+private struct SplitDropTargetSnapshotView: NSViewRepresentable {
+  let appearance: SnapshotAppearance
+
+  func makeNSView(context: Context) -> TerminalTabSplitDropOverlayView {
+    TerminalTabSplitDropOverlayView(reduceMotion: { true }, performHaptic: { _ in })
+  }
+
+  func updateNSView(_ nsView: TerminalTabSplitDropOverlayView, context: Context) {
+    nsView.appearance = NSAppearance(
+      named: appearance == .light ? .aqua : .darkAqua
+    )
+    nsView.layoutSubtreeIfNeeded()
+    let target = TerminalTabSplitDropLayout(bounds: nsView.bounds).rightFrame
+    let point = CGPoint(x: target.midX, y: target.midY)
+    nsView.render(.targeted(.right), at: point, sharedPreviewReady: true)
   }
 }
