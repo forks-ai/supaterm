@@ -156,14 +156,8 @@ extension TerminalHostState {
       preconditionFailure("TerminalHostState cannot create surfaces without a GhosttyRuntime")
     }
     let inherited = inheritedSurfaceConfig(fromSurfaceID: inheritingFromSurfaceID, context: context)
-    let resolvedStartupCommand =
-      startupCommand
-      ?? inheritedSSHStartup(
-        fromSurfaceID: inheritingFromSurfaceID,
-        workingDirectory: workingDirectory
-      )
     let launch = resolvedSurfaceLaunch(
-      startupCommand: resolvedStartupCommand,
+      startupCommand: startupCommand,
       surfaceID: surfaceID
     )
     SupatermLog.debug(
@@ -174,7 +168,7 @@ extension TerminalHostState {
         "tabID=\(tabID.rawValue.uuidString.lowercased())",
         "context=\(Self.surfaceContextLabel(context))",
         "zmxSessionsEnabled=\(zmxSessionsEnabled)",
-        "hasStartupCommand=\(resolvedStartupCommand != nil)",
+        "hasStartupCommand=\(startupCommand != nil)",
         "hasCommandWrapper=\(!launch.commandWrapper.isEmpty)",
         "usesZmx=\(launch.usesZmx)",
       ]
@@ -252,17 +246,6 @@ extension TerminalHostState {
       startupCommand: startupCommand,
       commandWrapper: commandWrapper,
       usesZmx: true
-    )
-  }
-
-  func inheritedSSHStartup(
-    fromSurfaceID surfaceID: UUID?,
-    workingDirectory: URL?
-  ) -> SupatermTerminalStartup? {
-    guard zmxSessionsEnabled, workingDirectory == nil, let surfaceID else { return nil }
-    return SSHSessionInheritance.startupCommand(
-      zmxSessionName: ZmxSessionID.make(surfaceID: surfaceID),
-      cliPath: GhosttySupport.bundledCLIPath(executableURL: Bundle.main.executableURL)
     )
   }
 

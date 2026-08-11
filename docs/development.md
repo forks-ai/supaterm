@@ -179,14 +179,6 @@ Typing `ssh` in a pane runs `sp ssh`. The bundled shell integrations define the 
 
 `sp ssh` owns the portable `xterm-256color` default, SSH executable choice, terminal environment, and `SendEnv` rules. It does not pass `SetEnv`, so user SSH config keeps ownership of those values. It replaces itself with `ssh`, so exit codes and signals are the user's own. Native Ghostty keeps its `+ssh` route and its `ssh-env` and `ssh-terminfo` features, including when launched from a Supaterm pane.
 
-### SSH inheritance
-
-A new tab or split with no startup command or explicit working directory opens the same remote host as the pane it came from. The app reads the kernel process table, walks the source pane's zmx session to the shell's terminal, and takes the argument vector and `TERM` value of the `ssh` in that terminal's foreground process group. It rebuilds the command as the bundled `sp ssh`, preserves the resolved SSH executable and `TERM`, and removes only the leading `SendEnv` options the first `sp ssh` injected because the new one adds them again. Every pane starts its login shell first. The inherited command names the bundled CLI outright, then returns to that shell when SSH exits. Without a bundled CLI the command reuses the original process invocation.
-
-Only a session worth reopening is inherited: an `ssh` with a destination, no remote command, and none of `-N`, `-f`, or `-W`. That leaves alone the `ssh` children of `git`, `rsync`, and `scp`, and tunnels that carry no shell. The new pane falls back to a login shell when the remote session ends.
-
-Inheritance needs the zmx session, so it does nothing when zmx sessions are disabled. It reads only the process table and never talks to the remote host.
-
 ## Session persistence
 
 State files under the Supaterm state root (`session.json`, `spaces.json`, `pinned-tabs.json`, `settings.toml`) hold user data. Breaking them destroys real user sessions.
