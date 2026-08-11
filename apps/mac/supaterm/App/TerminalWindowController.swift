@@ -103,6 +103,7 @@ final class TerminalWindowController: NSWindowController {
     createsInitialTab: Bool = true,
     zmxClient: ZmxClient = .live,
     zmxSessionsEnabled: Bool = true,
+    agentDetectionRuleRepository: AgentDetectionRuleRepository? = nil,
     onSessionChange: @escaping @MainActor () -> Void = {}
   ) {
     self.registry = registry
@@ -113,7 +114,8 @@ final class TerminalWindowController: NSWindowController {
       runtime: runtime,
       spaceID: session?.displayedSpaceID ?? spaceID,
       zmxClient: zmxClient,
-      zmxSessionsEnabled: zmxSessionsEnabled
+      zmxSessionsEnabled: zmxSessionsEnabled,
+      agentDetectionRuleRepository: agentDetectionRuleRepository
     )
     terminal.onSessionChange = onSessionChange
     Self.prepareTerminal(

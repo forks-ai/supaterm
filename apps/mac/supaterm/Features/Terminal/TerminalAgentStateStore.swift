@@ -1,5 +1,6 @@
 import Foundation
 import SupatermCLIShared
+import SupatermSupport
 
 nonisolated enum AgentActivityPhase: Codable, Comparable, Sendable {
   case idle
@@ -197,6 +198,7 @@ nonisolated struct TerminalAgentStateStore {
     var hoverMessages: [String] = []
     var hasPendingBackgroundWork = false
     var isActionable = false
+    var nativeHookProcessIdentity: TerminalAgentProcessIdentity?
     var phase = AgentActivityPhase.idle
     var processes: Set<TerminalAgentProcessIdentity> = []
     var progressRowsBySource: [TerminalAgentEvent.ProgressSource: [PaneAgentProgressRow]] = [:]
@@ -228,6 +230,12 @@ nonisolated struct TerminalAgentStateStore {
     if event.scope.subagentID == nil,
       case .sessionStarted = event.action
     {
+      if let surfaceID = state.surfaceID {
+        let foregroundKey = ForegroundKey(surfaceID: surfaceID, agent: event.scope.agent)
+        if foregroundSessions[foregroundKey] == event.scope.sessionID {
+          foregroundSessions.removeValue(forKey: foregroundKey)
+        }
+      }
       state = SessionState()
     }
     bind(event, to: &state)
@@ -251,6 +259,14 @@ nonisolated struct TerminalAgentStateStore {
     state: SessionState,
     sessionExists: Bool
   ) -> Bool {
+    if let contextSurfaceID = event.context?.surfaceID,
+      let boundSurfaceID = state.surfaceID,
+      contextSurfaceID != boundSurfaceID
+    {
+      guard event.scope.subagentID == nil, case .sessionStarted = event.action else {
+        return false
+      }
+    }
     if event.scope.subagentID != nil {
       return acceptsChild(event, state: state)
     }
@@ -328,6 +344,9 @@ nonisolated struct TerminalAgentStateStore {
     {
       state.processes = state.processes.filter { $0.processID != processID }
       state.processes.insert(identity)
+      if event.origin == .native, event.scope.subagentID == nil {
+        state.nativeHookProcessIdentity = identity
+      }
     }
   }
 
@@ -715,6 +734,23 @@ nonisolated struct TerminalAgentStateStore {
     sessions[SessionKey(agent: agent, sessionID: sessionID)]?.surfaceID
   }
 
+  func nativeHookAuthorityProcessIdentities(
+    for surfaceID: UUID,
+    agent: SupatermAgentKind? = nil,
+    sessionID: String? = nil
+  ) -> Set<TerminalAgentProcessIdentity> {
+    Set(
+      sessions.compactMap { key, state in
+        guard state.surfaceID == surfaceID,
+          agent == nil || key.agent == agent,
+          sessionID == nil || key.sessionID == sessionID
+        else {
+          return nil
+        }
+        return state.nativeHookProcessIdentity
+      })
+  }
+
   func snapshots(for surfaceID: UUID) -> [TerminalAgentStateSnapshot] {
     sessions.compactMap { key, state in
       guard state.surfaceID == surfaceID else { return nil }
@@ -811,7 +847,15 @@ nonisolated struct TerminalAgentStateStore {
     for key in keys {
       guard var state = sessions[key], !state.processes.isEmpty else { continue }
       let currentProcesses = Set(state.processes.filter(isProcessCurrent))
-      guard currentProcesses != state.processes else { continue }
+      let currentNativeHookProcessIdentity = state.nativeHookProcessIdentity.flatMap {
+        currentProcesses.contains($0) ? $0 : nil
+      }
+      guard
+        currentProcesses != state.processes
+          || currentNativeHookProcessIdentity != state.nativeHookProcessIdentity
+      else {
+        continue
+      }
       if let surfaceID = state.surfaceID {
         changedSurfaceIDs.insert(surfaceID)
       }
@@ -820,6 +864,7 @@ nonisolated struct TerminalAgentStateStore {
         didClearSession(key.agent, key.sessionID)
       } else {
         state.processes = currentProcesses
+        state.nativeHookProcessIdentity = currentNativeHookProcessIdentity
         store(state, for: key)
       }
     }

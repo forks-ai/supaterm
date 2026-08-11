@@ -52,7 +52,7 @@ The terminal settings page shows the active Ghostty config path. When Ghostty re
 
 1. Confirm the agent is running inside a Supaterm pane.
 2. Open **Settings > Coding Agents** and read the integration message.
-3. Confirm the executable is available from your login shell. Codex must be 0.144.1 or newer.
+3. Confirm the executable is available from your login shell. The native Codex integration requires version 0.144.1 or newer.
 4. Toggle the integration off and on to reinstall Supaterm-managed configuration.
 5. Run `sp diagnostic` in the agent pane.
 6. Verify bundled guides with `sp skills list` and reinstall the discovery skill with `sp skills install` if needed.

@@ -186,6 +186,7 @@ extension TerminalHostState {
     configureBridgeCallbacks(for: view, tabID: tabID)
     configureSurfaceCallbacks(for: view, tabID: tabID)
     surfaces[view.id] = view
+    agentDetectionController?.surfaceDidAttach(view.id)
     return view
   }
 

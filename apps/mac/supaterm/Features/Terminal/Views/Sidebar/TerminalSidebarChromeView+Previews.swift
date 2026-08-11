@@ -61,7 +61,7 @@ private struct TerminalSidebarTabPreviewItem: Identifiable {
     }
     switch statusAccessory {
     case .agentActivity(let activity):
-      return "\(activity.kind.notificationTitle) \(phaseLabel(activity.phase))"
+      return "\(activity.identity.displayName) \(phaseLabel(activity.phase))"
     case .pinned:
       return "Pinned"
     case .terminalBell:
@@ -207,7 +207,7 @@ private enum TerminalSidebarTabPreviewFixtures {
       id: "A379CB4E-2B01-4A6F-9388-A06B4E9C1A07",
       notificationPreviewText: "Review complete: no further changes needed",
       paneWorkingDirectories: cwdList(cwd("docs")),
-      agentActivity: TerminalHostState.AgentActivity(kind: .pi, phase: .idle)
+      agentActivity: TerminalHostState.AgentActivity(agent: .pi, phase: .idle)
     ),
     TerminalSidebarTabPreviewItem(
       section: .terminalProgress,

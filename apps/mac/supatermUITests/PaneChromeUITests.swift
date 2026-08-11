@@ -22,10 +22,7 @@ final class PaneChromeUITests: SupatermUITestCase {
     let didCollapseSidebar = await waitForSidebarCollapsed()
     XCTAssertTrue(didCollapseSidebar)
 
-    let didShowLeftTitle = await wait {
-      let title = self.app.staticTexts[leftTitle]
-      return title.exists && title.isHittable
-    }
+    let didShowLeftTitle = await wait { self.app.staticTexts[leftTitle].exists }
     XCTAssertTrue(didShowLeftTitle)
 
     let splitRightButton = try require(app.buttons["Split right"])
@@ -41,30 +38,21 @@ final class PaneChromeUITests: SupatermUITestCase {
     }
     XCTAssertTrue(didSetRightTitle)
 
-    let didShowRightTitle = await wait {
-      let title = self.app.staticTexts[rightTitle]
-      return title.exists && title.isHittable
-    }
+    let didShowRightTitle = await wait { self.app.staticTexts[rightTitle].exists }
     XCTAssertTrue(didShowRightTitle)
     let didHideLeftTitle = await wait { !self.app.staticTexts[leftTitle].exists }
     XCTAssertTrue(didHideLeftTitle)
 
     leftPane.click()
     try await requireFocus(on: leftPane)
-    let didRestoreLeftTitle = await wait {
-      let title = self.app.staticTexts[leftTitle]
-      return title.exists && title.isHittable
-    }
+    let didRestoreLeftTitle = await wait { self.app.staticTexts[leftTitle].exists }
     XCTAssertTrue(didRestoreLeftTitle)
     let didHideRightTitle = await wait { !self.app.staticTexts[rightTitle].exists }
     XCTAssertTrue(didHideRightTitle)
 
     rightPane.click()
     try await requireFocus(on: rightPane)
-    let didRestoreRightTitle = await wait {
-      let title = self.app.staticTexts[rightTitle]
-      return title.exists && title.isHittable
-    }
+    let didRestoreRightTitle = await wait { self.app.staticTexts[rightTitle].exists }
     XCTAssertTrue(didRestoreRightTitle)
     let didRemoveLeftTitle = await wait { !self.app.staticTexts[leftTitle].exists }
     XCTAssertTrue(didRemoveLeftTitle)

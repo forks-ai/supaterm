@@ -1,0 +1,4 @@
+project
+
+Showing detailed transcript
+ctrl+o to toggle

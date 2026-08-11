@@ -169,7 +169,7 @@ web-fmt: $(WEB_NODE_MODULES_STAMP)  # Format web app files.
 	@cd "$(WEB_APP_DIR)" && vp fmt
 
 web-test: $(WEB_NODE_MODULES_STAMP)  # Run the web app test suite.
-	@cd "$(WEB_APP_DIR)" && vp test
+	@cd "$(WEB_APP_DIR)" && pnpm exec vp test
 
 web-build: $(WEB_NODE_MODULES_STAMP)  # Build the web app for production.
 	@cd "$(WEB_APP_DIR)" && vp build
@@ -177,7 +177,7 @@ web-build: $(WEB_NODE_MODULES_STAMP)  # Build the web app for production.
 web-preview: $(WEB_NODE_MODULES_STAMP)  # Preview the built web app.
 	@cd "$(WEB_APP_DIR)" && vp preview
 
-web-deploy: $(WEB_NODE_MODULES_STAMP)  # Deploy the web app to Cloudflare Workers.
+web-deploy: web-build  # Build and deploy the web app to Cloudflare Workers.
 	@cd "$(WEB_APP_DIR)" && vp exec wrangler deploy
 
 $(DOCS_NODE_MODULES_STAMP): $(DOCS_INSTALL_PREREQS)

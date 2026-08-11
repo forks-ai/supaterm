@@ -5,6 +5,7 @@ import Sharing
 import Testing
 
 @testable import SupatermCLIShared
+@testable import SupatermSupport
 @testable import supaterm
 
 struct TerminalAgentPanelTests {
@@ -462,7 +463,7 @@ struct TerminalAgentPanelTests {
     )
     #expect(
       host.applyTestAgentActivity(
-        TerminalHostState.AgentActivity(kind: .pi, phase: .running),
+        TerminalHostState.AgentActivity(agent: .pi, phase: .running),
         for: surfaceID,
         sessionID: "session-2",
         processID: nil,
@@ -498,7 +499,7 @@ struct TerminalAgentPanelTests {
 
     #expect(
       !host.applyTestAgentActivity(
-        TerminalHostState.AgentActivity(kind: .codex, phase: .running),
+        TerminalHostState.AgentActivity(agent: .codex, phase: .running),
         for: surfaceID,
         sessionID: nil,
         processID: nil
@@ -524,7 +525,7 @@ struct TerminalAgentPanelTests {
 
     #expect(
       host.applyTestAgentActivity(
-        TerminalHostState.AgentActivity(kind: .codex, phase: .running, detail: "Previous"),
+        TerminalHostState.AgentActivity(agent: .codex, phase: .running, detail: "Previous"),
         for: surfaceID,
         sessionID: "session-0",
         processID: nil
@@ -532,7 +533,7 @@ struct TerminalAgentPanelTests {
     )
     #expect(
       host.applyTestAgentActivity(
-        TerminalHostState.AgentActivity(kind: .codex, phase: .running, detail: "Current"),
+        TerminalHostState.AgentActivity(agent: .codex, phase: .running, detail: "Current"),
         for: surfaceID,
         sessionID: "session-1",
         processID: nil
@@ -606,7 +607,7 @@ struct TerminalAgentPanelTests {
 
     #expect(
       host.applyTestAgentActivity(
-        TerminalHostState.AgentActivity(kind: .pi, phase: .running, detail: nil),
+        TerminalHostState.AgentActivity(agent: .pi, phase: .running, detail: nil),
         for: surfaceID,
         sessionID: "session-1",
         processID: nil
@@ -1046,281 +1047,6 @@ struct TerminalAgentPanelTests {
       TerminalAgentGitClient.headURL(for: worktree, fileManager: .default)
         == gitDirectory.appending(path: "HEAD")
     )
-  }
-
-  @Test
-  func processTreeExpansionIncludesDescendants() {
-    let expanded = PaneAgentPortScanner.expandProcessTree(
-      rootProcessIDs: [10],
-      parentByPID: [
-        11: 10,
-        12: 11,
-        20: 1,
-      ]
-    )
-
-    #expect(expanded == [10, 11, 12])
-  }
-
-  @Test
-  func lsofParserExtractsListeningPorts() {
-    let ports = PaneAgentPortScanner.ports(
-      fromLsofOutput: """
-        p10
-        n*:5173
-        n127.0.0.1:5175
-        p12
-        n[::1]:8080
-        """
-    )
-
-    #expect(ports == [10: [5173, 5175], 12: [8080]])
-  }
-
-  @Test
-  @MainActor
-  func portScannerBatchesSurfacesIntoSingleScan() async throws {
-    let firstSurfaceID = try #require(UUID(uuidString: "00000000-0000-0000-0000-000000000001"))
-    let secondSurfaceID = try #require(UUID(uuidString: "00000000-0000-0000-0000-000000000002"))
-    let recorder = AgentPanelCommandRecorder(
-      psOutput: """
-        10 1 10
-        11 10 10
-        20 1 20
-        21 20 20
-        """,
-      lsofOutput: """
-        p11
-        n*:5173
-        p21
-        n127.0.0.1:8080
-        """
-    )
-    let scanner = PaneAgentPortScanner(runner: await recorder.runner())
-    var deliveries: [(UUID, [String])] = []
-    let deliver: PaneAgentPortScanner.Delivery = { surfaceID, artifacts in
-      deliveries.append((surfaceID, artifacts.map(\.title)))
-    }
-
-    scanner.update(surfaceID: firstSurfaceID, context: portScanContext(processIDs: [10]), deliver: deliver)
-    scanner.update(surfaceID: secondSurfaceID, context: portScanContext(processIDs: [20]), deliver: deliver)
-
-    #expect(await scanner.scanOnce())
-    #expect(await recorder.commandPaths() == ["/bin/ps", "/usr/sbin/lsof"])
-    #expect(await recorder.arguments(for: "/usr/sbin/lsof").first?.contains("10,11,20,21") == true)
-    #expect(deliveries.count == 2)
-    #expect(deliveries[0].0 == firstSurfaceID)
-    #expect(deliveries[0].1 == ["localhost:5173"])
-    #expect(deliveries[1].0 == secondSurfaceID)
-    #expect(deliveries[1].1 == ["localhost:8080"])
-  }
-
-  @Test
-  @MainActor
-  func portScannerDeliversOnlyChangedArtifacts() async throws {
-    let surfaceID = try #require(UUID(uuidString: "00000000-0000-0000-0000-000000000010"))
-    let recorder = AgentPanelCommandRecorder(
-      psOutput: """
-        10 1 10
-        11 10 10
-        """,
-      lsofOutput: """
-        p11
-        n*:5173
-        """
-    )
-    let scanner = PaneAgentPortScanner(runner: await recorder.runner())
-    var deliveries: [[String]] = []
-    let deliver: PaneAgentPortScanner.Delivery = { _, artifacts in
-      deliveries.append(artifacts.map(\.title))
-    }
-
-    scanner.update(surfaceID: surfaceID, context: portScanContext(processIDs: [10]), deliver: deliver)
-
-    #expect(await scanner.scanOnce())
-    #expect(await scanner.scanOnce() == false)
-
-    scanner.update(surfaceID: surfaceID, context: portScanContext(processIDs: [10]), deliver: deliver)
-
-    #expect(await scanner.scanOnce() == false)
-
-    scanner.clear(surfaceID: surfaceID, deliver: deliver)
-    scanner.clear(surfaceID: surfaceID, deliver: deliver)
-
-    #expect(deliveries == [["localhost:5173"], []])
-  }
-
-  @Test
-  @MainActor
-  func portScannerRemovesClearedSurfaceFromBatch() async throws {
-    let firstSurfaceID = try #require(UUID(uuidString: "00000000-0000-0000-0000-000000000001"))
-    let secondSurfaceID = try #require(UUID(uuidString: "00000000-0000-0000-0000-000000000002"))
-    let recorder = AgentPanelCommandRecorder(
-      psOutput: """
-        10 1 10
-        11 10 10
-        20 1 20
-        21 20 20
-        """,
-      lsofOutput: """
-        p11
-        n*:5173
-        p21
-        n127.0.0.1:8080
-        """
-    )
-    let scanner = PaneAgentPortScanner(runner: await recorder.runner())
-    var deliveries: [(UUID, [String])] = []
-    let deliver: PaneAgentPortScanner.Delivery = { surfaceID, artifacts in
-      deliveries.append((surfaceID, artifacts.map(\.title)))
-    }
-
-    scanner.update(surfaceID: firstSurfaceID, context: portScanContext(processIDs: [10]), deliver: deliver)
-    scanner.update(surfaceID: secondSurfaceID, context: portScanContext(processIDs: [20]), deliver: deliver)
-    await scanner.scanOnce()
-    scanner.clear(surfaceID: firstSurfaceID, deliver: deliver)
-    await recorder.reset()
-
-    #expect(await scanner.scanOnce() == false)
-    #expect(await recorder.arguments(for: "/usr/sbin/lsof").first?.contains("20,21") == true)
-
-    scanner.clear(surfaceID: secondSurfaceID, deliver: deliver)
-    await recorder.reset()
-
-    #expect(await scanner.scanOnce() == false)
-    #expect(await recorder.commandPaths().isEmpty)
-    #expect(deliveries.contains { $0.0 == firstSurfaceID && $0.1.isEmpty })
-  }
-
-  @Test
-  @MainActor
-  func portScannerIncludesForegroundGroupAfterLeaderExits() async throws {
-    let surfaceID = UUID()
-    let recorder = AgentPanelCommandRecorder(
-      psOutput: """
-        101 1 100
-        102 1 100
-        103 102 100
-        200 1 200
-        """,
-      lsofOutput: """
-        p102
-        n*:5173
-        p103
-        n127.0.0.1:8080
-        """
-    )
-    let scanner = PaneAgentPortScanner(runner: await recorder.runner())
-    var deliveredArtifacts: [PaneAgentArtifact] = []
-
-    scanner.update(
-      surfaceID: surfaceID,
-      context: portScanContext(),
-      foregroundProcessGroupID: { 100 },
-      deliver: { _, artifacts in
-        deliveredArtifacts = artifacts
-      }
-    )
-
-    #expect(await scanner.scanOnce())
-    #expect(await recorder.arguments(for: "/usr/sbin/lsof").first?.contains("101,102,103") == true)
-    #expect(deliveredArtifacts.map(\.title) == ["localhost:5173", "localhost:8080"])
-  }
-
-  @Test
-  @MainActor
-  func portScannerReadsFreshForegroundGroupEveryScan() async throws {
-    let surfaceID = UUID()
-    let recorder = AgentPanelCommandRecorder(
-      psOutput: """
-        101 1 100
-        201 1 200
-        """,
-      lsofOutput: """
-        p101
-        n*:5173
-        p201
-        n*:8080
-        """
-    )
-    let scanner = PaneAgentPortScanner(runner: await recorder.runner())
-    let foregroundProcessGroupID = LockIsolated<Int32?>(100)
-    var deliveredArtifacts: [PaneAgentArtifact] = []
-
-    scanner.update(
-      surfaceID: surfaceID,
-      context: portScanContext(),
-      foregroundProcessGroupID: { foregroundProcessGroupID.value },
-      deliver: { _, artifacts in
-        deliveredArtifacts = artifacts
-      }
-    )
-
-    #expect(await scanner.scanOnce())
-    #expect(deliveredArtifacts.map(\.title) == ["localhost:5173"])
-
-    foregroundProcessGroupID.withValue { $0 = 200 }
-    await recorder.reset()
-
-    #expect(await scanner.scanOnce())
-    #expect(await recorder.arguments(for: "/usr/sbin/lsof").first?.contains("201") == true)
-    #expect(await recorder.arguments(for: "/usr/sbin/lsof").first?.contains("101") == false)
-    #expect(deliveredArtifacts.map(\.title) == ["localhost:8080"])
-  }
-
-  @Test
-  @MainActor
-  func commandFinishReregistersPortTracking() async throws {
-    try await withDependencies {
-      $0.defaultFileStorage = .inMemory
-    } operation: {
-      @Shared(.supatermSettings) var supatermSettings = .default
-      $supatermSettings.withLock {
-        $0.codingAgentsShowPanel = true
-      }
-
-      initializeGhosttyForTests()
-
-      let host = TerminalHostState()
-      let surfaceID = try #require(
-        restoreSplitHost(
-          host,
-          workingDirectoryPath: FileManager.default.temporaryDirectory.path(percentEncoded: false)
-        ).first
-      )
-      let processID = getpid()
-      #expect(
-        host.startTestAgentSession(
-          agent: .codex,
-          for: surfaceID,
-          sessionID: "session-1",
-          processID: processID
-        )
-      )
-      let recorder = AgentPanelCommandRecorder(
-        psOutput: "\(processID) 1 \(processID)",
-        lsofOutput: ""
-      )
-      let scanner = PaneAgentPortScanner(
-        runner: await recorder.runner(),
-        interval: .seconds(60)
-      )
-      let controller = TerminalAgentPanelController(
-        terminal: host,
-        portScanner: scanner
-      )
-      host.agentPanelController = controller
-      defer { controller.stop() }
-
-      controller.surfaceFocused(surfaceID)
-      _ = await scanner.scanOnce()
-      await recorder.reset()
-
-      controller.surfaceCommandFinished(surfaceID)
-      _ = await scanner.scanOnce()
-
-      #expect(await recorder.commandPaths() == ["/bin/ps", "/usr/sbin/lsof"])
-    }
   }
 
   @Test
@@ -2263,64 +1989,6 @@ private actor GithubPullRequestCommandRecorder {
   }
 }
 
-private func portScanContext(
-  processIDs: Set<Int32> = []
-) -> TerminalPanePortScanContext {
-  TerminalPanePortScanContext(processIDs: processIDs)
-}
-
-private actor AgentPanelCommandRecorder {
-  private let psOutput: String
-  private let lsofOutput: String
-  private var commands: [(path: String, arguments: [String])] = []
-
-  init(psOutput: String, lsofOutput: String) {
-    self.psOutput = psOutput
-    self.lsofOutput = lsofOutput
-  }
-
-  func runner() -> TerminalAgentPanelCommandRunner {
-    TerminalAgentPanelCommandRunner(
-      run: { executableURL, arguments, _ in
-        await self.run(executableURL: executableURL, arguments: arguments)
-      },
-      runLoginCommand: { _, _ in
-        TerminalAgentPanelCommandResult(status: 1, stdout: "")
-      }
-    )
-  }
-
-  func reset() {
-    commands = []
-  }
-
-  func commandPaths() -> [String] {
-    commands.map(\.path)
-  }
-
-  func arguments(for path: String) -> [[String]] {
-    commands.compactMap { command in
-      command.path == path ? command.arguments : nil
-    }
-  }
-
-  private func run(
-    executableURL: URL,
-    arguments: [String]
-  ) -> TerminalAgentPanelCommandResult {
-    let path = executableURL.path
-    commands.append((path, arguments))
-    switch path {
-    case "/bin/ps":
-      return TerminalAgentPanelCommandResult(status: 0, stdout: psOutput)
-    case "/usr/sbin/lsof":
-      return TerminalAgentPanelCommandResult(status: 0, stdout: lsofOutput)
-    default:
-      return TerminalAgentPanelCommandResult(status: 1, stdout: "")
-    }
-  }
-}
-
 private actor AgentPanelRefreshRecorder {
   private var recordedGitPaths: [String] = []
   private var recordedPullRequestBranches: [String] = []
@@ -2358,7 +2026,7 @@ private actor AgentPanelPullRequestStatusSequence {
 }
 
 @MainActor
-private func restoreSplitHost(
+func restoreSplitHost(
   _ host: TerminalHostState,
   workingDirectoryPath: String
 ) throws -> [UUID] {

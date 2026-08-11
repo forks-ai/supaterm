@@ -144,32 +144,44 @@ final class TerminalHostState {
   }
 
   struct AgentActivity: Equatable, Sendable {
-    let kind: SupatermAgentKind
+    let identity: AgentDetectionAgentIdentity
     let phase: AgentActivityPhase
     let detail: String?
 
     init(
-      kind: SupatermAgentKind,
+      identity: AgentDetectionAgentIdentity,
       phase: AgentActivityPhase,
       detail: String? = nil
     ) {
-      self.kind = kind
+      self.identity = identity
       self.phase = phase
       self.detail = normalizedTerminalAgentDetail(detail)
+    }
+
+    init(
+      agent: SupatermAgentKind,
+      phase: AgentActivityPhase,
+      detail: String? = nil
+    ) {
+      self.init(
+        identity: AgentDetectionAgentIdentity(agent),
+        phase: phase,
+        detail: detail
+      )
     }
 
     static func claude(
       _ phase: AgentActivityPhase,
       detail: String? = nil
     ) -> Self {
-      AgentActivity(kind: .claude, phase: phase, detail: detail)
+      AgentActivity(agent: .claude, phase: phase, detail: detail)
     }
 
     static func codex(
       _ phase: AgentActivityPhase,
       detail: String? = nil
     ) -> Self {
-      AgentActivity(kind: .codex, phase: phase, detail: detail)
+      AgentActivity(agent: .codex, phase: phase, detail: detail)
     }
 
     var tone: AgentActivityTone {
@@ -226,16 +238,18 @@ final class TerminalHostState {
   }
 
   struct AgentStateInstance: Equatable, Sendable {
-    let presentation: TerminalAgentStatePresentation
-    let revision: Int
+    let activity: AgentActivity
+    let nativePresentation: TerminalAgentStatePresentation?
+    let revision: UInt64
     let surfaceID: UUID
+    let isFallback: Bool
 
-    var activity: AgentActivity {
-      AgentActivity(
-        kind: presentation.agent,
-        phase: presentation.phase,
-        detail: presentation.detail
-      )
+    var hasActivity: Bool {
+      isFallback || nativePresentation?.hasActivity == true
+    }
+
+    var allowsActionSession: Bool {
+      !isFallback
     }
   }
 
@@ -286,6 +300,8 @@ final class TerminalHostState {
   var onSurfaceRemoved: @MainActor (UUID) -> Void = { _ in }
   @ObservationIgnored
   var agentPanelController: TerminalAgentPanelController?
+  @ObservationIgnored
+  var agentDetectionController: TerminalAgentDetectionController?
   weak var spacePager: SpaceSwipeController?
   let spaceManager: TerminalSpaceManager
 
@@ -295,6 +311,7 @@ final class TerminalHostState {
   var focusHistoryByTab: [TerminalTabID: FocusHistory] = [:]
   var notificationStore = TerminalNotificationStore()
   var paneAgentMetadataBySurfaceID: [UUID: PaneAgentMetadata] = [:]
+  var agentDetectionStore = TerminalAgentDetectionStore()
   var agentStateStore = TerminalAgentStateStore()
   var lastEmittedFocusSurfaceID: UUID?
   var runtimeConfigGeneration = 0
@@ -307,7 +324,8 @@ final class TerminalHostState {
     managesTerminalSurfaces: Bool = true,
     spaceID: TerminalSpaceID? = nil,
     zmxClient: ZmxClient = .live,
-    zmxSessionsEnabled: Bool = true
+    zmxSessionsEnabled: Bool = true,
+    agentDetectionRuleRepository: AgentDetectionRuleRepository? = nil
   ) {
     @Shared(.terminalSpaceCatalog) var launchSpaceCatalog = TerminalSpaceCatalog.default
     let initialSpaceCatalog = TerminalSpaceCatalog.sanitized(launchSpaceCatalog)
@@ -326,10 +344,19 @@ final class TerminalHostState {
     observeRuntimeConfig()
     observeSpaceCatalog()
     agentPanelController = TerminalAgentPanelController(terminal: self)
+    if let agentDetectionRuleRepository {
+      let controller = TerminalAgentDetectionController(
+        host: self,
+        repository: agentDetectionRuleRepository
+      )
+      agentDetectionController = controller
+      controller.start()
+    }
   }
 
   isolated deinit {
     spaceCatalogObservationTask?.cancel()
+    agentDetectionController?.stop()
     agentPanelController?.stop()
     if let runtimeConfigObserver {
       NotificationCenter.default.removeObserver(runtimeConfigObserver)
@@ -925,12 +952,12 @@ final class TerminalHostState {
     #if SUPATERM_DEMO
       guard !DemoSeed.preservesSeededAgentState(surfaceID) else { return }
     #endif
+    agentDetectionController?.surfaceCommandDidFinish(surfaceID)
     let removedAgentState = clearAgentState(for: surfaceID)
-    let hadAgentMetadata = paneAgentMetadataBySurfaceID[surfaceID]?.isEmpty == false
     _ = clearAgentPanelMetadata(for: surfaceID)
     agentPanelController?.surfaceCommandFinished(surfaceID)
     onSurfaceCommandFinished(surfaceID)
-    if hadAgentMetadata || removedAgentState {
+    if removedAgentState {
       sessionDidChange()
     }
   }
@@ -1294,11 +1321,11 @@ final class TerminalHostState {
   }
 
   func hasActiveAgentAttention(for tabID: TerminalTabID) -> Bool {
-    switch tabAgentPresentation(for: tabID).statusActivity?.phase {
-    case .some(.needsInput), .some(.running):
-      return true
-    case .some(.idle), .none:
-      return false
+    guard let tree = trees[tabID] else { return false }
+    return tree.leaves().contains { surface in
+      nativeAgentDetectionCandidates(for: surface.id).contains {
+        $0.presentation.phase == .needsInput || $0.presentation.phase == .running
+      }
     }
   }
 

@@ -1,10 +1,20 @@
 import Foundation
 import SupatermCLIShared
+import SupatermSupport
 
 struct TerminalAgentTranscriptTarget {
   let scope: TerminalAgentEvent.Scope
   let transcriptPath: String
   let context: SupatermCLIContext
+}
+
+extension TerminalHostState {
+  struct ResolvedAgentState {
+    let resolution: TerminalAgentDetectionResolution
+    let instances: [AgentStateInstance]
+    let currentInstance: AgentStateInstance?
+    let currentNativeCandidate: TerminalAgentDetectionNativeCandidate?
+  }
 }
 
 extension TerminalHostState {
@@ -22,7 +32,7 @@ extension TerminalHostState {
     let instances = tree.leaves().flatMap { surface in
       agentStateInstances(for: surface.id)
     }
-    let statusInstance = instances.filter(\.presentation.hasActivity).max { lhs, rhs in
+    let statusInstance = instances.filter(\.hasActivity).max { lhs, rhs in
       let lhsPriority = Self.agentActivityPriority(lhs.activity.phase)
       let rhsPriority = Self.agentActivityPriority(rhs.activity.phase)
       if lhsPriority != rhsPriority {
@@ -38,13 +48,13 @@ extension TerminalHostState {
       return lhs.revision < rhs.revision
     }
     let focusedInstances = instances.filter { $0.surfaceID == focusedSurfaceID }
-    let detailActivity = focusedInstances.filter(\.presentation.hasActivity).max {
+    let detailActivity = focusedInstances.filter(\.hasActivity).max {
       let lhsPriority = Self.agentActivityPriority($0.activity.phase)
       let rhsPriority = Self.agentActivityPriority($1.activity.phase)
       return lhsPriority == rhsPriority ? $0.revision < $1.revision : lhsPriority < rhsPriority
     }?.activity
     let hoverMarkdown = focusedInstances.max { $0.revision < $1.revision }.flatMap {
-      Self.codexHoverMarkdown($0.presentation.hoverMessages)
+      Self.codexHoverMarkdown($0.nativePresentation?.hoverMessages ?? [])
     }
 
     let statusActivityIsFocused =
@@ -100,33 +110,39 @@ extension TerminalHostState {
       return nil
     }
     let metadata = paneAgentMetadataBySurfaceID[surfaceID] ?? PaneAgentMetadata()
-    let instances = agentStateInstances(for: surfaceID)
-    let current = currentAgentStateInstance(in: instances)
+    let resolvedState = resolvedAgentState(for: surfaceID)
+    let instances = resolvedState.instances
+    let current = resolvedState.currentInstance
     let workingDirectoryPath = agentPanelWorkingDirectoryPath(
       for: surfaceID,
-      agentWorkingDirectoryPath: current?.presentation.workingDirectoryPath
+      agentWorkingDirectoryPath: current?.nativePresentation?.workingDirectoryPath
     )
     let actionableSessions: [PaneAgentPanelSession] = instances.compactMap { instance in
-      guard instance.presentation.isActionable else { return nil }
+      guard instance.allowsActionSession,
+        let nativePresentation = instance.nativePresentation,
+        nativePresentation.isActionable
+      else {
+        return nil
+      }
       return PaneAgentPanelSession.supported(
-        agent: instance.presentation.agent,
-        sessionID: instance.presentation.sessionID,
+        agent: nativePresentation.agent,
+        sessionID: nativePresentation.sessionID,
         workingDirectoryPath: agentPanelWorkingDirectoryPath(
           for: surfaceID,
-          agentWorkingDirectoryPath: instance.presentation.workingDirectoryPath
+          agentWorkingDirectoryPath: nativePresentation.workingDirectoryPath
         )
       )
     }
     let session = actionableSessions.count == 1 ? actionableSessions[0] : nil
     let presentation = metadata.panelPresentation(
-      progressRows: current?.presentation.progressRows ?? [],
-      activeChildren: current?.presentation.activeChildren ?? [],
+      progressRows: current?.nativePresentation?.progressRows ?? [],
+      activeChildren: current?.nativePresentation?.activeChildren ?? [],
       workingDirectoryPath: workingDirectoryPath,
       session: session
     )
     guard !presentation.hasContentBesidesWorkspace,
       let current,
-      current.presentation.hasActivity
+      current.hasActivity
     else {
       return presentation.isEmpty ? nil : presentation
     }
@@ -168,13 +184,16 @@ extension TerminalHostState {
     guard tabID(containing: surfaceID) != nil else {
       return nil
     }
-    guard !agentStateStore.snapshots(for: surfaceID).isEmpty else {
+    guard
+      !agentStateStore.snapshots(for: surfaceID).isEmpty
+        || agentDetectionStore.observation(for: surfaceID) != nil
+    else {
       return nil
     }
-    let current = currentAgentStateInstance(in: agentStateInstances(for: surfaceID))
+    let current = resolvedAgentState(for: surfaceID).currentInstance
     let workingDirectoryPath = agentPanelWorkingDirectoryPath(
       for: surfaceID,
-      agentWorkingDirectoryPath: current?.presentation.workingDirectoryPath
+      agentWorkingDirectoryPath: current?.nativePresentation?.workingDirectoryPath
     )
     return TerminalAgentPanelWorkspaceContext(workingDirectoryPath: workingDirectoryPath)
   }
@@ -189,10 +208,15 @@ extension TerminalHostState {
     guard tabID(containing: surfaceID) != nil else {
       return nil
     }
-    let processIDs = agentStateStore.snapshots(for: surfaceID).reduce(into: Set<Int32>()) {
-      $0.formUnion($1.processIDs)
+    let nativeProcessIdentities = agentStateStore.snapshots(for: surfaceID).reduce(
+      into: Set<TerminalAgentProcessIdentity>()
+    ) {
+      $0.formUnion($1.processes)
     }
-    return TerminalPanePortScanContext(processIDs: processIDs)
+    return TerminalPanePortScanContext(
+      nativeProcessIdentities: nativeProcessIdentities,
+      fallbackProcessIdentity: agentDetectionStore.observation(for: surfaceID)?.processIdentity
+    )
   }
 
   func paneForegroundProcessGroupID(for surfaceID: UUID) -> Int32? {
@@ -208,6 +232,7 @@ extension TerminalHostState {
       return false
     }
     return !agentStateStore.snapshots(for: surfaceID).isEmpty
+      || agentDetectionStore.observation(for: surfaceID) != nil
       || paneAgentMetadataBySurfaceID[surfaceID]?.isEmpty == false
   }
 
@@ -216,24 +241,26 @@ extension TerminalHostState {
   }
 
   func debugAgentSnapshot(for surfaceID: UUID) -> SupatermAppDebugSnapshot.Agent? {
-    guard let current = currentAgentStateInstance(in: agentStateInstances(for: surfaceID)) else {
+    guard let presentation = resolvedAgentState(for: surfaceID).currentNativeCandidate?.presentation
+    else {
       return nil
     }
     return SupatermAppDebugSnapshot.Agent(
-      kind: current.presentation.agent,
-      sessionID: current.presentation.sessionID,
-      phase: debugAgentPhase(current.presentation.phase)
+      kind: presentation.agent,
+      sessionID: presentation.sessionID,
+      phase: debugAgentPhase(presentation.phase)
     )
   }
 
   @discardableResult
   func clearAgentState(for surfaceID: UUID) -> Bool {
-    let changed = !agentStateStore.snapshots(for: surfaceID).isEmpty
+    let hadNativeState = !agentStateStore.snapshots(for: surfaceID).isEmpty
+    let removedDetection = agentDetectionStore.clear(for: surfaceID)
     agentStateStore.clearSessions(for: surfaceID)
-    if changed {
+    if hadNativeState || removedDetection {
       agentPanelController?.surfaceAgentStateChanged(surfaceID)
     }
-    return changed
+    return hadNativeState
   }
 
   @discardableResult
@@ -242,14 +269,38 @@ extension TerminalHostState {
       TerminalAgentProcessInspector.isCurrent,
     didClearSession: (SupatermAgentKind, String) -> Void = { _, _ in }
   ) -> Bool {
-    let changedSurfaceIDs = agentStateStore.pruneDeadProcesses(
+    let nativeChangedSurfaceIDs = agentStateStore.pruneDeadProcesses(
       isProcessCurrent: isProcessCurrent,
       didClearSession: didClearSession
     )
+    let fallbackChangedSurfaceIDs = agentDetectionStore.pruneDeadProcesses(
+      isProcessCurrent: isProcessCurrent
+    )
+    let changedSurfaceIDs = nativeChangedSurfaceIDs.union(fallbackChangedSurfaceIDs)
     for surfaceID in changedSurfaceIDs {
       agentPanelController?.surfaceAgentStateChanged(surfaceID)
     }
-    return !changedSurfaceIDs.isEmpty
+    return !nativeChangedSurfaceIDs.isEmpty
+  }
+
+  @discardableResult
+  func applyAgentDetection(
+    _ observation: TerminalAgentDetectionObservation,
+    for surfaceID: UUID
+  ) -> Bool {
+    guard surfaces[surfaceID] != nil, tabID(containing: surfaceID) != nil else {
+      return false
+    }
+    guard agentDetectionStore.apply(observation, for: surfaceID) else { return false }
+    agentPanelController?.surfaceAgentStateChanged(surfaceID)
+    return true
+  }
+
+  @discardableResult
+  func clearAgentDetection(for surfaceID: UUID) -> Bool {
+    guard agentDetectionStore.clear(for: surfaceID) else { return false }
+    agentPanelController?.surfaceAgentStateChanged(surfaceID)
+    return true
   }
 
   func agentStateRecords(for surfaceID: UUID) -> [TerminalPaneAgentRecord] {
@@ -315,8 +366,7 @@ extension TerminalHostState {
       sessionID: event.scope.sessionID
     )
     if let contextSurfaceID = event.context?.surfaceID,
-      tabID(containing: contextSurfaceID) == nil,
-      previousSurfaceID == nil
+      tabID(containing: contextSurfaceID) == nil
     {
       return TerminalAgentEventApplication(accepted: false, changed: false)
     }
@@ -456,26 +506,96 @@ extension TerminalHostState {
     }
   }
 
-  private func agentStateInstances(for surfaceID: UUID) -> [AgentStateInstance] {
-    agentStateStore.snapshots(for: surfaceID).compactMap { snapshot in
+  func resolvedAgentState(for surfaceID: UUID) -> ResolvedAgentState {
+    let nativeCandidates = nativeAgentDetectionCandidates(for: surfaceID)
+    let resolution = agentDetectionStore.resolve(
+      for: surfaceID,
+      nativeCandidates: nativeCandidates,
+      provenProcessIdentity: agentDetectionController?.provenProcessIdentity(for: surfaceID)
+    )
+    switch resolution {
+    case .native(let candidates):
+      let sortedCandidates = candidates.sorted {
+        AgentDetectionAgentIdentity($0.presentation.agent).id
+          < AgentDetectionAgentIdentity($1.presentation.agent).id
+      }
+      let currentCandidate = sortedCandidates.max { $0.revision < $1.revision }
+      let instances = sortedCandidates.map { candidate in
+        agentStateInstance(candidate, surfaceID: surfaceID)
+      }
+      return ResolvedAgentState(
+        resolution: resolution,
+        instances: instances,
+        currentInstance: currentCandidate.map {
+          agentStateInstance($0, surfaceID: surfaceID)
+        },
+        currentNativeCandidate: currentCandidate
+      )
+    case .fallback(let observation, let nativeDetails):
+      let nativePresentation = nativeDetails?.presentation
+      let instance = AgentStateInstance(
+        activity: AgentActivity(
+          identity: observation.agent,
+          phase: observation.phase,
+          detail: nativePresentation?.detail
+        ),
+        nativePresentation: nativePresentation,
+        revision: observation.sequence,
+        surfaceID: surfaceID,
+        isFallback: true
+      )
+      return ResolvedAgentState(
+        resolution: resolution,
+        instances: [instance],
+        currentInstance: instance,
+        currentNativeCandidate: nil
+      )
+    }
+  }
+
+  func nativeAgentDetectionCandidates(
+    for surfaceID: UUID
+  ) -> [TerminalAgentDetectionNativeCandidate] {
+    agentStateStore.snapshots(for: surfaceID).compactMap {
+      snapshot -> TerminalAgentDetectionNativeCandidate? in
       guard snapshot.isForeground,
         let presentation = agentStateStore.presentation(for: surfaceID, agent: snapshot.agent)
       else {
         return nil
       }
-      return AgentStateInstance(
+      return TerminalAgentDetectionNativeCandidate(
         presentation: presentation,
         revision: snapshot.revision,
-        surfaceID: surfaceID
+        processIdentities: snapshot.processes,
+        authorityProcessIdentities: agentStateStore.nativeHookAuthorityProcessIdentities(
+          for: surfaceID,
+          agent: snapshot.agent,
+          sessionID: presentation.sessionID
+        )
       )
     }
-    .sorted { $0.activity.kind.rawValue < $1.activity.kind.rawValue }
   }
 
-  private func currentAgentStateInstance(
-    in instances: [AgentStateInstance]
-  ) -> AgentStateInstance? {
-    instances.max { $0.revision < $1.revision }
+  private func agentStateInstance(
+    _ candidate: TerminalAgentDetectionNativeCandidate,
+    surfaceID: UUID
+  ) -> AgentStateInstance {
+    let presentation = candidate.presentation
+    return AgentStateInstance(
+      activity: AgentActivity(
+        agent: presentation.agent,
+        phase: presentation.phase,
+        detail: presentation.detail
+      ),
+      nativePresentation: presentation,
+      revision: UInt64(max(0, candidate.revision)),
+      surfaceID: surfaceID,
+      isFallback: false
+    )
+  }
+
+  private func agentStateInstances(for surfaceID: UUID) -> [AgentStateInstance] {
+    resolvedAgentState(for: surfaceID).instances
   }
 
   private func debugAgentPhase(

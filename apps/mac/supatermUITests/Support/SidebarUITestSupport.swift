@@ -121,15 +121,16 @@ extension SupatermUITestCase {
   @MainActor
   func waitForSidebarCollapsed(timeout: Duration = .seconds(10)) async -> Bool {
     await wait(timeout: timeout) {
-      !self.sidebarTabRows.firstMatch.isHittable
+      self.app.buttons.matching(
+        NSPredicate(format: "label BEGINSWITH %@", "Show sidebar")
+      ).firstMatch.exists
     }
   }
 
   @MainActor
   func waitForSidebarExpanded(timeout: Duration = .seconds(10)) async -> Bool {
     await wait(timeout: timeout) {
-      let row = self.sidebarTabRows.firstMatch
-      return row.exists && row.isHittable
+      self.app.buttons["Hide sidebar"].exists
     }
   }
 

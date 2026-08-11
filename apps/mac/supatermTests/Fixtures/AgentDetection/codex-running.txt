@@ -1,0 +1,4 @@
+project
+
+• Working (4s • esc to interrupt)
+› Use /skills to list available skills

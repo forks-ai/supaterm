@@ -423,18 +423,26 @@ final class GhosttySurfaceView: NSView, Identifiable {
     )
   }
 
+  var foregroundProcessGroupID: Int32? {
+    guard let surface else { return nil }
+    return Self.processGroupID(from: ghostty_surface_foreground_pid(surface))
+  }
+
   static func processIdentity(
     foregroundProcessGroupID: () -> UInt64,
     ttyName: () -> ghostty_string_s,
     freeString: (ghostty_string_s) -> Void = ghostty_string_free
   ) -> TerminalPaneProcessIdentity {
     let rawProcessGroupID = foregroundProcessGroupID()
-    let processGroupID = rawProcessGroupID == 0 ? nil : Int32(exactly: rawProcessGroupID)
     let rawTTYName = string(consuming: ttyName(), freeString: freeString)
     return TerminalPaneProcessIdentity(
-      foregroundProcessGroupID: processGroupID,
+      foregroundProcessGroupID: processGroupID(from: rawProcessGroupID),
       ttyName: rawTTYName.isEmpty ? nil : rawTTYName
     )
+  }
+
+  private static func processGroupID(from rawValue: UInt64) -> Int32? {
+    rawValue == 0 ? nil : Int32(exactly: rawValue)
   }
 
   private static func string(
@@ -775,6 +783,26 @@ final class GhosttySurfaceView: NSView, Identifiable {
     ) ?? ""
   }
 
+  func activeScreenText(maximumUTF8Bytes: Int) -> String? {
+    guard !passwordInput, let surface else { return nil }
+    var text = ghostty_text_s()
+    let selection = Self.textSelection(
+      topLeftTag: GHOSTTY_POINT_ACTIVE,
+      bottomRightTag: GHOSTTY_POINT_ACTIVE
+    )
+    guard
+      ghostty_surface_read_text_suffix(
+        surface,
+        selection,
+        max(0, maximumUTF8Bytes),
+        &text
+      )
+    else { return nil }
+    defer { ghostty_surface_free_text(surface, &text) }
+    guard let pointer = text.text else { return "" }
+    return String(cString: pointer)
+  }
+
   func captureText(
     scope: SupatermCapturePaneScope,
     lines: TerminalCapturePaneRequest.LineCount?
@@ -815,9 +843,32 @@ final class GhosttySurfaceView: NSView, Identifiable {
     topLeftTag: ghostty_point_tag_e,
     bottomRightTag: ghostty_point_tag_e
   ) -> String? {
+    withReadText(topLeftTag: topLeftTag, bottomRightTag: bottomRightTag) { text in
+      String(cString: text.text)
+    }
+  }
+
+  private func withReadText<Result>(
+    topLeftTag: ghostty_point_tag_e,
+    bottomRightTag: ghostty_point_tag_e,
+    transform: (ghostty_text_s) -> Result
+  ) -> Result? {
     guard let surface else { return nil }
     var text = ghostty_text_s()
-    let selection = ghostty_selection_s(
+    let selection = Self.textSelection(
+      topLeftTag: topLeftTag,
+      bottomRightTag: bottomRightTag
+    )
+    guard ghostty_surface_read_text(surface, selection, &text) else { return nil }
+    defer { ghostty_surface_free_text(surface, &text) }
+    return transform(text)
+  }
+
+  private static func textSelection(
+    topLeftTag: ghostty_point_tag_e,
+    bottomRightTag: ghostty_point_tag_e
+  ) -> ghostty_selection_s {
+    ghostty_selection_s(
       top_left: ghostty_point_s(
         tag: topLeftTag,
         coord: GHOSTTY_POINT_COORD_TOP_LEFT,
@@ -832,9 +883,6 @@ final class GhosttySurfaceView: NSView, Identifiable {
       ),
       rectangle: false
     )
-    guard ghostty_surface_read_text(surface, selection, &text) else { return nil }
-    defer { ghostty_surface_free_text(surface, &text) }
-    return String(cString: text.text)
   }
 
   override func keyDown(with event: NSEvent) {
@@ -1818,6 +1866,10 @@ final class GhosttySurfaceView: NSView, Identifiable {
 
   func effectiveTitle() -> String? {
     bridge.state.effectiveTitle
+  }
+
+  var rawTitle: String? {
+    bridge.state.title
   }
 
   func setTitleOverride(_ title: String?) {

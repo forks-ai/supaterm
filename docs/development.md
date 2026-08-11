@@ -107,6 +107,8 @@ Useful diagnostics:
 
 `diagnostic` reports what it finds even with no app running. `config validate` runs inside the app, so it needs a reachable instance and fails without one.
 
+`sp internal` is private developer tooling. Never document it or its subcommands in `integrations/supaterm-skills` or other user-facing skill docs.
+
 ## Versioning
 
 Supaterm uses Calendar Versioning for public releases: `YY.release.patch`.
