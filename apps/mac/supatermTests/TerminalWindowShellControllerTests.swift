@@ -711,7 +711,11 @@ private final class TerminalWindowShellPreviewRecorder: TerminalTabDragPreviewPr
 struct TerminalSidebarControllerCacheTests {
   @Test
   func reusesOneControllerPerSpace() {
-    let cache = TerminalSidebarControllerCache(captureRequest: { nil })
+    let cache = TerminalSidebarControllerCache(
+      windowControllerID: UUID(),
+      tabDragRegistry: TerminalTabDragRegistry(),
+      captureRequest: { nil }
+    )
     let firstSpaceID = TerminalSpaceID()
     let secondSpaceID = TerminalSpaceID()
 
@@ -726,7 +730,11 @@ struct TerminalSidebarControllerCacheTests {
 
   @Test
   func dropsControllersForDeletedSpaces() {
-    let cache = TerminalSidebarControllerCache(captureRequest: { nil })
+    let cache = TerminalSidebarControllerCache(
+      windowControllerID: UUID(),
+      tabDragRegistry: TerminalTabDragRegistry(),
+      captureRequest: { nil }
+    )
     let retainedSpaceID = TerminalSpaceID()
     let deletedSpaceID = TerminalSpaceID()
     let retained = cache.controller(for: retainedSpaceID)

@@ -11,8 +11,8 @@ final class TerminalSidebarControllerCache {
   private let captureRequest: () -> TerminalTabDragCaptureRequest?
 
   init(
-    windowControllerID: UUID = UUID(),
-    tabDragRegistry: TerminalTabDragRegistry = TerminalTabDragRegistry(),
+    windowControllerID: UUID,
+    tabDragRegistry: TerminalTabDragRegistry,
     captureRequest: @escaping () -> TerminalTabDragCaptureRequest?
   ) {
     self.windowControllerID = windowControllerID

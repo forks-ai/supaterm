@@ -90,6 +90,8 @@ private struct SpaceSwitcherHoverSnapshotFixture: View {
 private struct TerminalChromeSnapshotFixture: View {
   let appearance: SnapshotAppearance
   @State private var sidebarControllerCache = TerminalSidebarControllerCache(
+    windowControllerID: UUID(),
+    tabDragRegistry: TerminalTabDragRegistry(),
     captureRequest: { nil }
   )
 
@@ -141,6 +143,8 @@ private struct TerminalChromeSnapshotFixture: View {
 private struct FloatingSidebarSnapshotFixture: View {
   let appearance: SnapshotAppearance
   @State private var sidebarControllerCache = TerminalSidebarControllerCache(
+    windowControllerID: UUID(),
+    tabDragRegistry: TerminalTabDragRegistry(),
     captureRequest: { nil }
   )
 

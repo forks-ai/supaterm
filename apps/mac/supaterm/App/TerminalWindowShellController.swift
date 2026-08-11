@@ -70,12 +70,10 @@ nonisolated enum TerminalTabDragCaptureLayout {
 final class TerminalWindowShellState {
   private(set) var isFloating = false
   private(set) var sidebarWidth: CGFloat = 0
-  private(set) var totalWidth: CGFloat = 0
 
   func apply(layout: TerminalWindowShellLayout, presentation: TerminalWindowShellPresentation) {
     isFloating = presentation.isSidebarCollapsed
     sidebarWidth = layout.sidebarWidth
-    totalWidth = layout.detailFrame.width + (presentation.isSidebarCollapsed ? 0 : layout.sidebarWidth)
   }
 }
 

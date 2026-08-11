@@ -593,6 +593,8 @@ private struct SidebarChromeSnapshotFixture: View {
   let fixedHoveredGroupID: TerminalTabGroupID?
   var terminal = SidebarChromeSnapshotContext.terminal
   @State private var sidebarControllerCache = TerminalSidebarControllerCache(
+    windowControllerID: UUID(),
+    tabDragRegistry: TerminalTabDragRegistry(),
     captureRequest: { nil }
   )
 
@@ -624,6 +626,8 @@ private struct SidebarWindowControlsSnapshotFixture: View {
   let appearance: SnapshotAppearance
   var terminal = SidebarChromeSnapshotContext.selectedBeforeNewTabTerminal
   @State private var sidebarControllerCache = TerminalSidebarControllerCache(
+    windowControllerID: UUID(),
+    tabDragRegistry: TerminalTabDragRegistry(),
     captureRequest: { nil }
   )
 
