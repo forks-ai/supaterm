@@ -16,10 +16,9 @@ final class PaneChromeUITests: SupatermUITestCase {
     }
     XCTAssertTrue(didSetLeftTitle)
 
-    let sidebarTabRow = sidebarTabRows.firstMatch
     try clickMenuItem(.toggleSidebar)
-    let didHideSidebar = await wait(for: sidebarTabRow) { !$0.isHittable }
-    XCTAssertTrue(didHideSidebar)
+    let didCollapseSidebar = await waitForSidebarCollapsed()
+    XCTAssertTrue(didCollapseSidebar)
 
     let leftTopBarTitle = app.staticTexts[leftTitle]
     let didShowLeftTitle = await wait(for: leftTopBarTitle) {
@@ -100,10 +99,9 @@ final class PaneChromeUITests: SupatermUITestCase {
 
     app.typeKey("s", modifierFlags: .command)
 
-    let showSidebar = app.buttons["Show sidebar"]
     let didHideSidebarHeader = await wait {
-      showSidebar.exists
-        && showSidebar.isHittable
+      self.showSidebarButton.exists
+        && self.showSidebarButton.isHittable
         && !spaceSwitcher.isHittable
     }
     XCTAssertTrue(didHideSidebarHeader)

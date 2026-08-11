@@ -45,8 +45,8 @@ final class TabGroupingHeaderUITests: SupatermUITestCase {
     XCTAssertTrue(didCollapse)
 
     try clickMenuItem(.toggleSidebar)
-    let didHide = await wait(for: header) { !$0.isHittable }
-    XCTAssertTrue(didHide)
+    let didCollapseSidebar = await waitForSidebarCollapsed()
+    XCTAssertTrue(didCollapseSidebar)
 
     try clickMenuItem(.toggleSidebar)
     let restoredHeader = sidebarGroupHeader(named: "Toggle")

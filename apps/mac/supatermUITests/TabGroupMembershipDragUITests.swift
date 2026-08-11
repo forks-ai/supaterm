@@ -16,13 +16,12 @@ final class TabGroupMembershipDragUITests: SupatermUITestCase {
       .group("Beta", children: ["Beta Child", "Mover"]),
     ])
 
-    let alphaChild = try require(sidebarStructuralTabRow(named: "Alpha Child"))
     let betaHeader = try require(sidebarGroupHeader(named: "Beta"))
-    let gap = max(1, betaHeader.frame.minY - alphaChild.frame.maxY)
-    let destination = betaHeader.coordinate(
-      withNormalizedOffset: CGVector(dx: 0.5, dy: 0)
-    ).withOffset(CGVector(dx: 0, dy: -gap / 2))
-    try drag(sidebarStructuralTabRow(named: "Mover"), to: destination)
+    try drag(
+      sidebarStructuralTabRow(named: "Mover"),
+      to: betaHeader,
+      destinationOffset: CGVector(dx: 0.5, dy: 0.05)
+    )
 
     await requireSidebarStructure([
       .group("Alpha", children: ["Alpha Child"]),

@@ -119,6 +119,30 @@ extension SupatermUITestCase {
   }
 
   @MainActor
+  var showSidebarButton: XCUIElement {
+    app.buttons.matching(NSPredicate(format: "label BEGINSWITH %@", "Show sidebar")).firstMatch
+  }
+
+  @MainActor
+  var hideSidebarButton: XCUIElement {
+    app.buttons["Hide sidebar"]
+  }
+
+  @MainActor
+  func waitForSidebarCollapsed(timeout: Duration = .seconds(10)) async -> Bool {
+    await wait(for: showSidebarButton, timeout: timeout) {
+      $0.exists && $0.isHittable
+    }
+  }
+
+  @MainActor
+  func waitForSidebarExpanded(timeout: Duration = .seconds(10)) async -> Bool {
+    await wait(for: hideSidebarButton, timeout: timeout) {
+      $0.exists && $0.isHittable
+    }
+  }
+
+  @MainActor
   func createGroup(named title: String, containing tabTitle: String) async throws {
     try clickSidebarContextMenuItem("Move to New Group", on: sidebarTabRow(named: tabTitle))
 

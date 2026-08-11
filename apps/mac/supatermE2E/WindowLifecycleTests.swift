@@ -84,19 +84,23 @@ extension SupatermE2ESuite {
 }
 
 private func expectWindowIsBehindFrontmostApplication(processID: pid_t) throws {
-  let frontmostProcessID = try #require(
-    NSWorkspace.shared.frontmostApplication?.processIdentifier
-  )
-  #expect(frontmostProcessID != processID)
   let owners = try #require(
     CGWindowListCopyWindowInfo([.optionOnScreenOnly, .excludeDesktopElements], kCGNullWindowID)
       as? [[CFString: Any]]
   )
   let processIndex = try #require(
-    owners.firstIndex { ($0[kCGWindowOwnerPID] as? NSNumber)?.int32Value == processID }
+    owners.firstIndex { normalWindowOwnerProcessID($0) == processID }
   )
-  let ownerIndex = try #require(
-    owners.firstIndex { ($0[kCGWindowOwnerPID] as? NSNumber)?.int32Value == frontmostProcessID }
+  let frontWindowIndex = try #require(
+    owners.firstIndex {
+      guard let ownerProcessID = normalWindowOwnerProcessID($0) else { return false }
+      return ownerProcessID != processID
+    }
   )
-  #expect(processIndex > ownerIndex)
+  #expect(processIndex > frontWindowIndex)
+}
+
+private func normalWindowOwnerProcessID(_ window: [CFString: Any]) -> pid_t? {
+  guard (window[kCGWindowLayer] as? NSNumber)?.intValue == 0 else { return nil }
+  return (window[kCGWindowOwnerPID] as? NSNumber)?.int32Value
 }

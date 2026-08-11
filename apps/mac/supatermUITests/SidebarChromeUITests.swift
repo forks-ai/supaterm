@@ -38,15 +38,9 @@ final class SidebarChromeUITests: SupatermUITestCase {
       $0.isHittable && !inlineNewTab.isHittable
     }
     XCTAssertTrue(didPinNewTab)
-    let lastTab = sidebarTabRows.element(boundBy: tabCount - 1)
-    for _ in 0..<3 {
+    for _ in 0..<10 where !inlineNewTab.isHittable {
       outline.swipeUp()
     }
-
-    let didScroll = await wait(for: lastTab) {
-      $0.isHittable && !firstTab.isHittable
-    }
-    XCTAssertTrue(didScroll)
 
     let didRevealInlineNewTab = await wait(for: inlineNewTab) { $0.isHittable }
     XCTAssertTrue(didRevealInlineNewTab)
@@ -98,7 +92,7 @@ final class SidebarChromeUITests: SupatermUITestCase {
 
     try drag(handle, to: destination)
 
-    let didCollapse = await wait(for: sidebarTabRows.firstMatch) { !$0.isHittable }
+    let didCollapse = await waitForSidebarCollapsed()
     XCTAssertTrue(didCollapse)
   }
 

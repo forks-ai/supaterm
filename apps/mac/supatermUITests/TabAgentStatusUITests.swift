@@ -7,9 +7,10 @@ final class TabAgentStatusUITests: SupatermUITestCase {
   @MainActor
   func testPinnedTabShowsPinIndicatorUntilAgentActivityTakesTheSlot() async throws {
     await requireInitialSidebarTab()
-    try await renameSelectedTab(to: "Slot Lane Tab")
+    let tabTitle = "Slot Lane Tab"
+    try await renameSelectedTab(to: tabTitle)
 
-    let row = sidebarTabRow(named: "Slot Lane Tab")
+    let row = sidebarTabRow(named: tabTitle)
     XCTAssertFalse(row.label.contains("Pinned"))
 
     try clickSidebarContextMenuItem("Pin Tab", on: row)
@@ -35,19 +36,20 @@ final class TabAgentStatusUITests: SupatermUITestCase {
       $0.exists && $0.isSelected
     }
     XCTAssertTrue(didSelectSecondTab)
-    let didShowNeedsInput = await wait(for: row, timeout: Self.coldStartTimeout) {
+    let pinnedRow = sidebarTabRow(named: tabTitle)
+    let didShowNeedsInput = await wait(for: pinnedRow, timeout: Self.coldStartTimeout) {
       $0.label.contains("Agent activity: Needs input")
     }
     XCTAssertTrue(didShowNeedsInput)
 
-    await selectTab(row)
+    await selectTab(pinnedRow)
     try await sendClaudeEvent("stop")
-    let didShowCompletion = await wait(for: row, timeout: Self.coldStartTimeout) {
+    let didShowCompletion = await wait(for: pinnedRow, timeout: Self.coldStartTimeout) {
       $0.label.contains("Done.") && !$0.label.contains("Agent activity:")
     }
     XCTAssertTrue(didShowCompletion)
     mainTerminal.click()
-    let didRestorePinned = await wait(for: row, timeout: Self.coldStartTimeout) {
+    let didRestorePinned = await wait(for: pinnedRow, timeout: Self.coldStartTimeout) {
       $0.label.contains("Pinned") && !$0.label.contains("Agent activity:")
     }
     XCTAssertTrue(didRestorePinned)

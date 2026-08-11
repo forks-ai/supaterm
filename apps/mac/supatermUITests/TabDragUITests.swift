@@ -5,9 +5,9 @@ final class TabDragUITests: SupatermUITestCase {
   func testDraggingTheOnlySelectedTabToSplitCanDragAgain() async throws {
     try await createNamedTabs(["Only Tab"])
 
-    let source = sidebarTabRow(named: "Only Tab")
-    XCTAssertTrue(source.isSelected)
     for expectedPaneCount in 2...3 {
+      let source = sidebarTabRow(named: "Only Tab")
+      XCTAssertTrue(source.isSelected)
       source.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)).press(
         forDuration: 0.5,
         thenDragTo: mainTerminal.coordinate(
@@ -19,8 +19,9 @@ final class TabDragUITests: SupatermUITestCase {
 
       _ = try await requireVisiblePanes(count: expectedPaneCount)
       XCTAssertEqual(sidebarTabRows.count, 1)
-      XCTAssertTrue(source.exists)
-      XCTAssertTrue(source.isSelected)
+      let restoredSource = sidebarTabRow(named: "Only Tab")
+      XCTAssertTrue(restoredSource.exists)
+      XCTAssertTrue(restoredSource.isSelected)
     }
   }
 

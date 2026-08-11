@@ -126,17 +126,16 @@ final class CommandPaletteUITests: SupatermUITestCase {
   func testToggleSidebarCommandHidesAndRestoresSidebar() async throws {
     let terminal = try readyTerminal()
     terminal.click()
-    let sidebarRow = sidebarTabRows.firstMatch
 
     try await executePaletteCommand("Toggle Sidebar")
 
-    let didHideSidebar = await wait(for: sidebarRow) { !$0.isHittable }
-    XCTAssertTrue(didHideSidebar)
+    let didCollapseSidebar = await waitForSidebarCollapsed()
+    XCTAssertTrue(didCollapseSidebar)
 
     try await executePaletteCommand("Toggle Sidebar")
 
-    let didRestoreSidebar = await wait(for: sidebarRow) { $0.isHittable }
-    XCTAssertTrue(didRestoreSidebar)
+    let didExpandSidebar = await waitForSidebarExpanded()
+    XCTAssertTrue(didExpandSidebar)
   }
 
   @MainActor
