@@ -106,10 +106,10 @@ public actor AgentDetectionRuleUpdater {
   }
 
   public func update() async throws -> AgentDetectionRuleUpdateResult {
-    try Task.checkCancellation()
     if let inFlightUpdate {
       return try await inFlightUpdate.value
     }
+    try Task.checkCancellation()
 
     let update = Task(priority: .utility) { [repository, rulesURL, fetch] in
       try await Self.performUpdate(
