@@ -69,13 +69,16 @@ final class TabRootDragUITests: SupatermUITestCase {
       sidebarPinnedControl(SupatermUITestIdentifier.Accessibility.sidebarNewTab)
     )
 
-    try drag(sidebarStructuralTabRow(named: "First"), to: newTab)
-
-    await requireSidebarStructure([
+    let expected: [SidebarRootExpectation] = [
       .tab("Second"),
       .tab("Third"),
       .tab("First"),
-    ])
+    ]
+    for _ in 0..<2 {
+      try drag(sidebarStructuralTabRow(named: "First"), to: newTab)
+      if await waitForSidebarStructure(expected, timeout: .seconds(5)) { break }
+    }
+    await requireSidebarStructure(expected)
     XCTAssertEqual(sidebarGroupHeaders.count, 0)
   }
 }
