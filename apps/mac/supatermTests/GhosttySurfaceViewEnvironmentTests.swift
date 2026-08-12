@@ -93,6 +93,46 @@ struct GhosttySurfaceViewEnvironmentTests {
   }
 
   @Test
+  func shellWithoutPromptReadinessUsesPrivateOneShotInput() throws {
+    let temporaryDirectory = FileManager.default.temporaryDirectory.appendingPathComponent(
+      "supaterm-shell-transport-tests-\(UUID().uuidString.lowercased())",
+      isDirectory: true
+    )
+    try FileManager.default.createDirectory(
+      at: temporaryDirectory,
+      withIntermediateDirectories: false
+    )
+    defer { try? FileManager.default.removeItem(at: temporaryDirectory) }
+    let script = "echo \(String(repeating: "x", count: 2_048))"
+    let launch = GhosttySurfaceLaunch(
+      shellPath: "/bin/bash",
+      startup: .shell(script),
+      temporaryDirectory: temporaryDirectory
+    )
+    var initialInput: String?
+    var config = ghostty_surface_config_new()
+
+    launch.withConfiguration(&config) { config in
+      initialInput = config.initial_input.map(String.init(cString:))
+    }
+
+    let scriptURLs = try FileManager.default.contentsOfDirectory(
+      at: temporaryDirectory,
+      includingPropertiesForKeys: nil
+    )
+    #expect(scriptURLs.count == 1)
+    let scriptURL = try #require(scriptURLs.first)
+    let attributes = try FileManager.default.attributesOfItem(atPath: scriptURL.path)
+    #expect(!launch.preparationFailed)
+    #expect(initialInput?.hasPrefix(". ") == true)
+    #expect(initialInput?.hasSuffix("/\(scriptURL.lastPathComponent)\n") == true)
+    #expect((initialInput?.utf8.count ?? 1_024) < 1_024)
+    #expect(initialInput?.contains(script) == false)
+    #expect(try String(contentsOf: scriptURL, encoding: .utf8).hasSuffix(script))
+    #expect(attributes[FileAttributeKey.posixPermissions] as? Int == 0o600)
+  }
+
+  @Test
   func directArgumentPointersStayValidForTheSurfaceCreationCall() {
     let arguments = ["tool", "", "two words", "line one\nline two", "$HOME; exit", "東京"]
     let launch = GhosttySurfaceLaunch(
@@ -113,7 +153,7 @@ struct GhosttySurfaceViewEnvironmentTests {
   }
 
   @Test
-  func disabledShellIntegrationKeepsImmediateStartupInput() throws {
+  func disabledShellIntegrationCannotReportPromptReadiness() throws {
     initializeGhosttyForTests()
     let runtime = try makeGhosttyRuntime("shell-integration = none")
     #expect(!runtime.defersInitialInputUntilShellReady(shellPath: "/bin/zsh"))

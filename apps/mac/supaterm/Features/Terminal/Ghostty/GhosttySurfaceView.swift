@@ -365,7 +365,7 @@ final class GhosttySurfaceView: NSView, Identifiable {
       self?.promptSurfaceTitle()
     }
     bridge.updateSurfaceConfig(runtime.surfaceConfig())
-    if startupCommand?.isValid == false {
+    if startupCommand?.isValid == false || launch.preparationFailed {
       bridge.state.failure = .startupConfigurationFailed
     } else {
       createSurface(using: surfaceFactory)
