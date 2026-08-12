@@ -202,7 +202,7 @@ final class TerminalSidebarListController: NSViewController, NSCollectionViewDel
     self.context = context
     dragController.pinnedControl.update(context: context)
     fixedHoveredGroupID = context.fixedHoveredGroupID
-    motionPolicy = TerminalSidebarMotionPolicy(reduceMotion: reduceMotion)
+    updateMotionPolicy(reduceMotion: reduceMotion)
     let groupIDs = Set(
       outline.roots.compactMap { root -> TerminalTabGroupID? in
         guard case .group(let id, _, _, _) = root.content else { return nil }
@@ -326,7 +326,7 @@ final class TerminalSidebarListController: NSViewController, NSCollectionViewDel
   }
 
   private func process(_ update: Update) {
-    motionPolicy = TerminalSidebarMotionPolicy(reduceMotion: update.reduceMotion)
+    updateMotionPolicy(reduceMotion: update.reduceMotion)
     let newlyCollapsedGroupIDs = update.outline.collapsedGroupIDs.subtracting(
       appliedOutline.collapsedGroupIDs
     )
@@ -347,6 +347,14 @@ final class TerminalSidebarListController: NSViewController, NSCollectionViewDel
       update,
       animated: !dataSource.snapshot().itemIdentifiers.isEmpty && motionPolicy.targetInterpolation
     )
+  }
+
+  private func updateMotionPolicy(reduceMotion: Bool) {
+    let wasTargetInterpolationEnabled = motionPolicy.targetInterpolation
+    motionPolicy = TerminalSidebarMotionPolicy(reduceMotion: reduceMotion)
+    guard wasTargetInterpolationEnabled, !motionPolicy.targetInterpolation else { return }
+    layoutAnimator.finish()
+    invalidateLayout()
   }
 
   private func completeCollapse() {

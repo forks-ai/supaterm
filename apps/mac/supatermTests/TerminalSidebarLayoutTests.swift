@@ -31,7 +31,21 @@ struct TerminalSidebarLayoutTests {
     #expect(frames.transition == frames.target)
   }
 
-  private func programmaticReorderFrames(reduceMotion: Bool) throws -> ReorderFrames {
+  @Test
+  func programmaticReorderStopsWhenReduceMotionTurnsOn() throws {
+    let frames = try programmaticReorderFrames(
+      reduceMotion: false,
+      stopWithReduceMotion: true
+    )
+
+    #expect(frames.source != frames.target)
+    #expect(frames.transition == frames.target)
+  }
+
+  private func programmaticReorderFrames(
+    reduceMotion: Bool,
+    stopWithReduceMotion: Bool = false
+  ) throws -> ReorderFrames {
     let firstTab = TerminalTabItem(title: "First")
     let secondTab = TerminalTabItem(title: "Second")
     let source = TerminalSidebarTestFixture.outline(
@@ -103,6 +117,15 @@ struct TerminalSidebarLayoutTests {
       selectedTabID: firstTab.id,
       reduceMotion: reduceMotion
     )
+    if stopWithReduceMotion {
+      controller.apply(
+        outline: target,
+        rows: rows,
+        context: context(for: target),
+        selectedTabID: firstTab.id,
+        reduceMotion: true
+      )
+    }
     layout.prepare()
     let transitionFrame = try #require(
       layout.plan.items.first { $0.id == .tab(firstTab.id) }?.frame
