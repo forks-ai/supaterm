@@ -6,6 +6,7 @@ trap 'rm -f "$installer"' EXIT
 curl \
   --proto '=https' \
   --tlsv1.2 \
+  --location \
   --retry 3 \
   --retry-all-errors \
   --silent \
