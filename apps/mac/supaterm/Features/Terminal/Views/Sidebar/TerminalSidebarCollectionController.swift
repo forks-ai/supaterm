@@ -124,9 +124,15 @@ final class TerminalSidebarListController: NSViewController, NSCollectionViewDel
     },
     onCompletion: { [weak self] in self?.completeCollapse() }
   )
+  private lazy var layoutAnimator = TerminalSidebarLayoutAnimator(
+    collectionView: collectionView,
+    layout: collectionLayout,
+    onFrame: { [weak self] in self?.invalidateLayout() }
+  )
   private lazy var dragController = TerminalSidebarDragController(
     collectionView: collectionView,
     collectionLayout: collectionLayout,
+    layoutAnimator: layoutAnimator,
     scrollView: scrollView,
     sourceSurfaceView: view,
     sourceWindowID: windowControllerID,
@@ -358,7 +364,9 @@ final class TerminalSidebarListController: NSViewController, NSCollectionViewDel
     let isInitialSnapshot = !hasAppliedSnapshot
     updatePhase = .applyingSnapshot
     collectionLayout.visibilityByEntryID = [:]
-    collectionLayout.setOutline(update.outline)
+    layoutAnimator.animate(enabled: animated) {
+      collectionLayout.setOutline(update.outline)
+    }
     var snapshot = NSDiffableDataSourceSnapshot<Int, TerminalSidebarEntryID>()
     snapshot.appendSections([0])
     snapshot.appendItems(update.outline.visibleEntries.map(\.id))
@@ -389,7 +397,7 @@ final class TerminalSidebarListController: NSViewController, NSCollectionViewDel
       return
     }
     NSAnimationContext.runAnimationGroup { context in
-      context.duration = 0.12
+      context.duration = TerminalSidebarLayoutAnimator.duration
       context.timingFunction = CAMediaTimingFunction(controlPoints: 0.25, 0.46, 0.45, 0.94)
       dataSource.apply(snapshot, animatingDifferences: true, completion: completion)
     }

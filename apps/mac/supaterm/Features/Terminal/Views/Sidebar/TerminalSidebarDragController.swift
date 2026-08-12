@@ -35,6 +35,7 @@ final class TerminalSidebarDragController {
 
   private let collectionView: TerminalSidebarCollectionView
   private let collectionLayout: TerminalSidebarCollectionLayout
+  private let layoutAnimator: TerminalSidebarLayoutAnimator
   private let scrollView: TerminalSidebarScrollView
   private let sourceSurfaceView: NSView
   private let sourceWindowID: UUID
@@ -45,11 +46,6 @@ final class TerminalSidebarDragController {
   private var activeDrag: TerminalSidebarActiveDrag?
   private var isDraggingOverPinnedControl = false
 
-  private lazy var layoutAnimator = TerminalSidebarLayoutAnimator(
-    collectionView: collectionView,
-    layout: collectionLayout,
-    onFrame: { [weak self] in self?.host.invalidateLayout() }
-  )
   private lazy var autoscrollController = TerminalSidebarDragAutoscrollController(
     collectionView: collectionView,
     scrollView: scrollView,
@@ -97,6 +93,7 @@ final class TerminalSidebarDragController {
   init(
     collectionView: TerminalSidebarCollectionView,
     collectionLayout: TerminalSidebarCollectionLayout,
+    layoutAnimator: TerminalSidebarLayoutAnimator,
     scrollView: TerminalSidebarScrollView,
     sourceSurfaceView: NSView,
     sourceWindowID: UUID,
@@ -106,6 +103,7 @@ final class TerminalSidebarDragController {
   ) {
     self.collectionView = collectionView
     self.collectionLayout = collectionLayout
+    self.layoutAnimator = layoutAnimator
     self.scrollView = scrollView
     self.sourceSurfaceView = sourceSurfaceView
     self.sourceWindowID = sourceWindowID

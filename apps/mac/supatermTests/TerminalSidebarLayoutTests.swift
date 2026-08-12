@@ -1,4 +1,5 @@
 import AppKit
+import ComposableArchitecture
 import CoreGraphics
 import SupaTheme
 import SwiftUI
@@ -8,6 +9,115 @@ import Testing
 
 @MainActor
 struct TerminalSidebarLayoutTests {
+  private struct ReorderFrames {
+    let source: CGRect
+    let transition: CGRect
+    let target: CGRect
+  }
+
+  @Test
+  func programmaticReorderInterpolatesRetainedRowGeometry() throws {
+    let frames = try programmaticReorderFrames(reduceMotion: false)
+
+    #expect(frames.source != frames.target)
+    #expect(frames.transition == frames.source)
+  }
+
+  @Test
+  func programmaticReorderIsImmediateWithReduceMotion() throws {
+    let frames = try programmaticReorderFrames(reduceMotion: true)
+
+    #expect(frames.source != frames.target)
+    #expect(frames.transition == frames.target)
+  }
+
+  private func programmaticReorderFrames(reduceMotion: Bool) throws -> ReorderFrames {
+    let firstTab = TerminalTabItem(title: "First")
+    let secondTab = TerminalTabItem(title: "Second")
+    let source = TerminalSidebarTestFixture.outline(
+      roots: [firstTab, secondTab].map {
+        TerminalSidebarOutline.Root(content: .tab($0.id), isPinned: false)
+      },
+      revision: 1
+    )
+    let target = TerminalSidebarTestFixture.outline(
+      roots: [secondTab, firstTab].map {
+        TerminalSidebarOutline.Root(content: .tab($0.id), isPinned: false)
+      },
+      revision: 2
+    )
+    let rows: [TerminalSidebarEntryID: TerminalSidebarRowPresentation] = [
+      .tab(firstTab.id): .tab(tabPresentation(firstTab)),
+      .tab(secondTab.id): .tab(tabPresentation(secondTab)),
+      .newTab: .newTab(.inline),
+    ]
+    let terminal = TerminalHostState(managesTerminalSurfaces: false)
+    let store = Store(initialState: TerminalWindowFeature.State()) {
+      TerminalWindowFeature()
+    }
+    let controller = TerminalSidebarListController(
+      windowControllerID: UUID(),
+      tabDragRegistry: TerminalTabDragRegistry(),
+      captureRequest: { nil }
+    )
+    controller.view.frame = CGRect(x: 0, y: 0, width: 280, height: 300)
+
+    func context(for outline: TerminalSidebarOutline) -> TerminalSidebarRowContext {
+      TerminalSidebarRowContext(
+        store: store,
+        terminal: terminal,
+        palette: Palette(colorScheme: .dark),
+        renameState: controller.renameState,
+        groupHeaderHoverState: controller.groupHeaderHoverState,
+        tabSelectionState: controller.tabSelectionState,
+        outline: outline,
+        fixedHoveredGroupID: nil,
+        actions: rowActions
+      )
+    }
+
+    controller.apply(
+      outline: source,
+      rows: rows,
+      context: context(for: source),
+      selectedTabID: firstTab.id,
+      reduceMotion: reduceMotion
+    )
+    controller.view.layoutSubtreeIfNeeded()
+    let scrollView = try #require(
+      controller.view.subviews.compactMap { $0 as? TerminalSidebarScrollView }.first
+    )
+    let collectionView = try #require(scrollView.documentView as? NSCollectionView)
+    let layout = try #require(
+      collectionView.collectionViewLayout as? TerminalSidebarCollectionLayout
+    )
+    layout.prepare()
+    let sourceFrame = try #require(
+      layout.plan.items.first { $0.id == .tab(firstTab.id) }?.frame
+    )
+
+    controller.apply(
+      outline: target,
+      rows: rows,
+      context: context(for: target),
+      selectedTabID: firstTab.id,
+      reduceMotion: reduceMotion
+    )
+    layout.prepare()
+    let transitionFrame = try #require(
+      layout.plan.items.first { $0.id == .tab(firstTab.id) }?.frame
+    )
+    let targetFrame = try #require(
+      layout.targetPlan.items.first { $0.id == .tab(firstTab.id) }?.frame
+    )
+
+    return ReorderFrames(
+      source: sourceFrame,
+      transition: transitionFrame,
+      target: targetFrame
+    )
+  }
+
   @Test
   func scrollViewportClearsTrafficLightsWithoutContentInsets() throws {
     let controller = TerminalSidebarListController(
@@ -339,5 +449,34 @@ struct TerminalSidebarLayoutTests {
     view.apply(configuration(spaces: [second, first], selectedSpaceID: second.id))
 
     #expect(Set(view.subviews.map(ObjectIdentifier.init)) == originalSubviewIDs)
+  }
+
+  private func tabPresentation(_ tab: TerminalTabItem) -> TerminalSidebarTabRowPresentation {
+    TerminalSidebarTabRowPresentation(
+      tab: tab,
+      groupID: nil,
+      rootIsPinned: false,
+      notificationPresentation: nil,
+      paneWorkingDirectories: [],
+      unreadCount: 0,
+      terminalProgress: nil,
+      hasTerminalBell: false,
+      showsAgentSpinner: false,
+      shortcutHint: nil,
+      showsShortcutHint: false
+    )
+  }
+
+  private var rowActions: TerminalSidebarRowActions {
+    TerminalSidebarRowActions(
+      toggleGroupCollapsed: { _ in },
+      createTabInGroup: { _ in },
+      renameGroup: { _, _ in false },
+      setGroupColor: { _, _ in },
+      toggleGroupPinned: { _ in },
+      ungroup: { _ in },
+      closeGroup: { _ in },
+      newTab: {}
+    )
   }
 }

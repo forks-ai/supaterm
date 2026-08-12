@@ -406,11 +406,12 @@ final class TerminalSidebarCollapseAnimator {
 
 @MainActor
 final class TerminalSidebarLayoutAnimator {
+  static let duration: TimeInterval = 0.12
+
   private weak var collectionView: NSCollectionView?
   private weak var layout: TerminalSidebarCollectionLayout?
   private let onFrame: () -> Void
   private var startedAt: TimeInterval = 0
-  private let duration: TimeInterval = 0.12
   private lazy var displayLinkDriver = TerminalSidebarDisplayLinkDriver(
     collectionView: collectionView,
     onFrame: { [weak self] displayLink in self?.update(displayLink) ?? false }
@@ -455,11 +456,11 @@ final class TerminalSidebarLayoutAnimator {
         from: 0,
         to: 1,
         elapsed: elapsed,
-        duration: duration
+        duration: Self.duration
       )
     )
     onFrame()
-    guard elapsed < duration else {
+    guard elapsed < Self.duration else {
       layout.finishTransition()
       return false
     }
