@@ -195,7 +195,7 @@ extension TerminalHostState {
 
   func resolvedCommandWrapper(
     surfaceID: UUID,
-    mode: ZmxAttach.Mode = .createIfNeeded
+    mode: ZmxAttach.Mode
   ) -> [String] {
     let sessionID = ZmxSessionID.make(surfaceID: surfaceID)
     guard zmxSessionsEnabled else {

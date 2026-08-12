@@ -334,7 +334,7 @@ public nonisolated enum ZmxAttach {
   public nonisolated static func buildWrapperArgv(
     executablePath: String,
     sessionID: String,
-    mode: Mode = .createIfNeeded
+    mode: Mode
   ) -> [String] {
     switch mode {
     case .createIfNeeded:

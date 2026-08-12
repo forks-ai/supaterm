@@ -252,15 +252,11 @@ extension TerminalHostState {
       }
       return
     }
-    guard let sessionIDs else {
-      requestCloseSurface(
-        surfaceID,
-        needsConfirmation: false,
-        source: source
-      )
-      return
-    }
-    guard sessionIDs.contains(sessionID), reattachZmxSurface(surfaceID, source: source) else {
+    guard
+      let sessionIDs,
+      sessionIDs.contains(sessionID),
+      reattachZmxSurface(surfaceID, source: source)
+    else {
       requestCloseSurface(
         surfaceID,
         needsConfirmation: false,

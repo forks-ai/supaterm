@@ -16,7 +16,7 @@ struct TerminalHostStateSessionRestoreTests {
       zmxClient: wrappingZmxClient(),
       zmxSessionsEnabled: false
     )
-    let commandWrapper = host.resolvedCommandWrapper(surfaceID: UUID())
+    let commandWrapper = host.resolvedCommandWrapper(surfaceID: UUID(), mode: .createIfNeeded)
 
     #expect(commandWrapper.isEmpty)
   }
@@ -34,7 +34,10 @@ struct TerminalHostStateSessionRestoreTests {
       )
     )
 
-    let commandWrapper = host.resolvedCommandWrapper(surfaceID: surfaceID)
+    let commandWrapper = host.resolvedCommandWrapper(
+      surfaceID: surfaceID,
+      mode: .createIfNeeded
+    )
 
     #expect(
       commandWrapper == ["/tmp/zmx", "attach", ZmxSessionID.make(surfaceID: surfaceID)]
@@ -73,7 +76,7 @@ struct TerminalHostStateSessionRestoreTests {
       )
     )
 
-    let commandWrapper = host.resolvedCommandWrapper(surfaceID: UUID())
+    let commandWrapper = host.resolvedCommandWrapper(surfaceID: UUID(), mode: .createIfNeeded)
 
     #expect(commandWrapper.isEmpty)
   }

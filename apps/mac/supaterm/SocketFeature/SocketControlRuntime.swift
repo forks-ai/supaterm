@@ -435,10 +435,7 @@ actor SocketControlRuntime {
 
       let newlineIndex = buffer[..<bytesRead].firstIndex(of: 0x0A)
       let bytesToAppend = newlineIndex ?? bytesRead
-      guard
-        data.count <= maximumBytes,
-        bytesToAppend <= maximumBytes - data.count
-      else { return nil }
+      guard bytesToAppend <= maximumBytes - data.count else { return nil }
       data.append(buffer, count: bytesToAppend)
       if newlineIndex != nil { break }
     }

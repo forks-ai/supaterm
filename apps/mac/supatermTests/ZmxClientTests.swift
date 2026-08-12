@@ -35,7 +35,8 @@ struct ZmxClientTests {
   func buildWrapperArgvKeepsExecutableAsOneArgument() {
     let argv = ZmxAttach.buildWrapperArgv(
       executablePath: "/Applications/Supaterm Runtime.app/Contents/Helpers/zmx",
-      sessionID: "spt-session"
+      sessionID: "spt-session",
+      mode: .createIfNeeded
     )
 
     #expect(argv == ["/Applications/Supaterm Runtime.app/Contents/Helpers/zmx", "attach", "spt-session"])

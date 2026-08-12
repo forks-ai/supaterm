@@ -10,10 +10,7 @@ public enum SupatermTerminalStartup: Equatable, Sendable, Codable {
   public var isValid: Bool {
     switch self {
     case .exec(let arguments, let searchPath):
-      Self.validArguments(arguments)
-        && arguments.count <= Self.maximumArgumentCount
-        && Self.fits(arguments, followedBy: searchPath, within: Self.maximumStartupBytes)
-        && !searchPath.unicodeScalars.contains(where: { $0.value == 0 })
+      Self.isValidExec(arguments, searchPath: searchPath)
     case .shell(let command):
       !command.isEmpty
         && command.utf8.count <= Self.maximumStartupBytes
@@ -21,31 +18,26 @@ public enum SupatermTerminalStartup: Equatable, Sendable, Codable {
     }
   }
 
-  private static func validArguments(_ arguments: [String]) -> Bool {
+  private static func isValidExec(_ arguments: [String], searchPath: String) -> Bool {
     guard
+      arguments.count <= maximumArgumentCount,
       let command = arguments.first,
-      !command.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+      !command.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
+      !searchPath.unicodeScalars.contains(where: { $0.value == 0 })
     else {
       return false
     }
-    return arguments.allSatisfy {
-      !$0.unicodeScalars.contains(where: { $0.value == 0 })
-    }
-  }
 
-  private static func fits(
-    _ values: [String],
-    followedBy trailingValue: String,
-    within limit: Int
-  ) -> Bool {
-    var remaining = limit
-    for value in values {
-      let count = value.utf8.count
-      guard count < remaining else { return false }
-      remaining -= count + 1
+    var remainingBytes = maximumStartupBytes
+    for argument in arguments {
+      let byteCount = argument.utf8.count
+      guard
+        !argument.unicodeScalars.contains(where: { $0.value == 0 }),
+        byteCount < remainingBytes
+      else { return false }
+      remainingBytes -= byteCount + 1
     }
-    guard trailingValue.utf8.count < remaining else { return false }
-    return true
+    return searchPath.utf8.count < remainingBytes
   }
 
   private enum CodingKeys: String, CodingKey {

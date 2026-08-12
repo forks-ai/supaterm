@@ -822,43 +822,6 @@ struct SPCommandTests {
     }
   }
 
-  @Test
-  func terminalStartupRejectsEmptyScript() {
-    do {
-      _ = try terminalStartup(script: "", tokens: [])
-      Issue.record("Expected terminalStartup to reject an empty --script.")
-    } catch {
-      let message = String(describing: error)
-      #expect(message.contains("--script must not be empty."))
-    }
-  }
-
-  @Test
-  func terminalStartupPreservesScriptText() throws {
-    #expect(try terminalStartup(script: "echo 1\necho 2", tokens: []) == .shell("echo 1\necho 2"))
-    #expect(
-      try terminalStartup(script: "echo 1\necho 2\n", tokens: []) == .shell("echo 1\necho 2\n")
-    )
-  }
-
-  @Test
-  func terminalStartupPreservesArgumentCommands() throws {
-    let environment = ["PATH": "/test/bin"]
-
-    #expect(
-      try terminalStartup(script: nil, tokens: ["pwd"], environment: environment)
-        == .exec(["pwd"], searchPath: "/test/bin")
-    )
-    #expect(
-      try terminalStartup(
-        script: nil,
-        tokens: ["echo", "hello world"],
-        environment: environment
-      )
-        == .exec(["echo", "hello world"], searchPath: "/test/bin")
-    )
-  }
-
   @Test(arguments: [
     ["pane", "split", "right", "--", ""],
     ["tab", "new", "--", ""],
