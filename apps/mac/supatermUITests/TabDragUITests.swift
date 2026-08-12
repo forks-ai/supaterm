@@ -13,8 +13,8 @@ final class TabDragUITests: SupatermUITestCase {
     let reorderedTitles = ["Second UI Tab", "Third UI Tab", "First UI Tab"]
     let didReorder = await dragTab(
       source: firstTab,
-      destination: thirdTab,
-      destinationY: 0.9,
+      destination: sidebarPinnedControl(SupatermUITestIdentifier.Accessibility.sidebarNewTab),
+      destinationY: 0.5,
       until: { self.tabRowsMatch(reorderedTitles) && firstTab.isSelected }
     )
     XCTAssertTrue(didReorder)
