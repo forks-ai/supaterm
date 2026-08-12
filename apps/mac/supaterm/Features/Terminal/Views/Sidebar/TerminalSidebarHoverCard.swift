@@ -47,12 +47,10 @@ final class TerminalSidebarHoverCardController {
   private var stoppedTask: Task<Void, Never>?
   private var dismissTask: Task<Void, Never>?
   private var delayedUpdateTask: Task<Void, Never>?
-  private var stoppedToken = TerminalSidebarHoverTaskToken()
-  private var dismissToken = TerminalSidebarHoverTaskToken()
-  private var delayedUpdateToken = TerminalSidebarHoverTaskToken()
   private var inputMonitor: Any?
   private var movementMonitor: Any?
   private var observers: [NSObjectProtocol] = []
+  private var observationGeneration: UInt64 = 0
   private var suppressedTabID: TerminalTabID?
   private var directionTracker = TerminalSidebarHoverDirectionTracker()
 
@@ -81,6 +79,10 @@ final class TerminalSidebarHoverCardController {
 
   var isPresented: Bool {
     phase.isPresented
+  }
+
+  var isMonitoringEvents: Bool {
+    inputMonitor != nil || movementMonitor != nil
   }
 
   func pointerMoved() {
@@ -152,6 +154,7 @@ final class TerminalSidebarHoverCardController {
   func dismiss() {
     let wasPresented = phase.isPresented
     generation &+= 1
+    observationGeneration &+= 1
     cancelColdPresentation()
     cancelStopped()
     cancelDismiss()
@@ -216,11 +219,17 @@ final class TerminalSidebarHoverCardController {
   }
 
   private func observedContent(for tabID: TerminalTabID) -> TerminalSidebarHoverCardContent? {
-    withObservationTracking {
+    observationGeneration &+= 1
+    let observationGeneration = observationGeneration
+    return withObservationTracking {
       content(tabID)
     } onChange: { [weak self] in
       Task { @MainActor [weak self] in
-        self?.refresh()
+        guard let self,
+          self.observationGeneration == observationGeneration,
+          self.phase.tabID == tabID
+        else { return }
+        refresh()
       }
     }
   }
@@ -259,14 +268,13 @@ final class TerminalSidebarHoverCardController {
 
   private func scheduleStopped() {
     cancelStopped()
-    let token = stoppedToken.current
     stoppedTask = Task { [weak self] in
       do {
         try await Task.sleep(for: TerminalSidebarHoverTiming.stopped)
       } catch {
         return
       }
-      guard let self, stoppedToken.matches(token) else { return }
+      guard let self, !Task.isCancelled else { return }
       stoppedTask = nil
       pointerStopped(at: NSEvent.mouseLocation)
     }
@@ -318,7 +326,6 @@ final class TerminalSidebarHoverCardController {
   private func scheduleDismiss() {
     guard case .presented = phase else { return }
     cancelDismiss()
-    let token = dismissToken.current
     let phase = phase
     dismissTask = Task { [weak self] in
       do {
@@ -326,7 +333,7 @@ final class TerminalSidebarHoverCardController {
       } catch {
         return
       }
-      guard let self, dismissToken.matches(token), self.phase == phase else { return }
+      guard let self, !Task.isCancelled, self.phase == phase else { return }
       dismissTask = nil
       dismiss()
     }
@@ -352,7 +359,6 @@ final class TerminalSidebarHoverCardController {
   private func schedulePresentedUpdate(to tabID: TerminalTabID) {
     guard case .presented = phase else { return }
     cancelDelayedUpdate()
-    let token = delayedUpdateToken.current
     let phase = phase
     delayedUpdateTask = Task { [weak self] in
       do {
@@ -360,7 +366,7 @@ final class TerminalSidebarHoverCardController {
       } catch {
         return
       }
-      guard let self, delayedUpdateToken.matches(token), self.phase == phase else { return }
+      guard let self, !Task.isCancelled, self.phase == phase else { return }
       delayedUpdateTask = nil
       updatePresentedCard(to: tabID)
     }
@@ -370,7 +376,9 @@ final class TerminalSidebarHoverCardController {
     guard case .pending = phase else { return }
     generation &+= 1
     cancelColdPresentation()
+    cancelStopped()
     phase = .idle
+    removeEventMonitors()
   }
 
   private func cancelColdPresentation() {
@@ -379,19 +387,16 @@ final class TerminalSidebarHoverCardController {
   }
 
   private func cancelStopped() {
-    stoppedToken.invalidate()
     stoppedTask?.cancel()
     stoppedTask = nil
   }
 
   private func cancelDismiss() {
-    dismissToken.invalidate()
     dismissTask?.cancel()
     dismissTask = nil
   }
 
   private func cancelDelayedUpdate() {
-    delayedUpdateToken.invalidate()
     delayedUpdateTask?.cancel()
     delayedUpdateTask = nil
   }

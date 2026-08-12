@@ -289,15 +289,3 @@ enum TerminalSidebarHoverInputInteraction {
     return .dismiss(suppressedTabID: pointedTabID)
   }
 }
-
-struct TerminalSidebarHoverTaskToken {
-  private(set) var current: UInt64 = 0
-
-  mutating func invalidate() {
-    current &+= 1
-  }
-
-  func matches(_ candidate: UInt64) -> Bool {
-    current == candidate
-  }
-}

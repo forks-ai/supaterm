@@ -352,8 +352,8 @@ final class TerminalWindowShellController: NSViewController {
       tabDragRegistry: tabDragRegistry,
       captureRequest: { [weak self] in self?.tabDragCaptureRequest() }
     )
-    cache.hoverCardPresentationChanged = { [weak self] isPresented in
-      self?.hoverCardPresentationChanged(isPresented)
+    cache.hoverCardRetentionChanged = { [weak self] in
+      self?.revealCoordinator.releaseRetention()
     }
     return cache
   }()
@@ -694,11 +694,6 @@ final class TerminalWindowShellController: NSViewController {
       ? .immediate
       : .floating
     applyLayout(motion: motion)
-  }
-
-  private func hoverCardPresentationChanged(_ isPresented: Bool) {
-    guard !isPresented else { return }
-    revealCoordinator.releaseRetention()
   }
 
   private func draggingUpdated(_ info: any NSDraggingInfo) -> NSDragOperation {

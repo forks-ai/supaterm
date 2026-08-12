@@ -372,26 +372,34 @@ struct TerminalSidebarHoverCardTests {
     )
   }
 
-  @Test
-  func taskTokenRejectsWorkAfterInvalidation() {
-    var token = TerminalSidebarHoverTaskToken()
-    let stale = token.current
+  @Test @MainActor
+  func cancellingPendingHoverRemovesEventMonitor() async {
+    let tabID = TerminalTabID()
+    var pointedTabID: TerminalTabID? = tabID
+    let controller = TerminalSidebarHoverCardController(
+      tabAtPoint: { _ in pointedTabID },
+      sourceForTab: { _ in nil },
+      content: { _ in
+        TerminalSidebarHoverCardContent(
+          tabTitle: "Ready",
+          response: TerminalHostState.TabAgentResponse(
+            agent: AgentDetectionAgentIdentity(id: "agent", displayName: "Agent"),
+            text: "Done."
+          )
+        )
+      },
+      allowsPresentation: { true },
+      reduceMotion: { true }
+    )
 
-    token.invalidate()
+    controller.pointerMoved()
+    #expect(await waitUntil { controller.phase.tabID == tabID })
+    #expect(controller.isMonitoringEvents)
 
-    #expect(!token.matches(stale))
-    #expect(token.matches(token.current))
-  }
+    pointedTabID = nil
+    controller.pointerExited()
 
-  @Test
-  func taskTokenRejectsEarlierSameTargetReschedule() {
-    var token = TerminalSidebarHoverTaskToken()
-    token.invalidate()
-    let first = token.current
-    token.invalidate()
-    let second = token.current
-
-    #expect(!token.matches(first))
-    #expect(token.matches(second))
+    #expect(controller.phase == .idle)
+    #expect(!controller.isMonitoringEvents)
   }
 }

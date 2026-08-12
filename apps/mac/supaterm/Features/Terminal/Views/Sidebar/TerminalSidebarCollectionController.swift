@@ -6,11 +6,10 @@ import SwiftUI
 @MainActor
 final class TerminalSidebarControllerCache {
   private var controllersBySpaceID: [TerminalSpaceID: TerminalSidebarListController] = [:]
-  private var reportedHoverCardPresentation = false
   private let tabDragRegistry: TerminalTabDragRegistry
   private let windowControllerID: UUID
   private let captureRequest: () -> TerminalWindowCaptureRequest?
-  var hoverCardPresentationChanged: ((Bool) -> Void)?
+  var hoverCardRetentionChanged: (() -> Void)?
 
   init(
     windowControllerID: UUID,
@@ -40,7 +39,7 @@ final class TerminalSidebarControllerCache {
       captureRequest: captureRequest
     )
     controller.hoverCardPresentationChanged = { [weak self] in
-      self?.reportHoverCardPresentation()
+      self?.hoverCardRetentionChanged?()
     }
     controllersBySpaceID[spaceID] = controller
     return controller
@@ -52,7 +51,6 @@ final class TerminalSidebarControllerCache {
       controller.dismissHoverCard()
     }
     controllersBySpaceID = controllersBySpaceID.filter { retained.contains($0.key) }
-    reportHoverCardPresentation()
   }
 
   func dismissHoverCards() {
@@ -61,12 +59,6 @@ final class TerminalSidebarControllerCache {
     }
   }
 
-  private func reportHoverCardPresentation() {
-    let isPresented = isHoverCardPresented
-    guard isPresented != reportedHoverCardPresentation else { return }
-    reportedHoverCardPresentation = isPresented
-    hoverCardPresentationChanged?(isPresented)
-  }
 }
 
 final class TerminalSidebarScrollView: NSScrollView {
