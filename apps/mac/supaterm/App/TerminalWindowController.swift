@@ -3,6 +3,21 @@ import ComposableArchitecture
 import SupatermSupport
 import SwiftUI
 
+enum TerminalWindowLaunch: Equatable {
+  case newShell(
+    windowSession: TerminalWindowSession?,
+    startupCommand: SupatermTerminalStartup?
+  )
+  case restore(TerminalWindowSession)
+
+  var windowSession: TerminalWindowSession? {
+    switch self {
+    case .newShell(let windowSession, _): windowSession
+    case .restore(let session): session
+    }
+  }
+}
+
 @MainActor
 private final class TerminalGestureWindow: NSWindow {
   var onModifierFlagsChanged: ((NSEvent.ModifierFlags) -> Void)?
@@ -97,9 +112,8 @@ final class TerminalWindowController: NSWindowController {
   init(
     runtime: GhosttyRuntime,
     registry: TerminalWindowRegistry,
-    session: TerminalWindowSession? = nil,
+    launch: TerminalWindowLaunch = .newShell(windowSession: nil, startupCommand: nil),
     spaceID: TerminalSpaceID? = nil,
-    startupCommand: SupatermTerminalStartup? = nil,
     createsInitialTab: Bool = true,
     zmxClient: ZmxClient = .live,
     zmxSessionsEnabled: Bool = true,
@@ -109,6 +123,7 @@ final class TerminalWindowController: NSWindowController {
     self.registry = registry
     let windowControllerID = UUID()
     self.windowControllerID = windowControllerID
+    let session = launch.windowSession
 
     let terminal = TerminalHostState(
       runtime: runtime,
@@ -120,8 +135,7 @@ final class TerminalWindowController: NSWindowController {
     terminal.onSessionChange = onSessionChange
     Self.prepareTerminal(
       terminal,
-      session: session,
-      startupCommand: startupCommand,
+      launch: launch,
       createsInitialTab: createsInitialTab
     )
     let commandPaletteClient = TerminalCommandPaletteClient.live(registry: registry)
@@ -291,19 +305,16 @@ final class TerminalWindowController: NSWindowController {
 
   private static func prepareTerminal(
     _ terminal: TerminalHostState,
-    session: TerminalWindowSession?,
-    startupCommand: SupatermTerminalStartup?,
+    launch: TerminalWindowLaunch,
     createsInitialTab: Bool
   ) {
-    if let session {
-      if terminal.restore(from: session) || !session.surfaceIDs.isEmpty {
-        return
-      }
+    switch launch {
+    case .restore(let session):
+      _ = terminal.restore(from: session)
+    case .newShell(_, let startupCommand):
+      guard createsInitialTab else { return }
+      terminal.ensureInitialTab(focusing: false, startupCommand: startupCommand)
     }
-    guard createsInitialTab else {
-      return
-    }
-    terminal.ensureInitialTab(focusing: false, startupCommand: startupCommand)
   }
 
   deinit {

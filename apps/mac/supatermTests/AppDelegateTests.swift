@@ -150,78 +150,90 @@ struct AppDelegateTests {
   }
 
   @Test
-  func initialWindowSessionsFallsBackToSingleBlankWindow() {
-    let sessions = AppDelegate.initialWindowSessions(
+  func initialWindowRequestsFallBackToSingleBlankWindow() {
+    let requests = AppDelegate.initialWindowRequests(
       from: TerminalSessionCatalog(windows: []),
       validSpaceIDs: [],
-      restoreTerminalLayoutEnabled: true
+      restoreTerminalLayoutEnabled: true,
+      lastAppLaunchedDate: Date(timeIntervalSince1970: 123),
+      cliPath: nil
     )
 
-    #expect(sessions.count == 1)
-    #expect(sessions[0] == nil)
+    #expect(requests == [.newShell(windowSession: nil, startupCommand: nil)])
   }
 
   @Test
-  func initialWindowSessionsFallsBackToSingleBlankWindowWhenRestoreIsDisabled() {
-    let sessions = AppDelegate.initialWindowSessions(
+  func initialWindowRequestsFallBackToSingleBlankWindowWhenRestoreIsDisabled() {
+    let requests = AppDelegate.initialWindowRequests(
       from: TerminalSessionCatalog(
         windows: [emptyWindowSession(spaceID: TerminalSpaceID())]
       ),
       validSpaceIDs: [],
-      restoreTerminalLayoutEnabled: false
+      restoreTerminalLayoutEnabled: false,
+      lastAppLaunchedDate: Date(timeIntervalSince1970: 123),
+      cliPath: nil
     )
 
-    #expect(sessions.count == 1)
-    #expect(sessions[0] == nil)
+    #expect(requests == [.newShell(windowSession: nil, startupCommand: nil)])
   }
 
   @Test
-  func initialWindowSessionsPreservesSavedWindowOrder() {
+  func initialWindowRequestsPreserveSavedWindowOrder() {
     let firstSpaceID = TerminalSpaceID()
     let secondSpaceID = TerminalSpaceID()
     let first = emptyWindowSession(spaceID: firstSpaceID)
     let second = emptyWindowSession(spaceID: secondSpaceID)
 
-    let sessions = AppDelegate.initialWindowSessions(
+    let requests = AppDelegate.initialWindowRequests(
       from: TerminalSessionCatalog(windows: [first, second]),
       validSpaceIDs: [firstSpaceID, secondSpaceID],
-      restoreTerminalLayoutEnabled: true
+      restoreTerminalLayoutEnabled: true,
+      lastAppLaunchedDate: nil,
+      cliPath: nil
     )
 
-    #expect(sessions == [first, second])
+    #expect(
+      requests == [
+        .newShell(windowSession: first, startupCommand: nil),
+        .newShell(windowSession: second, startupCommand: nil),
+      ]
+    )
   }
 
   @Test
-  func initialWindowSessionsDropDirectOnlyWindowsWithoutZmx() {
+  func initialWindowRequestsDropDirectOnlyWindowsWithoutZmx() {
     let spaceID = TerminalSpaceID()
 
-    let sessions = AppDelegate.initialWindowSessions(
+    let requests = AppDelegate.initialWindowRequests(
       from: TerminalSessionCatalog(
         windows: [windowSession(spaceID: spaceID, restoreMode: .existingSession)]
       ),
       validSpaceIDs: [spaceID],
       restoreTerminalLayoutEnabled: true,
-      allowsExistingSessions: false
+      allowsExistingSessions: false,
+      lastAppLaunchedDate: nil,
+      cliPath: nil
     )
 
-    #expect(sessions.isEmpty)
+    #expect(requests.isEmpty)
   }
 
   @Test
-  func initialWindowSessionsIgnoreUnavailableSessionsInInvalidSpaces() {
+  func initialWindowRequestsIgnoreUnavailableSessionsInInvalidSpaces() {
     let invalidSpaceID = TerminalSpaceID()
 
-    let sessions = AppDelegate.initialWindowSessions(
+    let requests = AppDelegate.initialWindowRequests(
       from: TerminalSessionCatalog(
         windows: [windowSession(spaceID: invalidSpaceID, restoreMode: .existingSession)]
       ),
       validSpaceIDs: [],
       restoreTerminalLayoutEnabled: true,
-      allowsExistingSessions: false
+      allowsExistingSessions: false,
+      lastAppLaunchedDate: Date(timeIntervalSince1970: 123),
+      cliPath: nil
     )
 
-    #expect(sessions.count == 1)
-    #expect(sessions[0] == nil)
+    #expect(requests == [.newShell(windowSession: nil, startupCommand: nil)])
   }
 
   @Test
@@ -238,12 +250,12 @@ struct AppDelegateTests {
 
     #expect(
       requests == [
-        AppDelegate.LaunchWindowRequest(
-          session: nil,
+        .newShell(
+          windowSession: nil,
           startupCommand: .shell(
             "'/Applications/Supaterm Preview.app/Contents/MacOS/sp' onboard --socket "
               + SupatermShellCommand.escapedToken(socketPath)
-          ),
+          )
         )
       ]
     )
@@ -261,10 +273,7 @@ struct AppDelegateTests {
 
     #expect(
       requests == [
-        AppDelegate.LaunchWindowRequest(
-          session: nil,
-          startupCommand: nil,
-        )
+        .newShell(windowSession: nil, startupCommand: nil)
       ]
     )
   }
@@ -281,10 +290,7 @@ struct AppDelegateTests {
 
     #expect(
       requests == [
-        AppDelegate.LaunchWindowRequest(
-          session: nil,
-          startupCommand: nil,
-        )
+        .newShell(windowSession: nil, startupCommand: nil)
       ]
     )
   }
@@ -292,7 +298,7 @@ struct AppDelegateTests {
   @Test
   func initialWindowRequestsDoNotInjectOnboardingIntoRestoredWindows() {
     let spaceID = TerminalSpaceID()
-    let session = emptyWindowSession(spaceID: spaceID)
+    let session = windowSession(spaceID: spaceID, restoreMode: .shell)
 
     let requests = AppDelegate.initialWindowRequests(
       from: TerminalSessionCatalog(windows: [session]),
@@ -304,10 +310,7 @@ struct AppDelegateTests {
 
     #expect(
       requests == [
-        AppDelegate.LaunchWindowRequest(
-          session: session,
-          startupCommand: nil,
-        )
+        .restore(session)
       ]
     )
   }

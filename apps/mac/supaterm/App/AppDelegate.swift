@@ -29,11 +29,6 @@ private final class WeakToggleVisibilityWindow {
 final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterDelegate,
   GhosttyAppActionPerforming
 {
-  struct LaunchWindowRequest: Equatable {
-    let session: TerminalWindowSession?
-    let startupCommand: SupatermTerminalStartup?
-  }
-
   @Shared(.supatermSettings)
   private var supatermSettings = .default
   @Shared(.lastAppLaunchedDate)
@@ -402,10 +397,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
     )
     var lastController: TerminalWindowController?
     for request in requests {
-      lastController = createWindow(
-        session: request.session,
-        startupCommand: request.startupCommand
-      )
+      lastController = createWindow(launch: request)
     }
     sessionPersistenceState = .active
     saveSession()
@@ -520,18 +512,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
   }
 
   private func createWindow(
-    session: TerminalWindowSession? = nil,
+    launch: TerminalWindowLaunch = .newShell(windowSession: nil, startupCommand: nil),
     spaceID: TerminalSpaceID? = nil,
-    startupCommand: SupatermTerminalStartup? = nil,
     createsInitialTab: Bool = true,
     ordersFront: Bool = true
   ) -> TerminalWindowController {
     let controller = TerminalWindowController(
       runtime: ghosttyRuntime,
       registry: terminalWindowRegistry,
-      session: session,
+      launch: launch,
       spaceID: spaceID,
-      startupCommand: startupCommand,
       createsInitialTab: createsInitialTab,
       zmxClient: launchZmxClient,
       zmxSessionsEnabled: zmxSessionsEnabledAtLaunch,
@@ -670,34 +660,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
     }
   }
 
-  static func initialWindowSessions(
-    from sessionCatalog: TerminalSessionCatalog,
-    validSpaceIDs: Set<TerminalSpaceID>,
-    restoreTerminalLayoutEnabled: Bool,
-    allowsExistingSessions: Bool = true
-  ) -> [TerminalWindowSession?] {
-    guard restoreTerminalLayoutEnabled else {
-      return [nil]
-    }
-    let validCatalog = sessionCatalog.pruned(validSpaceIDs: validSpaceIDs)
-    let windows =
-      allowsExistingSessions
-      ? validCatalog.windows
-      : sessionCatalog.pruned(
-        validSpaceIDs: validSpaceIDs,
-        allowsExistingSessions: false
-      ).windows
-    if windows.isEmpty {
-      if !allowsExistingSessions,
-        validCatalog.windows.contains(where: \.containsExistingSession)
-      {
-        return []
-      }
-      return [nil]
-    }
-    return windows.map(Optional.some)
-  }
-
   static func initialWindowRequests(
     from sessionCatalog: TerminalSessionCatalog,
     validSpaceIDs: Set<TerminalSpaceID>,
@@ -705,26 +667,40 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
     allowsExistingSessions: Bool = true,
     lastAppLaunchedDate: Date?,
     cliPath: String?
-  ) -> [LaunchWindowRequest] {
-    let sessions = initialWindowSessions(
-      from: sessionCatalog,
-      validSpaceIDs: validSpaceIDs,
-      restoreTerminalLayoutEnabled: restoreTerminalLayoutEnabled,
-      allowsExistingSessions: allowsExistingSessions
-    )
-    let onboardingWindowIndex: Int?
-    if lastAppLaunchedDate == nil {
-      onboardingWindowIndex = sessions.firstIndex(where: { $0 == nil })
-    } else {
-      onboardingWindowIndex = nil
+  ) -> [TerminalWindowLaunch] {
+    guard restoreTerminalLayoutEnabled else {
+      return [
+        .newShell(
+          windowSession: nil,
+          startupCommand: lastAppLaunchedDate == nil ? onboardingStartup(cliPath: cliPath) : nil
+        )
+      ]
     }
 
-    return sessions.enumerated().map { index, session in
-      LaunchWindowRequest(
-        session: session,
-        startupCommand: index == onboardingWindowIndex ? onboardingStartup(cliPath: cliPath) : nil
-      )
+    let windows = sessionCatalog.pruned(
+      validSpaceIDs: validSpaceIDs,
+      allowsExistingSessions: allowsExistingSessions
+    ).windows
+    if !windows.isEmpty {
+      return windows.map { window in
+        window.surfaceIDs.isEmpty
+          ? .newShell(windowSession: window, startupCommand: nil)
+          : .restore(window)
+      }
     }
+    if !allowsExistingSessions,
+      sessionCatalog.pruned(validSpaceIDs: validSpaceIDs).windows.contains(
+        where: \.containsExistingSession
+      )
+    {
+      return []
+    }
+    return [
+      .newShell(
+        windowSession: nil,
+        startupCommand: lastAppLaunchedDate == nil ? onboardingStartup(cliPath: cliPath) : nil
+      )
+    ]
   }
 
   struct TerminationPlan {
