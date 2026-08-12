@@ -34,12 +34,7 @@ extension SupatermE2ESuite {
         try await app.waitUntil("the sleep command starts") {
           FileManager.default.fileExists(atPath: startedFile.path)
         }
-        let runner = SPBinaryRunner(
-          executable: app.spExecutable,
-          environment: app.cliEnvironment(
-            context: app.context(tabID: space.tab.tabID, paneID: space.tab.paneID)
-          )
-        )
+        let runner = spRunner(app, tabID: space.tab.tabID, paneID: space.tab.paneID)
         try requireSuccessfulSPResult(
           runner.run(
             ["pane", "key", "ctrl-c", space.tab.paneID.uuidString],

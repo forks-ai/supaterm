@@ -1171,17 +1171,12 @@ extension SupatermCapturePaneScope: @retroactive ExpressibleByArgument {}
 
 extension SupatermInputKey: @retroactive ExpressibleByArgument {
   public init?(argument: String) {
-    switch argument {
-    case "backspace": self = .backspace
-    case "ctrl-c": self = .ctrlC
-    case "ctrl-d": self = .ctrlD
-    case "ctrl-l": self = .ctrlL
-    case "ctrl-z": self = .ctrlZ
-    case "enter": self = .enter
-    case "escape": self = .escape
-    case "tab": self = .tab
-    default: return nil
+    guard !argument.contains("_"),
+      let key = Self(rawValue: argument.replacingOccurrences(of: "-", with: "_"))
+    else {
+      return nil
     }
+    self = key
   }
 }
 

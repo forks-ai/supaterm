@@ -424,7 +424,7 @@ extension SupatermE2ESuite {
   }
 }
 
-private func spRunner(_ app: SupatermE2EApp, tabID: UUID, paneID: UUID) -> SPBinaryRunner {
+func spRunner(_ app: SupatermE2EApp, tabID: UUID, paneID: UUID) -> SPBinaryRunner {
   SPBinaryRunner(
     executable: app.spExecutable,
     environment: app.cliEnvironment(context: app.context(tabID: tabID, paneID: paneID))
