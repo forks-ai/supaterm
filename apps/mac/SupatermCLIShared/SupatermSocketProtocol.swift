@@ -115,6 +115,8 @@ extension SupatermSocketEndpoint {
 }
 
 public struct SupatermSocketRequest: Equatable, Sendable, Codable {
+  public static let maximumEncodedBytes = 16 * 1_024 * 1_024
+
   public let id: String
   public let method: String
   public let params: JSONObject

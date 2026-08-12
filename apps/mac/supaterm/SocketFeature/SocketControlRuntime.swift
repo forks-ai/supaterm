@@ -48,7 +48,6 @@ actor SocketControlRuntime {
   nonisolated static let shared = SocketControlRuntime(
     endpointProvider: SupatermProcessSocketEndpoint.current
   )
-  nonisolated static let maximumRequestBytes = 16 * 1_024 * 1_024
 
   private let clientReadTimeout: TimeInterval
   private let endpointProvider: @Sendable () -> SupatermSocketEndpoint?
@@ -423,7 +422,7 @@ actor SocketControlRuntime {
 
   nonisolated static func readRequestLine(
     from socket: Int32,
-    maximumBytes: Int = maximumRequestBytes
+    maximumBytes: Int = SupatermSocketRequest.maximumEncodedBytes
   ) -> String? {
     guard maximumBytes >= 0 else { return nil }
     var data = Data()

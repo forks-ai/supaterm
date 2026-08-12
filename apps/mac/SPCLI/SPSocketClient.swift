@@ -12,6 +12,7 @@ struct SPSocketClient {
     case pathNotOwnedByCurrentUser(String)
     case pathTooLong(String)
     case readFailed
+    case requestTooLarge
     case socketCreationFailed
     case writeFailed
 
@@ -29,6 +30,8 @@ struct SPSocketClient {
         return "Supaterm socket path is too long: \(path)"
       case .readFailed:
         return "Failed to read a response from Supaterm."
+      case .requestTooLarge:
+        return "Supaterm socket request exceeds \(SupatermSocketRequest.maximumEncodedBytes) bytes."
       case .socketCreationFailed:
         return "Failed to create a local socket client."
       case .writeFailed:
@@ -60,10 +63,11 @@ struct SPSocketClient {
   }
 
   func send(_ request: SupatermSocketRequest) throws -> SupatermSocketResponse {
+    let requestData = try encodedRequest(request)
     let socket = try openSocket()
     defer { Darwin.close(socket) }
 
-    return try send(request, over: socket)
+    return try send(requestData, over: socket)
   }
 
   func probeIdentity() -> SupatermManagedSocketCandidateStatus {
@@ -83,7 +87,7 @@ struct SPSocketClient {
     defer { Darwin.close(socket) }
 
     do {
-      let response = try send(.identity(), over: socket)
+      let response = try send(try encodedRequest(.identity()), over: socket)
       guard response.ok else {
         return .ignored
       }
@@ -141,7 +145,7 @@ struct SPSocketClient {
   }
 
   private func send(
-    _ request: SupatermSocketRequest,
+    _ requestData: Data,
     over socket: Int32
   ) throws -> SupatermSocketResponse {
     var receiveTimeout = socketTimeout(responseTimeout)
@@ -153,7 +157,6 @@ struct SPSocketClient {
       socklen_t(MemoryLayout<timeval>.size)
     )
 
-    let requestData = try encoder.encode(request) + Data([0x0A])
     try writeAll(requestData, to: socket)
 
     guard let responseLine = readLine(from: socket) else {
@@ -163,6 +166,14 @@ struct SPSocketClient {
       throw SocketClientError.invalidResponse
     }
     return try decoder.decode(SupatermSocketResponse.self, from: responseData)
+  }
+
+  private func encodedRequest(_ request: SupatermSocketRequest) throws -> Data {
+    let data = try encoder.encode(request)
+    guard data.count <= SupatermSocketRequest.maximumEncodedBytes else {
+      throw SocketClientError.requestTooLarge
+    }
+    return data + Data([0x0A])
   }
 
   private func socketAddress(path: String) throws -> sockaddr_un {

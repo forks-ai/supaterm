@@ -26,6 +26,39 @@ struct SPSocketClientTests {
   }
 
   @Test
+  func sendRejectsEncodedRequestsBeforeConnecting() throws {
+    let rootURL = try makeSocketClientTemporaryDirectory()
+    defer { try? FileManager.default.removeItem(at: rootURL) }
+    let startup = SupatermTerminalStartup.shell(
+      String(repeating: "\u{1}", count: 3 * 1_024 * 1_024)
+    )
+    let request = try SupatermSocketRequest.newTab(
+      SupatermNewTabRequest(
+        startupCommand: startup,
+        focus: false,
+        target: .space(UUID())
+      )
+    )
+
+    #expect(startup.isValid)
+    #expect(try JSONEncoder().encode(request).count > SupatermSocketRequest.maximumEncodedBytes)
+    let client = try socketClient(
+      path: rootURL.appendingPathComponent("missing.sock").path,
+      connectRetryTimeout: 0
+    )
+
+    do {
+      _ = try client.send(request)
+      Issue.record("Expected the oversized request to be rejected.")
+    } catch {
+      #expect(
+        error.localizedDescription
+          == "Supaterm socket request exceeds \(SupatermSocketRequest.maximumEncodedBytes) bytes."
+      )
+    }
+  }
+
+  @Test
   func sendThrowsWhenServerNeverReplies() async throws {
     try await withSocketRuntime(
       replying: { _, _ in nil },
