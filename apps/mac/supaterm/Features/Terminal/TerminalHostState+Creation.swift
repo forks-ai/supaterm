@@ -151,6 +151,7 @@ extension TerminalHostState {
     workingDirectory: URL? = nil,
     context: ghostty_surface_context_e,
     surfaceID: UUID = UUID(),
+    restoreMode: TerminalPaneRestoreMode? = nil,
     zmxAttachMode: ZmxAttach.Mode = .createIfNeeded
   ) -> GhosttySurfaceView {
     guard let runtime else {
@@ -178,6 +179,7 @@ extension TerminalHostState {
       tabID: tabID.rawValue,
       workingDirectory: workingDirectory ?? inherited.workingDirectory,
       startupCommand: startupCommand,
+      restoreMode: restoreMode,
       commandWrapper: commandWrapper,
       fontSize: inherited.fontSize,
       context: context,

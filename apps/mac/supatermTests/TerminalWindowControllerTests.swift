@@ -167,6 +167,62 @@ struct TerminalWindowControllerTests {
   }
 
   @Test
+  func unavailableDirectSessionDoesNotBecomeAShell() {
+    withDependencies {
+      $0.defaultFileStorage = .inMemory
+    } operation: {
+      initializeGhosttyForTests()
+
+      let spaceID = TerminalSpaceCatalog.default.defaultSelectedSpaceID
+      let tabID = TerminalTabID()
+      let controller = TerminalWindowController(
+        runtime: GhosttyRuntime(applicationIsActive: { false }),
+        registry: TerminalWindowRegistry(zmxClient: .noop),
+        session: TerminalWindowSession(
+          displayedSpaceID: spaceID,
+          spaces: [
+            TerminalSpaceSession(
+              spaceID: spaceID,
+              selectedTabID: tabID,
+              nodes: [
+                TerminalTabNodeSession(
+                  item: .tab(tabID),
+                  parent: .root(isPinned: false),
+                  order: 0
+                )
+              ],
+              groups: [],
+              collapsedGroupIDs: [],
+              tabs: [
+                TerminalTabSession(
+                  id: tabID,
+                  lockedTitle: nil,
+                  focusedPaneIndex: 0,
+                  root: .leaf(
+                    TerminalPaneLeafSession(
+                      workingDirectoryPath: nil,
+                      restoreMode: .existingSession
+                    )
+                  )
+                )
+              ]
+            )
+          ]
+        ),
+        zmxClient: .noop,
+        zmxSessionsEnabled: false
+      )
+      defer {
+        controller.window?.delegate = nil
+        controller.window?.close()
+      }
+
+      #expect(controller.terminal.visibleTabs.isEmpty)
+      #expect(controller.terminal.liveSurfaceIDs().isEmpty)
+    }
+  }
+
+  @Test
   func committedSidebarWidthUpdatesRestorationCatalog() async {
     await withDependencies {
       $0.defaultFileStorage = .inMemory

@@ -8,9 +8,8 @@ let hermeticShellPrompt = "SUPATERM_E2E_READY"
 let hermeticShellArguments = [
   "/usr/bin/env", "PS1=\(hermeticShellPrompt)", "/bin/zsh", "-f",
 ]
-let hermeticShellStartup = SupatermTerminalStartup.exec(
-  hermeticShellArguments,
-  searchPath: SupatermShellCommand.defaultExecutableSearchPath
+let hermeticShellStartup = SupatermTerminalStartup.shell(
+  SupatermShellCommand.escapedCommand(hermeticShellArguments)
 )
 
 private nonisolated(unsafe) var sharedAppAtExit: SupatermE2EApp?

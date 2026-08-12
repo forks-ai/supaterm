@@ -395,6 +395,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
       from: sessionCatalog,
       validSpaceIDs: Set(spaceCatalog.spaces.map(\.id)),
       restoreTerminalLayoutEnabled: supatermSettings.restoreTerminalLayoutEnabled,
+      allowsExistingSessions:
+        zmxSessionsEnabledAtLaunch && launchZmxClient.executableURL() != nil,
       lastAppLaunchedDate: lastAppLaunchedDate,
       cliPath: GhosttySupport.bundledCLIPath(executableURL: Bundle.main.executableURL)
     )
@@ -671,13 +673,26 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
   static func initialWindowSessions(
     from sessionCatalog: TerminalSessionCatalog,
     validSpaceIDs: Set<TerminalSpaceID>,
-    restoreTerminalLayoutEnabled: Bool
+    restoreTerminalLayoutEnabled: Bool,
+    allowsExistingSessions: Bool = true
   ) -> [TerminalWindowSession?] {
     guard restoreTerminalLayoutEnabled else {
       return [nil]
     }
-    let windows = sessionCatalog.pruned(validSpaceIDs: validSpaceIDs).windows
+    let validCatalog = sessionCatalog.pruned(validSpaceIDs: validSpaceIDs)
+    let windows =
+      allowsExistingSessions
+      ? validCatalog.windows
+      : sessionCatalog.pruned(
+        validSpaceIDs: validSpaceIDs,
+        allowsExistingSessions: false
+      ).windows
     if windows.isEmpty {
+      if !allowsExistingSessions,
+        validCatalog.windows.contains(where: \.containsExistingSession)
+      {
+        return []
+      }
       return [nil]
     }
     return windows.map(Optional.some)
@@ -687,13 +702,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
     from sessionCatalog: TerminalSessionCatalog,
     validSpaceIDs: Set<TerminalSpaceID>,
     restoreTerminalLayoutEnabled: Bool,
+    allowsExistingSessions: Bool = true,
     lastAppLaunchedDate: Date?,
     cliPath: String?
   ) -> [LaunchWindowRequest] {
     let sessions = initialWindowSessions(
       from: sessionCatalog,
       validSpaceIDs: validSpaceIDs,
-      restoreTerminalLayoutEnabled: restoreTerminalLayoutEnabled
+      restoreTerminalLayoutEnabled: restoreTerminalLayoutEnabled,
+      allowsExistingSessions: allowsExistingSessions
     )
     let onboardingWindowIndex: Int?
     if lastAppLaunchedDate == nil {

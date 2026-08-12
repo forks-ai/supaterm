@@ -292,6 +292,15 @@ struct TerminalWindowFeature {
             ]
           )
           guard let windowID = state.windowID else { return .none }
+          guard needsConfirmation else {
+            SupatermLog.debug(
+              SupatermLog.terminal,
+              "terminal.close.reducer.windowExecute"
+            )
+            return .run { [windowCloseClient] _ in
+              await windowCloseClient.closeWindow(windowID)
+            }
+          }
           state.confirmationRequest = confirmationRequest(for: .closeWindow(windowID))
           SupatermLog.debug(
             SupatermLog.terminal,

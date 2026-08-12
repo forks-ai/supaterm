@@ -299,8 +299,10 @@ struct TerminalWindowFeatureTests {
   }
 
   @Test
-  func windowCloseRequestedWarnsWhenRuntimeDoesNotRequireConfirmation() async {
-    let windowID = ObjectIdentifier(NSString())
+  func windowCloseRequestedClosesImmediatelyWhenRuntimeDoesNotRequireConfirmation() async {
+    let window = NSString()
+    let windowID = ObjectIdentifier(window)
+    var closedWindowIDs: [ObjectIdentifier] = []
 
     let store = TestStore(
       initialState: TerminalWindowFeature.State(
@@ -308,16 +310,15 @@ struct TerminalWindowFeatureTests {
       )
     ) {
       TerminalWindowFeature()
+    } withDependencies: {
+      $0.windowCloseClient.closeWindow = { windowID in
+        closedWindowIDs.append(windowID)
+      }
     }
 
-    await store.send(.clientEvent(.windowCloseRequested(needsConfirmation: false))) {
-      $0.confirmationRequest = TerminalWindowFeature.ConfirmationRequest(
-        target: .closeWindow(windowID),
-        title: "Close Window?",
-        message: TerminalWindowFeature.closeWindowWarningMessage,
-        confirmTitle: "Close Window"
-      )
-    }
+    await store.send(.clientEvent(.windowCloseRequested(needsConfirmation: false)))
+
+    #expect(closedWindowIDs == [windowID])
   }
 
   @Test

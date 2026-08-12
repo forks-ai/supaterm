@@ -74,7 +74,13 @@ extension TerminalHostState {
       return false
     }
     let validSpaceIDs = Set(spaces.map(\.id))
-    guard let session = session.pruned(validSpaceIDs: validSpaceIDs) else {
+    let allowsExistingSessions = zmxSessionsEnabled && zmxClient.executableURL() != nil
+    guard
+      let session = session.pruned(
+        validSpaceIDs: validSpaceIDs,
+        allowsExistingSessions: allowsExistingSessions
+      )
+    else {
       SupatermLog.debug(
         SupatermLog.terminal,
         "terminal.session.restore.skipped",
@@ -104,7 +110,11 @@ extension TerminalHostState {
       return false
     }
     for space in session.spaces where space.spaceID != displayedSession.spaceID {
-      spaceManager.registerColdInstance(space)
+      if space.containsExistingSession {
+        restoreSpaceSession(space)
+      } else {
+        spaceManager.registerColdInstance(space)
+      }
     }
     restoreSpaceSession(displayedSession)
     return finalizeRestoredSession(displayedSession)
@@ -227,6 +237,7 @@ extension TerminalHostState {
   func finalizeRestoredSession(_ session: TerminalSpaceSession) -> Bool {
     guard
       !spaceManager.rootItems(in: session.spaceID).isEmpty
+        || !spaceManager.allTabs.isEmpty
         || !spaceManager.pendingSurfaceIDs.isEmpty
     else {
       logRestoreFailed(reason: "noRestoredItems")
@@ -310,7 +321,8 @@ extension TerminalHostState {
           id: surface.id,
           workingDirectoryPath: workingDirectoryPath(for: surface),
           titleOverride: surface.bridge.state.titleOverride,
-          agents: agentStateRecords(for: surface.id)
+          agents: agentStateRecords(for: surface.id),
+          restoreMode: surface.restoreMode
         )
       )
     case .split(let split):
@@ -382,13 +394,17 @@ extension TerminalHostState {
   ) -> SplitTree<GhosttySurfaceView>.Node {
     switch node {
     case .leaf(let leaf):
+      let zmxAttachMode: ZmxAttach.Mode =
+        leaf.restoreMode == .existingSession ? .existing : .createIfNeeded
       let surface = createSurface(
         tabID: tabID,
         startupCommand: nil,
         inheritingFromSurfaceID: nil,
         workingDirectory: existingWorkingDirectoryURL(for: leaf.workingDirectoryPath),
         context: context,
-        surfaceID: leaf.id
+        surfaceID: leaf.id,
+        restoreMode: leaf.restoreMode,
+        zmxAttachMode: zmxAttachMode
       )
       surface.bridge.state.titleOverride = leaf.titleOverride
       restoreAgentState(leaf.agents, for: surface.id)

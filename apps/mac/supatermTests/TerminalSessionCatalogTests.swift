@@ -18,7 +18,7 @@ struct TerminalSessionCatalogTests {
 
   @Test
   func catalogRejectsUnsupportedAndPreviousVersions() {
-    for version in [8, 9, 10, 999] {
+    for version in [8, 9, 10, 11, 999] {
       let data = Data("{\"version\":\(version),\"windows\":[]}".utf8)
       #expect(throws: DecodingError.self) {
         try JSONDecoder().decode(TerminalSessionCatalog.self, from: data)
@@ -161,7 +161,7 @@ struct TerminalSessionCatalogTests {
     )
     let json = try #require(String(bytes: data, encoding: .utf8))
 
-    #expect(json.contains(#""version":11"#))
+    #expect(json.contains(#""version":12"#))
     #expect(json.contains(#""displayedSpaceID":"#))
     #expect(json.contains(#""spaces":[{"#))
     #expect(json.contains(#""sidebarWidth":304"#))
@@ -184,6 +184,90 @@ struct TerminalSessionCatalogTests {
     #expect(pruned.windows.count == 1)
     #expect(pruned.windows[0].spaces.map(\.spaceID) == [validSpace])
     #expect(pruned.windows[0].displayedSpaceID == validSpace)
+  }
+
+  @Test
+  func windowSessionPrunesPanesAndTabsThatRequireUnavailableSessions() throws {
+    let spaceID = TerminalSpaceID()
+    let shellTabID = TerminalTabID()
+    let directTabID = TerminalTabID()
+    let shellSurfaceID = UUID()
+    let focusedShellSurfaceID = UUID()
+    let splitDirectSurfaceID = UUID()
+    let directSurfaceID = UUID()
+    let session = TerminalWindowSession(
+      displayedSpaceID: spaceID,
+      spaces: [
+        TerminalSpaceSession(
+          spaceID: spaceID,
+          selectedTabID: directTabID,
+          nodes: [
+            tabNode(shellTabID, parent: .root(isPinned: false), order: 0),
+            tabNode(directTabID, parent: .root(isPinned: false), order: 1),
+          ],
+          groups: [],
+          collapsedGroupIDs: [],
+          tabs: [
+            TerminalTabSession(
+              id: shellTabID,
+              lockedTitle: "Shell",
+              focusedPaneIndex: 2,
+              root: .split(
+                TerminalPaneSplitSession(
+                  direction: .horizontal,
+                  ratio: 0.5,
+                  left: .leaf(
+                    TerminalPaneLeafSession(
+                      id: splitDirectSurfaceID,
+                      workingDirectoryPath: nil,
+                      restoreMode: .existingSession
+                    )
+                  ),
+                  right: .split(
+                    TerminalPaneSplitSession(
+                      direction: .vertical,
+                      ratio: 0.5,
+                      left: .leaf(
+                        TerminalPaneLeafSession(
+                          id: shellSurfaceID,
+                          workingDirectoryPath: nil
+                        )
+                      ),
+                      right: .leaf(
+                        TerminalPaneLeafSession(
+                          id: focusedShellSurfaceID,
+                          workingDirectoryPath: nil
+                        )
+                      )
+                    )
+                  )
+                )
+              )
+            ),
+            tabSession(
+              id: directTabID,
+              title: "Direct",
+              surfaceID: directSurfaceID,
+              restoreMode: .existingSession
+            ),
+          ]
+        )
+      ]
+    )
+
+    #expect(session.spaces[0].containsExistingSession)
+
+    let pruned = try #require(
+      session.pruned(validSpaceIDs: [spaceID], allowsExistingSessions: false)
+    )
+    let space = try #require(pruned.spaces.first)
+
+    #expect(space.tabs.map(\.id) == [shellTabID])
+    #expect(space.tabs.first?.root.orderedSurfaceIDs == [shellSurfaceID, focusedShellSurfaceID])
+    #expect(space.tabs.first?.focusedPaneIndex == 1)
+    #expect(space.selectedTabID == shellTabID)
+    #expect(pruned.surfaceIDs == [shellSurfaceID, focusedShellSurfaceID])
+    #expect(!space.containsExistingSession)
   }
 
   @Test
@@ -480,7 +564,7 @@ struct TerminalSessionCatalogTests {
     let decoded = try JSONDecoder().decode(TerminalSessionCatalog.self, from: data)
 
     #expect(decoded == catalog)
-    #expect(json.contains(#""version":11"#))
+    #expect(json.contains(#""version":12"#))
     #expect(json.contains(#""nodes""#))
     #expect(json.contains(#""parent":{"id":"CCCCCCCC-CCCC-CCCC-CCCC-CCCCCCCCCCCC","kind":"group"}"#))
     #expect(json.contains(#""collapsedGroupIDs":["CCCCCCCC-CCCC-CCCC-CCCC-CCCCCCCCCCCC"]"#))
@@ -602,7 +686,8 @@ struct TerminalSessionCatalogTests {
     id: TerminalTabID = TerminalTabID(),
     title: String,
     surfaceID: UUID = UUID(),
-    agents: [TerminalPaneAgentRecord] = []
+    agents: [TerminalPaneAgentRecord] = [],
+    restoreMode: TerminalPaneRestoreMode = .shell
   ) -> TerminalTabSession {
     TerminalTabSession(
       id: id,
@@ -612,7 +697,8 @@ struct TerminalSessionCatalogTests {
         TerminalPaneLeafSession(
           id: surfaceID,
           workingDirectoryPath: nil,
-          agents: agents
+          agents: agents,
+          restoreMode: restoreMode
         )
       )
     )

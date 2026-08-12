@@ -69,7 +69,8 @@ final class GhosttySurfaceView: NSView, Identifiable {
   private let selectionReader: @MainActor (ghostty_surface_t) -> String?
   private let accessibilitySelectionNotifier: @MainActor (GhosttySurfaceView) -> Void
   private let accessibilitySelectionSleep: @Sendable (Duration) async throws -> Void
-  let usesZmx: Bool
+  var usesZmx: Bool { !commandWrapper.isEmpty }
+  let restoreMode: TerminalPaneRestoreMode
   private var trackingArea: NSTrackingArea?
   private var lastPerformKeyEvent: TimeInterval?
   private var currentCursor: NSCursor = .iBeam
@@ -288,6 +289,7 @@ final class GhosttySurfaceView: NSView, Identifiable {
     shellPath: String = SupatermShellCommand.loginShellPath(),
     cliPath: String? = GhosttySupport.bundledCLIPath(executableURL: Bundle.main.executableURL),
     startupCommand: SupatermTerminalStartup? = nil,
+    restoreMode: TerminalPaneRestoreMode? = nil,
     commandWrapper: [String] = [],
     fontSize: Float32? = nil,
     context: ghostty_surface_context_e,
@@ -321,7 +323,16 @@ final class GhosttySurfaceView: NSView, Identifiable {
         zmxSessionsEnabled: zmxSessionsEnabled
       )
     self.commandWrapper = commandWrapper
-    usesZmx = !commandWrapper.isEmpty
+    if let restoreMode {
+      self.restoreMode = restoreMode
+    } else {
+      switch startupCommand {
+      case .exec:
+        self.restoreMode = .existingSession
+      case .shell, nil:
+        self.restoreMode = .shell
+      }
+    }
     self.fontSize = fontSize ?? 0
     self.context = context
     self.managesWindowAppearance = managesWindowAppearance

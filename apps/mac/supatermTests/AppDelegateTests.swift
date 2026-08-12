@@ -192,6 +192,39 @@ struct AppDelegateTests {
   }
 
   @Test
+  func initialWindowSessionsDropDirectOnlyWindowsWithoutZmx() {
+    let spaceID = TerminalSpaceID()
+
+    let sessions = AppDelegate.initialWindowSessions(
+      from: TerminalSessionCatalog(
+        windows: [windowSession(spaceID: spaceID, restoreMode: .existingSession)]
+      ),
+      validSpaceIDs: [spaceID],
+      restoreTerminalLayoutEnabled: true,
+      allowsExistingSessions: false
+    )
+
+    #expect(sessions.isEmpty)
+  }
+
+  @Test
+  func initialWindowSessionsIgnoreUnavailableSessionsInInvalidSpaces() {
+    let invalidSpaceID = TerminalSpaceID()
+
+    let sessions = AppDelegate.initialWindowSessions(
+      from: TerminalSessionCatalog(
+        windows: [windowSession(spaceID: invalidSpaceID, restoreMode: .existingSession)]
+      ),
+      validSpaceIDs: [],
+      restoreTerminalLayoutEnabled: true,
+      allowsExistingSessions: false
+    )
+
+    #expect(sessions.count == 1)
+    #expect(sessions[0] == nil)
+  }
+
+  @Test
   func initialWindowRequestsInjectOnboardingIntoFirstBlankWindowOnFirstLaunch() throws {
     let socketPath = try #require(SupatermProcessSocketEndpoint.current()?.path)
     let cliPath = "/Applications/Supaterm Preview.app/Contents/MacOS/sp"
@@ -372,6 +405,44 @@ struct AppDelegateTests {
           groups: [],
           collapsedGroupIDs: [],
           tabs: []
+        )
+      ]
+    )
+  }
+
+  private func windowSession(
+    spaceID: TerminalSpaceID,
+    restoreMode: TerminalPaneRestoreMode
+  ) -> TerminalWindowSession {
+    let tabID = TerminalTabID()
+    return TerminalWindowSession(
+      displayedSpaceID: spaceID,
+      spaces: [
+        TerminalSpaceSession(
+          spaceID: spaceID,
+          selectedTabID: tabID,
+          nodes: [
+            TerminalTabNodeSession(
+              item: .tab(tabID),
+              parent: .root(isPinned: false),
+              order: 0
+            )
+          ],
+          groups: [],
+          collapsedGroupIDs: [],
+          tabs: [
+            TerminalTabSession(
+              id: tabID,
+              lockedTitle: nil,
+              focusedPaneIndex: 0,
+              root: .leaf(
+                TerminalPaneLeafSession(
+                  workingDirectoryPath: nil,
+                  restoreMode: restoreMode
+                )
+              )
+            )
+          ]
         )
       ]
     )

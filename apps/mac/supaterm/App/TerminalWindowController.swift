@@ -295,10 +295,14 @@ final class TerminalWindowController: NSWindowController {
     startupCommand: SupatermTerminalStartup?,
     createsInitialTab: Bool
   ) {
-    if let session, terminal.restore(from: session) {
+    if let session {
+      if terminal.restore(from: session) || !session.surfaceIDs.isEmpty {
+        return
+      }
+    }
+    guard createsInitialTab else {
       return
     }
-    guard createsInitialTab else { return }
     terminal.ensureInitialTab(focusing: false, startupCommand: startupCommand)
   }
 

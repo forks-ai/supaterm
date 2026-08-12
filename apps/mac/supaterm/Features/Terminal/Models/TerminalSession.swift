@@ -5,7 +5,7 @@ import SupatermCLIShared
 import SupatermSupport
 
 nonisolated struct TerminalSessionCatalog: Equatable, Codable, Sendable {
-  static let currentVersion = 11
+  static let currentVersion = 12
   static let `default` = Self(windows: [])
 
   let version: Int
@@ -65,7 +65,10 @@ nonisolated struct TerminalSessionCatalog: Equatable, Codable, Sendable {
     }
   }
 
-  func pruned(validSpaceIDs: Set<TerminalSpaceID>) -> Self {
+  func pruned(
+    validSpaceIDs: Set<TerminalSpaceID>,
+    allowsExistingSessions: Bool = true
+  ) -> Self {
     var seenTabIDs: Set<TerminalTabID> = []
     var seenGroupIDs: Set<TerminalTabGroupID> = []
     var seenSurfaceIDs: Set<UUID> = []
@@ -75,7 +78,8 @@ nonisolated struct TerminalSessionCatalog: Equatable, Codable, Sendable {
           validSpaceIDs: validSpaceIDs,
           seenTabIDs: &seenTabIDs,
           seenGroupIDs: &seenGroupIDs,
-          seenSurfaceIDs: &seenSurfaceIDs
+          seenSurfaceIDs: &seenSurfaceIDs,
+          allowsExistingSessions: allowsExistingSessions
         )
       }
     )
@@ -142,7 +146,14 @@ nonisolated struct TerminalWindowSession: Equatable, Codable, Sendable {
     }
   }
 
-  func pruned(validSpaceIDs: Set<TerminalSpaceID>) -> TerminalWindowSession? {
+  var containsExistingSession: Bool {
+    spaces.contains(where: \.containsExistingSession)
+  }
+
+  func pruned(
+    validSpaceIDs: Set<TerminalSpaceID>,
+    allowsExistingSessions: Bool = true
+  ) -> TerminalWindowSession? {
     var seenTabIDs: Set<TerminalTabID> = []
     var seenGroupIDs: Set<TerminalTabGroupID> = []
     var seenSurfaceIDs: Set<UUID> = []
@@ -150,7 +161,8 @@ nonisolated struct TerminalWindowSession: Equatable, Codable, Sendable {
       validSpaceIDs: validSpaceIDs,
       seenTabIDs: &seenTabIDs,
       seenGroupIDs: &seenGroupIDs,
-      seenSurfaceIDs: &seenSurfaceIDs
+      seenSurfaceIDs: &seenSurfaceIDs,
+      allowsExistingSessions: allowsExistingSessions
     )
   }
 
@@ -158,7 +170,8 @@ nonisolated struct TerminalWindowSession: Equatable, Codable, Sendable {
     validSpaceIDs: Set<TerminalSpaceID>,
     seenTabIDs: inout Set<TerminalTabID>,
     seenGroupIDs: inout Set<TerminalTabGroupID>,
-    seenSurfaceIDs: inout Set<UUID>
+    seenSurfaceIDs: inout Set<UUID>,
+    allowsExistingSessions: Bool
   ) -> TerminalWindowSession? {
     var seenSpaceIDs: Set<TerminalSpaceID> = []
     var prunedSpaces: [TerminalSpaceSession] = []
@@ -167,13 +180,19 @@ nonisolated struct TerminalWindowSession: Equatable, Codable, Sendable {
       let prunedSpace = space.pruned(
         excludingTabIDs: seenTabIDs,
         excludingGroupIDs: seenGroupIDs,
-        seenSurfaceIDs: &seenSurfaceIDs
+        seenSurfaceIDs: &seenSurfaceIDs,
+        allowsExistingSessions: allowsExistingSessions
       )
       seenTabIDs.formUnion(prunedSpace.tabs.map(\.id))
       seenGroupIDs.formUnion(prunedSpace.groups.map(\.id))
       prunedSpaces.append(prunedSpace)
     }
     guard let firstSpaceID = prunedSpaces.first?.spaceID else { return nil }
+    guard
+      allowsExistingSessions
+        || !containsExistingSession
+        || prunedSpaces.contains(where: { !$0.surfaceIDs.isEmpty })
+    else { return nil }
     return TerminalWindowSession(
       displayedSpaceID: seenSpaceIDs.contains(displayedSpaceID) ? displayedSpaceID : firstSpaceID,
       spaces: prunedSpaces,
@@ -196,14 +215,16 @@ nonisolated struct TerminalSpaceSession: Equatable, Codable, Sendable {
     return pruned(
       excludingTabIDs: [],
       excludingGroupIDs: [],
-      seenSurfaceIDs: &seenSurfaceIDs
+      seenSurfaceIDs: &seenSurfaceIDs,
+      allowsExistingSessions: true
     )
   }
 
   fileprivate func pruned(
     excludingTabIDs: Set<TerminalTabID>,
     excludingGroupIDs: Set<TerminalTabGroupID>,
-    seenSurfaceIDs: inout Set<UUID>
+    seenSurfaceIDs: inout Set<UUID>,
+    allowsExistingSessions: Bool
   ) -> TerminalSpaceSession {
     let tabSessionsByID = uniqueTabSessions(excluding: excludingTabIDs)
     let groupSessionsByID = uniqueGroupSessions(excluding: excludingGroupIDs)
@@ -238,7 +259,10 @@ nonisolated struct TerminalSpaceSession: Equatable, Codable, Sendable {
     var resolvedTabSessionsByID: [TerminalTabID: TerminalTabSession] = [:]
     for tabID in candidateTabIDs {
       guard
-        let tab = tabSessionsByID[tabID]?.pruned(seenSurfaceIDs: &seenSurfaceIDs)
+        let tab = tabSessionsByID[tabID]?.pruned(
+          seenSurfaceIDs: &seenSurfaceIDs,
+          allowsExistingSessions: allowsExistingSessions
+        )
       else { continue }
       resolvedTabSessionsByID[tabID] = tab
     }
@@ -389,6 +413,10 @@ nonisolated struct TerminalSpaceSession: Equatable, Codable, Sendable {
     tabs.reduce(into: Set<UUID>()) { result, tab in
       result.formUnion(tab.surfaceIDs)
     }
+  }
+
+  var containsExistingSession: Bool {
+    tabs.contains { $0.root.containsExistingSession }
   }
 }
 
@@ -556,30 +584,30 @@ nonisolated struct TerminalTabSession: Equatable, Codable, Sendable {
 
   func pruned() -> TerminalTabSession? {
     var seenSurfaceIDs: Set<UUID> = []
-    return pruned(seenSurfaceIDs: &seenSurfaceIDs)
+    return pruned(seenSurfaceIDs: &seenSurfaceIDs, allowsExistingSessions: true)
   }
 
   fileprivate func pruned(
-    seenSurfaceIDs: inout Set<UUID>
+    seenSurfaceIDs: inout Set<UUID>,
+    allowsExistingSessions: Bool
   ) -> TerminalTabSession? {
-    guard let root = root.pruned(seenSurfaceIDs: &seenSurfaceIDs) else { return nil }
+    let surfaceIDs = root.orderedSurfaceIDs
+    let focusedSurfaceID =
+      surfaceIDs.indices.contains(focusedPaneIndex) ? surfaceIDs[focusedPaneIndex] : nil
+    guard
+      let root = root.pruned(
+        seenSurfaceIDs: &seenSurfaceIDs,
+        allowsExistingSessions: allowsExistingSessions
+      )
+    else { return nil }
     return TerminalTabSession(
       id: id,
       lockedTitle: lockedTitle?.isEmpty == true ? nil : lockedTitle,
-      focusedPaneIndex: Self.resolvedFocusedPaneIndex(
-        focusedPaneIndex,
-        leafCount: root.leafCount
-      ),
+      focusedPaneIndex: focusedSurfaceID.flatMap {
+        root.orderedSurfaceIDs.firstIndex(of: $0)
+      } ?? 0,
       root: root
     )
-  }
-
-  private static func resolvedFocusedPaneIndex(
-    _ focusedPaneIndex: Int,
-    leafCount: Int
-  ) -> Int {
-    guard (0..<leafCount).contains(focusedPaneIndex) else { return 0 }
-    return focusedPaneIndex
   }
 
   var surfaceIDs: Set<UUID> {
@@ -624,12 +652,12 @@ nonisolated indirect enum TerminalPaneNodeSession: Equatable, Codable, Sendable 
     }
   }
 
-  var leafCount: Int {
+  var containsExistingSession: Bool {
     switch self {
-    case .leaf:
-      return 1
+    case .leaf(let leaf):
+      return leaf.restoreMode == .existingSession
     case .split(let split):
-      return split.left.leafCount + split.right.leafCount
+      return split.left.containsExistingSession || split.right.containsExistingSession
     }
   }
 
@@ -652,18 +680,29 @@ nonisolated indirect enum TerminalPaneNodeSession: Equatable, Codable, Sendable 
   }
 
   fileprivate func pruned(
-    seenSurfaceIDs: inout Set<UUID>
+    seenSurfaceIDs: inout Set<UUID>,
+    allowsExistingSessions: Bool
   ) -> TerminalPaneNodeSession? {
     switch self {
-    case .leaf(let leaf) where seenSurfaceIDs.insert(leaf.id).inserted:
+    case .leaf(let leaf)
+    where (allowsExistingSessions || leaf.restoreMode == .shell)
+      && seenSurfaceIDs.insert(leaf.id).inserted:
       return .leaf(leaf.pruned())
     case .leaf:
       return nil
     case .split(let split):
-      return split.pruned(seenSurfaceIDs: &seenSurfaceIDs)
+      return split.pruned(
+        seenSurfaceIDs: &seenSurfaceIDs,
+        allowsExistingSessions: allowsExistingSessions
+      )
     }
   }
 
+}
+
+nonisolated enum TerminalPaneRestoreMode: String, Equatable, Codable, Sendable {
+  case shell
+  case existingSession
 }
 
 nonisolated struct TerminalPaneLeafSession: Equatable, Codable, Sendable {
@@ -671,17 +710,20 @@ nonisolated struct TerminalPaneLeafSession: Equatable, Codable, Sendable {
   var workingDirectoryPath: String?
   var titleOverride: String?
   var agents: [TerminalPaneAgentRecord]
+  var restoreMode: TerminalPaneRestoreMode
 
   init(
     id: UUID = UUID(),
     workingDirectoryPath: String?,
     titleOverride: String? = nil,
-    agents: [TerminalPaneAgentRecord] = []
+    agents: [TerminalPaneAgentRecord] = [],
+    restoreMode: TerminalPaneRestoreMode = .shell
   ) {
     self.id = id
     self.workingDirectoryPath = workingDirectoryPath
     self.titleOverride = titleOverride
     self.agents = agents
+    self.restoreMode = restoreMode
   }
 
   func pruned() -> TerminalPaneLeafSession {
@@ -692,7 +734,8 @@ nonisolated struct TerminalPaneLeafSession: Equatable, Codable, Sendable {
       id: id,
       workingDirectoryPath: workingDirectoryPath?.isEmpty == true ? nil : workingDirectoryPath,
       titleOverride: titleOverride?.isEmpty == true ? nil : titleOverride,
-      agents: agents.compactMap { $0.pruned() }
+      agents: agents.compactMap { $0.pruned() },
+      restoreMode: restoreMode
     )
   }
 }
@@ -838,10 +881,17 @@ nonisolated struct TerminalPaneSplitSession: Equatable, Codable, Sendable {
   var right: TerminalPaneNodeSession
 
   fileprivate func pruned(
-    seenSurfaceIDs: inout Set<UUID>
+    seenSurfaceIDs: inout Set<UUID>,
+    allowsExistingSessions: Bool
   ) -> TerminalPaneNodeSession? {
-    let left = left.pruned(seenSurfaceIDs: &seenSurfaceIDs)
-    let right = right.pruned(seenSurfaceIDs: &seenSurfaceIDs)
+    let left = left.pruned(
+      seenSurfaceIDs: &seenSurfaceIDs,
+      allowsExistingSessions: allowsExistingSessions
+    )
+    let right = right.pruned(
+      seenSurfaceIDs: &seenSurfaceIDs,
+      allowsExistingSessions: allowsExistingSessions
+    )
     switch (left, right) {
     case (.some(let left), .some(let right)):
       return .split(

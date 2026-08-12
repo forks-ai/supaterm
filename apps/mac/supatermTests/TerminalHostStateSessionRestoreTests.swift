@@ -377,6 +377,57 @@ struct TerminalHostStateSessionRestoreTests {
   }
 
   @Test
+  func hiddenExistingSessionWarmsDuringRestore() throws {
+    try withDependencies {
+      $0.defaultFileStorage = .inMemory
+    } operation: {
+      initializeGhosttyForTests()
+
+      let spaces = [TerminalSpaceItem(name: "Displayed"), TerminalSpaceItem(name: "Hidden")]
+      @Shared(.terminalSpaceCatalog) var spaceCatalog = TerminalSpaceCatalog.default
+      $spaceCatalog.withLock {
+        $0 = TerminalSpaceCatalog(defaultSelectedSpaceID: spaces[0].id, spaces: spaces)
+      }
+
+      let hiddenSurfaceID = UUID()
+      let hiddenSpace = spaceSession(
+        spaceID: spaces[1].id,
+        title: "Hidden Tab",
+        surfaceID: hiddenSurfaceID,
+        restoreMode: .existingSession
+      )
+      let hiddenTabID = try #require(hiddenSpace.selectedTabID)
+      let host = TerminalHostState(
+        spaceID: spaces[0].id,
+        zmxClient: wrappingZmxClient()
+      )
+
+      #expect(
+        host.restore(
+          from: TerminalWindowSession(
+            displayedSpaceID: spaces[0].id,
+            spaces: [
+              TerminalSpaceSession(
+                spaceID: spaces[0].id,
+                selectedTabID: nil,
+                nodes: [],
+                groups: [],
+                collapsedGroupIDs: [],
+                tabs: []
+              ),
+              hiddenSpace,
+            ]
+          )
+        )
+      )
+      #expect(host.spaceManager.instance(for: spaces[1].id)?.pendingSession == nil)
+      #expect(host.spaceManager.tabs(in: spaces[0].id).count == 1)
+      #expect(host.trees[hiddenTabID]?.leaves().map(\.id) == [hiddenSurfaceID])
+      #expect(host.surfaces[hiddenSurfaceID] != nil)
+    }
+  }
+
+  @Test
   func focusingAHiddenPaneWarmsItsSpaceAndDisplaysIt() throws {
     try withDependencies {
       $0.defaultFileStorage = .inMemory
@@ -589,7 +640,8 @@ struct TerminalHostStateSessionRestoreTests {
     spaceID: TerminalSpaceID,
     title: String,
     isPinned: Bool = false,
-    surfaceID: UUID = UUID()
+    surfaceID: UUID = UUID(),
+    restoreMode: TerminalPaneRestoreMode = .shell
   ) -> TerminalSpaceSession {
     let tabID = TerminalTabID()
     return TerminalSpaceSession(
@@ -609,7 +661,13 @@ struct TerminalHostStateSessionRestoreTests {
           id: tabID,
           lockedTitle: title,
           focusedPaneIndex: 0,
-          root: .leaf(TerminalPaneLeafSession(id: surfaceID, workingDirectoryPath: nil))
+          root: .leaf(
+            TerminalPaneLeafSession(
+              id: surfaceID,
+              workingDirectoryPath: nil,
+              restoreMode: restoreMode
+            )
+          )
         )
       ]
     )
