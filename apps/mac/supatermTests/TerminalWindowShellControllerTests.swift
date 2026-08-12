@@ -1,4 +1,5 @@
 import AppKit
+import Clocks
 import Foundation
 import SwiftUI
 import Testing
@@ -38,7 +39,7 @@ struct TerminalWindowShellControllerTests {
   @Test @MainActor
   func sidebarToggleInstallsSpringFrameMotion() throws {
     let fixture = shellMotionFixture(
-      presentation: presentation(collapsed: false, visible: false, width: 240)
+      presentation: presentation(collapsed: false, width: 240)
     )
     let sidebarLayer = try #require(fixture.sidebar.view.layer)
     let detailLayer = try #require(fixture.detail.view.layer)
@@ -46,7 +47,7 @@ struct TerminalWindowShellControllerTests {
     let oldDetailPosition = detailLayer.position
     let oldDetailBounds = detailLayer.bounds
 
-    fixture.shell.apply(presentation(collapsed: true, visible: false, width: 240))
+    fixture.shell.apply(presentation(collapsed: true, width: 240))
     fixture.shell.viewDidLayout()
 
     #expect(fixture.sidebar.view.frame == CGRect(x: -252, y: 0, width: 240, height: 700))
@@ -79,38 +80,43 @@ struct TerminalWindowShellControllerTests {
   }
 
   @Test @MainActor
-  func collapsedSidebarLeavesTheAccessibilityTreeUntilRevealed() {
+  func collapsedSidebarLeavesTheAccessibilityTreeUntilRevealed() async {
+    let clock = TestClock()
     let fixture = shellMotionFixture(
-      presentation: presentation(collapsed: false, visible: false, width: 240),
-      reduceMotion: { true }
+      presentation: presentation(collapsed: false, width: 240),
+      reduceMotion: { true },
+      clock: clock,
+      pointerLocation: CGPoint(x: 1, y: 350)
     )
 
-    fixture.shell.apply(presentation(collapsed: true, visible: false, width: 240))
+    fixture.shell.apply(presentation(collapsed: true, width: 240))
 
     #expect(fixture.sidebar.view.isAccessibilityHidden())
     #expect(fixture.sidebar.view.isHidden)
 
-    fixture.shell.apply(presentation(collapsed: true, visible: true, width: 240))
+    await advanceClock(clock, by: TerminalSidebarRevealMetrics.stoppedDuration)
 
     #expect(!fixture.sidebar.view.isAccessibilityHidden())
     #expect(!fixture.sidebar.view.isHidden)
 
-    fixture.shell.apply(presentation(collapsed: false, visible: false, width: 240))
+    fixture.shell.apply(presentation(collapsed: false, width: 240))
 
     #expect(!fixture.sidebar.view.isAccessibilityHidden())
     #expect(!fixture.sidebar.view.isHidden)
   }
 
   @Test @MainActor
-  func floatingRevealUsesEaseOutWithoutMovingDetail() throws {
+  func floatingRevealUsesEaseOutWithoutMovingDetail() async throws {
+    let clock = TestClock()
     let fixture = shellMotionFixture(
-      presentation: presentation(collapsed: true, visible: false, width: 240)
+      presentation: presentation(collapsed: true, width: 240),
+      clock: clock,
+      pointerLocation: CGPoint(x: 1, y: 350)
     )
     let sidebarLayer = try #require(fixture.sidebar.view.layer)
     let detailLayer = try #require(fixture.detail.view.layer)
     let oldSidebarPosition = sidebarLayer.position
-
-    fixture.shell.apply(presentation(collapsed: true, visible: true, width: 240))
+    await advanceClock(clock, by: TerminalSidebarRevealMetrics.stoppedDuration)
 
     #expect(fixture.sidebar.view.frame == CGRect(x: 0, y: 0, width: 240, height: 700))
     #expect(fixture.detail.view.frame == bounds)
@@ -134,14 +140,63 @@ struct TerminalWindowShellControllerTests {
     #expect(detailLayer.animation(forKey: "windowShellBounds") == nil)
   }
 
+  @Test(arguments: TerminalSidebarWindowGeometryChange.allCases) @MainActor
+  func revealedSidebarHidesWhenWindowGeometryMovesPointerOutside(
+    _ change: TerminalSidebarWindowGeometryChange
+  ) async {
+    let clock = TestClock()
+    let fixture = shellMotionFixture(
+      presentation: presentation(collapsed: true, width: 240),
+      reduceMotion: { true },
+      clock: clock,
+      pointerLocation: CGPoint(x: 1, y: 350)
+    )
+    await advanceClock(clock, by: TerminalSidebarRevealMetrics.stoppedDuration)
+    #expect(!fixture.sidebar.view.isHidden)
+
+    switch change {
+    case .move:
+      fixture.window.setFrameOrigin(CGPoint(x: 500, y: 0))
+    case .resize:
+      fixture.window.setContentSize(CGSize(width: 1_000, height: 200))
+      fixture.window.layoutIfNeeded()
+      fixture.shell.viewDidLayout()
+    }
+    #expect(
+      (fixture.shell.view as? TerminalWindowShellView)?.isPointerInsideRevealFrame == false
+    )
+    #expect(fixture.sidebar.view.isHidden)
+  }
+
+  @Test @MainActor
+  func spacePagingRetainsRevealUntilPagingEnds() async {
+    let clock = TestClock()
+    var isPaging = true
+    let fixture = shellMotionFixture(
+      presentation: presentation(collapsed: true, width: 240),
+      reduceMotion: { true },
+      clock: clock,
+      pointerLocation: CGPoint(x: 1, y: 350)
+    )
+    fixture.shell.isSpacePaging = { isPaging }
+    await advanceClock(clock, by: TerminalSidebarRevealMetrics.stoppedDuration)
+
+    fixture.window.setFrameOrigin(CGPoint(x: 500, y: 0))
+    #expect(!fixture.sidebar.view.isHidden)
+
+    isPaging = false
+    fixture.shell.spacePagingDidEnd()
+    #expect(fixture.sidebar.view.isHidden)
+  }
+
   @Test @MainActor
   func reduceMotionMakesSidebarToggleImmediate() throws {
     let fixture = shellMotionFixture(
-      presentation: presentation(collapsed: false, visible: false, width: 240),
+      presentation: presentation(collapsed: false, width: 240),
       reduceMotion: { true }
     )
 
-    fixture.shell.apply(presentation(collapsed: true, visible: false, width: 240))
+    fixture.shell.apply(presentation(collapsed: true, width: 240))
 
     #expect(fixture.sidebar.view.frame == CGRect(x: -252, y: 0, width: 240, height: 700))
     #expect(fixture.detail.view.frame == bounds)
@@ -151,10 +206,9 @@ struct TerminalWindowShellControllerTests {
   @Test @MainActor
   func sidebarResizeEndDoesNotAnimateCollapse() throws {
     let fixture = shellMotionFixture(
-      presentation: presentation(collapsed: false, visible: false, width: 240)
+      presentation: presentation(collapsed: false, width: 240)
     )
     let resizing = TerminalWindowShellPresentation(
-      isFloatingSidebarVisible: false,
       isSidebarCollapsed: false,
       sidebarResizeState: TerminalSidebarResizeState(startingWidth: 240, delta: 40),
       sidebarWidth: 240
@@ -166,7 +220,7 @@ struct TerminalWindowShellControllerTests {
     #expect(fixture.detail.view.frame.minX == 280)
     try expectNoFrameAnimations(fixture)
 
-    fixture.shell.apply(presentation(collapsed: true, visible: false, width: 280))
+    fixture.shell.apply(presentation(collapsed: true, width: 280))
 
     #expect(fixture.sidebar.view.frame == CGRect(x: -292, y: 0, width: 280, height: 700))
     #expect(fixture.detail.view.frame == bounds)
@@ -176,9 +230,9 @@ struct TerminalWindowShellControllerTests {
   @Test @MainActor
   func boundsChangeCancelsActiveFrameMotion() throws {
     let fixture = shellMotionFixture(
-      presentation: presentation(collapsed: false, visible: false, width: 240)
+      presentation: presentation(collapsed: false, width: 240)
     )
-    fixture.shell.apply(presentation(collapsed: true, visible: false, width: 240))
+    fixture.shell.apply(presentation(collapsed: true, width: 240))
     let sidebarLayer = try #require(fixture.sidebar.view.layer)
     let detailLayer = try #require(fixture.detail.view.layer)
     #expect(sidebarLayer.animation(forKey: "windowShellPosition") != nil)
@@ -205,7 +259,7 @@ struct TerminalWindowShellControllerTests {
   @Test @MainActor
   func interruptedToggleRetargetsFromPresentationGeometry() throws {
     let fixture = shellMotionFixture(
-      presentation: presentation(collapsed: false, visible: false, width: 240)
+      presentation: presentation(collapsed: false, width: 240)
     )
     let sidebarLayer = try #require(fixture.sidebar.view.layer)
     let start = sidebarLayer.position
@@ -213,7 +267,7 @@ struct TerminalWindowShellControllerTests {
     sidebarLayer.speed = 0
     sidebarLayer.timeOffset = pausedTime
 
-    fixture.shell.apply(presentation(collapsed: true, visible: false, width: 240))
+    fixture.shell.apply(presentation(collapsed: true, width: 240))
 
     let collapse = try #require(
       sidebarLayer.animation(forKey: "windowShellPosition") as? CASpringAnimation
@@ -226,7 +280,7 @@ struct TerminalWindowShellControllerTests {
     #expect(midpoint.x > min(start.x, end.x))
     #expect(midpoint.x < max(start.x, end.x))
 
-    fixture.shell.apply(presentation(collapsed: false, visible: false, width: 240))
+    fixture.shell.apply(presentation(collapsed: false, width: 240))
 
     let expand = try #require(
       sidebarLayer.animation(forKey: "windowShellPosition") as? CASpringAnimation
@@ -466,7 +520,9 @@ struct TerminalWindowShellControllerTests {
   func dockedSidebarOwnsLeadingWindowRegion() {
     let layout = TerminalWindowShellLayout(
       bounds: bounds,
-      presentation: presentation(collapsed: false, visible: false, width: 240)
+      presentation: .anchored,
+      sidebarResizeState: nil,
+      sidebarWidth: 240
     )
 
     #expect(layout.sidebarFrame == CGRect(x: 0, y: 0, width: 240, height: 700))
@@ -479,33 +535,49 @@ struct TerminalWindowShellControllerTests {
   func collapsedSidebarLeavesARevealStripAndFullDetail() {
     let layout = TerminalWindowShellLayout(
       bounds: bounds,
-      presentation: presentation(collapsed: true, visible: false, width: 240)
+      presentation: .hidden,
+      sidebarResizeState: nil,
+      sidebarWidth: 240
     )
 
     #expect(layout.sidebarFrame == CGRect(x: -252, y: 0, width: 240, height: 700))
     #expect(layout.detailFrame == bounds)
     #expect(layout.resizeFrame.isEmpty)
-    #expect(layout.revealFrame == CGRect(x: 0, y: 0, width: 10, height: 700))
+    #expect(layout.revealFrame == CGRect(x: 0, y: 0, width: 3.6, height: 700))
+
+    let activeLayout = TerminalWindowShellLayout(
+      bounds: bounds,
+      presentation: .hidden,
+      isRevealPointerInside: true,
+      sidebarResizeState: nil,
+      sidebarWidth: 240
+    )
+    #expect(activeLayout.revealFrame == CGRect(x: 0, y: 0, width: 9, height: 700))
   }
 
   @Test
   func floatingSidebarOverlaysFullDetailAndExpandsRevealRegion() {
     let layout = TerminalWindowShellLayout(
       bounds: bounds,
-      presentation: presentation(collapsed: true, visible: true, width: 240)
+      presentation: .floating,
+      sidebarResizeState: nil,
+      sidebarWidth: 240
     )
 
     #expect(layout.sidebarFrame == CGRect(x: 0, y: 0, width: 240, height: 700))
     #expect(layout.detailFrame == bounds)
     #expect(layout.resizeFrame == CGRect(x: 232, y: 0, width: 8, height: 700))
-    #expect(layout.revealFrame == layout.sidebarFrame)
+    #expect(layout.revealFrame == CGRect(x: 0, y: 0, width: 315, height: 700))
   }
 
   @Test @MainActor
-  func resizeViewOwnsEachVisibleSidebarEdge() throws {
+  func resizeViewOwnsEachVisibleSidebarEdge() async throws {
+    let clock = TestClock()
     let fixture = shellMotionFixture(
-      presentation: presentation(collapsed: false, visible: false, width: 240),
-      reduceMotion: { true }
+      presentation: presentation(collapsed: false, width: 240),
+      reduceMotion: { true },
+      clock: clock,
+      pointerLocation: CGPoint(x: 1, y: 350)
     )
     let resizeView = try #require(
       fixture.shell.view.subviews.first { $0 is SidebarResizeInteractionNSView }
@@ -520,12 +592,13 @@ struct TerminalWindowShellControllerTests {
     #expect(!resizeView.isHidden)
     #expect(!resizeView.isAccessibilityHidden())
 
-    fixture.shell.apply(presentation(collapsed: false, visible: false, width: 280))
+    fixture.shell.apply(presentation(collapsed: false, width: 280))
 
     #expect(resizeView.frame == CGRect(x: 278, y: 0, width: 8, height: 700))
     #expect(fixture.shell.view.hitTest(CGPoint(x: 285.5, y: 350)) === resizeView)
 
-    fixture.shell.apply(presentation(collapsed: true, visible: true, width: 240))
+    fixture.shell.apply(presentation(collapsed: true, width: 240))
+    await advanceClock(clock, by: TerminalSidebarRevealMetrics.stoppedDuration)
 
     #expect(resizeView.frame == CGRect(x: 232, y: 0, width: 8, height: 700))
     #expect(fixture.shell.view.hitTest(CGPoint(x: 231.5, y: 350)) === fixture.sidebar.view)
@@ -535,7 +608,10 @@ struct TerminalWindowShellControllerTests {
     #expect(!resizeView.isHidden)
     #expect(!resizeView.isAccessibilityHidden())
 
-    fixture.shell.apply(presentation(collapsed: true, visible: false, width: 240))
+    fixture.window.screenPointerLocation = fixture.window.convertPoint(
+      toScreen: CGPoint(x: 500, y: 350)
+    )
+    fixture.window.setFrameOrigin(CGPoint(x: 1, y: 0))
 
     #expect(resizeView.frame.isEmpty)
     #expect(resizeView.isHidden)
@@ -544,15 +620,16 @@ struct TerminalWindowShellControllerTests {
   }
 
   @Test @MainActor
-  func dragCaptureUsesOnlyTheVisibleDetailForEverySidebarMode() throws {
-    let docked = try captureRequest(
-      presentation: presentation(collapsed: false, visible: false, width: 240)
+  func dragCaptureUsesOnlyTheVisibleDetailForEverySidebarMode() async throws {
+    let docked = try await captureRequest(
+      presentation: presentation(collapsed: false, width: 240)
     )
-    let collapsed = try captureRequest(
-      presentation: presentation(collapsed: true, visible: false, width: 240)
+    let collapsed = try await captureRequest(
+      presentation: presentation(collapsed: true, width: 240)
     )
-    let floating = try captureRequest(
-      presentation: presentation(collapsed: true, visible: true, width: 240)
+    let floating = try await captureRequest(
+      presentation: presentation(collapsed: true, width: 240),
+      reveal: true
     )
 
     #expect(docked.geometry.sourceRect == CGRect(x: 240, y: 0, width: 760, height: 700))
@@ -564,12 +641,9 @@ struct TerminalWindowShellControllerTests {
   func liveResizeUsesTheSettledPolicyRange() {
     let layout = TerminalWindowShellLayout(
       bounds: bounds,
-      presentation: TerminalWindowShellPresentation(
-        isFloatingSidebarVisible: false,
-        isSidebarCollapsed: false,
-        sidebarResizeState: TerminalSidebarResizeState(startingWidth: 240, delta: 80),
-        sidebarWidth: 240
-      )
+      presentation: .anchored,
+      sidebarResizeState: TerminalSidebarResizeState(startingWidth: 240, delta: 80),
+      sidebarWidth: 240
     )
 
     #expect(layout.sidebarFrame.width == 300)
@@ -578,11 +652,9 @@ struct TerminalWindowShellControllerTests {
 
   private func presentation(
     collapsed: Bool,
-    visible: Bool,
     width: CGFloat
   ) -> TerminalWindowShellPresentation {
     TerminalWindowShellPresentation(
-      isFloatingSidebarVisible: visible,
       isSidebarCollapsed: collapsed,
       sidebarResizeState: nil,
       sidebarWidth: width
@@ -592,13 +664,25 @@ struct TerminalWindowShellControllerTests {
   @MainActor
   private func shellMotionFixture(
     presentation: TerminalWindowShellPresentation,
-    reduceMotion: @escaping () -> Bool = { false }
+    reduceMotion: @escaping () -> Bool = { false },
+    clock: TestClock<Duration>? = nil,
+    pointerLocation: CGPoint? = nil
   ) -> TerminalWindowShellMotionFixture {
-    let shell = TerminalWindowShellController(
-      windowControllerID: UUID(),
-      tabDragRegistry: TerminalTabDragRegistry(),
-      reduceMotion: reduceMotion
-    )
+    let shell: TerminalWindowShellController
+    if let clock {
+      shell = TerminalWindowShellController(
+        windowControllerID: UUID(),
+        tabDragRegistry: TerminalTabDragRegistry(),
+        reduceMotion: reduceMotion,
+        revealSleep: { try await clock.sleep(for: $0) }
+      )
+    } else {
+      shell = TerminalWindowShellController(
+        windowControllerID: UUID(),
+        tabDragRegistry: TerminalTabDragRegistry(),
+        reduceMotion: reduceMotion
+      )
+    }
     shell.view.frame = bounds
     let sidebar = NSViewController()
     sidebar.view = NSView()
@@ -606,11 +690,14 @@ struct TerminalWindowShellControllerTests {
     detail.view = NSView()
     shell.install(sidebar: sidebar, detail: detail)
     shell.apply(presentation)
-    let window = NSWindow(
+    let window = TerminalSidebarPointerWindow(
       contentRect: bounds,
       styleMask: .borderless,
       backing: .buffered,
       defer: false
+    )
+    window.screenPointerLocation = window.convertPoint(
+      toScreen: pointerLocation ?? CGPoint(x: 500, y: 350)
     )
     window.contentViewController = shell
     window.layoutIfNeeded()
@@ -695,11 +782,14 @@ struct TerminalWindowShellControllerTests {
 
   @MainActor
   private func captureRequest(
-    presentation: TerminalWindowShellPresentation
-  ) throws -> TerminalWindowCaptureRequest {
+    presentation: TerminalWindowShellPresentation,
+    reveal: Bool = false
+  ) async throws -> TerminalWindowCaptureRequest {
+    let clock = TestClock()
     let shell = TerminalWindowShellController(
       windowControllerID: UUID(),
-      tabDragRegistry: TerminalTabDragRegistry()
+      tabDragRegistry: TerminalTabDragRegistry(),
+      revealSleep: { try await clock.sleep(for: $0) }
     )
     let sidebar = NSViewController()
     sidebar.view = NSView()
@@ -707,27 +797,45 @@ struct TerminalWindowShellControllerTests {
     detail.view = NSView()
     shell.install(sidebar: sidebar, detail: detail)
     shell.apply(presentation)
-    let window = NSWindow(
+    let window = TerminalSidebarPointerWindow(
       contentRect: CGRect(x: 100, y: 100, width: 1_000, height: 700),
       styleMask: .borderless,
       backing: .buffered,
       defer: false
     )
+    window.screenPointerLocation = window.convertPoint(toScreen: CGPoint(x: 1, y: 350))
     window.contentViewController = shell
     window.setFrame(bounds.offsetBy(dx: 100, dy: 100), display: false)
     shell.view.frame = bounds
     shell.viewDidLayout()
     window.layoutIfNeeded()
+    if reveal {
+      await advanceClock(clock, by: TerminalSidebarRevealMetrics.stoppedDuration)
+    }
     return try #require(shell.tabDragCaptureRequest())
   }
 }
 
 @MainActor
 private struct TerminalWindowShellMotionFixture {
-  let window: NSWindow
+  let window: TerminalSidebarPointerWindow
   let shell: TerminalWindowShellController
   let sidebar: NSViewController
   let detail: NSViewController
+}
+
+enum TerminalSidebarWindowGeometryChange: CaseIterable, Sendable {
+  case move
+  case resize
+}
+
+@MainActor
+private final class TerminalSidebarPointerWindow: NSWindow {
+  var screenPointerLocation = CGPoint.zero
+
+  override var mouseLocationOutsideOfEventStream: NSPoint {
+    convertPoint(fromScreen: screenPointerLocation)
+  }
 }
 
 @MainActor

@@ -893,17 +893,17 @@ struct TerminalWindowFeatureTests {
   }
 
   @Test
-  func toggleSidebarButtonTappedTogglesCollapsedStateAndHidesFloatingSidebar() async {
+  func toggleSidebarButtonTappedTogglesCollapsedStateAndClearsResizeState() async {
     var initialState = TerminalWindowFeature.State()
-    initialState.isFloatingSidebarVisible = true
+    initialState.sidebarResizeState = TerminalSidebarResizeState(startingWidth: 240, delta: 40)
 
     let store = TestStore(initialState: initialState) {
       TerminalWindowFeature()
     }
 
     await store.send(.toggleSidebarButtonTapped) {
-      $0.isFloatingSidebarVisible = false
       $0.isSidebarCollapsed = true
+      $0.sidebarResizeState = nil
     }
   }
 

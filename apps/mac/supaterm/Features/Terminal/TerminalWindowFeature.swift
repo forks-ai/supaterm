@@ -79,7 +79,6 @@ struct TerminalWindowFeature {
   struct State: Equatable {
     var commandPalette: TerminalCommandPaletteState?
     var confirmationRequest: ConfirmationRequest?
-    var isFloatingSidebarVisible = false
     var isSidebarCollapsed = false
     var hiddenAgentPanelSurfaceIDs: Set<UUID> = []
     var pendingCloseRequest: PendingCloseRequest?
@@ -157,7 +156,6 @@ struct TerminalWindowFeature {
     case closeTabRequested(TerminalTabID)
     case closeTabsRequested([TerminalTabID])
     case closeTabsBelowRequested(TerminalTabID)
-    case floatingSidebarVisibilityChanged(Bool)
     case hiddenAgentPanelsTransferred(remove: Set<UUID>, insert: Set<UUID>)
     case agentPanelCopyText(String)
     case agentPanelForkSessionRequested(
@@ -395,10 +393,6 @@ struct TerminalWindowFeature {
         state.confirmationRequest = confirmationRequest(for: .closeAllWindows(windowIDs))
         return .none
 
-      case .floatingSidebarVisibilityChanged(let isVisible):
-        state.isFloatingSidebarVisible = isVisible
-        return .none
-
       case .hiddenAgentPanelsTransferred(let removedSurfaceIDs, let insertedSurfaceIDs):
         state.hiddenAgentPanelSurfaceIDs.subtract(removedSurfaceIDs)
         state.hiddenAgentPanelSurfaceIDs.formUnion(insertedSurfaceIDs)
@@ -526,7 +520,6 @@ struct TerminalWindowFeature {
             resizeState: resizeState,
             totalWidth: totalWidth
           ) {
-            state.isFloatingSidebarVisible = false
             state.isSidebarCollapsed = true
           } else {
             state.sidebarWidth = TerminalSidebarWidthPolicy.settledWidth(
@@ -802,7 +795,6 @@ struct TerminalWindowFeature {
   }
 
   private func toggleSidebar(state: inout State) {
-    state.isFloatingSidebarVisible = false
     state.isSidebarCollapsed.toggle()
     state.sidebarResizeState = nil
   }

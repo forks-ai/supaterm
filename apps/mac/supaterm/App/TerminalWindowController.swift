@@ -271,9 +271,6 @@ final class TerminalWindowController: NSWindowController {
         }
       }
     )
-    shellController.onFloatingSidebarVisibilityChange = { [store = input.store] isVisible in
-      _ = store.send(.terminal(.floatingSidebarVisibilityChanged(isVisible)))
-    }
     shellController.isSpacePaging = { [weak terminal = input.terminal] in
       terminal?.spacePager?.isTracking == true
     }

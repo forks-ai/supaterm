@@ -3,10 +3,15 @@ import Observation
 import QuartzCore
 
 struct TerminalWindowShellPresentation: Equatable {
-  let isFloatingSidebarVisible: Bool
   let isSidebarCollapsed: Bool
   let sidebarResizeState: TerminalSidebarResizeState?
   let sidebarWidth: CGFloat?
+}
+
+enum TerminalSidebarShellPresentation: Equatable {
+  case anchored
+  case hidden
+  case floating
 }
 
 struct TerminalWindowShellLayout: Equatable {
@@ -15,14 +20,20 @@ struct TerminalWindowShellLayout: Equatable {
   let resizeFrame: CGRect
   let sidebarFrame: CGRect
 
-  init(bounds: CGRect, presentation: TerminalWindowShellPresentation) {
+  init(
+    bounds: CGRect,
+    presentation: TerminalSidebarShellPresentation,
+    isRevealPointerInside: Bool = false,
+    sidebarResizeState: TerminalSidebarResizeState?,
+    sidebarWidth: CGFloat?
+  ) {
     let sidebarWidth = TerminalSidebarWidthPolicy.displayedWidth(
-      preferredWidth: presentation.sidebarWidth,
-      resizeState: presentation.sidebarResizeState,
+      preferredWidth: sidebarWidth,
+      resizeState: sidebarResizeState,
       totalWidth: bounds.width
     )
-    let isDocked = !presentation.isSidebarCollapsed
-    let isFloating = presentation.isSidebarCollapsed && presentation.isFloatingSidebarVisible
+    let isDocked = presentation == .anchored
+    let isFloating = presentation == .floating
     let detailMinX = isDocked ? sidebarWidth : 0
     let detailFrame = CGRect(
       x: detailMinX,
@@ -31,19 +42,36 @@ struct TerminalWindowShellLayout: Equatable {
       height: bounds.height
     )
     let sidebarFrame = CGRect(
-      x: isDocked || isFloating ? bounds.minX : bounds.minX - sidebarWidth - 12,
+      x: isDocked || isFloating
+        ? bounds.minX
+        : bounds.minX - sidebarWidth - TerminalSidebarRevealMetrics.activeOutsideWidth,
       y: bounds.minY,
       width: sidebarWidth,
       height: bounds.height
     )
     self.detailFrame = detailFrame
     self.sidebarFrame = sidebarFrame
-    revealFrame = CGRect(
-      x: bounds.minX,
-      y: bounds.minY,
-      width: presentation.isSidebarCollapsed ? (isFloating ? sidebarWidth : 10) : 0,
-      height: bounds.height
-    )
+    revealFrame =
+      switch presentation {
+      case .anchored:
+        .zero
+      case .hidden:
+        CGRect(
+          x: bounds.minX,
+          y: bounds.minY,
+          width: isRevealPointerInside
+            ? TerminalSidebarRevealMetrics.activeInsideWidth
+            : TerminalSidebarRevealMetrics.activationWidth,
+          height: bounds.height
+        )
+      case .floating:
+        CGRect(
+          x: bounds.minX,
+          y: bounds.minY,
+          width: sidebarWidth + TerminalSidebarRevealMetrics.retentionWidth,
+          height: bounds.height
+        )
+      }
     if isDocked {
       resizeFrame = Self.resizeFrame(
         endingAt: detailFrame.minX + TerminalChromeMetrics.paneInset,
@@ -150,22 +178,30 @@ nonisolated struct TerminalTabSplitDropCoordinator {
 
 @MainActor
 final class TerminalWindowShellView: NSView {
-  var onRevealChanged: ((Bool) -> Void)?
+  var onRevealPointerEvent: ((TerminalSidebarRevealPointerEvent) -> Void)?
   var onDraggingUpdated: ((any NSDraggingInfo) -> NSDragOperation)?
   var onDraggingExited: (() -> Void)?
   var onDraggingEnded: (() -> Void)?
   var onPrepareForDragOperation: ((any NSDraggingInfo) -> Bool)?
   var onPerformDragOperation: ((any NSDraggingInfo) -> Bool)?
   private(set) var isPointerInsideRevealFrame = false
+  private var frameObservers: [NSObjectProtocol] = []
+  private weak var observedWindow: NSWindow?
   private var revealFrame = CGRect.zero
   private var revealTrackingArea: NSTrackingArea?
 
   nonisolated override var safeAreaInsets: NSEdgeInsets { NSEdgeInsetsZero }
 
+  override func viewDidMoveToWindow() {
+    super.viewDidMoveToWindow()
+    updateWindowObservers()
+  }
+
   func setRevealFrame(_ revealFrame: CGRect) {
     guard self.revealFrame != revealFrame else { return }
     self.revealFrame = revealFrame
     updateTrackingAreas()
+    reconcilePointer(didMove: false)
   }
 
   override func updateTrackingAreas() {
@@ -174,13 +210,13 @@ final class TerminalWindowShellView: NSView {
     }
     guard !revealFrame.isEmpty else {
       revealTrackingArea = nil
-      setPointerInside(false)
+      setPointerInside(false, didMove: false)
       super.updateTrackingAreas()
       return
     }
     let revealTrackingArea = NSTrackingArea(
       rect: revealFrame,
-      options: [.activeAlways, .mouseEnteredAndExited],
+      options: [.activeAlways, .mouseEnteredAndExited, .mouseMoved],
       owner: self,
       userInfo: nil
     )
@@ -190,11 +226,15 @@ final class TerminalWindowShellView: NSView {
   }
 
   override func mouseEntered(with event: NSEvent) {
-    setPointerInside(true)
+    reconcilePointer(didMove: false)
+  }
+
+  override func mouseMoved(with event: NSEvent) {
+    reconcilePointer(didMove: true)
   }
 
   override func mouseExited(with event: NSEvent) {
-    setPointerInside(false)
+    reconcilePointer(didMove: false)
   }
 
   override func draggingEntered(_ sender: any NSDraggingInfo) -> NSDragOperation {
@@ -222,10 +262,60 @@ final class TerminalWindowShellView: NSView {
     onPerformDragOperation?(sender) == true
   }
 
-  private func setPointerInside(_ isInside: Bool) {
-    guard isInside != isPointerInsideRevealFrame else { return }
+  private func updateWindowObservers() {
+    if observedWindow === window {
+      reconcilePointer(didMove: false)
+      return
+    }
+    clearWindowObservers()
+    observedWindow = window
+    guard let window else {
+      setPointerInside(false, didMove: false)
+      return
+    }
+    let center = NotificationCenter.default
+    for name in [NSWindow.didMoveNotification, NSWindow.didResizeNotification] {
+      frameObservers.append(
+        center.addObserver(forName: name, object: window, queue: .main) { [weak self] _ in
+          MainActor.assumeIsolated {
+            self?.reconcilePointer(didMove: true)
+          }
+        }
+      )
+    }
+    reconcilePointer(didMove: false)
+  }
+
+  private func reconcilePointer(didMove: Bool) {
+    guard let window, !revealFrame.isEmpty else {
+      setPointerInside(false, didMove: didMove)
+      return
+    }
+    let point = convert(window.mouseLocationOutsideOfEventStream, from: nil)
+    let isInside = revealFrame.intersection(bounds).contains(point)
+    setPointerInside(isInside, didMove: didMove)
+  }
+
+  private func setPointerInside(_ isInside: Bool, didMove: Bool) {
+    let didChange = isInside != isPointerInsideRevealFrame
     isPointerInsideRevealFrame = isInside
-    onRevealChanged?(isInside)
+    if didChange {
+      onRevealPointerEvent?(isInside ? .entered : .exited)
+    } else if didMove, isInside {
+      onRevealPointerEvent?(.moved)
+    }
+  }
+
+  private func clearWindowObservers() {
+    let center = NotificationCenter.default
+    for observer in frameObservers {
+      center.removeObserver(observer)
+    }
+    frameObservers.removeAll()
+  }
+
+  isolated deinit {
+    clearWindowObservers()
   }
 }
 
@@ -263,7 +353,6 @@ final class TerminalWindowShellController: NSViewController {
   )
   let state = TerminalWindowShellState()
   private let sidebarResizeView = SidebarResizeInteractionNSView()
-  var onFloatingSidebarVisibilityChange: ((Bool) -> Void)?
   var onSidebarResizeInput: ((TerminalSidebarResizeInput) -> Void)? {
     get { sidebarResizeView.onInput }
     set { sidebarResizeView.onInput = newValue }
@@ -277,11 +366,11 @@ final class TerminalWindowShellController: NSViewController {
 
   private var detailController: NSViewController?
   private var presentation = TerminalWindowShellPresentation(
-    isFloatingSidebarVisible: false,
     isSidebarCollapsed: false,
     sidebarResizeState: nil,
     sidebarWidth: nil
   )
+  private let revealCoordinator: TerminalSidebarRevealCoordinator
   private var sidebarController: NSViewController?
   private let splitDropOverlay = TerminalTabSplitDropOverlayView()
   private var splitDropCoordinator = TerminalTabSplitDropCoordinator()
@@ -290,7 +379,22 @@ final class TerminalWindowShellController: NSViewController {
   private let windowControllerID: UUID
 
   private var currentLayout: TerminalWindowShellLayout {
-    TerminalWindowShellLayout(bounds: view.bounds, presentation: presentation)
+    TerminalWindowShellLayout(
+      bounds: view.bounds,
+      presentation: sidebarPresentation,
+      isRevealPointerInside: isRevealPointerInside,
+      sidebarResizeState: presentation.sidebarResizeState,
+      sidebarWidth: presentation.sidebarWidth
+    )
+  }
+
+  private var sidebarPresentation: TerminalSidebarShellPresentation {
+    guard presentation.isSidebarCollapsed else { return .anchored }
+    return revealCoordinator.isVisible ? .floating : .hidden
+  }
+
+  private var isRevealPointerInside: Bool {
+    (view as? TerminalWindowShellView)?.isPointerInsideRevealFrame == true
   }
 
   init(
@@ -298,12 +402,25 @@ final class TerminalWindowShellController: NSViewController {
     tabDragRegistry: TerminalTabDragRegistry,
     reduceMotion: @escaping () -> Bool = {
       NSWorkspace.shared.accessibilityDisplayShouldReduceMotion
+    },
+    revealSleep: @escaping TerminalSidebarRevealCoordinator.Sleep = {
+      try await Task.sleep(for: $0)
     }
   ) {
     self.reduceMotion = reduceMotion
+    revealCoordinator = TerminalSidebarRevealCoordinator(sleep: revealSleep)
     self.tabDragRegistry = tabDragRegistry
     self.windowControllerID = windowControllerID
     super.init(nibName: nil, bundle: nil)
+    revealCoordinator.isPointerInside = { [weak self] in
+      self?.isRevealPointerInside == true
+    }
+    revealCoordinator.isRetained = { [weak self] in
+      self?.isSpacePaging() == true
+    }
+    revealCoordinator.onVisibilityChange = { [weak self] in
+      self?.applyRevealVisibilityChange()
+    }
   }
 
   @available(*, unavailable)
@@ -313,8 +430,8 @@ final class TerminalWindowShellController: NSViewController {
 
   override func loadView() {
     let shellView = TerminalWindowShellView()
-    shellView.onRevealChanged = { [weak self] isInside in
-      self?.revealChanged(isInside)
+    shellView.onRevealPointerEvent = { [weak self] event in
+      self?.revealPointerChanged(event)
     }
     shellView.onDraggingUpdated = { [weak self] in
       self?.draggingUpdated($0) ?? []
@@ -365,17 +482,17 @@ final class TerminalWindowShellController: NSViewController {
   func apply(_ presentation: TerminalWindowShellPresentation) {
     guard presentation != self.presentation else { return }
     let motion = frameMotion(from: self.presentation, to: presentation)
+    let collapseChanged = presentation.isSidebarCollapsed != self.presentation.isSidebarCollapsed
     self.presentation = presentation
+    if collapseChanged {
+      revealCoordinator.reset()
+    }
     applyLayout(motion: motion)
   }
 
   func spacePagingDidEnd() {
-    guard presentation.isSidebarCollapsed,
-      presentation.isFloatingSidebarVisible,
-      let shellView = view as? TerminalWindowShellView,
-      !shellView.isPointerInsideRevealFrame
-    else { return }
-    onFloatingSidebarVisibilityChange?(false)
+    guard presentation.isSidebarCollapsed else { return }
+    revealCoordinator.releaseRetention()
   }
 
   func tabDragCaptureRequest() -> TerminalWindowCaptureRequest? {
@@ -408,16 +525,17 @@ final class TerminalWindowShellController: NSViewController {
   private func applyLayout(motion: FrameMotion) {
     guard let sidebarController, let detailController else { return }
     let layout = currentLayout
+    let sidebarPresentation = sidebarPresentation
     state.apply(presentation: presentation)
     sidebarController.view.setAccessibilityHidden(
-      presentation.isSidebarCollapsed && !presentation.isFloatingSidebarVisible
+      sidebarPresentation == .hidden
     )
     (view as? TerminalWindowShellView)?.setRevealFrame(layout.revealFrame)
     setSidebarFrame(
       layout.sidebarFrame,
       of: sidebarController.view,
       motion: motion,
-      hidesSidebar: presentation.isSidebarCollapsed && !presentation.isFloatingSidebarVisible
+      hidesSidebar: sidebarPresentation == .hidden
     )
     setFrame(layout.detailFrame, of: detailController.view, motion: motion)
     splitDropOverlay.frame = layout.detailFrame
@@ -448,8 +566,7 @@ final class TerminalWindowShellController: NSViewController {
       Task { @MainActor in
         guard
           let self,
-          self.presentation.isSidebarCollapsed,
-          !self.presentation.isFloatingSidebarVisible
+          self.sidebarPresentation == .hidden
         else { return }
         sidebarView?.isHidden = true
       }
@@ -470,9 +587,6 @@ final class TerminalWindowShellController: NSViewController {
     else { return .immediate }
     if current.isSidebarCollapsed != next.isSidebarCollapsed {
       return .sidebar
-    }
-    if current.isFloatingSidebarVisible != next.isFloatingSidebarVisible {
-      return .floating
     }
     return .immediate
   }
@@ -558,13 +672,21 @@ final class TerminalWindowShellController: NSViewController {
     }
   }
 
-  private func revealChanged(_ isInside: Bool) {
+  private func revealPointerChanged(_ event: TerminalSidebarRevealPointerEvent) {
     guard presentation.isSidebarCollapsed else { return }
-    if isInside {
-      onFloatingSidebarVisibilityChange?(true)
-    } else if !isSpacePaging() {
-      onFloatingSidebarVisibilityChange?(false)
+    revealCoordinator.handle(event)
+    if sidebarPresentation == .hidden {
+      (view as? TerminalWindowShellView)?.setRevealFrame(currentLayout.revealFrame)
     }
+  }
+
+  private func applyRevealVisibilityChange() {
+    guard presentation.isSidebarCollapsed else { return }
+    let motion: FrameMotion =
+      reduceMotion() || view.inLiveResize || presentation.sidebarResizeState != nil
+      ? .immediate
+      : .floating
+    applyLayout(motion: motion)
   }
 
   private func draggingUpdated(_ info: any NSDraggingInfo) -> NSDragOperation {

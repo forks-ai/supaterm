@@ -273,7 +273,6 @@ struct TerminalView: View {
 
   private var shellPresentation: TerminalWindowShellPresentation {
     TerminalWindowShellPresentation(
-      isFloatingSidebarVisible: store.isFloatingSidebarVisible,
       isSidebarCollapsed: store.isSidebarCollapsed,
       sidebarResizeState: store.sidebarResizeState,
       sidebarWidth: store.sidebarWidth
