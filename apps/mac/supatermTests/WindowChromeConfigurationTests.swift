@@ -52,6 +52,7 @@ struct WindowChromeConfigurationTests {
       defer: false
     )
     let view = WindowTrafficLightsView()
+    view.appearance = NSAppearance(named: .aqua)
     view.frame = NSRect(x: 0, y: 0, width: 100, height: 80)
     window.contentView?.addSubview(view)
     view.layoutSubtreeIfNeeded()
