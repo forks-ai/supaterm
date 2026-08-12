@@ -65,6 +65,7 @@ extension SP {
         FocusPane.self,
         ClosePane.self,
         SendText.self,
+        SendKey.self,
         CapturePane.self,
         ScreenshotPane.self,
         PaneHealth.self,
@@ -646,6 +647,50 @@ extension SP {
     }
   }
 
+  struct SendKey: ParsableCommand {
+    static let configuration = CommandConfiguration(
+      commandName: "key",
+      abstract: "Send a key to a Supaterm pane.",
+      discussion: SPHelp.sendKeyDiscussion
+    )
+
+    @Argument(help: "Key to send: backspace, ctrl-c, ctrl-d, ctrl-l, ctrl-z, enter, escape, or tab.")
+    var key: SupatermInputKey
+
+    @Argument(help: "Optional pane target.")
+    var pane: SPPaneReference?
+
+    @OptionGroup
+    var options: SPCommandOptions
+
+    mutating func run() throws {
+      try runControlCommand(
+        options: options,
+        request: { try .sendKey(try requestPayload(client: $0)) },
+        as: SupatermSendKeyResult.self,
+        plain: {
+          plainPaneSelector(
+            spaceIndex: $0.spaceIndex,
+            tabIndex: $0.tabIndex,
+            paneIndex: $0.paneIndex
+          )
+        },
+        human: { render($0) }
+      )
+    }
+
+    private func requestPayload(client: SPSocketClient) throws -> SupatermSendKeyRequest {
+      SupatermSendKeyRequest(
+        key: key,
+        target: try resolvePublicPaneTarget(
+          pane,
+          context: SupatermCLIContext.current,
+          snapshot: try treeSnapshot(client)
+        )
+      )
+    }
+  }
+
   struct CapturePane: ParsableCommand {
     static let configuration = CommandConfiguration(
       commandName: "capture",
@@ -1123,6 +1168,22 @@ extension SPPaneReference: ExpressibleByArgument {
 }
 
 extension SupatermCapturePaneScope: @retroactive ExpressibleByArgument {}
+
+extension SupatermInputKey: @retroactive ExpressibleByArgument {
+  public init?(argument: String) {
+    switch argument {
+    case "backspace": self = .backspace
+    case "ctrl-c": self = .ctrlC
+    case "ctrl-d": self = .ctrlD
+    case "ctrl-l": self = .ctrlL
+    case "ctrl-z": self = .ctrlZ
+    case "enter": self = .enter
+    case "escape": self = .escape
+    case "tab": self = .tab
+    default: return nil
+    }
+  }
+}
 
 private func tryParsePaneReference(_ argument: String) -> SPPaneReference? {
   try? parsePaneReference(argument)

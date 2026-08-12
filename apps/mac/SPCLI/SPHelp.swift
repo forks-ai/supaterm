@@ -283,6 +283,19 @@ enum SPHelp {
       printf 'pwd' | sp pane send
     """
 
+  static let sendKeyDiscussion = """
+    If you omit the pane target inside Supaterm, this command targets the current pane.
+
+    Pane targets accept either a `space/tab/pane` selector or a UUID.
+
+    Supported keys: backspace, ctrl-c, ctrl-d, ctrl-l, ctrl-z, enter, escape, and tab.
+
+    Example:
+      sp pane key ctrl-c
+      sp pane key enter 1/2/3
+      sp pane key escape <pane-uuid>
+    """
+
   static let capturePaneDiscussion = """
     If you omit the pane target inside Supaterm, this command captures the current pane.
 
@@ -608,6 +621,7 @@ enum SPHelp {
       sp pane split down -- htop
       sp pane focus 1/2/3
       sp pane send --newline 'echo hello'
+      sp pane key ctrl-c
       sp pane screenshot --output pane.png
       sp pane health <pane-uuid> --json
       sp pane wait-ready <pane-uuid> --timeout 5

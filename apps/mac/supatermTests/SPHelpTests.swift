@@ -66,6 +66,7 @@ struct SPHelpTests {
       SP.helpMessage(for: SP.ClosePane.self, columns: 100),
       SP.helpMessage(for: SP.CloseTab.self, columns: 100),
       SP.helpMessage(for: SP.SendText.self, columns: 100),
+      SP.helpMessage(for: SP.SendKey.self, columns: 100),
       SP.helpMessage(for: SP.CapturePane.self, columns: 100),
       SP.helpMessage(for: SP.ScreenshotPane.self, columns: 100),
       SP.helpMessage(for: SP.PaneHealth.self, columns: 100),
@@ -154,6 +155,16 @@ struct SPHelpTests {
     let help = SP.helpMessage(for: SP.SendText.self, columns: 100)
 
     #expect(help.contains("sp pane send --submit <pane-uuid> - < prompt.md"))
+  }
+
+  @Test
+  func paneKeyHelpListsKeysAndTargets() {
+    let paneHelp = SP.helpMessage(for: SP.Pane.self, columns: 100)
+    let keyHelp = SP.helpMessage(for: SP.SendKey.self, columns: 100)
+
+    #expect(paneHelp.contains("sp pane key ctrl-c"))
+    #expect(keyHelp.contains("backspace, ctrl-c, ctrl-d, ctrl-l, ctrl-z, enter, escape, and tab"))
+    #expect(keyHelp.contains("sp pane key escape <pane-uuid>"))
   }
 
   @Test

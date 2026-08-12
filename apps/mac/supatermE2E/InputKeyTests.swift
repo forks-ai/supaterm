@@ -25,7 +25,7 @@ extension SupatermE2ESuite {
     }
 
     @Test(.timeLimit(.minutes(5)))
-    func ctrlCInterruptsRunningCommand() async throws {
+    func cliCtrlCInterruptsRunningCommand() async throws {
       try await withTestSpace { app, space in
         try await app.waitForShellPrompt(space.pane)
 
@@ -34,7 +34,18 @@ extension SupatermE2ESuite {
         try await app.waitUntil("the sleep command starts") {
           FileManager.default.fileExists(atPath: startedFile.path)
         }
-        try app.press(.ctrlC, in: space.pane)
+        let runner = SPBinaryRunner(
+          executable: app.spExecutable,
+          environment: app.cliEnvironment(
+            context: app.context(tabID: space.tab.tabID, paneID: space.tab.paneID)
+          )
+        )
+        try requireSuccessfulSPResult(
+          runner.run(
+            ["pane", "key", "ctrl-c", space.tab.paneID.uuidString],
+            cwd: space.directory
+          )
+        )
 
         let marker = "interrupted-\(space.token)"
         try app.type("echo \(marker) > interrupted.txt\n", into: space.pane)

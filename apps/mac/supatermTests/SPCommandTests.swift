@@ -740,6 +740,28 @@ struct SPCommandTests {
   }
 
   @Test
+  func paneKeyParserAcceptsPublicKeysAndOptionalTarget() throws {
+    let currentPane = try #require(
+      try SP.parseAsRoot(["pane", "key", "ctrl-c"]) as? SP.SendKey
+    )
+    let selectedPane = try #require(
+      try SP.parseAsRoot(["pane", "key", "enter", "1/2/3"]) as? SP.SendKey
+    )
+
+    #expect(currentPane.key == .ctrlC)
+    #expect(currentPane.pane == nil)
+    #expect(selectedPane.key == .enter)
+    #expect(selectedPane.pane == .path(spaceIndex: 1, tabIndex: 2, paneIndex: 3))
+  }
+
+  @Test
+  func paneKeyParserRejectsSocketKeyNames() {
+    #expect(throws: (any Error).self) {
+      _ = try SP.parseAsRoot(["pane", "key", "ctrl_c"])
+    }
+  }
+
+  @Test
   func paneScreenshotParserRequiresAnOutputPath() throws {
     let command = try #require(
       try SP.parseAsRoot([
