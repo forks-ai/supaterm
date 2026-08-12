@@ -160,6 +160,65 @@ struct TerminalSidebarLayoutTests {
   }
 
   @Test
+  func structuralUpdatesKeepIdentifiersAlignedWithTheCollectionCount() {
+    let firstTabID = TerminalTabID()
+    let secondTabID = TerminalTabID()
+    let groupID = TerminalTabGroupID()
+    let ungrouped = TerminalSidebarTestFixture.outline(
+      roots: [
+        TerminalSidebarOutline.Root(content: .tab(firstTabID), isPinned: false),
+        TerminalSidebarOutline.Root(content: .tab(secondTabID), isPinned: false),
+      ],
+      revision: 1
+    )
+    let grouped = TerminalSidebarTestFixture.outline(
+      roots: [
+        TerminalSidebarOutline.Root(
+          content: .group(groupID, .blue, .automatic, [firstTabID, secondTabID]),
+          isPinned: false
+        )
+      ],
+      revision: 2
+    )
+    let sourceIdentifiers = ungrouped.visibleEntries.map(\.id)
+    let targetIdentifiers = grouped.visibleEntries.map(\.id)
+    let layout = TerminalSidebarCollectionLayout()
+
+    layout.setOutline(ungrouped)
+    layout.finishStructuralUpdate()
+    layout.setOutline(grouped)
+
+    #expect(
+      layout.displayedIdentifiers(
+        snapshotIdentifiers: targetIdentifiers,
+        itemCount: sourceIdentifiers.count
+      ) == sourceIdentifiers
+    )
+    #expect(
+      layout.displayedIdentifiers(
+        snapshotIdentifiers: targetIdentifiers,
+        itemCount: targetIdentifiers.count
+      ) == targetIdentifiers
+    )
+
+    layout.finishStructuralUpdate()
+    layout.setOutline(ungrouped)
+
+    #expect(
+      layout.displayedIdentifiers(
+        snapshotIdentifiers: sourceIdentifiers,
+        itemCount: targetIdentifiers.count
+      ) == targetIdentifiers
+    )
+    #expect(
+      layout.displayedIdentifiers(
+        snapshotIdentifiers: sourceIdentifiers,
+        itemCount: sourceIdentifiers.count
+      ) == sourceIdentifiers
+    )
+  }
+
+  @Test
   func topEntriesKeepAFixedGapBelowTheDocumentTop() throws {
     let root = TerminalTabID()
     let child = TerminalTabID()

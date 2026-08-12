@@ -701,6 +701,11 @@ struct TerminalSidebarLayoutPlan: Equatable {
 }
 
 final class TerminalSidebarCollectionLayout: NSCollectionViewLayout {
+  private struct StructuralUpdate {
+    let sourceIdentifiers: [TerminalSidebarEntryID]
+    let sourceItemsByID: [TerminalSidebarEntryID: TerminalSidebarLayoutPlan.Item]
+  }
+
   private(set) var outline = TerminalSidebarOutline(
     roots: [],
     collapsedGroupIDs: [],
@@ -730,18 +735,22 @@ final class TerminalSidebarCollectionLayout: NSCollectionViewLayout {
   private var transitionOrigin: TerminalSidebarLayoutPlan?
   private var transitionProgress: CGFloat = 1
   private var attributesByIndexPath: [IndexPath: NSCollectionViewLayoutAttributes] = [:]
-  private var fallbackItemsByID: [TerminalSidebarEntryID: TerminalSidebarLayoutPlan.Item] = [:]
+  private var structuralUpdate: StructuralUpdate?
   private var preparedBoundsSize: CGSize = .zero
 
   func setOutline(_ outline: TerminalSidebarOutline) {
-    if self.outline.visibleEntries.map(\.id) != outline.visibleEntries.map(\.id) {
-      fallbackItemsByID = Dictionary(uniqueKeysWithValues: plan.items.map { ($0.id, $0) })
+    let currentIdentifiers = self.outline.visibleEntries.map(\.id)
+    if currentIdentifiers != outline.visibleEntries.map(\.id) {
+      structuralUpdate = StructuralUpdate(
+        sourceIdentifiers: currentIdentifiers,
+        sourceItemsByID: Dictionary(uniqueKeysWithValues: plan.items.map { ($0.id, $0) })
+      )
     }
     self.outline = outline
   }
 
   func finishStructuralUpdate() {
-    fallbackItemsByID = [:]
+    structuralUpdate = nil
   }
 
   func beginTransition() {
@@ -804,8 +813,10 @@ final class TerminalSidebarCollectionLayout: NSCollectionViewLayout {
       collectionView.numberOfSections > 0
       ? collectionView.numberOfItems(inSection: 0)
       : 0
-    let identifiers = itemIdentifiers?() ?? entries.map(\.id)
-    let displayedIdentifiers = identifiers.count == itemCount ? identifiers : entries.map(\.id)
+    let displayedIdentifiers = displayedIdentifiers(
+      snapshotIdentifiers: itemIdentifiers?() ?? entries.map(\.id),
+      itemCount: itemCount
+    )
     attributesByIndexPath = Dictionary(
       uniqueKeysWithValues: displayedItems(
         identifiers: displayedIdentifiers,
@@ -826,9 +837,25 @@ final class TerminalSidebarCollectionLayout: NSCollectionViewLayout {
   ) -> [(IndexPath, TerminalSidebarLayoutPlan.Item)] {
     let targetItems = Dictionary(uniqueKeysWithValues: plan.items.map { ($0.id, $0) })
     return identifiers.prefix(itemCount).enumerated().compactMap { index, id in
-      guard let item = targetItems[id] ?? fallbackItemsByID[id] else { return nil }
+      guard let item = targetItems[id] ?? structuralUpdate?.sourceItemsByID[id] else { return nil }
       return (IndexPath(item: index, section: 0), item)
     }
+  }
+
+  func displayedIdentifiers(
+    snapshotIdentifiers: [TerminalSidebarEntryID],
+    itemCount: Int
+  ) -> [TerminalSidebarEntryID] {
+    let targetIdentifiers = outline.visibleEntries.map(\.id)
+    guard
+      let sourceIdentifiers = structuralUpdate?.sourceIdentifiers,
+      sourceIdentifiers.count != targetIdentifiers.count
+    else {
+      return snapshotIdentifiers
+    }
+    if itemCount == sourceIdentifiers.count { return sourceIdentifiers }
+    if itemCount == targetIdentifiers.count { return targetIdentifiers }
+    return snapshotIdentifiers
   }
 
   override var collectionViewContentSize: NSSize { plan.contentSize }
