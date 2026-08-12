@@ -67,10 +67,6 @@ enum TerminalSidebarWidthPolicy {
     return Swift.min(Swift.max(width, range.lowerBound), range.upperBound)
   }
 
-  static func stripOffset(for sidebarWidth: CGFloat) -> CGFloat {
-    Swift.max(0, sidebarWidth - interactionStripWidth)
-  }
-
   static func widthRange(for totalWidth: CGFloat) -> ClosedRange<CGFloat> {
     let totalWidth = Swift.max(totalWidth, 0)
     return (totalWidth * minimumFraction)...(totalWidth * maximumFraction)

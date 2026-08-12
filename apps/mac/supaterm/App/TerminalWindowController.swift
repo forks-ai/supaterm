@@ -230,6 +230,14 @@ final class TerminalWindowController: NSWindowController {
       windowControllerID: input.windowControllerID,
       tabDragRegistry: input.tabDragRegistry
     )
+    shellController.onSidebarResizeInput = { [weak shellController, store = input.store] resizeInput in
+      guard let shellController else { return }
+      _ = store.send(
+        .terminal(
+          .sidebarResizeInput(resizeInput, totalWidth: shellController.view.bounds.width)
+        )
+      )
+    }
     let detailController = NSHostingController(
       rootView: AppAppearanceView {
         GhosttyColorSchemeSyncView(ghostty: input.runtime) {
@@ -255,14 +263,6 @@ final class TerminalWindowController: NSWindowController {
             shellState: shellController.state,
             store: input.store,
             terminal: input.terminal,
-            resizeSidebar: { [weak shellController, store = input.store] resizeInput in
-              guard let shellController else { return }
-              _ = store.send(
-                .terminal(
-                  .sidebarResizeInput(resizeInput, totalWidth: shellController.view.bounds.width)
-                )
-              )
-            },
             sidebarControllerCache: shellController.sidebarControllerCache,
             spacePagingDidEnd: { [weak shellController] in
               shellController?.spacePagingDidEnd()

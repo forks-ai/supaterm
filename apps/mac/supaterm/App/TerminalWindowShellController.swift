@@ -12,8 +12,8 @@ struct TerminalWindowShellPresentation: Equatable {
 struct TerminalWindowShellLayout: Equatable {
   let detailFrame: CGRect
   let revealFrame: CGRect
+  let resizeFrame: CGRect
   let sidebarFrame: CGRect
-  let sidebarWidth: CGFloat
 
   init(bounds: CGRect, presentation: TerminalWindowShellPresentation) {
     let sidebarWidth = TerminalSidebarWidthPolicy.displayedWidth(
@@ -24,24 +24,46 @@ struct TerminalWindowShellLayout: Equatable {
     let isDocked = !presentation.isSidebarCollapsed
     let isFloating = presentation.isSidebarCollapsed && presentation.isFloatingSidebarVisible
     let detailMinX = isDocked ? sidebarWidth : 0
-    self.sidebarWidth = sidebarWidth
-    detailFrame = CGRect(
+    let detailFrame = CGRect(
       x: detailMinX,
       y: bounds.minY,
       width: max(0, bounds.width - detailMinX),
       height: bounds.height
     )
-    sidebarFrame = CGRect(
+    let sidebarFrame = CGRect(
       x: isDocked || isFloating ? bounds.minX : bounds.minX - sidebarWidth - 12,
       y: bounds.minY,
       width: sidebarWidth,
       height: bounds.height
     )
+    self.detailFrame = detailFrame
+    self.sidebarFrame = sidebarFrame
     revealFrame = CGRect(
       x: bounds.minX,
       y: bounds.minY,
       width: presentation.isSidebarCollapsed ? (isFloating ? sidebarWidth : 10) : 0,
       height: bounds.height
+    )
+    if isDocked {
+      resizeFrame = Self.resizeFrame(
+        endingAt: detailFrame.minX + TerminalChromeMetrics.paneInset,
+        in: bounds
+      )
+    } else if isFloating {
+      resizeFrame = Self.resizeFrame(endingAt: sidebarFrame.maxX, in: bounds)
+    } else {
+      resizeFrame = .zero
+    }
+  }
+
+  private static func resizeFrame(endingAt proposedMaxX: CGFloat, in bounds: CGRect) -> CGRect {
+    let maxX = min(max(proposedMaxX, bounds.minX), bounds.maxX)
+    let minX = max(bounds.minX, maxX - TerminalSidebarWidthPolicy.interactionStripWidth)
+    return CGRect(
+      x: minX,
+      y: bounds.minY,
+      width: maxX - minX,
+      height: max(0, bounds.height)
     )
   }
 }
@@ -69,11 +91,9 @@ nonisolated enum TerminalTabDragCaptureLayout {
 @Observable
 final class TerminalWindowShellState {
   private(set) var isFloating = false
-  private(set) var sidebarWidth: CGFloat = 0
 
-  func apply(layout: TerminalWindowShellLayout, presentation: TerminalWindowShellPresentation) {
+  func apply(presentation: TerminalWindowShellPresentation) {
     isFloating = presentation.isSidebarCollapsed
-    sidebarWidth = layout.sidebarWidth
   }
 }
 
@@ -242,7 +262,12 @@ final class TerminalWindowShellController: NSViewController {
     captureRequest: { [weak self] in self?.tabDragCaptureRequest() }
   )
   let state = TerminalWindowShellState()
+  private let sidebarResizeView = SidebarResizeInteractionNSView()
   var onFloatingSidebarVisibilityChange: ((Bool) -> Void)?
+  var onSidebarResizeInput: ((TerminalSidebarResizeInput) -> Void)? {
+    get { sidebarResizeView.onInput }
+    set { sidebarResizeView.onInput = newValue }
+  }
   var isSpacePaging: () -> Bool = { false }
   var splitDestination:
     () -> (
@@ -317,6 +342,7 @@ final class TerminalWindowShellController: NSViewController {
     guard
       sidebarController.view.frame != layout.sidebarFrame
         || detailController.view.frame != layout.detailFrame
+        || sidebarResizeView.frame != layout.resizeFrame
     else { return }
     applyLayout(motion: .immediate)
   }
@@ -330,6 +356,7 @@ final class TerminalWindowShellController: NSViewController {
     view.addSubview(splitDropOverlay)
     addChild(sidebar)
     view.addSubview(sidebar.view)
+    view.addSubview(sidebarResizeView)
     sidebarController = sidebar
     detailController = detail
     applyLayout(motion: .immediate)
@@ -381,7 +408,7 @@ final class TerminalWindowShellController: NSViewController {
   private func applyLayout(motion: FrameMotion) {
     guard let sidebarController, let detailController else { return }
     let layout = currentLayout
-    state.apply(layout: layout, presentation: presentation)
+    state.apply(presentation: presentation)
     sidebarController.view.setAccessibilityHidden(
       presentation.isSidebarCollapsed && !presentation.isFloatingSidebarVisible
     )
@@ -394,6 +421,10 @@ final class TerminalWindowShellController: NSViewController {
     )
     setFrame(layout.detailFrame, of: detailController.view, motion: motion)
     splitDropOverlay.frame = layout.detailFrame
+    sidebarResizeView.sidebarWidth = layout.sidebarFrame.width
+    setFrame(layout.resizeFrame, of: sidebarResizeView, motion: .immediate)
+    sidebarResizeView.isHidden = layout.resizeFrame.isEmpty
+    sidebarResizeView.setAccessibilityHidden(layout.resizeFrame.isEmpty)
   }
 
   private func setSidebarFrame(

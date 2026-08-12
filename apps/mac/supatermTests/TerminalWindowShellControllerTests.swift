@@ -469,9 +469,9 @@ struct TerminalWindowShellControllerTests {
       presentation: presentation(collapsed: false, visible: false, width: 240)
     )
 
-    #expect(layout.sidebarWidth == 240)
     #expect(layout.sidebarFrame == CGRect(x: 0, y: 0, width: 240, height: 700))
     #expect(layout.detailFrame == CGRect(x: 240, y: 0, width: 760, height: 700))
+    #expect(layout.resizeFrame == CGRect(x: 238, y: 0, width: 8, height: 700))
     #expect(layout.revealFrame.isEmpty)
   }
 
@@ -484,6 +484,7 @@ struct TerminalWindowShellControllerTests {
 
     #expect(layout.sidebarFrame == CGRect(x: -252, y: 0, width: 240, height: 700))
     #expect(layout.detailFrame == bounds)
+    #expect(layout.resizeFrame.isEmpty)
     #expect(layout.revealFrame == CGRect(x: 0, y: 0, width: 10, height: 700))
   }
 
@@ -496,7 +497,50 @@ struct TerminalWindowShellControllerTests {
 
     #expect(layout.sidebarFrame == CGRect(x: 0, y: 0, width: 240, height: 700))
     #expect(layout.detailFrame == bounds)
+    #expect(layout.resizeFrame == CGRect(x: 232, y: 0, width: 8, height: 700))
     #expect(layout.revealFrame == layout.sidebarFrame)
+  }
+
+  @Test @MainActor
+  func resizeViewOwnsEachVisibleSidebarEdge() throws {
+    let fixture = shellMotionFixture(
+      presentation: presentation(collapsed: false, visible: false, width: 240),
+      reduceMotion: { true }
+    )
+    let resizeView = try #require(
+      fixture.shell.view.subviews.first { $0 is SidebarResizeInteractionNSView }
+        as? SidebarResizeInteractionNSView
+    )
+
+    #expect(resizeView.frame == CGRect(x: 238, y: 0, width: 8, height: 700))
+    #expect(fixture.shell.view.hitTest(CGPoint(x: 237.5, y: 350)) === fixture.sidebar.view)
+    #expect(fixture.shell.view.hitTest(CGPoint(x: 238.5, y: 350)) === resizeView)
+    #expect(fixture.shell.view.hitTest(CGPoint(x: 245.5, y: 350)) === resizeView)
+    #expect(fixture.shell.view.hitTest(CGPoint(x: 246.5, y: 350)) === fixture.detail.view)
+    #expect(!resizeView.isHidden)
+    #expect(!resizeView.isAccessibilityHidden())
+
+    fixture.shell.apply(presentation(collapsed: false, visible: false, width: 280))
+
+    #expect(resizeView.frame == CGRect(x: 278, y: 0, width: 8, height: 700))
+    #expect(fixture.shell.view.hitTest(CGPoint(x: 285.5, y: 350)) === resizeView)
+
+    fixture.shell.apply(presentation(collapsed: true, visible: true, width: 240))
+
+    #expect(resizeView.frame == CGRect(x: 232, y: 0, width: 8, height: 700))
+    #expect(fixture.shell.view.hitTest(CGPoint(x: 231.5, y: 350)) === fixture.sidebar.view)
+    #expect(fixture.shell.view.hitTest(CGPoint(x: 232.5, y: 350)) === resizeView)
+    #expect(fixture.shell.view.hitTest(CGPoint(x: 239.5, y: 350)) === resizeView)
+    #expect(fixture.shell.view.hitTest(CGPoint(x: 240.5, y: 350)) === fixture.detail.view)
+    #expect(!resizeView.isHidden)
+    #expect(!resizeView.isAccessibilityHidden())
+
+    fixture.shell.apply(presentation(collapsed: true, visible: false, width: 240))
+
+    #expect(resizeView.frame.isEmpty)
+    #expect(resizeView.isHidden)
+    #expect(resizeView.isAccessibilityHidden())
+    #expect(fixture.shell.view.hitTest(CGPoint(x: 5, y: 350)) !== resizeView)
   }
 
   @Test @MainActor
@@ -528,7 +572,7 @@ struct TerminalWindowShellControllerTests {
       )
     )
 
-    #expect(layout.sidebarWidth == 300)
+    #expect(layout.sidebarFrame.width == 300)
     #expect(layout.detailFrame.minX == 300)
   }
 

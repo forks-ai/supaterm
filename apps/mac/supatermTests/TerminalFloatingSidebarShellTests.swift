@@ -12,7 +12,7 @@ struct TerminalFloatingSidebarShellTests {
   @Test
   func preservesCurrentShellGeometry() {
     #expect(TerminalFloatingSidebarShellMetrics.contentInset == TerminalChromeMetrics.paneInset)
-    #expect(TerminalFloatingSidebarShellMetrics.cornerRadius == TerminalChromeMetrics.paneCornerRadius)
+    #expect(TerminalFloatingSidebarShellMetrics.cornerRadius == 16)
     #expect(TerminalFloatingSidebarShellMetrics.shadowRadius == 16)
     #expect(TerminalFloatingSidebarShellMetrics.shadowYOffset == 6)
   }

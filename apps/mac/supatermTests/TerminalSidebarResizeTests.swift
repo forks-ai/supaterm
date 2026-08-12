@@ -22,13 +22,6 @@ struct TerminalSidebarResizeTests {
   }
 
   @Test
-  func interactionStripSitsInTrailingEightPoints() {
-    #expect(TerminalSidebarWidthPolicy.interactionStripWidth == 8)
-    #expect(TerminalSidebarWidthPolicy.stripOffset(for: 320) == 312)
-    #expect(TerminalSidebarWidthPolicy.stripOffset(for: 4) == 0)
-  }
-
-  @Test
   func dragWidthStaysWithinFractionBounds() {
     let lowerBound = TerminalSidebarResizeState(startingWidth: 144, delta: -48)
     let upperBound = TerminalSidebarResizeState(startingWidth: 432, delta: 48)

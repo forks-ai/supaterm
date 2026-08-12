@@ -12,7 +12,6 @@ struct TerminalWindowSidebarRoot: View {
   let releaseAnnouncement: ReleaseAnnouncement?
   let terminal: TerminalHostState
   let shellState: TerminalWindowShellState
-  let onResizeInput: (TerminalSidebarResizeInput) -> Void
   let sidebarControllerCache: TerminalSidebarControllerCache
   let spacePagingDidEnd: () -> Void
   let dismissReleaseAnnouncement: () -> Void
@@ -28,18 +27,11 @@ struct TerminalWindowSidebarRoot: View {
   }
 
   var body: some View {
-    ZStack(alignment: .trailing) {
-      TerminalSidebarSurfaceShell(
-        palette: palette,
-        isFloating: shellState.isFloating
-      ) {
-        sidebar
-      }
-
-      SidebarResizeHandle(
-        sidebarWidth: shellState.sidebarWidth,
-        onInput: onResizeInput
-      )
+    TerminalSidebarSurfaceShell(
+      palette: palette,
+      isFloating: shellState.isFloating
+    ) {
+      sidebar
     }
     .frame(maxWidth: .infinity, maxHeight: .infinity)
     .coordinateSpace(
@@ -102,34 +94,6 @@ struct TerminalSidebarView: View {
   }
 }
 
-struct SidebarResizeHandle: View {
-  let sidebarWidth: CGFloat
-  let onInput: (TerminalSidebarResizeInput) -> Void
-
-  var body: some View {
-    SidebarResizeInteractionView(sidebarWidth: sidebarWidth, onInput: onInput)
-      .frame(width: TerminalSidebarWidthPolicy.interactionStripWidth)
-      .frame(maxHeight: .infinity)
-  }
-}
-
-private struct SidebarResizeInteractionView: NSViewRepresentable {
-  let sidebarWidth: CGFloat
-  let onInput: (TerminalSidebarResizeInput) -> Void
-
-  func makeNSView(context: Context) -> SidebarResizeInteractionNSView {
-    let view = SidebarResizeInteractionNSView()
-    view.sidebarWidth = sidebarWidth
-    view.onInput = onInput
-    return view
-  }
-
-  func updateNSView(_ nsView: SidebarResizeInteractionNSView, context: Context) {
-    nsView.sidebarWidth = sidebarWidth
-    nsView.onInput = onInput
-  }
-}
-
 enum SidebarResizeGestureRouting {
   static func inputs(
     for state: NSGestureRecognizer.State,
@@ -178,10 +142,6 @@ final class SidebarResizeInteractionNSView: NSView {
 
   override func acceptsFirstMouse(for event: NSEvent?) -> Bool {
     true
-  }
-
-  override func hitTest(_ point: NSPoint) -> NSView? {
-    bounds.contains(point) ? self : nil
   }
 
   override func accessibilityValue() -> Any? {

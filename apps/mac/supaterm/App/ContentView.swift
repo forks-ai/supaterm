@@ -57,7 +57,6 @@ struct TerminalSidebarContentView: View {
   let shellState: TerminalWindowShellState
   let store: StoreOf<AppFeature>
   let terminal: TerminalHostState
-  let resizeSidebar: (TerminalSidebarResizeInput) -> Void
   let sidebarControllerCache: TerminalSidebarControllerCache
   let spacePagingDidEnd: () -> Void
 
@@ -76,7 +75,6 @@ struct TerminalSidebarContentView: View {
       releaseAnnouncement: store.releaseAnnouncement,
       terminal: terminal,
       shellState: shellState,
-      onResizeInput: resizeSidebar,
       sidebarControllerCache: sidebarControllerCache,
       spacePagingDidEnd: spacePagingDidEnd
     ) {

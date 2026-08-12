@@ -11,26 +11,19 @@ enum TerminalSplitMetrics {
 
 enum TerminalChromeMetrics {
   static let paneInset: CGFloat = 6
-  static let paneCornerRadius: CGFloat = 16
+  static let paneCornerRadius: CGFloat = 12
   static var detailToolbarControlShape: ConcentricRectangle {
     ConcentricRectangle(corners: .concentric(minimum: 6))
   }
   static var paneShape: RoundedRectangle {
     RoundedRectangle(cornerRadius: paneCornerRadius, style: .continuous)
   }
-
-  static func nestedCornerRadius(
-    inside outerCornerRadius: CGFloat,
-    inset: CGFloat = paneInset
-  ) -> CGFloat {
-    Swift.max(0, outerCornerRadius - inset)
-  }
 }
 
 enum TerminalFloatingSidebarShellMetrics {
   static let borderWidth: CGFloat = 1
   static let contentInset = TerminalChromeMetrics.paneInset
-  static let cornerRadius = TerminalChromeMetrics.paneCornerRadius
+  static let cornerRadius: CGFloat = 16
   static let shadowRadius: CGFloat = 16
   static let shadowYOffset: CGFloat = 6
 }
