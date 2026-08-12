@@ -289,7 +289,7 @@ private final class CodexAppServerTransport {
     let codexHomeDirectoryURL =
       homeDirectoryURL
       .appendingPathComponent(".codex", isDirectory: true)
-    let command = [
+    let command = SupatermShellCommand.escapedCommand([
       "exec",
       "/usr/bin/env",
       "HOME=\(homeDirectoryURL.path)",
@@ -297,9 +297,7 @@ private final class CodexAppServerTransport {
       "codex",
       "app-server",
       "--stdio",
-    ]
-    .map(SupatermShellCommand.escapedToken)
-    .joined(separator: " ")
+    ])
     process.executableURL = CodingAgentCommandRunner.loginShellURL()
     process.arguments = LoginShellCommandAvailability.interactiveCommandArguments(for: command)
     process.standardInput = inputPipe

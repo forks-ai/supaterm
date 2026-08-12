@@ -208,9 +208,8 @@ struct AppDelegateTests {
         AppDelegate.LaunchWindowRequest(
           session: nil,
           startupCommand: .shell(
-            [cliPath, "onboard", "--socket", socketPath]
-              .map(SupatermShellCommand.escapedToken)
-              .joined(separator: " ")
+            "'/Applications/Supaterm Preview.app/Contents/MacOS/sp' onboard --socket "
+              + SupatermShellCommand.escapedToken(socketPath)
           ),
         )
       ]

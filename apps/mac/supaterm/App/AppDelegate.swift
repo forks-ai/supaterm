@@ -76,9 +76,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
       return nil
     }
     return .shell(
-      [cliPath, "onboard", "--socket", socketPath]
-        .map(SupatermShellCommand.escapedToken)
-        .joined(separator: " ")
+      SupatermShellCommand.escapedCommand([cliPath, "onboard", "--socket", socketPath])
     )
   }
 

@@ -101,7 +101,7 @@ nonisolated struct PaneAgentPanelSession: Equatable, Sendable {
   }
 
   var forkStartupCommand: SupatermTerminalStartup {
-    .shell(forkArguments.joined(separator: " "))
+    .shell(SupatermShellCommand.escapedCommand(forkArguments))
   }
 
   private var forkArguments: [String] {

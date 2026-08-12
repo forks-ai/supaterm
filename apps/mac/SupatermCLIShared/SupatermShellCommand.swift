@@ -30,6 +30,10 @@ public enum SupatermShellCommand {
     return "'\(token.replacingOccurrences(of: "'", with: "'\"'\"'"))'"
   }
 
+  public static func escapedCommand(_ arguments: [String]) -> String {
+    arguments.map(escapedToken).joined(separator: " ")
+  }
+
   public static func currentUserShellPath() -> String? {
     guard let entry = getpwuid(getuid()), let shell = entry.pointee.pw_shell else {
       return nil

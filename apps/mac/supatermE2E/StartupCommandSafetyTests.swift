@@ -376,9 +376,7 @@ private func makeShellProcessIDRecorder(in directory: URL) throws -> URL {
 }
 
 private func shellProcessIDCommand(recorder: URL, output: URL) -> String {
-  [recorder.path, output.path]
-    .map(SupatermShellCommand.escapedToken)
-    .joined(separator: " ")
+  SupatermShellCommand.escapedCommand([recorder.path, output.path])
 }
 
 private func makeMarkerCommand(value: String, marker: URL) throws -> String {

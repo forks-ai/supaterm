@@ -25,6 +25,20 @@ struct SupatermShellCommandTests {
   }
 
   @Test
+  func escapedCommandPreservesArgumentBoundaries() {
+    expectNoDifference(
+      SupatermShellCommand.escapedCommand([
+        "tool",
+        "",
+        "two words",
+        "echo 'hi'",
+        "$HOME",
+      ]),
+      #"tool '' 'two words' 'echo '"'"'hi'"'"'' '$HOME'"#
+    )
+  }
+
+  @Test
   func loginShellCommandArgumentsKeepTheScriptInOneArgument() {
     expectNoDifference(
       SupatermShellCommand.loginShellCommandArguments(for: "printf '%s\\n' hello; exit"),
