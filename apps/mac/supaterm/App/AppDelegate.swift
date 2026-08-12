@@ -185,9 +185,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
       shouldPresentLaunchConfigurationDiagnostics = false
       refreshConfigurationDiagnostics()
     }
-    guard toggleVisibilityState == nil else { return }
-    guard !NSApp.windows.contains(where: \.isVisible) else { return }
-    _ = showExistingWindowOrCreate()
   }
 
   func applicationDidResignActive(_ notification: Notification) {
@@ -310,7 +307,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
   @discardableResult
   func performNewWindow() -> Bool {
     let controller = createWindow(
-      spaceID: terminalWindowRegistry.preferredSpaceID ?? spaceCatalog.defaultSelectedSpaceID
+      launch: .newShell(
+        spaceID: terminalWindowRegistry.preferredSpaceID ?? spaceCatalog.defaultSelectedSpaceID,
+        startupCommand: nil
+      )
     )
     AppPostHog.capture("window_created")
     activateForWindowPresentation()
@@ -512,17 +512,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
   }
 
   private func createWindow(
-    launch: TerminalWindowLaunch = .newShell(windowSession: nil, startupCommand: nil),
-    spaceID: TerminalSpaceID? = nil,
-    createsInitialTab: Bool = true,
+    launch: TerminalWindowLaunch = .newShell(spaceID: nil, startupCommand: nil),
     ordersFront: Bool = true
   ) -> TerminalWindowController {
     let controller = TerminalWindowController(
       runtime: ghosttyRuntime,
       registry: terminalWindowRegistry,
       launch: launch,
-      spaceID: spaceID,
-      createsInitialTab: createsInitialTab,
       zmxClient: launchZmxClient,
       zmxSessionsEnabled: zmxSessionsEnabledAtLaunch,
       agentDetectionRuleRepository: agentDetectionRuleService?.repository
@@ -549,8 +545,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
       return false
     }
     let controller = createWindow(
-      spaceID: payload.sourceSpaceID,
-      createsInitialTab: false,
+      launch: .tabTransferDestination(spaceID: payload.sourceSpaceID),
       ordersFront: false
     )
     guard
@@ -671,7 +666,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
     guard restoreTerminalLayoutEnabled else {
       return [
         .newShell(
-          windowSession: nil,
+          spaceID: nil,
           startupCommand: lastAppLaunchedDate == nil ? onboardingStartup(cliPath: cliPath) : nil
         )
       ]
@@ -684,7 +679,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
     if !windows.isEmpty {
       return windows.map { window in
         window.surfaceIDs.isEmpty
-          ? .newShell(windowSession: window, startupCommand: nil)
+          ? .restoredShell(window)
           : .restore(window)
       }
     }
@@ -697,7 +692,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
     }
     return [
       .newShell(
-        windowSession: nil,
+        spaceID: nil,
         startupCommand: lastAppLaunchedDate == nil ? onboardingStartup(cliPath: cliPath) : nil
       )
     ]

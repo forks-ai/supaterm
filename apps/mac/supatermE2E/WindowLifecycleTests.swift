@@ -37,9 +37,12 @@ extension SupatermE2ESuite {
     }
 
     @Test(.timeLimit(.minutes(5)))
-    func closingLastPaneClosesWindow() async throws {
+    func closingLastPaneKeepsWindowClosedAfterActivation() async throws {
       let app = try await SupatermE2EApp.launch()
       defer { app.terminate() }
+      let runningApp = try #require(
+        NSRunningApplication(processIdentifier: app.processIdentifier)
+      )
 
       var paneIDs = try app.debugSnapshot()
         .windows
@@ -60,6 +63,13 @@ extension SupatermE2ESuite {
         try app.debugSnapshot().summary.windowCount == 0
       }
       #expect(try app.debugSnapshot().problems.contains("No active windows."))
+
+      #expect(runningApp.activate(options: []))
+      try await app.waitUntil("the app activates") {
+        runningApp.isActive
+      }
+      try await Task.sleep(for: .milliseconds(200))
+      #expect(try app.debugSnapshot().summary.windowCount == 0)
     }
 
     @Test(.timeLimit(.minutes(5)))

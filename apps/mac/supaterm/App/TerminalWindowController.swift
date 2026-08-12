@@ -4,16 +4,24 @@ import SupatermSupport
 import SwiftUI
 
 enum TerminalWindowLaunch: Equatable {
-  case newShell(
-    windowSession: TerminalWindowSession?,
-    startupCommand: SupatermTerminalStartup?
-  )
+  case newShell(spaceID: TerminalSpaceID?, startupCommand: SupatermTerminalStartup?)
+  case restoredShell(TerminalWindowSession)
   case restore(TerminalWindowSession)
+  case tabTransferDestination(spaceID: TerminalSpaceID)
 
   var windowSession: TerminalWindowSession? {
     switch self {
-    case .newShell(let windowSession, _): windowSession
+    case .newShell, .tabTransferDestination: nil
+    case .restoredShell(let session): session
     case .restore(let session): session
+    }
+  }
+
+  var spaceID: TerminalSpaceID? {
+    switch self {
+    case .newShell(let spaceID, _): spaceID
+    case .restoredShell(let session), .restore(let session): session.displayedSpaceID
+    case .tabTransferDestination(let spaceID): spaceID
     }
   }
 }
@@ -112,9 +120,7 @@ final class TerminalWindowController: NSWindowController {
   init(
     runtime: GhosttyRuntime,
     registry: TerminalWindowRegistry,
-    launch: TerminalWindowLaunch = .newShell(windowSession: nil, startupCommand: nil),
-    spaceID: TerminalSpaceID? = nil,
-    createsInitialTab: Bool = true,
+    launch: TerminalWindowLaunch = .newShell(spaceID: nil, startupCommand: nil),
     zmxClient: ZmxClient = .live,
     zmxSessionsEnabled: Bool = true,
     agentDetectionRuleRepository: AgentDetectionRuleRepository? = nil,
@@ -127,17 +133,13 @@ final class TerminalWindowController: NSWindowController {
 
     let terminal = TerminalHostState(
       runtime: runtime,
-      spaceID: session?.displayedSpaceID ?? spaceID,
+      spaceID: launch.spaceID,
       zmxClient: zmxClient,
       zmxSessionsEnabled: zmxSessionsEnabled,
       agentDetectionRuleRepository: agentDetectionRuleRepository
     )
     terminal.onSessionChange = onSessionChange
-    Self.prepareTerminal(
-      terminal,
-      launch: launch,
-      createsInitialTab: createsInitialTab
-    )
+    Self.prepareTerminal(terminal, launch: launch)
     let commandPaletteClient = TerminalCommandPaletteClient.live(registry: registry)
     let store = Store(
       initialState: AppFeature.State(
@@ -305,15 +307,17 @@ final class TerminalWindowController: NSWindowController {
 
   private static func prepareTerminal(
     _ terminal: TerminalHostState,
-    launch: TerminalWindowLaunch,
-    createsInitialTab: Bool
+    launch: TerminalWindowLaunch
   ) {
     switch launch {
+    case .newShell(_, let startupCommand):
+      terminal.ensureInitialTab(focusing: false, startupCommand: startupCommand)
+    case .restoredShell:
+      terminal.ensureInitialTab(focusing: false, startupCommand: nil)
     case .restore(let session):
       _ = terminal.restore(from: session)
-    case .newShell(_, let startupCommand):
-      guard createsInitialTab else { return }
-      terminal.ensureInitialTab(focusing: false, startupCommand: startupCommand)
+    case .tabTransferDestination:
+      break
     }
   }
 

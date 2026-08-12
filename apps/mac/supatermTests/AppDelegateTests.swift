@@ -159,7 +159,7 @@ struct AppDelegateTests {
       cliPath: nil
     )
 
-    #expect(requests == [.newShell(windowSession: nil, startupCommand: nil)])
+    #expect(requests == [.newShell(spaceID: nil, startupCommand: nil)])
   }
 
   @Test
@@ -174,7 +174,7 @@ struct AppDelegateTests {
       cliPath: nil
     )
 
-    #expect(requests == [.newShell(windowSession: nil, startupCommand: nil)])
+    #expect(requests == [.newShell(spaceID: nil, startupCommand: nil)])
   }
 
   @Test
@@ -194,8 +194,8 @@ struct AppDelegateTests {
 
     #expect(
       requests == [
-        .newShell(windowSession: first, startupCommand: nil),
-        .newShell(windowSession: second, startupCommand: nil),
+        .restoredShell(first),
+        .restoredShell(second),
       ]
     )
   }
@@ -233,7 +233,7 @@ struct AppDelegateTests {
       cliPath: nil
     )
 
-    #expect(requests == [.newShell(windowSession: nil, startupCommand: nil)])
+    #expect(requests == [.newShell(spaceID: nil, startupCommand: nil)])
   }
 
   @Test
@@ -251,7 +251,7 @@ struct AppDelegateTests {
     #expect(
       requests == [
         .newShell(
-          windowSession: nil,
+          spaceID: nil,
           startupCommand: .shell(
             "'/Applications/Supaterm Preview.app/Contents/MacOS/sp' onboard --socket "
               + SupatermShellCommand.escapedToken(socketPath)
@@ -273,7 +273,7 @@ struct AppDelegateTests {
 
     #expect(
       requests == [
-        .newShell(windowSession: nil, startupCommand: nil)
+        .newShell(spaceID: nil, startupCommand: nil)
       ]
     )
   }
@@ -290,7 +290,7 @@ struct AppDelegateTests {
 
     #expect(
       requests == [
-        .newShell(windowSession: nil, startupCommand: nil)
+        .newShell(spaceID: nil, startupCommand: nil)
       ]
     )
   }
