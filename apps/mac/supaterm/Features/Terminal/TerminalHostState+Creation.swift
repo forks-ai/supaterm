@@ -150,13 +150,14 @@ extension TerminalHostState {
     inheritingFromSurfaceID: UUID?,
     workingDirectory: URL? = nil,
     context: ghostty_surface_context_e,
-    surfaceID: UUID = UUID()
+    surfaceID: UUID = UUID(),
+    zmxAttachMode: ZmxAttach.Mode = .createIfNeeded
   ) -> GhosttySurfaceView {
     guard let runtime else {
       preconditionFailure("TerminalHostState cannot create surfaces without a GhosttyRuntime")
     }
     let inherited = inheritedSurfaceConfig(fromSurfaceID: inheritingFromSurfaceID, context: context)
-    let commandWrapper = resolvedCommandWrapper(surfaceID: surfaceID)
+    let commandWrapper = resolvedCommandWrapper(surfaceID: surfaceID, mode: zmxAttachMode)
     let usesZmx = !commandWrapper.isEmpty
     SupatermLog.debug(
       SupatermLog.terminal,
@@ -190,7 +191,10 @@ extension TerminalHostState {
     return view
   }
 
-  func resolvedCommandWrapper(surfaceID: UUID) -> [String] {
+  func resolvedCommandWrapper(
+    surfaceID: UUID,
+    mode: ZmxAttach.Mode = .createIfNeeded
+  ) -> [String] {
     let sessionID = ZmxSessionID.make(surfaceID: surfaceID)
     guard zmxSessionsEnabled else {
       SupatermLog.debug(
@@ -217,7 +221,8 @@ extension TerminalHostState {
     }
     let commandWrapper = ZmxAttach.buildWrapperArgv(
       executablePath: executable.path(percentEncoded: false),
-      sessionID: sessionID
+      sessionID: sessionID,
+      mode: mode
     )
     SupatermLog.debug(
       SupatermLog.zmx,

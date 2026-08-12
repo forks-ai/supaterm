@@ -11,7 +11,8 @@ enum SPHelp {
     Use `--script` for builtins, aliases, or raw shell code.
     Supaterm enters it in the account login shell, which remains open after the script ends.
 
-    Shell startup files must not read from the terminal before the first prompt. Such a read takes the queued command.
+    For shells without prompt-ready integration, startup files must not read from the terminal before the first prompt.
+    Such a read takes the queued script.
     """
 
   static let socketDefaultValueDescription = "$\(SupatermCLIEnvironment.socketPathKey)"

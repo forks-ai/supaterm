@@ -50,7 +50,8 @@ extension TerminalHostState {
       inheritingFromSurfaceID: nil,
       workingDirectory: workingDirectory,
       context: context,
-      surfaceID: surfaceID
+      surfaceID: surfaceID,
+      zmxAttachMode: .existing
     )
     replacementSurface.bridge.state.titleOverride = titleOverride
 

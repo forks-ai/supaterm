@@ -69,6 +69,7 @@ final class GhosttySurfaceView: NSView, Identifiable {
   private let selectionReader: @MainActor (ghostty_surface_t) -> String?
   private let accessibilitySelectionNotifier: @MainActor (GhosttySurfaceView) -> Void
   private let accessibilitySelectionSleep: @Sendable (Duration) async throws -> Void
+  let usesZmx: Bool
   private var trackingArea: NSTrackingArea?
   private var lastPerformKeyEvent: TimeInterval?
   private var currentCursor: NSCursor = .iBeam
@@ -203,7 +204,7 @@ final class GhosttySurfaceView: NSView, Identifiable {
     tabID: UUID,
     socketPath: String?,
     cliPath: String?,
-    startupSearchPath: String? = nil,
+    startup: SupatermTerminalStartup? = nil,
     processEnvironment: [String: String] = ProcessInfo.processInfo.environment,
     zmxSessionsEnabled: Bool = true
   ) -> [SupatermCLIEnvironmentVariable] {
@@ -255,11 +256,18 @@ final class GhosttySurfaceView: NSView, Identifiable {
         )
       )
     }
-    let path = prependedPath(
-      cliDirectory(cliPath) ?? "",
-      currentPath: startupSearchPath ?? processEnvironment["PATH"]
-    )
-    if !path.isEmpty {
+    let path: String?
+    switch startup {
+    case .exec(_, let searchPath):
+      path = searchPath
+    case .shell, nil:
+      let shellPath = prependedPath(
+        cliDirectory(cliPath) ?? "",
+        currentPath: processEnvironment["PATH"]
+      )
+      path = shellPath.isEmpty ? nil : shellPath
+    }
+    if let path {
       environmentVariables.append(
         SupatermCLIEnvironmentVariable(
           key: "PATH",
@@ -309,10 +317,11 @@ final class GhosttySurfaceView: NSView, Identifiable {
         tabID: tabID,
         socketPath: SupatermProcessSocketEndpoint.current()?.path,
         cliPath: cliPath,
-        startupSearchPath: startupCommand?.searchPath,
+        startup: startupCommand,
         zmxSessionsEnabled: zmxSessionsEnabled
       )
     self.commandWrapper = commandWrapper
+    usesZmx = !commandWrapper.isEmpty
     self.fontSize = fontSize ?? 0
     self.context = context
     self.managesWindowAppearance = managesWindowAppearance

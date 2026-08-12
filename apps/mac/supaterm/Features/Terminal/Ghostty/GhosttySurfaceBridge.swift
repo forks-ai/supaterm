@@ -185,7 +185,11 @@ final class GhosttySurfaceBridge {
     if handleCommandStatus(action) {
       onStateChange?()
       if action.tag == GHOSTTY_ACTION_SHOW_CHILD_EXITED {
-        return onChildExited?() ?? false
+        let handled = onChildExited?() ?? false
+        if handled {
+          onCloseRequest = nil
+        }
+        return handled
       }
       return true
     }

@@ -51,7 +51,7 @@ struct GhosttySurfaceViewEnvironmentTests {
     #expect(command == nil)
     #expect(initialInput == nil)
     #expect(arguments == ["tool", "", "two words", "line one\nline two", "$HOME; exit", secret])
-    #expect(environment["PATH"] == "/usr/bin:/caller/bin")
+    #expect(environment["PATH"] == "/caller/bin:/usr/bin")
     #expect(!environment.values.contains { $0.contains(secret) })
   }
 
@@ -97,7 +97,7 @@ struct GhosttySurfaceViewEnvironmentTests {
     let arguments = ["tool", "", "two words", "line one\nline two", "$HOME; exit", "東京"]
     let launch = GhosttySurfaceLaunch(
       shellPath: "/bin/zsh",
-      startup: .exec(arguments, searchPath: nil)
+      startup: .exec(arguments, searchPath: "/usr/bin:/bin")
     )
     var config = ghostty_surface_config_new()
     var receivedArguments: [String] = []
@@ -160,7 +160,7 @@ struct GhosttySurfaceViewEnvironmentTests {
       workingDirectory: nil,
       shellPath: "/bin/zsh",
       cliPath: nil,
-      startupCommand: .exec([], searchPath: nil),
+      startupCommand: .exec([], searchPath: "/usr/bin:/bin"),
       context: GHOSTTY_SURFACE_CONTEXT_TAB,
       surfaceFactory: { _, _ in
         createdSurface = true
@@ -170,6 +170,20 @@ struct GhosttySurfaceViewEnvironmentTests {
 
     #expect(!createdSurface)
     #expect(surfaceView.bridge.state.failure == .startupConfigurationFailed)
+  }
+
+  @Test
+  func directStartupPreservesAnEmptyCallerPath() {
+    let environmentVariables = GhosttySurfaceView.supatermEnvironmentVariables(
+      surfaceID: UUID(),
+      tabID: UUID(),
+      socketPath: nil,
+      cliPath: "/Applications/Supaterm.app/Contents/MacOS/sp",
+      startup: .exec(["tool"], searchPath: ""),
+      processEnvironment: ["PATH": "/app/bin"]
+    )
+
+    #expect(environmentVariables.last == SupatermCLIEnvironmentVariable(key: "PATH", value: ""))
   }
 
   @Test

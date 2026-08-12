@@ -972,6 +972,7 @@ final class TerminalHostState {
       guard let self, let view else { return false }
       self.requestCloseSurfaceAfterProcessExit(
         view.id,
+        usesZmx: view.usesZmx,
         source: .ghosttyChildExit
       )
       return true

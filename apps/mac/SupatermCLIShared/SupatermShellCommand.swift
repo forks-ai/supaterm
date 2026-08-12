@@ -2,6 +2,8 @@ import Darwin
 import Foundation
 
 public enum SupatermShellCommand {
+  public static var defaultExecutableSearchPath: String { _PATH_DEFPATH }
+
   public static func loginShellCommandArguments(for command: String) -> [String] {
     ["-l", "-i", "-c", command]
   }

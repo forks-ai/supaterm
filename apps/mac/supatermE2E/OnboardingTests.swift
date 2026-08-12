@@ -6,17 +6,19 @@ extension SupatermE2ESuite {
   @Suite struct OnboardingTests {
     @Test(.timeLimit(.minutes(5)))
     func onboardingCommandWorksAndLaunchStateSuppressesSecondRun() async throws {
-      let app = try await SupatermE2EApp.launch()
+      let app = try await SupatermE2EApp.launch(shadowsBundledCLIAtShellStartup: true)
       defer { app.terminate() }
 
-      let runner = SPBinaryRunner(
-        executable: app.spExecutable,
-        environment: app.cliEnvironment()
+      let firstPane = try await initialPane(in: app)
+      try await app.waitForCapture(firstPane, contains: "Welcome to Supaterm!")
+      #expect(
+        FileManager.default.fileExists(
+          atPath: app.cliHome.appendingPathComponent("shell-startup").path
+        )
       )
-      let onboarding = try requireSuccessfulSPResult(
-        try runner.run(["onboard", "--socket", app.socketPath, "--plain"], cwd: app.cliHome)
-      )
-      #expect(onboarding.stdout.contains("Welcome to Supaterm!"))
+      #expect(!FileManager.default.fileExists(atPath: app.cliHome.appendingPathComponent("fake-sp").path))
+      try app.type("/usr/bin/printf 'FIRST_LAUNCH_READY\\n'\n", into: firstPane)
+      try await app.waitForCapture(firstPane, contains: "FIRST_LAUNCH_READY")
 
       let launchState = app.stateHome.appendingPathComponent("launch-state.json")
       try await app.waitUntil("the first launch state is saved") {

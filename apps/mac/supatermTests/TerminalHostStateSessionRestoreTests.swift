@@ -42,6 +42,26 @@ struct TerminalHostStateSessionRestoreTests {
   }
 
   @Test
+  func zmxReattachOnlyTargetsExistingSessions() {
+    let surfaceID = UUID()
+    let host = TerminalHostState(
+      managesTerminalSurfaces: false,
+      zmxClient: wrappingZmxClient()
+    )
+
+    let commandWrapper = host.resolvedCommandWrapper(surfaceID: surfaceID, mode: .existing)
+
+    #expect(
+      commandWrapper == [
+        "/tmp/zmx",
+        "attach",
+        "--existing",
+        ZmxSessionID.make(surfaceID: surfaceID),
+      ]
+    )
+  }
+
+  @Test
   func unavailableZmxDoesNotWrapTheShell() {
     let host = TerminalHostState(
       managesTerminalSurfaces: false,

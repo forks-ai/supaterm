@@ -32,6 +32,14 @@ struct SPCommandRuntimeTests {
   }
 
   @Test
+  func terminalStartupUsesTheSystemPathWhenTheCallerHasNone() throws {
+    #expect(
+      try terminalStartup(script: nil, tokens: ["echo"], environment: [:])
+        == .exec(["echo"], searchPath: SupatermShellCommand.defaultExecutableSearchPath)
+    )
+  }
+
+  @Test
   func terminalStartupKeepsScriptsAndArgumentsDistinct() throws {
     #expect(try terminalStartup(script: "echo 1\necho 2", tokens: []) == .shell("echo 1\necho 2"))
     #expect(

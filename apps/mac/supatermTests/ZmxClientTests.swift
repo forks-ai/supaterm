@@ -42,6 +42,24 @@ struct ZmxClientTests {
   }
 
   @Test
+  func existingSessionWrapperCannotCreateASession() {
+    let argv = ZmxAttach.buildWrapperArgv(
+      executablePath: "/Applications/Supaterm Runtime.app/Contents/Helpers/zmx",
+      sessionID: "spt-session",
+      mode: .existing
+    )
+
+    #expect(
+      argv == [
+        "/Applications/Supaterm Runtime.app/Contents/Helpers/zmx",
+        "attach",
+        "--existing",
+        "spt-session",
+      ]
+    )
+  }
+
+  @Test
   func socketBudgetUsesShortTemporaryDirectory() {
     #expect(ZmxSocketBudget.socketDir() == "/tmp/zmx-\(getuid())")
   }

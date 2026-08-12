@@ -179,6 +179,7 @@ extension TerminalHostState {
 
   func requestCloseSurfaceAfterProcessExit(
     _ surfaceID: UUID,
+    usesZmx: Bool,
     source: TerminalSurfaceCloseSource
   ) {
     let zmxBundled = zmxClient.isBundled()
@@ -188,11 +189,11 @@ extension TerminalHostState {
       fields: [
         "source=\(source.rawValue)",
         "surfaceID=\(SupatermLog.uuid(surfaceID))",
-        "zmxSessionsEnabled=\(zmxSessionsEnabled)",
+        "usesZmx=\(usesZmx)",
         "zmxBundled=\(zmxBundled)",
       ]
     )
-    guard zmxSessionsEnabled, zmxBundled else {
+    guard usesZmx, zmxBundled else {
       requestCloseSurface(
         surfaceID,
         needsConfirmation: false,

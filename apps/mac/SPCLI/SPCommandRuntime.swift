@@ -178,7 +178,10 @@ func terminalStartup(
     return .shell(script)
   }
   if !tokens.isEmpty {
-    let startup = SupatermTerminalStartup.exec(tokens, searchPath: environment["PATH"])
+    let startup = SupatermTerminalStartup.exec(
+      tokens,
+      searchPath: environment["PATH"] ?? SupatermShellCommand.defaultExecutableSearchPath
+    )
     guard startup.isValid else {
       throw ValidationError("Trailing command must start with an executable.")
     }

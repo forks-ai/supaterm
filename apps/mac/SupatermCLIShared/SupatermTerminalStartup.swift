@@ -1,7 +1,7 @@
 import Foundation
 
 public enum SupatermTerminalStartup: Equatable, Sendable, Codable {
-  case exec([String], searchPath: String?)
+  case exec([String], searchPath: String)
   case shell(String)
 
   private static let maximumArgumentCount = 4_096
@@ -13,20 +13,11 @@ public enum SupatermTerminalStartup: Equatable, Sendable, Codable {
       Self.validArguments(arguments)
         && arguments.count <= Self.maximumArgumentCount
         && Self.fits(arguments, followedBy: searchPath, within: Self.maximumStartupBytes)
-        && searchPath?.unicodeScalars.contains(where: { $0.value == 0 }) != true
+        && !searchPath.unicodeScalars.contains(where: { $0.value == 0 })
     case .shell(let command):
       !command.isEmpty
         && command.utf8.count <= Self.maximumStartupBytes
         && !command.unicodeScalars.contains(where: { $0.value == 0 })
-    }
-  }
-
-  public var searchPath: String? {
-    switch self {
-    case .exec(_, let searchPath):
-      searchPath
-    case .shell:
-      nil
     }
   }
 
@@ -44,7 +35,7 @@ public enum SupatermTerminalStartup: Equatable, Sendable, Codable {
 
   private static func fits(
     _ values: [String],
-    followedBy trailingValue: String?,
+    followedBy trailingValue: String,
     within limit: Int
   ) -> Bool {
     var remaining = limit
@@ -53,9 +44,7 @@ public enum SupatermTerminalStartup: Equatable, Sendable, Codable {
       guard count < remaining else { return false }
       remaining -= count + 1
     }
-    if let trailingValue {
-      guard trailingValue.utf8.count < remaining else { return false }
-    }
+    guard trailingValue.utf8.count < remaining else { return false }
     return true
   }
 
@@ -76,7 +65,7 @@ public enum SupatermTerminalStartup: Equatable, Sendable, Codable {
     case .exec:
       self = .exec(
         try container.decode([String].self, forKey: .value),
-        searchPath: try container.decodeIfPresent(String.self, forKey: .searchPath)
+        searchPath: try container.decode(String.self, forKey: .searchPath)
       )
     case .shell:
       self = .shell(try container.decode(String.self, forKey: .value))
@@ -89,7 +78,7 @@ public enum SupatermTerminalStartup: Equatable, Sendable, Codable {
     case .exec(let arguments, let searchPath):
       try container.encode(Kind.exec, forKey: .kind)
       try container.encode(arguments, forKey: .value)
-      try container.encodeIfPresent(searchPath, forKey: .searchPath)
+      try container.encode(searchPath, forKey: .searchPath)
     case .shell(let command):
       try container.encode(Kind.shell, forKey: .kind)
       try container.encode(command, forKey: .value)

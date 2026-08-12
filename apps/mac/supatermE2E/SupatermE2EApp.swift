@@ -25,15 +25,21 @@ final class SupatermE2EApp: @unchecked Sendable {
   private var client: SPSocketClient
   private let logURL: URL
 
-  static func launch() async throws -> SupatermE2EApp {
-    let app = try SupatermE2EApp()
+  static func launch(
+    shadowsBundledCLIAtShellStartup: Bool = false,
+    zmxSessionsEnabled: Bool = false
+  ) async throws -> SupatermE2EApp {
+    let app = try SupatermE2EApp(
+      shadowsBundledCLIAtShellStartup: shadowsBundledCLIAtShellStartup,
+      zmxSessionsEnabled: zmxSessionsEnabled
+    )
     try await app.waitUntil("the app socket accepts ping", timeout: 90) {
       (try? app.client.send(.ping()))?.ok == true
     }
     return app
   }
 
-  private init() throws {
+  private init(shadowsBundledCLIAtShellStartup: Bool, zmxSessionsEnabled: Bool) throws {
     executable = Self.productsDirectory
       .appendingPathComponent("supaterm.app/Contents/MacOS/supaterm")
     guard FileManager.default.isExecutableFile(atPath: executable.path) else {
@@ -61,15 +67,17 @@ final class SupatermE2EApp: @unchecked Sendable {
 
     try FileManager.default.createDirectory(at: cliHome, withIntermediateDirectories: true)
     try FileManager.default.createDirectory(at: runtimeHome, withIntermediateDirectories: true)
-    FileManager.default.createFile(atPath: cliHome.appendingPathComponent(".zshrc").path, contents: nil)
+    let shellPath = SupatermShellCommand.loginShellPath()
+    if shadowsBundledCLIAtShellStartup {
+      try Self.installShadowCLI(shellPath: shellPath, home: cliHome)
+    }
     FileManager.default.createFile(atPath: logURL.path, contents: nil)
 
-    environment = [
+    var environment = [
       "HOME": cliHome.path,
       "LOGNAME": NSUserName(),
       "PATH": "/usr/bin:/bin:/usr/sbin:/sbin",
-      "SHELL": "/bin/zsh",
-      ZmxEnvironment.disabledKey: "1",
+      "SHELL": shellPath,
       "SUPATERM_TEST_MODE": "1",
       "SUPATERM_VERBOSE_LOGGING": "1",
       "USER": NSUserName(),
@@ -79,6 +87,10 @@ final class SupatermE2EApp: @unchecked Sendable {
       SupatermCLIEnvironment.instanceNameKey: instanceName,
       SupatermCLIEnvironment.stateHomeKey: stateHome.path,
     ]
+    if !zmxSessionsEnabled {
+      environment[ZmxEnvironment.disabledKey] = "1"
+    }
+    self.environment = environment
 
     process = Process()
     socketPath = ""
@@ -89,6 +101,45 @@ final class SupatermE2EApp: @unchecked Sendable {
   private static var productsDirectory: URL {
     final class BundleToken {}
     return Bundle(for: BundleToken.self).bundleURL.deletingLastPathComponent()
+  }
+
+  private static func installShadowCLI(shellPath: String, home: URL) throws {
+    let bin = home.appendingPathComponent("bin", isDirectory: true)
+    try FileManager.default.createDirectory(at: bin, withIntermediateDirectories: true)
+    let executable = bin.appendingPathComponent("sp", isDirectory: false)
+    try """
+    #!/bin/sh
+    /usr/bin/touch "$HOME/fake-sp"
+    exit 127
+    """.write(to: executable, atomically: true, encoding: .utf8)
+    try FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: executable.path)
+
+    let shellName = URL(fileURLWithPath: shellPath).lastPathComponent.lowercased()
+    let startup: (path: String, pathCommand: String)
+    switch shellName {
+    case "fish":
+      startup = (".config/fish/config.fish", "set -gx PATH \(bin.path) /usr/bin /bin")
+    case "csh", "tcsh":
+      startup = (".\(shellName)rc", "setenv PATH \(bin.path):/usr/bin:/bin")
+    case "bash":
+      startup = (".bash_profile", "export PATH=\(bin.path):/usr/bin:/bin")
+    case "zsh":
+      startup = (".zshrc", "export PATH=\(bin.path):/usr/bin:/bin")
+    case "dash", "ksh", "mksh", "sh":
+      startup = (".profile", "export PATH=\(bin.path):/usr/bin:/bin")
+    default:
+      throw SupatermE2EError("Unsupported test shell: \(shellPath)")
+    }
+
+    let startupURL = home.appendingPathComponent(startup.path, isDirectory: false)
+    try FileManager.default.createDirectory(
+      at: startupURL.deletingLastPathComponent(),
+      withIntermediateDirectories: true
+    )
+    try """
+    \(startup.pathCommand)
+    /usr/bin/touch "$HOME/shell-startup"
+    """.write(to: startupURL, atomically: true, encoding: .utf8)
   }
 
   var spExecutable: URL {

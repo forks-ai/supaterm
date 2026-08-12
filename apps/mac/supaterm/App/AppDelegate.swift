@@ -71,10 +71,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
   private var toggleVisibilityState: ToggleVisibilityState?
   private var windowControllers: [UUID: TerminalWindowController] = [:]
 
-  private static var onboardingStartup: SupatermTerminalStartup? {
-    guard let socketPath = SupatermProcessSocketEndpoint.current()?.path else { return nil }
+  private static func onboardingStartup(cliPath: String?) -> SupatermTerminalStartup? {
+    guard let cliPath, let socketPath = SupatermProcessSocketEndpoint.current()?.path else {
+      return nil
+    }
     return .shell(
-      ["sp", "onboard", "--socket", socketPath]
+      [cliPath, "onboard", "--socket", socketPath]
         .map(SupatermShellCommand.escapedToken)
         .joined(separator: " ")
     )
@@ -395,7 +397,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
       from: sessionCatalog,
       validSpaceIDs: Set(spaceCatalog.spaces.map(\.id)),
       restoreTerminalLayoutEnabled: supatermSettings.restoreTerminalLayoutEnabled,
-      lastAppLaunchedDate: lastAppLaunchedDate
+      lastAppLaunchedDate: lastAppLaunchedDate,
+      cliPath: GhosttySupport.bundledCLIPath(executableURL: Bundle.main.executableURL)
     )
     var lastController: TerminalWindowController?
     for request in requests {
@@ -686,7 +689,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
     from sessionCatalog: TerminalSessionCatalog,
     validSpaceIDs: Set<TerminalSpaceID>,
     restoreTerminalLayoutEnabled: Bool,
-    lastAppLaunchedDate: Date?
+    lastAppLaunchedDate: Date?,
+    cliPath: String?
   ) -> [LaunchWindowRequest] {
     let sessions = initialWindowSessions(
       from: sessionCatalog,
@@ -703,7 +707,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
     return sessions.enumerated().map { index, session in
       LaunchWindowRequest(
         session: session,
-        startupCommand: index == onboardingWindowIndex ? onboardingStartup : nil
+        startupCommand: index == onboardingWindowIndex ? onboardingStartup(cliPath: cliPath) : nil
       )
     }
   }

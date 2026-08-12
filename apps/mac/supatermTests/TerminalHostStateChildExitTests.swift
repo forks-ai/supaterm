@@ -8,12 +8,10 @@ import Testing
 @MainActor
 struct TerminalHostStateChildExitTests {
   @Test
-  func childExitedRequestsImmediateCloseAndMarksActionHandled() async throws {
+  func childExitedRequestsImmediateCloseAndMarksActionHandled() throws {
     initializeGhosttyForTests()
 
-    let host = TerminalHostState()
-    let stream = host.eventStream()
-    var iterator = stream.makeAsyncIterator()
+    let host = TerminalHostState(zmxSessionsEnabled: false)
     host.ensureInitialTab(focusing: false, startupCommand: nil)
 
     let surface = try #require(host.selectedSurfaceView)
@@ -25,9 +23,9 @@ struct TerminalHostStateChildExitTests {
     #expect(surface.bridge.handleAction(target: target, action: action))
     #expect(surface.bridge.state.childExitCode == 0)
     #expect(surface.bridge.state.childExitTimeMs == 28)
+    surface.bridge.closeSurface(processAlive: false)
 
-    let event = try #require(await iterator.next())
-    #expect(event == .windowCloseRequested(needsConfirmation: false))
+    #expect(host.pendingEvents == [.windowCloseRequested(needsConfirmation: false)])
   }
 
   @Test
@@ -52,7 +50,11 @@ struct TerminalHostStateChildExitTests {
     let surfaceID = try #require(host.selectedSurfaceView?.id)
     sessionID.withLock { $0 = ZmxSessionID.make(surfaceID: surfaceID) }
 
-    host.requestCloseSurfaceAfterProcessExit(surfaceID, source: .ghosttyChildExit)
+    host.requestCloseSurfaceAfterProcessExit(
+      surfaceID,
+      usesZmx: true,
+      source: .ghosttyChildExit
+    )
 
     for _ in 0..<100 {
       if listedSessions.withLock({ $0 }) == 2, !host.pendingEvents.isEmpty {
@@ -85,7 +87,11 @@ struct TerminalHostStateChildExitTests {
     let originalSurface = try #require(host.selectedSurfaceView)
     sessionID.withLock { $0 = ZmxSessionID.make(surfaceID: originalSurface.id) }
 
-    host.requestCloseSurfaceAfterProcessExit(originalSurface.id, source: .ghosttyChildExit)
+    host.requestCloseSurfaceAfterProcessExit(
+      originalSurface.id,
+      usesZmx: true,
+      source: .ghosttyChildExit
+    )
 
     for _ in 0..<100 {
       if listedSessions.withLock({ $0 }) >= 2,

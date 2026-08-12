@@ -194,11 +194,13 @@ struct AppDelegateTests {
   @Test
   func initialWindowRequestsInjectOnboardingIntoFirstBlankWindowOnFirstLaunch() throws {
     let socketPath = try #require(SupatermProcessSocketEndpoint.current()?.path)
+    let cliPath = "/Applications/Supaterm Preview.app/Contents/MacOS/sp"
     let requests = AppDelegate.initialWindowRequests(
       from: TerminalSessionCatalog(windows: []),
       validSpaceIDs: [],
       restoreTerminalLayoutEnabled: true,
-      lastAppLaunchedDate: nil
+      lastAppLaunchedDate: nil,
+      cliPath: cliPath
     )
 
     #expect(
@@ -206,7 +208,9 @@ struct AppDelegateTests {
         AppDelegate.LaunchWindowRequest(
           session: nil,
           startupCommand: .shell(
-            "sp onboard --socket \(SupatermShellCommand.escapedToken(socketPath))"
+            [cliPath, "onboard", "--socket", socketPath]
+              .map(SupatermShellCommand.escapedToken)
+              .joined(separator: " ")
           ),
         )
       ]
@@ -219,7 +223,28 @@ struct AppDelegateTests {
       from: TerminalSessionCatalog(windows: []),
       validSpaceIDs: [],
       restoreTerminalLayoutEnabled: true,
-      lastAppLaunchedDate: Date(timeIntervalSince1970: 123)
+      lastAppLaunchedDate: Date(timeIntervalSince1970: 123),
+      cliPath: "/Applications/Supaterm.app/Contents/MacOS/sp"
+    )
+
+    #expect(
+      requests == [
+        AppDelegate.LaunchWindowRequest(
+          session: nil,
+          startupCommand: nil,
+        )
+      ]
+    )
+  }
+
+  @Test
+  func initialWindowRequestsSkipOnboardingWithoutBundledCLI() {
+    let requests = AppDelegate.initialWindowRequests(
+      from: TerminalSessionCatalog(windows: []),
+      validSpaceIDs: [],
+      restoreTerminalLayoutEnabled: true,
+      lastAppLaunchedDate: nil,
+      cliPath: nil
     )
 
     #expect(
@@ -241,7 +266,8 @@ struct AppDelegateTests {
       from: TerminalSessionCatalog(windows: [session]),
       validSpaceIDs: [spaceID],
       restoreTerminalLayoutEnabled: true,
-      lastAppLaunchedDate: nil
+      lastAppLaunchedDate: nil,
+      cliPath: "/Applications/Supaterm.app/Contents/MacOS/sp"
     )
 
     #expect(

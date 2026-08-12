@@ -326,10 +326,21 @@ public nonisolated enum ZmxSocketBudget {
 }
 
 public nonisolated enum ZmxAttach {
+  public nonisolated enum Mode {
+    case createIfNeeded
+    case existing
+  }
+
   public nonisolated static func buildWrapperArgv(
     executablePath: String,
-    sessionID: String
+    sessionID: String,
+    mode: Mode = .createIfNeeded
   ) -> [String] {
-    [executablePath, "attach", sessionID]
+    switch mode {
+    case .createIfNeeded:
+      [executablePath, "attach", sessionID]
+    case .existing:
+      [executablePath, "attach", "--existing", sessionID]
+    }
   }
 }

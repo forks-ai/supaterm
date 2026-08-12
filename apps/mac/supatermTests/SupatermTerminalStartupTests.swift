@@ -20,19 +20,21 @@ struct SupatermTerminalStartupTests {
     )
 
     #expect(startup.isValid)
-    #expect(startup.searchPath == "/opt/homebrew/bin:/usr/bin:/bin")
   }
 
   @Test
   func execRejectsInvalidArgumentsAndSearchPath() {
     for startup in [
-      SupatermTerminalStartup.exec([], searchPath: nil),
-      .exec([""], searchPath: nil),
-      .exec([" \n "], searchPath: nil),
-      .exec(["tool", "nul\0byte"], searchPath: nil),
+      SupatermTerminalStartup.exec([], searchPath: "/usr/bin:/bin"),
+      .exec([""], searchPath: "/usr/bin:/bin"),
+      .exec([" \n "], searchPath: "/usr/bin:/bin"),
+      .exec(["tool", "nul\0byte"], searchPath: "/usr/bin:/bin"),
       .exec(["tool"], searchPath: "/usr/bin\0/bin"),
-      .exec(["tool"] + Array(repeating: "", count: 4_096), searchPath: nil),
-      .exec(["tool", String(repeating: "x", count: 8 * 1_024 * 1_024)], searchPath: nil),
+      .exec(["tool"] + Array(repeating: "", count: 4_096), searchPath: "/usr/bin:/bin"),
+      .exec(
+        ["tool", String(repeating: "x", count: 8 * 1_024 * 1_024)],
+        searchPath: "/usr/bin:/bin"
+      ),
       .exec(["tool"], searchPath: String(repeating: "x", count: 8 * 1_024 * 1_024 + 1)),
       .exec(
         ["tool", String(repeating: "x", count: 4 * 1_024 * 1_024)],
@@ -44,11 +46,10 @@ struct SupatermTerminalStartupTests {
   }
 
   @Test
-  func shellAcceptsTextAndHasNoSearchPath() {
+  func shellAcceptsText() {
     let startup = SupatermTerminalStartup.shell("printf '%s\\n' ready\n")
 
     #expect(startup.isValid)
-    #expect(startup.searchPath == nil)
     #expect(!SupatermTerminalStartup.shell("").isValid)
     #expect(!SupatermTerminalStartup.shell("printf ready\0ignored").isValid)
     #expect(
@@ -65,7 +66,7 @@ struct SupatermTerminalStartupTests {
         ["tool", "", "two words", "line one\nline two", "雪"],
         searchPath: "/custom/bin:/usr/bin"
       ),
-      .exec(["/usr/bin/true"], searchPath: nil),
+      .exec(["/usr/bin/true"], searchPath: ""),
       .shell("printf '%s\\n' ready\n"),
     ]
 
