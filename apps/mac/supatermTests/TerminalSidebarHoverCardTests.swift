@@ -190,7 +190,7 @@ struct TerminalSidebarHoverCardTests {
   @Test
   func hoverTimingsMatchInteractionContract() {
     #expect(TerminalSidebarHoverTiming.stopped == .milliseconds(80))
-    #expect(TerminalSidebarHoverTiming.coldPresentation == .milliseconds(500))
+    #expect(TerminalSidebarHoverTiming.coldPresentation == .milliseconds(250))
     #expect(TerminalSidebarHoverTiming.dismiss == .milliseconds(100))
   }
 

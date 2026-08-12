@@ -208,7 +208,7 @@ struct TerminalSidebarHoverDirectionTracker {
 
 enum TerminalSidebarHoverTiming {
   static let stopped = Duration.milliseconds(80)
-  static let coldPresentation = Duration.milliseconds(500)
+  static let coldPresentation = Duration.milliseconds(250)
   static let dismiss = Duration.milliseconds(100)
 }
 
