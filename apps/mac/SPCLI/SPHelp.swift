@@ -288,7 +288,7 @@ enum SPHelp {
 
     Pane targets accept either a `space/tab/pane` selector or a UUID.
 
-    Supported keys: backspace, ctrl-c, ctrl-d, ctrl-l, ctrl-z, enter, escape, and tab.
+    Supported keys: \(SPPaneKeyArgument.supportedKeys).
 
     Example:
       sp pane key ctrl-c

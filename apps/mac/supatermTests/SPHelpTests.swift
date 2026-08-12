@@ -163,7 +163,7 @@ struct SPHelpTests {
     let keyHelp = SP.helpMessage(for: SP.SendKey.self, columns: 100)
 
     #expect(paneHelp.contains("sp pane key ctrl-c"))
-    #expect(keyHelp.contains("backspace, ctrl-c, ctrl-d, ctrl-l, ctrl-z, enter, escape, and tab"))
+    #expect(keyHelp.contains("backspace, ctrl-c, ctrl-d, ctrl-l, ctrl-z, enter, escape, tab"))
     #expect(keyHelp.contains("sp pane key escape <pane-uuid>"))
   }
 

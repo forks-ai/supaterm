@@ -741,15 +741,29 @@ struct SPCommandTests {
 
   @Test
   func paneKeyParserAcceptsPublicKeysAndOptionalTarget() throws {
-    let currentPane = try #require(
-      try SP.parseAsRoot(["pane", "key", "ctrl-c"]) as? SP.SendKey
-    )
+    let mappings: [(String, SupatermInputKey)] = [
+      ("backspace", .backspace),
+      ("ctrl-c", .ctrlC),
+      ("ctrl-d", .ctrlD),
+      ("ctrl-l", .ctrlL),
+      ("ctrl-z", .ctrlZ),
+      ("enter", .enter),
+      ("escape", .escape),
+      ("tab", .tab),
+    ]
+
+    for (argument, inputKey) in mappings {
+      let command = try #require(
+        try SP.parseAsRoot(["pane", "key", argument]) as? SP.SendKey
+      )
+      #expect(command.key.inputKey == inputKey)
+      #expect(command.pane == nil)
+    }
+
     let selectedPane = try #require(
       try SP.parseAsRoot(["pane", "key", "enter", "1/2/3"]) as? SP.SendKey
     )
 
-    #expect(currentPane.key == .ctrlC)
-    #expect(currentPane.pane == nil)
     #expect(selectedPane.key == .enter)
     #expect(selectedPane.pane == .path(spaceIndex: 1, tabIndex: 2, paneIndex: 3))
   }

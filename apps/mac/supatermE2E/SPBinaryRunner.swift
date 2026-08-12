@@ -66,6 +66,15 @@ struct SPBinaryRunner {
   }
 }
 
+extension SPBinaryRunner {
+  init(app: SupatermE2EApp, tabID: UUID, paneID: UUID) {
+    self.init(
+      executable: app.spExecutable,
+      environment: app.cliEnvironment(context: app.context(tabID: tabID, paneID: paneID))
+    )
+  }
+}
+
 @discardableResult
 func requireSuccessfulSPResult(_ result: SPBinaryResult) throws -> SPBinaryResult {
   guard result.exitCode == 0 else {

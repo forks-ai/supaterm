@@ -265,6 +265,10 @@ func plainPaneSelector(spaceIndex: Int, tabIndex: Int, paneIndex: Int) -> String
   "\(spaceIndex)/\(tabIndex)/\(paneIndex)"
 }
 
+func render(_ target: SupatermPaneTarget) -> String {
+  "window \(target.windowIndex) space \(target.spaceIndex) tab \(target.tabIndex) pane \(target.paneIndex)"
+}
+
 func stdinHasPipedInput() -> Bool {
   !stdinIsTTY()
 }
