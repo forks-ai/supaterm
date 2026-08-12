@@ -1,9 +1,38 @@
-import CoreGraphics
+import AppKit
+import SwiftUI
 import Testing
 
 @testable import supaterm
 
 struct TerminalSidebarHoverCardTests {
+  @Test @MainActor
+  func shortResponseUsesItsContentHeight() {
+    let content = TerminalSidebarHoverCardContent(
+      tabTitle: "Ready",
+      agentName: "Agent",
+      response: "Hello, khoi."
+    )
+    let controller = NSHostingController(
+      rootView: TerminalSidebarHoverCardView(content: content)
+    )
+
+    let size = controller.sizeThatFits(in: CGSize(width: 320, height: 800))
+
+    #expect(size.height < 180)
+  }
+
+  @Test @MainActor
+  func longResponseUsesMaximumResponseHeight() {
+    let response = AttributedString(
+      String(repeating: "A long response line that wraps inside the hover card.\n", count: 100)
+    )
+
+    #expect(
+      TerminalSidebarHoverCardMetrics.responseHeight(for: response)
+        == TerminalSidebarHoverCardMetrics.maximumResponseHeight
+    )
+  }
+
   @Test
   func placesCardBesideAndCenteredOnSource() {
     let frame = TerminalSidebarHoverCardGeometry.frame(

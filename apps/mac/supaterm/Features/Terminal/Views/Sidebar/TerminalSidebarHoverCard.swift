@@ -10,6 +10,24 @@ struct TerminalSidebarHoverCardContent: Equatable {
   let response: String
 }
 
+enum TerminalSidebarHoverCardMetrics {
+  static let width: CGFloat = 320
+  static let horizontalPadding: CGFloat = 14
+  static let maximumResponseHeight: CGFloat = 320
+
+  @MainActor
+  static func responseHeight(for response: AttributedString) -> CGFloat {
+    let controller = NSHostingController(
+      rootView: TerminalSidebarHoverCardResponseView(response: response)
+    )
+    let contentWidth = width - horizontalPadding * 2
+    let height = controller.sizeThatFits(
+      in: CGSize(width: contentWidth, height: maximumResponseHeight)
+    ).height
+    return min(max(ceil(height), 1), maximumResponseHeight)
+  }
+}
+
 enum TerminalSidebarHoverCardPhase: Equatable {
   case idle
   case pending(TerminalTabID, UInt64)
@@ -240,7 +258,7 @@ final class TerminalSidebarHoverCardController {
     phase = .pending(tabID, generation)
     pendingTask = Task { [weak self] in
       do {
-        try await Task.sleep(for: .milliseconds(500))
+        try await Task.sleep(for: .milliseconds(250))
       } catch {
         return
       }
@@ -464,7 +482,10 @@ private final class TerminalSidebarHoverCardPresenter {
       sourceWindow.screen?.visibleFrame ?? NSScreen.main?.visibleFrame
       ?? sourceWindow.frame
     let cardSize = hostingController.sizeThatFits(
-      in: CGSize(width: 320, height: max(120, visibleFrame.height - 16))
+      in: CGSize(
+        width: TerminalSidebarHoverCardMetrics.width,
+        height: max(120, visibleFrame.height - 16)
+      )
     )
     guard let sourceFrame = screenFrame(of: sourceView), cardSize.width > 0, cardSize.height > 0
     else { return nil }
@@ -591,8 +612,21 @@ private final class TerminalSidebarHoverCardWindow: NSWindow {
   override var canBecomeMain: Bool { false }
 }
 
-private struct TerminalSidebarHoverCardView: View {
-  let content: TerminalSidebarHoverCardContent
+struct TerminalSidebarHoverCardView: View {
+  private let tabTitle: String
+  private let agentName: String
+  private let response: AttributedString
+  private let responseHeight: CGFloat
+
+  @MainActor
+  init(content: TerminalSidebarHoverCardContent) {
+    tabTitle = content.tabTitle
+    agentName = content.agentName
+    let response =
+      (try? AttributedString(markdown: content.response)) ?? AttributedString(content.response)
+    self.response = response
+    responseHeight = TerminalSidebarHoverCardMetrics.responseHeight(for: response)
+  }
 
   var body: some View {
     PopoverSurface(
@@ -608,31 +642,36 @@ private struct TerminalSidebarHoverCardView: View {
     ) {
       VStack(alignment: .leading, spacing: 10) {
         VStack(alignment: .leading, spacing: 1) {
-          Text(content.tabTitle)
+          Text(tabTitle)
             .font(.system(size: 13, weight: .medium))
             .lineLimit(2)
-          Text("\(content.agentName) · Latest response")
+          Text("\(agentName) · Latest response")
             .font(.system(size: 12))
             .foregroundStyle(.secondary)
             .lineLimit(1)
         }
         Divider()
         ScrollView {
-          Text(response)
-            .font(.system(size: 13))
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .textSelection(.enabled)
+          TerminalSidebarHoverCardResponseView(response: response)
         }
-        .frame(maxHeight: 320)
+        .frame(height: responseHeight)
       }
-      .padding(.horizontal, 14)
+      .padding(.horizontal, TerminalSidebarHoverCardMetrics.horizontalPadding)
       .padding(.vertical, 16)
-      .frame(width: 320, alignment: .leading)
+      .frame(width: TerminalSidebarHoverCardMetrics.width, alignment: .leading)
     }
-    .accessibilityLabel("Latest agent response for \(content.tabTitle)")
+    .accessibilityLabel("Latest agent response for \(tabTitle)")
   }
+}
 
-  private var response: AttributedString {
-    (try? AttributedString(markdown: content.response)) ?? AttributedString(content.response)
+private struct TerminalSidebarHoverCardResponseView: View {
+  let response: AttributedString
+
+  var body: some View {
+    Text(response)
+      .font(.system(size: 13))
+      .frame(maxWidth: .infinity, alignment: .leading)
+      .fixedSize(horizontal: false, vertical: true)
+      .textSelection(.enabled)
   }
 }
