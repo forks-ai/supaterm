@@ -34,7 +34,6 @@ struct TerminalCommandExecutorScreenshotTests {
     let selectedTabID = host.selectedTabID
     let selectedSurfaceID = surface.id
     let window = registerScreenshotWindow(host: host, registry: registry)
-    defer { window.close() }
 
     let result = try await commandExecutor.screenshotPane(
       TerminalPaneTarget(paneID: surface.id)
@@ -55,6 +54,7 @@ struct TerminalCommandExecutorScreenshotTests {
       try await commandExecutor.screenshotPane(TerminalPaneTarget(paneID: surface.id))
     }
     #expect(capture.captureCount == 1)
+    withExtendedLifetime(window) {}
   }
 
   private func registerScreenshotWindow(
