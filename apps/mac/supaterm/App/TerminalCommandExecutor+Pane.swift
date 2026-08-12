@@ -80,32 +80,41 @@ extension TerminalCommandExecutor {
   func screenshotPane(_ target: TerminalPaneTarget) async throws -> SupatermScreenshotPaneResult {
     let capture = windowCaptureClient.capture
     let captureRequest = windowCaptureClient.requestForSurface
-    return try await executeTargeted(
-      operation: { entry in
-        let resolvedTarget = try entry.terminal.resolvePaneTarget(target)
-        guard let request = captureRequest(resolvedTarget.anchorSurface) else {
-          throw TerminalControlError.screenshotPaneNotVisible
-        }
-        guard
-          let image = await capture(request),
-          let pngData = TerminalPNGEncoder.data(for: image)
-        else {
-          throw TerminalControlError.screenshotFailed
-        }
-        return SupatermScreenshotPaneResult(
-          target: try entry.terminal.paneTarget(
-            spaceID: resolvedTarget.spaceID,
-            tabID: resolvedTarget.tabID,
-            surfaceID: resolvedTarget.anchorSurface.id,
-            tree: resolvedTarget.tree
-          ),
-          pngData: pngData,
-          pixelWidth: image.width,
-          pixelHeight: image.height
+    let (resolvedTarget, request):
+      (
+        target: SupatermPaneTarget,
+        request: TerminalWindowCaptureRequest
+      ) =
+        try executeTargeted(
+          operation: { entry in
+            let resolvedTarget = try entry.terminal.resolvePaneTarget(target)
+            guard let request = captureRequest(resolvedTarget.anchorSurface) else {
+              throw TerminalControlError.screenshotPaneNotVisible
+            }
+            return (
+              target: try entry.terminal.paneTarget(
+                spaceID: resolvedTarget.spaceID,
+                tabID: resolvedTarget.tabID,
+                surfaceID: resolvedTarget.anchorSurface.id,
+                tree: resolvedTarget.tree
+              ),
+              request: request
+            )
+          },
+          rewrite: { result, windowIndex in
+            (
+              target: TerminalWindowRegistry.rewrite(result.target, windowIndex: windowIndex),
+              request: result.request
+            )
+          }
         )
-      },
-      rewrite: TerminalWindowRegistry.rewrite
-    )
+    guard
+      let image = await capture(request),
+      let pngData = TerminalPNGEncoder.data(for: image)
+    else {
+      throw TerminalControlError.screenshotFailed
+    }
+    return SupatermScreenshotPaneResult(target: resolvedTarget, pngData: pngData)
   }
 
   func paneHealth(_ request: TerminalPaneHealthRequest) throws -> SupatermPaneHealthResult {

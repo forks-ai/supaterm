@@ -12,7 +12,7 @@ struct TerminalCommandExecutorScreenshotTests {
   @Test
   func screenshotCapturesVisiblePaneAndRejectsHiddenPaneWithoutChangingSelection() async throws {
     initializeGhosttyForTests()
-    let image = try #require(makeScreenshotImage(width: 7, height: 5))
+    let image = try #require(makeCaptureImage(width: 7, height: 5))
     let expectedRequest = try #require(
       TerminalWindowCaptureRequest(
         windowID: 42,
@@ -41,11 +41,12 @@ struct TerminalCommandExecutorScreenshotTests {
     )
 
     let request = try #require(capture.request)
+    let representation = try #require(NSBitmapImageRep(data: result.pngData))
     #expect(request == expectedRequest)
     #expect(result.target.paneID == surface.id)
-    #expect(result.pixelWidth == 7)
-    #expect(result.pixelHeight == 5)
     #expect(result.pngData.starts(with: [0x89, 0x50, 0x4E, 0x47]))
+    #expect(representation.pixelsWide == 7)
+    #expect(representation.pixelsHigh == 5)
     #expect(host.selectedTabID == selectedTabID)
     #expect(host.selectedSurfaceView?.id == selectedSurfaceID)
 
@@ -98,22 +99,6 @@ struct TerminalCommandExecutorScreenshotTests {
     return (host, surface)
   }
 
-  private func makeScreenshotImage(width: Int, height: Int) -> CGImage? {
-    guard
-      let context = CGContext(
-        data: nil,
-        width: width,
-        height: height,
-        bitsPerComponent: 8,
-        bytesPerRow: 0,
-        space: CGColorSpaceCreateDeviceRGB(),
-        bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue
-      )
-    else { return nil }
-    context.setFillColor(NSColor.red.cgColor)
-    context.fill(CGRect(x: 0, y: 0, width: width, height: height))
-    return context.makeImage()
-  }
 }
 
 @MainActor

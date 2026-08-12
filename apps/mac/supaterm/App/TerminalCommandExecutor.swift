@@ -53,24 +53,6 @@ final class TerminalCommandExecutor {
     throw TerminalControlError.contextPaneNotFound
   }
 
-  func executeTargeted<Result>(
-    context: SupatermCLIContext? = nil,
-    operation: (TerminalWindowRegistry.Entry) async throws -> Result,
-    rewrite: (Result, Int) -> Result
-  ) async throws -> Result {
-    for entry in registry.ambientEntries(for: context) {
-      do {
-        return rewrite(
-          try await operation(entry),
-          registry.windowIndex(of: entry)
-        )
-      } catch TerminalControlError.contextPaneNotFound {
-        continue
-      }
-    }
-    throw TerminalControlError.contextPaneNotFound
-  }
-
   func execute(_ request: SocketRequestExecutor.AppRequest) throws -> SocketRequestExecutor.AppResult {
     switch request {
     case .onboardingSnapshot:

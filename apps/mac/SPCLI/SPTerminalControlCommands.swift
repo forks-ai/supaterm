@@ -5,8 +5,6 @@ import SupatermCLIShared
 private struct SPPaneScreenshotOutput: Encodable {
   let target: SupatermPaneTarget
   let path: String
-  let pixelWidth: Int
-  let pixelHeight: Int
 }
 
 extension SP {
@@ -744,9 +742,7 @@ extension SP {
       try result.pngData.write(to: outputURL, options: .atomic)
       let output = SPPaneScreenshotOutput(
         target: result.target,
-        path: outputURL.path,
-        pixelWidth: result.pixelWidth,
-        pixelHeight: result.pixelHeight
+        path: outputURL.path
       )
       try emitCommandResult(
         output,

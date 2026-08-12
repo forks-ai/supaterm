@@ -506,9 +506,7 @@ struct SocketControlFeatureTerminalControlTests {
         paneIndex: 4,
         paneID: controlPaneID
       ),
-      pngData: Data([0x89, 0x50, 0x4E, 0x47]),
-      pixelWidth: 800,
-      pixelHeight: 600
+      pngData: Data([0x89, 0x50, 0x4E, 0x47])
     )
     let store = makeStore {
       $0.socketControlClient.reply = { handle, response in

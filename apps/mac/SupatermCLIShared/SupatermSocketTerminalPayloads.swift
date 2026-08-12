@@ -569,19 +569,13 @@ public struct SupatermCapturePaneResult: Equatable, Sendable, Codable {
 public struct SupatermScreenshotPaneResult: Equatable, Sendable, Codable {
   public let target: SupatermPaneTarget
   public let pngData: Data
-  public let pixelWidth: Int
-  public let pixelHeight: Int
 
   public init(
     target: SupatermPaneTarget,
-    pngData: Data,
-    pixelWidth: Int,
-    pixelHeight: Int
+    pngData: Data
   ) {
     self.target = target
     self.pngData = pngData
-    self.pixelWidth = pixelWidth
-    self.pixelHeight = pixelHeight
   }
 }
 

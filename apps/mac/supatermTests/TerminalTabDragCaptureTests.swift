@@ -31,7 +31,7 @@ struct TerminalTabDragCaptureTests {
 
   @Test
   func pngEncoderWritesTheCapturedPixelDimensions() throws {
-    let image = try #require(makeImage(width: 7, height: 5))
+    let image = try #require(makeCaptureImage(width: 7, height: 5))
     let data = try #require(TerminalPNGEncoder.data(for: image))
     let representation = try #require(NSBitmapImageRep(data: data))
 
@@ -225,22 +225,6 @@ struct TerminalTabDragCaptureTests {
       && left.dataProvider?.data == right.dataProvider?.data
   }
 
-  private func makeImage(width: Int, height: Int) -> CGImage? {
-    guard
-      let context = CGContext(
-        data: nil,
-        width: width,
-        height: height,
-        bitsPerComponent: 8,
-        bytesPerRow: 0,
-        space: CGColorSpaceCreateDeviceRGB(),
-        bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue
-      )
-    else { return nil }
-    context.setFillColor(NSColor.red.cgColor)
-    context.fill(CGRect(x: 0, y: 0, width: width, height: height))
-    return context.makeImage()
-  }
 }
 
 @MainActor
