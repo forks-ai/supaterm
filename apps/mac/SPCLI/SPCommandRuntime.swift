@@ -233,6 +233,22 @@ func expandCLIHomePath(
   return NSString(string: path).expandingTildeInPath
 }
 
+func resolvedCLIOutputFileURL(_ path: String) throws -> URL {
+  let trimmed = path.trimmingCharacters(in: .whitespacesAndNewlines)
+  guard !trimmed.isEmpty else {
+    throw ValidationError("--output must not be empty.")
+  }
+  let expandedPath = expandCLIHomePath(trimmed)
+  let url =
+    if expandedPath.hasPrefix("/") {
+      URL(fileURLWithPath: expandedPath, isDirectory: false)
+    } else {
+      URL(fileURLWithPath: FileManager.default.currentDirectoryPath, isDirectory: true)
+        .appendingPathComponent(expandedPath, isDirectory: false)
+    }
+  return url.standardizedFileURL
+}
+
 func applyOutputStyle(_ options: SPOutputOptions) {
   SPTerminalStyle.setEnabled(options.mode == .human && !options.noColor)
 }

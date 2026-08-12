@@ -40,16 +40,16 @@ final class TerminalSidebarNativeDragSession {
   private let collectionView: TerminalSidebarCollectionView
   private weak var sourceSurfaceView: NSView?
   private let registry: TerminalTabDragRegistry
-  private let captureClient: TerminalTabDragCaptureClient
-  private let captureRequest: () -> TerminalTabDragCaptureRequest?
+  private let captureClient: TerminalWindowCaptureClient
+  private let captureRequest: () -> TerminalWindowCaptureRequest?
   private var lifecycle = Lifecycle.idle
 
   init(
     collectionView: TerminalSidebarCollectionView,
     sourceSurfaceView: NSView,
     registry: TerminalTabDragRegistry,
-    captureClient: TerminalTabDragCaptureClient,
-    captureRequest: @escaping () -> TerminalTabDragCaptureRequest?
+    captureClient: TerminalWindowCaptureClient,
+    captureRequest: @escaping () -> TerminalWindowCaptureRequest?
   ) {
     self.collectionView = collectionView
     self.sourceSurfaceView = sourceSurfaceView
@@ -80,7 +80,7 @@ final class TerminalSidebarNativeDragSession {
   @discardableResult
   func prepareSourceCapture(
     previewContentSize: CGSize,
-    request: TerminalTabDragCaptureRequest?
+    request: TerminalWindowCaptureRequest?
   ) -> Bool {
     guard lifecycle.operationID == nil else { return false }
     cancelSourceCapture()
@@ -97,7 +97,9 @@ final class TerminalSidebarNativeDragSession {
     lifecycle = .prepared(source: source, task: nil)
     let capture = captureClient.capture
     let task = Task(priority: .userInitiated) { [weak self] in
-      let image = await capture(request)
+      let image = await capture(request).map {
+        NSImage(cgImage: $0, size: request.geometry.sourceRect.size)
+      }
       guard let self else { return }
       guard !Task.isCancelled else { return }
       captureCompleted(image, captureID: captureID)

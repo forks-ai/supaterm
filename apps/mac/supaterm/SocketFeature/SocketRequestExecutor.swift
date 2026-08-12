@@ -69,6 +69,7 @@ public struct SocketRequestExecutor: Sendable {
     case sendText(TerminalSendTextRequest)
     case sendKey(TerminalSendKeyRequest)
     case capturePane(TerminalCapturePaneRequest)
+    case screenshotPane(TerminalPaneTarget)
     case paneHealth(TerminalPaneHealthRequest)
     case resizePane(TerminalResizePaneRequest)
     case setPaneSize(TerminalSetPaneSizeRequest)
@@ -82,6 +83,7 @@ public struct SocketRequestExecutor: Sendable {
     case sendText(SupatermSendTextResult)
     case sendKey(SupatermSendKeyResult)
     case capturePane(SupatermCapturePaneResult)
+    case screenshotPane(SupatermScreenshotPaneResult)
     case paneHealth(SupatermPaneHealthResult)
     case resizePane(SupatermResizePaneResult)
     case setPaneSize(SupatermSetPaneSizeResult)
@@ -277,6 +279,8 @@ extension SocketRequestExecutor: DependencyKey {
         throw TerminalControlError.contextPaneNotFound
       case .capturePane:
         throw TerminalControlError.captureFailed
+      case .screenshotPane:
+        throw TerminalControlError.screenshotFailed
       case .paneHealth:
         throw TerminalControlError.contextPaneNotFound
       case .resizePane:

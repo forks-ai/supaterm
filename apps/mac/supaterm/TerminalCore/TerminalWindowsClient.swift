@@ -5,6 +5,7 @@ import SupatermCLIShared
 public struct TerminalWindowsClient: Sendable {
   public var agentHook: @MainActor @Sendable (SupatermAgentHookRequest) async throws -> TerminalAgentHookResult
   public var capturePane: @MainActor @Sendable (TerminalCapturePaneRequest) async throws -> SupatermCapturePaneResult
+  public var screenshotPane: @MainActor @Sendable (TerminalPaneTarget) async throws -> SupatermScreenshotPaneResult
   public var closePane: @MainActor @Sendable (TerminalPaneTarget) async throws -> SupatermClosePaneResult
   public var closeSpace: @MainActor @Sendable (TerminalSpaceTarget) async throws -> SupatermCloseSpaceResult
   public var closeTab: @MainActor @Sendable (TerminalTabTarget) async throws -> SupatermCloseTabResult
@@ -45,6 +46,10 @@ public struct TerminalWindowsClient: Sendable {
   public init(
     agentHook: @escaping @MainActor @Sendable (SupatermAgentHookRequest) async throws -> TerminalAgentHookResult,
     capturePane: @escaping @MainActor @Sendable (TerminalCapturePaneRequest) async throws -> SupatermCapturePaneResult,
+    screenshotPane:
+      @escaping @MainActor @Sendable (
+        TerminalPaneTarget
+      ) async throws -> SupatermScreenshotPaneResult,
     closePane: @escaping @MainActor @Sendable (TerminalPaneTarget) async throws -> SupatermClosePaneResult,
     closeSpace: @escaping @MainActor @Sendable (TerminalSpaceTarget) async throws -> SupatermCloseSpaceResult,
     closeTab: @escaping @MainActor @Sendable (TerminalTabTarget) async throws -> SupatermCloseTabResult,
@@ -141,6 +146,7 @@ public struct TerminalWindowsClient: Sendable {
   ) {
     self.agentHook = agentHook
     self.capturePane = capturePane
+    self.screenshotPane = screenshotPane
     self.closePane = closePane
     self.closeSpace = closeSpace
     self.closeTab = closeTab
@@ -184,6 +190,9 @@ extension TerminalWindowsClient: DependencyKey {
     },
     capturePane: { _ in
       throw TerminalControlError.captureFailed
+    },
+    screenshotPane: { _ in
+      throw TerminalControlError.screenshotFailed
     },
     closePane: { _ in
       throw TerminalControlError.contextPaneNotFound
@@ -286,6 +295,9 @@ extension TerminalWindowsClient: DependencyKey {
     },
     capturePane: { _ in
       throw TerminalControlError.captureFailed
+    },
+    screenshotPane: { _ in
+      throw TerminalControlError.screenshotFailed
     },
     closePane: { _ in
       throw TerminalControlError.contextPaneNotFound

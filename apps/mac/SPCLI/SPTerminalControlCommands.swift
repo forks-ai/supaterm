@@ -2,6 +2,13 @@ import ArgumentParser
 import Foundation
 import SupatermCLIShared
 
+private struct SPPaneScreenshotOutput: Encodable {
+  let target: SupatermPaneTarget
+  let path: String
+  let pixelWidth: Int
+  let pixelHeight: Int
+}
+
 extension SP {
   struct Space: ParsableCommand {
     static let configuration = CommandConfiguration(
@@ -61,6 +68,7 @@ extension SP {
         ClosePane.self,
         SendText.self,
         CapturePane.self,
+        ScreenshotPane.self,
         PaneHealth.self,
         PaneWaitReady.self,
         ResizePane.self,
@@ -690,6 +698,61 @@ extension SP {
           context: SupatermCLIContext.current,
           snapshot: try treeSnapshot(client)
         )
+      )
+    }
+  }
+
+  struct ScreenshotPane: ParsableCommand {
+    static let configuration = CommandConfiguration(
+      commandName: "screenshot",
+      abstract: "Save a visible Supaterm pane as a PNG.",
+      discussion: SPHelp.screenshotPaneDiscussion
+    )
+
+    @Argument(help: "Optional pane target.")
+    var pane: SPPaneReference?
+
+    @Option(
+      name: [.customShort("o"), .customLong("output")],
+      help: "PNG output path."
+    )
+    var outputPath: String
+
+    @OptionGroup
+    var options: SPCommandOptions
+
+    mutating func run() throws {
+      applyOutputStyle(options.output)
+      let outputURL = try resolvedCLIOutputFileURL(outputPath)
+      let client = try socketClient(
+        path: options.connection.explicitSocketPath,
+        instance: options.connection.instance
+      )
+      let response = try client.send(
+        .screenshotPane(
+          try resolvePublicPaneTarget(
+            pane,
+            context: SupatermCLIContext.current,
+            snapshot: try treeSnapshot(client)
+          )
+        )
+      )
+      guard response.ok else {
+        throw ValidationError(response.error?.message ?? "Supaterm socket request failed.")
+      }
+      let result = try response.decodeResult(SupatermScreenshotPaneResult.self)
+      try result.pngData.write(to: outputURL, options: .atomic)
+      let output = SPPaneScreenshotOutput(
+        target: result.target,
+        path: outputURL.path,
+        pixelWidth: result.pixelWidth,
+        pixelHeight: result.pixelHeight
+      )
+      try emitCommandResult(
+        output,
+        options: options.output,
+        plain: output.path,
+        human: "Saved pane screenshot to \(output.path)"
       )
     }
   }

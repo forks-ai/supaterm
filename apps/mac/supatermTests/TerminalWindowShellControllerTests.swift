@@ -652,7 +652,7 @@ struct TerminalWindowShellControllerTests {
   @MainActor
   private func captureRequest(
     presentation: TerminalWindowShellPresentation
-  ) throws -> TerminalTabDragCaptureRequest {
+  ) throws -> TerminalWindowCaptureRequest {
     let shell = TerminalWindowShellController(
       windowControllerID: UUID(),
       tabDragRegistry: TerminalTabDragRegistry()

@@ -351,7 +351,7 @@ final class TerminalWindowShellController: NSViewController {
     onFloatingSidebarVisibilityChange?(false)
   }
 
-  func tabDragCaptureRequest() -> TerminalTabDragCaptureRequest? {
+  func tabDragCaptureRequest() -> TerminalWindowCaptureRequest? {
     guard
       let sourceView = detailController?.view,
       !sourceView.bounds.isEmpty,
@@ -368,9 +368,9 @@ final class TerminalWindowShellController: NSViewController {
     )
     guard !captureFrame.isEmpty else { return nil }
     let viewScreenFrame = window.convertToScreen(view.convert(captureFrame, to: nil))
-    return TerminalTabDragCaptureRequest(
+    return TerminalWindowCaptureRequest(
       windowID: CGWindowID(window.windowNumber),
-      geometry: TerminalTabDragCaptureGeometry(
+      geometry: TerminalWindowCaptureGeometry(
         windowFrame: window.frame,
         viewScreenFrame: viewScreenFrame,
         backingScaleFactor: window.backingScaleFactor

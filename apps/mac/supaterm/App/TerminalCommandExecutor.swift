@@ -10,15 +10,18 @@ import SupatermTerminalCore
 final class TerminalCommandExecutor {
   let agentMonitorStore: TerminalAgentMonitorStore
   unowned let registry: TerminalWindowRegistry
+  let windowCaptureClient: TerminalWindowCaptureClient
   var onQuitRequested: (() -> Void)?
 
   init<C: Clock<Duration>>(
     registry: TerminalWindowRegistry,
     agentRunningTimeout: Duration = .seconds(30),
     transcriptEventDelay: Duration = .zero,
-    clock: C = ContinuousClock()
+    clock: C = ContinuousClock(),
+    windowCaptureClient: TerminalWindowCaptureClient = .live
   ) {
     self.registry = registry
+    self.windowCaptureClient = windowCaptureClient
     let sleep = { (duration: Duration) in
       try await clock.sleep(for: duration)
     }
@@ -43,6 +46,24 @@ final class TerminalCommandExecutor {
     for entry in registry.ambientEntries(for: context) {
       do {
         return rewrite(try operation(entry), registry.windowIndex(of: entry))
+      } catch TerminalControlError.contextPaneNotFound {
+        continue
+      }
+    }
+    throw TerminalControlError.contextPaneNotFound
+  }
+
+  func executeTargeted<Result>(
+    context: SupatermCLIContext? = nil,
+    operation: (TerminalWindowRegistry.Entry) async throws -> Result,
+    rewrite: (Result, Int) -> Result
+  ) async throws -> Result {
+    for entry in registry.ambientEntries(for: context) {
+      do {
+        return rewrite(
+          try await operation(entry),
+          registry.windowIndex(of: entry)
+        )
       } catch TerminalControlError.contextPaneNotFound {
         continue
       }
@@ -110,7 +131,7 @@ final class TerminalCommandExecutor {
 
   func execute(
     _ request: SocketRequestExecutor.TerminalPaneRequest
-  ) throws -> SocketRequestExecutor.TerminalPaneResult {
+  ) async throws -> SocketRequestExecutor.TerminalPaneResult {
     switch request {
     case .agentExplain(let target):
       return .agentExplain(try agentDetectionExplain(target))
@@ -126,6 +147,8 @@ final class TerminalCommandExecutor {
       return .sendKey(try sendKey(sendKeyRequest))
     case .capturePane(let capturePaneRequest):
       return .capturePane(try capturePane(capturePaneRequest))
+    case .screenshotPane(let target):
+      return .screenshotPane(try await screenshotPane(target))
     case .paneHealth(let paneHealthRequest):
       return .paneHealth(try paneHealth(paneHealthRequest))
     case .resizePane(let resizePaneRequest):

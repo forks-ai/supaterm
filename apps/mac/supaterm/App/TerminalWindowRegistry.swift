@@ -1164,6 +1164,18 @@ final class TerminalWindowRegistry {
   }
 
   static func rewrite(
+    _ result: SupatermScreenshotPaneResult,
+    windowIndex: Int
+  ) -> SupatermScreenshotPaneResult {
+    SupatermScreenshotPaneResult(
+      target: rewrite(result.target, windowIndex: windowIndex),
+      pngData: result.pngData,
+      pixelWidth: result.pixelWidth,
+      pixelHeight: result.pixelHeight
+    )
+  }
+
+  static func rewrite(
     _ result: SupatermPaneHealthResult,
     windowIndex: Int
   ) -> SupatermPaneHealthResult {

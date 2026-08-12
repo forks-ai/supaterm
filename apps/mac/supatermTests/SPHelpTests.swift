@@ -67,6 +67,7 @@ struct SPHelpTests {
       SP.helpMessage(for: SP.CloseTab.self, columns: 100),
       SP.helpMessage(for: SP.SendText.self, columns: 100),
       SP.helpMessage(for: SP.CapturePane.self, columns: 100),
+      SP.helpMessage(for: SP.ScreenshotPane.self, columns: 100),
       SP.helpMessage(for: SP.PaneHealth.self, columns: 100),
       SP.helpMessage(for: SP.PaneWaitReady.self, columns: 100),
       SP.helpMessage(for: SP.ResizePane.self, columns: 100),
@@ -135,6 +136,17 @@ struct SPHelpTests {
     #expect(paneHelp.contains("sp pane wait-ready <pane-uuid> --timeout 5"))
     #expect(healthHelp.contains("sp pane health <pane-uuid> --json"))
     #expect(waitHelp.contains("sp pane wait-ready <pane-uuid> --timeout 5"))
+  }
+
+  @Test
+  func paneScreenshotHelpStatesVisibilityAndFocusRules() {
+    let paneHelp = SP.helpMessage(for: SP.Pane.self, columns: 100)
+    let screenshotHelp = SP.helpMessage(for: SP.ScreenshotPane.self, columns: 100)
+
+    #expect(paneHelp.contains("sp pane screenshot --output pane.png"))
+    #expect(screenshotHelp.contains("visible in a non-minimized Supaterm window"))
+    #expect(screenshotHelp.contains("change the selected space, tab, pane, or application focus"))
+    #expect(screenshotHelp.contains("sp pane screenshot <pane-uuid> -o pane.png --json"))
   }
 
   @Test

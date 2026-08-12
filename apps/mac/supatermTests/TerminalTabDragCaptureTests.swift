@@ -8,7 +8,7 @@ import Testing
 struct TerminalTabDragCaptureTests {
   @Test
   func sourceRectUsesWindowLocalTopLeftCoordinates() {
-    let geometry = TerminalTabDragCaptureGeometry(
+    let geometry = TerminalWindowCaptureGeometry(
       windowFrame: CGRect(x: 100, y: 200, width: 1_200, height: 800),
       viewScreenFrame: CGRect(x: 340, y: 250, width: 960, height: 720),
       backingScaleFactor: 2
@@ -20,13 +20,24 @@ struct TerminalTabDragCaptureTests {
 
   @Test
   func outputPixelSizeRoundsEachScaledPointDimensionUp() {
-    let geometry = TerminalTabDragCaptureGeometry(
+    let geometry = TerminalWindowCaptureGeometry(
       windowFrame: CGRect(x: 0, y: 0, width: 400, height: 300),
       viewScreenFrame: CGRect(x: 20, y: 40, width: 320.25, height: 200.25),
       backingScaleFactor: 1.5
     )
 
     #expect(geometry.outputPixelSize == CGSize(width: 481, height: 301))
+  }
+
+  @Test
+  func pngEncoderWritesTheCapturedPixelDimensions() throws {
+    let image = try #require(makeImage(width: 7, height: 5))
+    let data = try #require(TerminalPNGEncoder.data(for: image))
+    let representation = try #require(NSBitmapImageRep(data: data))
+
+    #expect(data.starts(with: [0x89, 0x50, 0x4E, 0x47]))
+    #expect(representation.pixelsWide == 7)
+    #expect(representation.pixelsHigh == 5)
   }
 
   @Test
@@ -59,7 +70,7 @@ struct TerminalTabDragCaptureTests {
   func nativeSessionRegistersWhileCaptureIsPendingAndUpdatesTheVisiblePreview() async throws {
     let capture = ControlledTabDragCapture()
     let fixture = NativeDragSessionFixture(capture: capture)
-    let image = renderedImage()
+    let image = renderedImage(color: .red)
     let payload = try #require(makePayload())
 
     #expect(fixture.prepareSourceCapture())
@@ -71,7 +82,7 @@ struct TerminalTabDragCaptureTests {
     capture.complete(at: 0, with: image)
     try await fixture.waitForCaptureResolutions(1)
 
-    #expect(fixture.presenter.shownImage === image)
+    #expect(imagesMatch(fixture.presenter.shownImage, image))
     #expect(fixture.presenter.updateCount == 1)
   }
 
@@ -79,7 +90,7 @@ struct TerminalTabDragCaptureTests {
   func completedCaptureIsStoredUntilTheSharedPreviewAppears() async throws {
     let capture = ControlledTabDragCapture()
     let fixture = NativeDragSessionFixture(capture: capture)
-    let image = renderedImage()
+    let image = renderedImage(color: .red)
     let payload = try #require(makePayload())
 
     #expect(fixture.prepareSourceCapture())
@@ -91,7 +102,7 @@ struct TerminalTabDragCaptureTests {
     #expect(fixture.presenter.updateCount == 0)
     _ = fixture.session.move(to: CGPoint(x: 5_000, y: 5_000))
     #expect(fixture.presenter.showCount == 1)
-    #expect(fixture.presenter.shownImage === image)
+    #expect(imagesMatch(fixture.presenter.shownImage, image))
   }
 
   @Test
@@ -108,8 +119,8 @@ struct TerminalTabDragCaptureTests {
   func cancelledCaptureCannotUpdateANewSession() async throws {
     let capture = ControlledTabDragCapture()
     let fixture = NativeDragSessionFixture(capture: capture)
-    let staleImage = renderedImage()
-    let currentImage = renderedImage()
+    let staleImage = renderedImage(color: .blue)
+    let currentImage = renderedImage(color: .red)
     let payload = try #require(makePayload())
 
     #expect(fixture.prepareSourceCapture())
@@ -128,7 +139,7 @@ struct TerminalTabDragCaptureTests {
 
     capture.complete(at: 1, with: currentImage)
     try await fixture.waitForCaptureResolutions(2)
-    #expect(fixture.presenter.shownImage === currentImage)
+    #expect(imagesMatch(fixture.presenter.shownImage, currentImage))
     #expect(fixture.presenter.updateCount == 1)
   }
 
@@ -138,7 +149,7 @@ struct TerminalTabDragCaptureTests {
     let fixture = NativeDragSessionFixture(capture: capture)
     let firstPayload = try #require(makePayload())
     let currentPayload = try #require(makePayload())
-    let currentImage = renderedImage()
+    let currentImage = renderedImage(color: .red)
 
     #expect(fixture.prepareSourceCapture())
     #expect(fixture.session.register(firstPayload, didTransfer: { _, _ in }))
@@ -153,7 +164,7 @@ struct TerminalTabDragCaptureTests {
     fixture.session.finish(operationID: firstPayload.moveOperationID, outcome: .cancelled)
     capture.complete(at: 1, with: currentImage)
     try await fixture.waitForCaptureResolutions(1)
-    #expect(fixture.presenter.shownImage === currentImage)
+    #expect(imagesMatch(fixture.presenter.shownImage, currentImage))
     #expect(fixture.presenter.updateCount == 1)
     #expect(fixture.presenter.hideCount == 1)
     capture.complete(at: 0, with: nil)
@@ -195,13 +206,40 @@ struct TerminalTabDragCaptureTests {
     )
   }
 
-  private func renderedImage() -> NSImage {
+  private func renderedImage(color: NSColor) -> NSImage {
     let image = NSImage(size: CGSize(width: 4, height: 4))
     image.lockFocus()
-    NSColor.red.setFill()
+    color.setFill()
     NSBezierPath.fill(CGRect(x: 0, y: 0, width: 4, height: 4))
     image.unlockFocus()
     return image
+  }
+
+  private func imagesMatch(_ left: NSImage?, _ right: NSImage) -> Bool {
+    guard
+      let left = left?.cgImage(forProposedRect: nil, context: nil, hints: nil),
+      let right = right.cgImage(forProposedRect: nil, context: nil, hints: nil)
+    else { return false }
+    return left.width == right.width
+      && left.height == right.height
+      && left.dataProvider?.data == right.dataProvider?.data
+  }
+
+  private func makeImage(width: Int, height: Int) -> CGImage? {
+    guard
+      let context = CGContext(
+        data: nil,
+        width: width,
+        height: height,
+        bitsPerComponent: 8,
+        bytesPerRow: 0,
+        space: CGColorSpaceCreateDeviceRGB(),
+        bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue
+      )
+    else { return nil }
+    context.setFillColor(NSColor.red.cgColor)
+    context.fill(CGRect(x: 0, y: 0, width: width, height: height))
+    return context.makeImage()
   }
 }
 
@@ -234,11 +272,11 @@ private final class CapturePreviewRecorder: TerminalTabDragPreviewPresenting {
 
 @MainActor
 private final class ControlledTabDragCapture {
-  private var continuations: [CheckedContinuation<NSImage?, Never>?] = []
+  private var continuations: [CheckedContinuation<CGImage?, Never>?] = []
   private let starts = CaptureCountProbe()
 
-  func client(didResolve: @escaping @MainActor () -> Void) -> TerminalTabDragCaptureClient {
-    TerminalTabDragCaptureClient { [weak self] request in
+  func client(didResolve: @escaping @MainActor () -> Void) -> TerminalWindowCaptureClient {
+    TerminalWindowCaptureClient { [weak self] request in
       let image = await self?.capture(request)
       didResolve()
       return image
@@ -246,7 +284,9 @@ private final class ControlledTabDragCapture {
   }
 
   func complete(at index: Int, with image: NSImage?) {
-    continuations[index]?.resume(returning: image)
+    continuations[index]?.resume(
+      returning: image?.cgImage(forProposedRect: nil, context: nil, hints: nil)
+    )
     continuations[index] = nil
   }
 
@@ -254,7 +294,7 @@ private final class ControlledTabDragCapture {
     try await starts.wait(for: count)
   }
 
-  private func capture(_: TerminalTabDragCaptureRequest) async -> NSImage? {
+  private func capture(_: TerminalWindowCaptureRequest) async -> CGImage? {
     await withCheckedContinuation { continuation in
       continuations.append(continuation)
       starts.signal()
@@ -385,9 +425,9 @@ private final class NativeDragSessionFixture {
   func prepareSourceCapture() -> Bool {
     session.prepareSourceCapture(
       previewContentSize: CGSize(width: 1_000, height: 620),
-      request: TerminalTabDragCaptureRequest(
+      request: TerminalWindowCaptureRequest(
         windowID: 1,
-        geometry: TerminalTabDragCaptureGeometry(
+        geometry: TerminalWindowCaptureGeometry(
           windowFrame: CGRect(x: 0, y: 0, width: 1_000, height: 700),
           viewScreenFrame: CGRect(x: 240, y: 0, width: 760, height: 700),
           backingScaleFactor: 2

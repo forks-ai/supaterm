@@ -49,6 +49,7 @@ public enum SupatermSocketMethod {
   public static let terminalRenameTab = "terminal.rename_tab"
   public static let terminalRenameTabGroup = "terminal.rename_tab_group"
   public static let terminalResizePane = "terminal.resize_pane"
+  public static let terminalScreenshotPane = "terminal.screenshot_pane"
   public static let terminalSelectSpace = "terminal.select_space"
   public static let terminalSelectTab = "terminal.select_tab"
   public static let terminalSetPaneSize = "terminal.set_pane_size"
@@ -274,6 +275,13 @@ public struct SupatermSocketRequest: Equatable, Sendable, Codable {
     id: String = UUID().uuidString
   ) throws -> Self {
     try make(SupatermSocketMethod.terminalCapturePane, payload, id: id)
+  }
+
+  public static func screenshotPane(
+    _ payload: SupatermPaneTargetRequest,
+    id: String = UUID().uuidString
+  ) throws -> Self {
+    try make(SupatermSocketMethod.terminalScreenshotPane, payload, id: id)
   }
 
   public static func paneHealth(

@@ -170,6 +170,8 @@ extension SocketRequestExecutor {
       return .sendKey(try await terminalWindowsClient.sendKey(sendKeyRequest))
     case .capturePane(let capturePaneRequest):
       return .capturePane(try await terminalWindowsClient.capturePane(capturePaneRequest))
+    case .screenshotPane(let target):
+      return .screenshotPane(try await terminalWindowsClient.screenshotPane(target))
     case .paneHealth(let paneHealthRequest):
       return .paneHealth(try await terminalWindowsClient.paneHealth(paneHealthRequest))
     case .resizePane(let resizePaneRequest):

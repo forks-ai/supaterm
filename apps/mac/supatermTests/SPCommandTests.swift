@@ -740,6 +740,29 @@ struct SPCommandTests {
   }
 
   @Test
+  func paneScreenshotParserRequiresAnOutputPath() throws {
+    let command = try #require(
+      try SP.parseAsRoot([
+        "pane", "screenshot", "1/2/3", "--output", "pane.png", "--json",
+      ]) as? SP.ScreenshotPane
+    )
+
+    #expect(command.pane == .path(spaceIndex: 1, tabIndex: 2, paneIndex: 3))
+    #expect(command.outputPath == "pane.png")
+    #expect(command.options.output.json)
+    #expect(throws: (any Error).self) {
+      _ = try SP.parseAsRoot(["pane", "screenshot", "1/2/3"])
+    }
+  }
+
+  @Test
+  func paneScreenshotRejectsAnEmptyOutputPath() {
+    #expect(throws: ValidationError.self) {
+      _ = try resolvedCLIOutputFileURL("   ")
+    }
+  }
+
+  @Test
   func paneSendRejectsNewlineWithSubmit() {
     do {
       _ = try SP.parseAsRoot(["pane", "send", "--newline", "--submit", "prompt"])

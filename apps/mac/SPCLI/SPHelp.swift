@@ -294,6 +294,20 @@ enum SPHelp {
       sp pane capture <pane-uuid> --json
     """
 
+  static let screenshotPaneDiscussion = """
+    If you omit the pane target inside Supaterm, this command captures the current pane.
+
+    The pane must be visible in a non-minimized Supaterm window. Taking a screenshot does not
+    change the selected space, tab, pane, or application focus.
+
+    Pane targets accept either a `space/tab/pane` selector or a UUID.
+
+    Example:
+      sp pane screenshot --output pane.png
+      sp pane screenshot 1/2/3 --output pane.png
+      sp pane screenshot <pane-uuid> -o pane.png --json
+    """
+
   static let paneHealthDiscussion = """
     If you omit the pane target inside Supaterm, this command inspects the current pane.
 
@@ -594,6 +608,7 @@ enum SPHelp {
       sp pane split down -- htop
       sp pane focus 1/2/3
       sp pane send --newline 'echo hello'
+      sp pane screenshot --output pane.png
       sp pane health <pane-uuid> --json
       sp pane wait-ready <pane-uuid> --timeout 5
       sp pane layout equalize 1/2

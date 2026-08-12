@@ -64,6 +64,16 @@ extension SocketControlFeature {
       }
       return try .ok(id: request.id, encodableResult: result)
 
+    case SupatermSocketMethod.terminalScreenshotPane:
+      let payload = try request.decodeParams(SupatermPaneTargetRequest.self)
+      let execution = try await socketRequestExecutor.executeTerminalPane(
+        .screenshotPane(createPaneTarget(from: payload))
+      )
+      guard case .screenshotPane(let result) = execution else {
+        throw SocketExecutorError.unexpectedResult
+      }
+      return try .ok(id: request.id, encodableResult: result)
+
     default:
       return nil
     }

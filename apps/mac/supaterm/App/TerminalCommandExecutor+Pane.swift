@@ -1,3 +1,4 @@
+import CoreGraphics
 import Foundation
 import SupatermCLIShared
 import SupatermTerminalCore
@@ -72,6 +73,37 @@ extension TerminalCommandExecutor {
   func capturePane(_ request: TerminalCapturePaneRequest) throws -> SupatermCapturePaneResult {
     try executeTargeted(
       operation: { try $0.terminal.capturePane(request) },
+      rewrite: TerminalWindowRegistry.rewrite
+    )
+  }
+
+  func screenshotPane(_ target: TerminalPaneTarget) async throws -> SupatermScreenshotPaneResult {
+    let capture = windowCaptureClient.capture
+    let captureRequest = windowCaptureClient.requestForSurface
+    return try await executeTargeted(
+      operation: { entry in
+        let resolvedTarget = try entry.terminal.resolvePaneTarget(target)
+        guard let request = captureRequest(resolvedTarget.anchorSurface) else {
+          throw TerminalControlError.screenshotPaneNotVisible
+        }
+        guard
+          let image = await capture(request),
+          let pngData = TerminalPNGEncoder.data(for: image)
+        else {
+          throw TerminalControlError.screenshotFailed
+        }
+        return SupatermScreenshotPaneResult(
+          target: try entry.terminal.paneTarget(
+            spaceID: resolvedTarget.spaceID,
+            tabID: resolvedTarget.tabID,
+            surfaceID: resolvedTarget.anchorSurface.id,
+            tree: resolvedTarget.tree
+          ),
+          pngData: pngData,
+          pixelWidth: image.width,
+          pixelHeight: image.height
+        )
+      },
       rewrite: TerminalWindowRegistry.rewrite
     )
   }

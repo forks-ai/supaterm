@@ -39,7 +39,7 @@ final class TerminalSidebarDragController {
   private let sourceSurfaceView: NSView
   private let sourceWindowID: UUID
   private let tabDragRegistry: TerminalTabDragRegistry
-  private let captureRequest: () -> TerminalTabDragCaptureRequest?
+  private let captureRequest: () -> TerminalWindowCaptureRequest?
   private let host: Host
   private var pendingDrag: TerminalSidebarPendingDrag?
   private var activeDrag: TerminalSidebarActiveDrag?
@@ -101,7 +101,7 @@ final class TerminalSidebarDragController {
     sourceSurfaceView: NSView,
     sourceWindowID: UUID,
     tabDragRegistry: TerminalTabDragRegistry,
-    captureRequest: @escaping () -> TerminalTabDragCaptureRequest?,
+    captureRequest: @escaping () -> TerminalWindowCaptureRequest?,
     host: Host
   ) {
     self.collectionView = collectionView

@@ -172,6 +172,7 @@ sp tab new --in 1 --cwd ~/tmp -- ping 1.1.1.1
 sp pane split --in 1/2 right
 sp pane send --newline 'echo hello'
 sp pane capture --scope scrollback --lines 200
+sp pane screenshot --output pane.png
 sp pane layout main-vertical 1/2
 sp pane health 1/2/3
 sp pane wait-ready 1/2/3
@@ -240,6 +241,9 @@ The full method list lives in `SupatermSocketMethod` (`apps/mac/SupatermCLIShare
 - `terminal.agent_hook` — coding agent hook events
 - `terminal.agent_explain` — read-only coding agent detection diagnostics
 - `terminal.*` — space, tab, and pane control, one method per CLI verb
+
+`terminal.capture_pane` returns terminal text. `terminal.screenshot_pane` returns PNG data for a
+pane currently visible in a non-minimized window. The CLI writes that data to its requested path.
 
 Settings methods read and write the running app:
 

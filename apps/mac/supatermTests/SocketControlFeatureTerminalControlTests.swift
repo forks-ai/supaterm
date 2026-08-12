@@ -486,6 +486,48 @@ struct SocketControlFeatureTerminalControlTests {
   }
 
   @Test
+  func screenshotPaneRequestRepliesWithPNGData() async throws {
+    let recorder = SocketReplyRecorder()
+    let handle = UUID()
+    let request = SocketControlClient.Request(
+      handle: handle,
+      payload: try .screenshotPane(
+        SupatermPaneTargetRequest(paneID: controlPaneID),
+        id: "screenshot-pane-1"
+      )
+    )
+    let result = SupatermScreenshotPaneResult(
+      target: SupatermPaneTarget(
+        windowIndex: 1,
+        spaceIndex: 2,
+        spaceID: UUID(uuidString: "A6E57B1B-0A61-4F72-BD52-B26DC5D3C497")!,
+        tabIndex: 3,
+        tabID: UUID(uuidString: "6BFC889D-2D0F-4675-924E-B15A6A4E372B")!,
+        paneIndex: 4,
+        paneID: controlPaneID
+      ),
+      pngData: Data([0x89, 0x50, 0x4E, 0x47]),
+      pixelWidth: 800,
+      pixelHeight: 600
+    )
+    let store = makeStore {
+      $0.socketControlClient.reply = { handle, response in
+        await recorder.record(handle: handle, response: response)
+      }
+      $0.terminalWindowsClient.screenshotPane = { target in
+        #expect(target == TerminalPaneTarget(paneID: controlPaneID))
+        return result
+      }
+    }
+
+    await store.send(.requestReceived(request))
+
+    let record = try #require(await recorder.snapshot().first)
+    #expect(record.handle == handle)
+    #expect(try record.response.decodeResult(SupatermScreenshotPaneResult.self) == result)
+  }
+
+  @Test
   func tilePanesRequestRepliesWithResolvedTarget() async throws {
     let recorder = SocketReplyRecorder()
     let handle = UUID(uuidString: "6B4FE4C0-4D0E-4205-8D07-66C5EAB4AC0A")!

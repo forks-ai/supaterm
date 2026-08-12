@@ -8,12 +8,12 @@ final class TerminalSidebarControllerCache {
   private var controllersBySpaceID: [TerminalSpaceID: TerminalSidebarListController] = [:]
   private let tabDragRegistry: TerminalTabDragRegistry
   private let windowControllerID: UUID
-  private let captureRequest: () -> TerminalTabDragCaptureRequest?
+  private let captureRequest: () -> TerminalWindowCaptureRequest?
 
   init(
     windowControllerID: UUID,
     tabDragRegistry: TerminalTabDragRegistry,
-    captureRequest: @escaping () -> TerminalTabDragCaptureRequest?
+    captureRequest: @escaping () -> TerminalWindowCaptureRequest?
   ) {
     self.windowControllerID = windowControllerID
     self.tabDragRegistry = tabDragRegistry
@@ -114,7 +114,7 @@ final class TerminalSidebarListController: NSViewController, NSCollectionViewDel
   private var isLayingOut = false
   private let tabDragRegistry: TerminalTabDragRegistry
   private let windowControllerID: UUID
-  private let captureRequest: () -> TerminalTabDragCaptureRequest?
+  private let captureRequest: () -> TerminalWindowCaptureRequest?
 
   private lazy var collapseAnimator = TerminalSidebarCollapseAnimator(
     collectionView: collectionView,
@@ -161,7 +161,7 @@ final class TerminalSidebarListController: NSViewController, NSCollectionViewDel
   init(
     windowControllerID: UUID,
     tabDragRegistry: TerminalTabDragRegistry,
-    captureRequest: @escaping () -> TerminalTabDragCaptureRequest?
+    captureRequest: @escaping () -> TerminalWindowCaptureRequest?
   ) {
     self.windowControllerID = windowControllerID
     self.tabDragRegistry = tabDragRegistry

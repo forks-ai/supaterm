@@ -1,7 +1,7 @@
 import AppKit
 import ScreenCaptureKit
 
-nonisolated struct TerminalTabDragCaptureGeometry: Equatable, Sendable {
+nonisolated struct TerminalWindowCaptureGeometry: Equatable, Sendable {
   let sourceRect: CGRect
   let backingScaleFactor: CGFloat
 
@@ -44,19 +44,19 @@ nonisolated struct TerminalTabDragCaptureGeometry: Equatable, Sendable {
   }
 }
 
-nonisolated struct TerminalTabDragCaptureRequest: Equatable, Sendable {
+nonisolated struct TerminalWindowCaptureRequest: Equatable, Sendable {
   let windowID: CGWindowID
-  let geometry: TerminalTabDragCaptureGeometry
+  let geometry: TerminalWindowCaptureGeometry
 
-  init?(windowID: CGWindowID, geometry: TerminalTabDragCaptureGeometry) {
+  init?(windowID: CGWindowID, geometry: TerminalWindowCaptureGeometry) {
     guard windowID != 0, geometry.isValid else { return nil }
     self.windowID = windowID
     self.geometry = geometry
   }
 }
 
-nonisolated enum TerminalTabDragCompositorCapture {
-  static func image(for request: TerminalTabDragCaptureRequest) async -> CGImage? {
+nonisolated enum TerminalWindowCompositorCapture {
+  static func image(for request: TerminalWindowCaptureRequest) async -> CGImage? {
     await withCheckedContinuation { continuation in
       SCShareableContent.getCurrentProcessShareableContent { content, _ in
         guard
@@ -83,13 +83,52 @@ nonisolated enum TerminalTabDragCompositorCapture {
 }
 
 @MainActor
-struct TerminalTabDragCaptureClient {
-  let capture: @MainActor (TerminalTabDragCaptureRequest) async -> NSImage?
+struct TerminalWindowCaptureClient {
+  let requestForSurface: @MainActor (GhosttySurfaceView) -> TerminalWindowCaptureRequest?
+  let capture: @MainActor (TerminalWindowCaptureRequest) async -> CGImage?
+
+  init(
+    requestForSurface: @escaping @MainActor (GhosttySurfaceView) -> TerminalWindowCaptureRequest? = {
+      $0.screenshotCaptureRequest()
+    },
+    capture: @escaping @MainActor (TerminalWindowCaptureRequest) async -> CGImage?
+  ) {
+    self.requestForSurface = requestForSurface
+    self.capture = capture
+  }
 
   static var live: Self {
     Self { request in
-      guard let image = await TerminalTabDragCompositorCapture.image(for: request) else { return nil }
-      return NSImage(cgImage: image, size: request.geometry.sourceRect.size)
+      await TerminalWindowCompositorCapture.image(for: request)
     }
+  }
+}
+
+extension GhosttySurfaceView {
+  func screenshotCaptureRequest() -> TerminalWindowCaptureRequest? {
+    guard
+      let scrollWrapper,
+      let window = scrollWrapper.window,
+      window.isVisible,
+      !window.isMiniaturized,
+      !scrollWrapper.bounds.isEmpty
+    else { return nil }
+    let viewScreenFrame = window.convertToScreen(
+      scrollWrapper.convert(scrollWrapper.bounds, to: nil)
+    )
+    return TerminalWindowCaptureRequest(
+      windowID: CGWindowID(window.windowNumber),
+      geometry: TerminalWindowCaptureGeometry(
+        windowFrame: window.frame,
+        viewScreenFrame: viewScreenFrame,
+        backingScaleFactor: window.backingScaleFactor
+      )
+    )
+  }
+}
+
+nonisolated enum TerminalPNGEncoder {
+  static func data(for image: CGImage) -> Data? {
+    NSBitmapImageRep(cgImage: image).representation(using: .png, properties: [:])
   }
 }
