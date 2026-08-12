@@ -40,6 +40,7 @@ struct TerminalSidebarGroupRowPresentation: Equatable {
   let id: TerminalTabGroupID
   let title: String
   let color: ThemeTint
+  let iconURL: URL?
   let isPinned: Bool
   let isCollapsed: Bool
   let tabCount: Int
@@ -428,10 +429,11 @@ private struct TerminalSidebarGroupHeader: View {
     Group {
       if isRenaming {
         HStack(spacing: 6) {
-          Circle()
-            .fill(presentation.color.sidebarColor(palette: palette))
-            .frame(width: 8, height: 8)
-            .accessibilityHidden(true)
+          TerminalSidebarGroupMarker(
+            iconURL: presentation.iconURL,
+            color: presentation.color,
+            palette: palette
+          )
           TextField(
             "Group name",
             text: Binding(
@@ -458,10 +460,11 @@ private struct TerminalSidebarGroupHeader: View {
             actions.toggleGroupCollapsed(presentation.id)
           } label: {
             HStack(spacing: 6) {
-              Circle()
-                .fill(presentation.color.sidebarColor(palette: palette))
-                .frame(width: 8, height: 8)
-                .accessibilityHidden(true)
+              TerminalSidebarGroupMarker(
+                iconURL: presentation.iconURL,
+                color: presentation.color,
+                palette: palette
+              )
               Text(presentation.title)
                 .font(.system(size: 12, weight: .semibold))
                 .foregroundStyle(palette.primaryText)
@@ -584,6 +587,27 @@ private struct TerminalSidebarGroupHeader: View {
       }
     }
     .accessibilityElement(children: .contain)
+  }
+}
+
+private struct TerminalSidebarGroupMarker: View {
+  let iconURL: URL?
+  let color: ThemeTint
+  let palette: Palette
+
+  var body: some View {
+    if let iconURL, let image = NSImage(contentsOf: iconURL) {
+      Image(nsImage: image)
+        .resizable()
+        .scaledToFit()
+        .frame(width: 12, height: 12)
+        .accessibilityHidden(true)
+    } else {
+      Circle()
+        .fill(color.sidebarColor(palette: palette))
+        .frame(width: 8, height: 8)
+        .accessibilityHidden(true)
+    }
   }
 }
 

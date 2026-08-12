@@ -3,6 +3,7 @@ import Foundation
 import Testing
 
 @testable import SPCLI
+@testable import SupatermCLIShared
 
 struct SPProjectIconTests {
   @Test
@@ -12,7 +13,7 @@ struct SPProjectIconTests {
     let expectedURL = try fixture.write("public/favicon.svg")
     _ = try fixture.write("assets/logo.svg")
 
-    #expect(SPProjectIconResolver.resolve(in: fixture.rootURL) == expectedURL)
+    #expect(SupatermProjectIconResolver.resolve(in: fixture.rootURL) == expectedURL)
   }
 
   @Test
@@ -23,7 +24,7 @@ struct SPProjectIconTests {
     try fixture.writeText("index.html", #"<link rel="icon" href="/brand/icon.svg">"#)
     let expectedURL = try fixture.write("public/brand/icon.svg")
 
-    #expect(SPProjectIconResolver.resolve(in: fixture.rootURL) == expectedURL)
+    #expect(SupatermProjectIconResolver.resolve(in: fixture.rootURL) == expectedURL)
   }
 
   @Test
@@ -33,7 +34,7 @@ struct SPProjectIconTests {
     try fixture.writeText("index.html", #"<link href="/brand/logo.svg?v=1" rel="icon">"#)
     let expectedURL = try fixture.write("public/brand/logo.svg")
 
-    #expect(SPProjectIconResolver.resolve(in: fixture.rootURL) == expectedURL)
+    #expect(SupatermProjectIconResolver.resolve(in: fixture.rootURL) == expectedURL)
   }
 
   @Test
@@ -46,7 +47,7 @@ struct SPProjectIconTests {
     )
     let expectedURL = try fixture.write("public/brand/logo.png")
 
-    #expect(SPProjectIconResolver.resolve(in: fixture.rootURL) == expectedURL)
+    #expect(SupatermProjectIconResolver.resolve(in: fixture.rootURL) == expectedURL)
   }
 
   @Test
@@ -64,7 +65,7 @@ struct SPProjectIconTests {
     _ = try fixture.write("public/icons/app.png")
     let expectedURL = try fixture.write("public/icons/mark.svg")
 
-    #expect(SPProjectIconResolver.resolve(in: fixture.rootURL) == expectedURL)
+    #expect(SupatermProjectIconResolver.resolve(in: fixture.rootURL) == expectedURL)
   }
 
   @Test
@@ -82,7 +83,7 @@ struct SPProjectIconTests {
     _ = try fixture.write("public/icons/small.png")
     let expectedURL = try fixture.write("public/icons/large.png")
 
-    #expect(SPProjectIconResolver.resolve(in: fixture.rootURL) == expectedURL)
+    #expect(SupatermProjectIconResolver.resolve(in: fixture.rootURL) == expectedURL)
   }
 
   @Test
@@ -95,7 +96,7 @@ struct SPProjectIconTests {
     )
     _ = try fixture.write("packages/app/icon.svg")
 
-    #expect(SPProjectIconResolver.resolve(in: fixture.rootURL) == nil)
+    #expect(SupatermProjectIconResolver.resolve(in: fixture.rootURL) == nil)
   }
 
   @Test
@@ -108,7 +109,7 @@ struct SPProjectIconTests {
     )
     let expectedURL = try fixture.write("favicon.svg")
 
-    #expect(SPProjectIconResolver.resolve(in: fixture.rootURL) == expectedURL)
+    #expect(SupatermProjectIconResolver.resolve(in: fixture.rootURL) == expectedURL)
   }
 
   @Test
@@ -121,7 +122,7 @@ struct SPProjectIconTests {
     _ = try fixture.write("public/brand/icon.svg")
     let expectedURL = try fixture.write("favicon.svg")
 
-    #expect(SPProjectIconResolver.resolve(in: fixture.rootURL) == expectedURL)
+    #expect(SupatermProjectIconResolver.resolve(in: fixture.rootURL) == expectedURL)
   }
 
   @Test
@@ -140,7 +141,7 @@ struct SPProjectIconTests {
     )
     try FileManager.default.createSymbolicLink(at: iconURL, withDestinationURL: outsideURL)
 
-    #expect(SPProjectIconResolver.resolve(in: fixture.rootURL) == nil)
+    #expect(SupatermProjectIconResolver.resolve(in: fixture.rootURL) == nil)
   }
 
   @Test
@@ -150,7 +151,7 @@ struct SPProjectIconTests {
     try fixture.writeText("index.html", #"<link rel="icon" href="/secret.txt">"#)
     try fixture.writeText("public/secret.txt", "secret")
 
-    #expect(SPProjectIconResolver.resolve(in: fixture.rootURL) == nil)
+    #expect(SupatermProjectIconResolver.resolve(in: fixture.rootURL) == nil)
   }
 
   @Test

@@ -114,21 +114,21 @@ struct TerminalTabGroupTitleSuggesterTests {
       "/work/other": "/work/other",
     ]
 
-    let shared = TerminalTabGroupTitleSuggester.sharedRepositoryName(
+    let shared = TerminalTabGroupTitleSuggester.sharedRepositoryRoot(
       workingDirectoryPathsByTab: [
         ["/work/supaterm/apps/mac"],
         ["/work/supaterm/docs"],
       ],
       repositoryRoot: { roots[$0] }
     )
-    let mixed = TerminalTabGroupTitleSuggester.sharedRepositoryName(
+    let mixed = TerminalTabGroupTitleSuggester.sharedRepositoryRoot(
       workingDirectoryPathsByTab: [
         ["/work/supaterm/apps/mac"],
         ["/work/other"],
       ],
       repositoryRoot: { roots[$0] }
     )
-    let unresolved = TerminalTabGroupTitleSuggester.sharedRepositoryName(
+    let unresolved = TerminalTabGroupTitleSuggester.sharedRepositoryRoot(
       workingDirectoryPathsByTab: [
         ["/work/supaterm/apps/mac"],
         ["/work/missing"],
@@ -136,7 +136,7 @@ struct TerminalTabGroupTitleSuggesterTests {
       repositoryRoot: { roots[$0] }
     )
 
-    #expect(shared == "supaterm")
+    #expect(shared == "/work/supaterm")
     #expect(mixed == nil)
     #expect(unresolved == nil)
   }

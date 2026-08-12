@@ -1,7 +1,25 @@
 import ComposableArchitecture
 import Sharing
 import SupaTheme
+import SupatermCLIShared
 import SwiftUI
+
+nonisolated struct TerminalSidebarGroupIconRequest: Hashable, Sendable {
+  let workingDirectoryPathsByTab: [[String]]
+
+  func resolve() -> URL? {
+    guard
+      let rootPath = TerminalTabGroupTitleSuggester.sharedRepositoryRoot(
+        workingDirectoryPathsByTab: workingDirectoryPathsByTab
+      )
+    else {
+      return nil
+    }
+    return SupatermProjectIconResolver.resolve(
+      in: URL(fileURLWithPath: rootPath, isDirectory: true)
+    )
+  }
+}
 
 enum TerminalSidebarTabShortcutHints {
   static let maxVisibleShortcutCount = 10
@@ -37,6 +55,7 @@ struct TerminalSidebarSpaceList: View {
   @Environment(\.accessibilityReduceMotion) private var reduceMotion
   @Environment(GhosttyShortcutManager.self) private var ghosttyShortcuts
   @Shared(.supatermSettings) private var supatermSettings = .default
+  @State private var groupIconURLs: [TerminalTabGroupID: URL] = [:]
 
   var body: some View {
     TerminalSidebarOutlineList(
@@ -55,6 +74,17 @@ struct TerminalSidebarSpaceList: View {
       performDrop: performDrop
     )
     .frame(maxWidth: .infinity, maxHeight: .infinity)
+    .task(id: groupIconRequests) {
+      let requests = groupIconRequests
+      groupIconURLs = [:]
+      let icons = await Task.detached(priority: .utility) {
+        requests.reduce(into: [TerminalTabGroupID: URL]()) { icons, request in
+          icons[request.key] = request.value.resolve()
+        }
+      }.value
+      guard !Task.isCancelled else { return }
+      groupIconURLs = icons
+    }
   }
 
   private var snapshot: TerminalTabSurfaceSnapshot {
@@ -85,6 +115,7 @@ struct TerminalSidebarSpaceList: View {
             id: group.id,
             title: group.title,
             color: group.color,
+            iconURL: groupIconURLs[group.id],
             isPinned: group.isPinned,
             isCollapsed: snapshot.collapsedGroupIDs.contains(group.id),
             tabCount: group.tabs.count
@@ -108,6 +139,22 @@ struct TerminalSidebarSpaceList: View {
     }
     rows[.newTab] = .newTab(.inline)
     return rows
+  }
+
+  private var groupIconRequests: [TerminalTabGroupID: TerminalSidebarGroupIconRequest] {
+    Dictionary(
+      uniqueKeysWithValues: snapshot.collection.rootItems.compactMap { root in
+        guard case .group(let group) = root else { return nil }
+        return (
+          group.id,
+          TerminalSidebarGroupIconRequest(
+            workingDirectoryPathsByTab: group.tabs.map {
+              terminal.paneWorkingDirectoryPaths(for: $0.id)
+            }
+          )
+        )
+      }
+    )
   }
 
   private func tabPresentation(
