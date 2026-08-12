@@ -174,7 +174,6 @@ enum WindowTrafficLightMetrics {
   static let buttonSize: CGFloat = 14
   static let buttonSpacing: CGFloat = 9
   static let edgePadding: CGFloat = 19
-  static let glyphSize: CGFloat = 8
 
   static var clusterWidth: CGFloat {
     edgePadding + buttonSize * 3 + buttonSpacing * 2
@@ -182,32 +181,25 @@ enum WindowTrafficLightMetrics {
 }
 
 struct WindowTrafficLights: NSViewRepresentable {
-  @Environment(\.accessibilityReduceMotion) private var reduceMotion
-
   func makeNSView(context: Context) -> WindowTrafficLightsView {
-    WindowTrafficLightsView(reduceMotion: reduceMotion)
+    WindowTrafficLightsView()
   }
 
-  func updateNSView(_ nsView: WindowTrafficLightsView, context: Context) {
-    nsView.reduceMotion = reduceMotion
-  }
+  func updateNSView(_ nsView: WindowTrafficLightsView, context: Context) {}
 }
 
 final class WindowTrafficLightsView: WindowDragSurfaceView {
-  var reduceMotion: Bool
-
-  private static let controls: [(type: NSWindow.ButtonType, symbol: String)] = [
-    (.closeButton, "xmark"),
-    (.miniaturizeButton, "minus"),
-    (.zoomButton, "arrow.up.left.and.arrow.down.right"),
+  private static let buttonTypes: [NSWindow.ButtonType] = [
+    .closeButton,
+    .miniaturizeButton,
+    .zoomButton,
   ]
 
-  private var lights: [(button: NSButton, glyph: NSImageView)] = []
+  private var buttons: [NSButton] = []
   private var isHovered = false
 
-  init(reduceMotion: Bool) {
-    self.reduceMotion = reduceMotion
-    super.init(frame: .zero)
+  override init(frame frameRect: NSRect) {
+    super.init(frame: frameRect)
     addTrackingArea(
       NSTrackingArea(
         rect: .zero,
@@ -229,13 +221,13 @@ final class WindowTrafficLightsView: WindowDragSurfaceView {
 
   override func viewDidChangeEffectiveAppearance() {
     super.viewDidChangeEffectiveAppearance()
-    setHovered(isHovered, animated: false)
+    updateAppearance()
   }
 
   override func layout() {
     super.layout()
-    for (index, light) in lights.enumerated() {
-      let frame = CGRect(
+    for (index, button) in buttons.enumerated() {
+      button.frame = CGRect(
         x: WindowTrafficLightMetrics.edgePadding
           + CGFloat(index)
           * (WindowTrafficLightMetrics.buttonSize + WindowTrafficLightMetrics.buttonSpacing),
@@ -245,69 +237,56 @@ final class WindowTrafficLightsView: WindowDragSurfaceView {
         width: WindowTrafficLightMetrics.buttonSize,
         height: WindowTrafficLightMetrics.buttonSize
       )
-      light.button.frame = frame
-      light.glyph.frame = frame.insetBy(
-        dx: (frame.width - WindowTrafficLightMetrics.glyphSize) / 2,
-        dy: (frame.height - WindowTrafficLightMetrics.glyphSize) / 2
-      )
     }
   }
 
   override func hitTest(_ point: NSPoint) -> NSView? {
     guard bounds.contains(point) else { return nil }
-    for light in lights where light.button.frame.contains(point) {
-      return light.button
+    for button in buttons where button.frame.contains(point) {
+      return button
     }
     return self
   }
 
   override func mouseEntered(with event: NSEvent) {
-    setHovered(true, animated: true)
+    setHovered(true)
   }
 
   override func mouseExited(with event: NSEvent) {
-    setHovered(false, animated: true)
+    setHovered(false)
+  }
+
+  @objc(_mouseInGroup:)
+  func mouseInGroup(_: Any?) -> Bool {
+    isHovered
   }
 
   private func configureButtons() {
-    lights.forEach {
-      $0.button.removeFromSuperview()
-      $0.glyph.removeFromSuperview()
-    }
+    buttons.forEach { $0.removeFromSuperview() }
     guard let window else {
-      lights = []
+      buttons = []
       return
     }
 
-    lights = Self.controls.compactMap { control in
-      guard let button = NSWindow.standardWindowButton(control.type, for: window.styleMask) else {
-        return nil
-      }
-      let glyph = NSImageView(
-        image: NSImage(systemSymbolName: control.symbol, accessibilityDescription: nil) ?? NSImage()
-      )
-      glyph.contentTintColor = .black.withAlphaComponent(0.55)
-      glyph.imageScaling = .scaleProportionallyDown
-      glyph.setAccessibilityElement(false)
-      return (button, glyph)
+    buttons = Self.buttonTypes.compactMap {
+      NSWindow.standardWindowButton($0, for: window.styleMask)
     }
-    lights.forEach {
-      addSubview($0.button)
-      addSubview($0.glyph)
-    }
-    setHovered(false, animated: false)
+    buttons.forEach(addSubview)
+    updateAppearance()
     needsLayout = true
   }
 
-  private func setHovered(_ hovered: Bool, animated: Bool) {
+  private func setHovered(_ hovered: Bool) {
     isHovered = hovered
-    NSAnimationContext.runAnimationGroup { context in
-      context.duration = reduceMotion || !animated ? 0 : 0.1
-      for light in lights {
-        light.button.animator().alphaValue = hovered ? 1 : idleAlpha
-        light.glyph.animator().alphaValue = hovered ? 1 : 0
-      }
+    updateAppearance()
+    for button in buttons {
+      button.needsDisplay = true
+      button.needsLayout = true
     }
+  }
+
+  private func updateAppearance() {
+    alphaValue = isHovered ? 1 : idleAlpha
   }
 
   private var idleAlpha: CGFloat {
