@@ -103,6 +103,11 @@ hooks {
         stdin = "{{ hook_stdin }}"
         depends = "mac-scan-dead-code"
       }
+      ["mac-test-e2e"] {
+        check = "\(prePushBranchCheck)\nmake mac-test-e2e"
+        stdin = "{{ hook_stdin }}"
+        depends = "mac-test"
+      }
     }
   }
   ["post-checkout"] {
