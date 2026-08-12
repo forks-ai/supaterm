@@ -1,11 +1,11 @@
 amends "package://github.com/jdx/hk/releases/download/v1.52.0/hk@1.52.0#/Config.pkl"
 import "package://github.com/jdx/hk/releases/download/v1.52.0/hk@1.52.0#/Builtins.pkl"
 
-local prePushBranchCheck = """
+local prePushMainCheck = """
 repo_root=$(git rev-parse --show-toplevel)
 cd "$repo_root"
 [ -d apps/mac ] || exit 0
-if ! awk 'NF && $1 !~ "^refs/tags/" && $3 !~ "^refs/tags/" { found = 1 } END { exit found ? 0 : 1 }'; then
+if ! awk 'NF && $3 == "refs/heads/main" { found = 1 } END { exit found ? 0 : 1 }'; then
   exit 0
 fi
 """
@@ -54,57 +54,57 @@ hooks {
         depends = "validate-submodule-branches"
       }
       ["web-install"] {
-        check = "\(prePushBranchCheck)\nmake web-install"
+        check = "\(prePushMainCheck)\nmake web-install"
         stdin = "{{ hook_stdin }}"
         depends = "validate-release-tags"
       }
       ["web-check"] {
-        check = "\(prePushBranchCheck)\nmake web-check"
+        check = "\(prePushMainCheck)\nmake web-check"
         stdin = "{{ hook_stdin }}"
         depends = "web-install"
       }
       ["web-test"] {
-        check = "\(prePushBranchCheck)\nmake web-test"
+        check = "\(prePushMainCheck)\nmake web-test"
         stdin = "{{ hook_stdin }}"
         depends = "web-install"
       }
       ["docs-install"] {
-        check = "\(prePushBranchCheck)\nmake docs-install"
+        check = "\(prePushMainCheck)\nmake docs-install"
         stdin = "{{ hook_stdin }}"
         depends = "validate-release-tags"
       }
       ["docs-check"] {
-        check = "\(prePushBranchCheck)\nmake docs-check"
+        check = "\(prePushMainCheck)\nmake docs-check"
         stdin = "{{ hook_stdin }}"
         depends = "docs-install"
       }
       ["docs-validate"] {
-        check = "\(prePushBranchCheck)\nmake docs-validate"
+        check = "\(prePushMainCheck)\nmake docs-validate"
         stdin = "{{ hook_stdin }}"
         depends = "docs-check"
       }
       ["docs-build"] {
-        check = "\(prePushBranchCheck)\nmake docs-build"
+        check = "\(prePushMainCheck)\nmake docs-build"
         stdin = "{{ hook_stdin }}"
         depends = "docs-validate"
       }
       ["mac-inspect-dependencies"] {
-        check = "\(prePushBranchCheck)\nmake mac-inspect-dependencies"
+        check = "\(prePushMainCheck)\nmake mac-inspect-dependencies"
         stdin = "{{ hook_stdin }}"
         depends = "validate-release-tags"
       }
       ["mac-scan-dead-code"] {
-        check = "\(prePushBranchCheck)\nmake mac-scan-dead-code"
+        check = "\(prePushMainCheck)\nmake mac-scan-dead-code"
         stdin = "{{ hook_stdin }}"
         depends = "mac-inspect-dependencies"
       }
       ["mac-test"] {
-        check = "\(prePushBranchCheck)\nmake mac-test"
+        check = "\(prePushMainCheck)\nmake mac-test"
         stdin = "{{ hook_stdin }}"
         depends = "mac-scan-dead-code"
       }
       ["mac-test-e2e"] {
-        check = "\(prePushBranchCheck)\nmake mac-test-e2e"
+        check = "\(prePushMainCheck)\nmake mac-test-e2e"
         stdin = "{{ hook_stdin }}"
         depends = "mac-test"
       }
