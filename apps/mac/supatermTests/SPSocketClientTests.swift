@@ -47,15 +47,13 @@ struct SPSocketClientTests {
       connectRetryTimeout: 0
     )
 
-    do {
-      _ = try client.send(request)
-      Issue.record("Expected the oversized request to be rejected.")
-    } catch {
-      #expect(
-        error.localizedDescription
-          == "Supaterm socket request exceeds \(SupatermSocketRequest.maximumEncodedBytes) bytes."
-      )
+    let error = try #require(throws: (any Error).self) {
+      try client.send(request)
     }
+    #expect(
+      error.localizedDescription
+        == "Supaterm socket request exceeds \(SupatermSocketRequest.maximumEncodedBytes) bytes."
+    )
   }
 
   @Test

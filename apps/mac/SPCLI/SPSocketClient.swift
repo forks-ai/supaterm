@@ -71,23 +71,8 @@ struct SPSocketClient {
   }
 
   func probeIdentity() -> SupatermManagedSocketCandidateStatus {
-    let socket: Int32
     do {
-      socket = try openSocket()
-    } catch let error as SocketClientError {
-      switch error {
-      case .connectFailed:
-        return .stale
-      default:
-        return .ignored
-      }
-    } catch {
-      return .ignored
-    }
-    defer { Darwin.close(socket) }
-
-    do {
-      let response = try send(try encodedRequest(.identity()), over: socket)
+      let response = try send(.identity())
       guard response.ok else {
         return .ignored
       }
@@ -99,6 +84,8 @@ struct SPSocketClient {
         return .ignored
       }
       return .reachable(endpoint)
+    } catch SocketClientError.connectFailed {
+      return .stale
     } catch {
       return .ignored
     }
