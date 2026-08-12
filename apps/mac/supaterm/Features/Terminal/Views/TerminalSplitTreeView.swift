@@ -827,6 +827,7 @@ struct TerminalSplitTreeView: View {
         value: isEffectivelyCollapsed,
         reduceMotion: reduceMotion
       )
+      .frame(width: AgentPanelMetrics.expandedWidth, alignment: .topTrailing)
       .accessibilityElement(children: .contain)
       .onChange(of: surfaceView.bridge.state.userInputGeneration) { _, inputGeneration in
         guard cursorMonitoringIsAllowed else { return }
