@@ -237,7 +237,7 @@ jobs:
           exit 1
       - name: Install posthog-cli
         if: steps.posthog-credentials.outputs.enabled == 'true'
-        run: curl --proto '=https' --tlsv1.2 -LsSf https://download.posthog.com/cli | sh
+        run: .github/scripts/install_posthog_cli.sh
       - uses: actions/download-artifact@v7
         if: steps.posthog-credentials.outputs.enabled == 'true'
         with:
