@@ -143,7 +143,7 @@ final class TerminalSidebarListController: NSViewController, NSCollectionViewDel
   private let windowControllerID: UUID
   private let captureRequest: () -> TerminalWindowCaptureRequest?
   private lazy var hoverCardController = TerminalSidebarHoverCardController(
-    sourceAtPoint: { [weak self] point in self?.hoverCardSource(at: point) },
+    tabAtPoint: { [weak self] point in self?.hoveredTabID(at: point) },
     sourceForTab: { [weak self] tabID in self?.hoverCardSource(for: tabID) },
     content: { [weak self] tabID in self?.hoverCardContent(for: tabID) },
     allowsPresentation: { [weak self] in self?.allowsHoverCardPresentation == true },
@@ -705,16 +705,12 @@ final class TerminalSidebarListController: NSViewController, NSCollectionViewDel
     view.window?.isKeyWindow == true && !dragController.isActive && pendingDropHandoff == nil
   }
 
-  private func hoverCardSource(
-    at point: CGPoint
-  ) -> TerminalSidebarHoverCardController.Source? {
+  private func hoveredTabID(at point: CGPoint) -> TerminalTabID? {
     guard let indexPath = collectionView.indexPathForItem(at: point),
       let entryID = dataSource.itemIdentifier(for: indexPath),
-      case .tab(let tabID) = entryID,
-      let item = collectionView.item(at: indexPath) as? TerminalSidebarCollectionItem,
-      item.entryID == entryID
+      case .tab(let tabID) = entryID
     else { return nil }
-    return TerminalSidebarHoverCardController.Source(tabID: tabID, view: item.view)
+    return tabID
   }
 
   private func hoverCardSource(
@@ -727,7 +723,7 @@ final class TerminalSidebarListController: NSViewController, NSCollectionViewDel
       !item.view.isHidden,
       item.view.window != nil
     else { return nil }
-    return TerminalSidebarHoverCardController.Source(tabID: tabID, view: item.view)
+    return TerminalSidebarHoverCardController.Source(view: item.view)
   }
 
   private func hoverCardContent(for tabID: TerminalTabID) -> TerminalSidebarHoverCardContent? {
@@ -737,8 +733,7 @@ final class TerminalSidebarListController: NSViewController, NSCollectionViewDel
     else { return nil }
     return TerminalSidebarHoverCardContent(
       tabTitle: presentation.tab.title,
-      agentName: response.agent.displayName,
-      response: response.text
+      response: response
     )
   }
 

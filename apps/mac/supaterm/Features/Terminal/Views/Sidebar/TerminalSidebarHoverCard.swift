@@ -6,8 +6,7 @@ import SwiftUI
 
 struct TerminalSidebarHoverCardContent: Equatable {
   let tabTitle: String
-  let agentName: String
-  let response: String
+  let response: TerminalHostState.TabAgentResponse
 }
 
 enum TerminalSidebarHoverCardMetrics {
@@ -32,20 +31,19 @@ enum TerminalSidebarHoverCardPhase: Equatable {
   case idle
   case pending(TerminalTabID, UInt64)
   case presented(TerminalTabID)
-  case tracking(TerminalTabID)
 
   var tabID: TerminalTabID? {
     switch self {
     case .idle:
       nil
-    case .pending(let tabID, _), .presented(let tabID), .tracking(let tabID):
+    case .pending(let tabID, _), .presented(let tabID):
       tabID
     }
   }
 
   var isPresented: Bool {
     switch self {
-    case .presented, .tracking:
+    case .presented:
       true
     case .idle, .pending:
       false
@@ -70,6 +68,12 @@ struct TerminalSidebarHoverCardGeometry: Equatable {
       y: min(max(sourceFrame.midY - cardSize.height / 2, bounds.minY), maxY)
     )
     return CGRect(origin: origin, size: cardSize)
+  }
+
+  @MainActor
+  static func screenFrame(of view: NSView) -> CGRect? {
+    guard let window = view.window, !view.bounds.isEmpty else { return nil }
+    return window.convertToScreen(view.convert(view.bounds, to: nil))
   }
 }
 
@@ -142,14 +146,13 @@ struct TerminalSidebarHoverCorridor: Equatable {
 @MainActor
 final class TerminalSidebarHoverCardController {
   struct Source {
-    let tabID: TerminalTabID
     let view: NSView
   }
 
   var presentationChanged: (() -> Void)?
 
   private(set) var phase = TerminalSidebarHoverCardPhase.idle
-  private let sourceAtPoint: (CGPoint) -> Source?
+  private let tabAtPoint: (CGPoint) -> TerminalTabID?
   private let sourceForTab: (TerminalTabID) -> Source?
   private let content: (TerminalTabID) -> TerminalSidebarHoverCardContent?
   private let allowsPresentation: () -> Bool
@@ -162,13 +165,13 @@ final class TerminalSidebarHoverCardController {
   private var suppressedTabID: TerminalTabID?
 
   init(
-    sourceAtPoint: @escaping (CGPoint) -> Source?,
+    tabAtPoint: @escaping (CGPoint) -> TerminalTabID?,
     sourceForTab: @escaping (TerminalTabID) -> Source?,
     content: @escaping (TerminalTabID) -> TerminalSidebarHoverCardContent?,
     allowsPresentation: @escaping () -> Bool,
     reduceMotion: @escaping () -> Bool
   ) {
-    self.sourceAtPoint = sourceAtPoint
+    self.tabAtPoint = tabAtPoint
     self.sourceForTab = sourceForTab
     self.content = content
     self.allowsPresentation = allowsPresentation
@@ -190,10 +193,10 @@ final class TerminalSidebarHoverCardController {
       dismiss()
       return
     }
-    if let point, let source = sourceAtPoint(point), content(source.tabID) != nil {
-      guard source.tabID != suppressedTabID else { return }
+    if let point, let tabID = tabAtPoint(point), content(tabID) != nil {
+      guard tabID != suppressedTabID else { return }
       suppressedTabID = nil
-      hover(source)
+      hover(tabID)
       return
     }
     suppressedTabID = nil
@@ -214,7 +217,7 @@ final class TerminalSidebarHoverCardController {
         dismiss()
         return
       }
-    case .presented, .tracking:
+    case .presented:
       guard let content = observedContent(for: tabID) else {
         dismiss()
         return
@@ -241,19 +244,13 @@ final class TerminalSidebarHoverCardController {
     }
   }
 
-  private func hover(_ source: Source) {
-    if phase.tabID == source.tabID {
-      if phase.isPresented {
-        phase = .presented(source.tabID)
-      }
-      return
-    }
-    schedulePresentation(for: source.tabID)
+  private func hover(_ tabID: TerminalTabID) {
+    guard phase.tabID != tabID else { return }
+    schedulePresentation(for: tabID)
   }
 
   private func schedulePresentation(for tabID: TerminalTabID) {
     dismiss()
-    generation &+= 1
     let generation = generation
     phase = .pending(tabID, generation)
     pendingTask = Task { [weak self] in
@@ -305,12 +302,13 @@ final class TerminalSidebarHoverCardController {
   }
 
   private func trackPointer(at screenPoint: CGPoint) {
-    guard let tabID = phase.tabID else { return }
-    guard phase.isPresented else {
+    guard case .presented(let tabID) = phase else {
       dismiss()
       return
     }
-    guard let source = sourceForTab(tabID), let sourceFrame = screenFrame(of: source.view),
+    guard
+      let source = sourceForTab(tabID),
+      let sourceFrame = TerminalSidebarHoverCardGeometry.screenFrame(of: source.view),
       let cardFrame = presenter.frame
     else {
       dismiss()
@@ -323,7 +321,6 @@ final class TerminalSidebarHoverCardController {
     if TerminalSidebarHoverCorridor(sourceFrame: sourceFrame, cardFrame: cardFrame)
       .contains(screenPoint)
     {
-      phase = .tracking(tabID)
       return
     }
     dismiss()
@@ -364,7 +361,7 @@ final class TerminalSidebarHoverCardController {
 
   private func suppressSource(at screenPoint: CGPoint) {
     guard let tabID = phase.tabID, let source = sourceForTab(tabID),
-      screenFrame(of: source.view)?.contains(screenPoint) == true
+      TerminalSidebarHoverCardGeometry.screenFrame(of: source.view)?.contains(screenPoint) == true
     else { return }
     suppressedTabID = tabID
   }
@@ -408,11 +405,6 @@ final class TerminalSidebarHoverCardController {
       NotificationCenter.default.removeObserver(observer)
     }
     observers.removeAll()
-  }
-
-  private func screenFrame(of view: NSView) -> CGRect? {
-    guard let window = view.window, !view.bounds.isEmpty else { return nil }
-    return window.convertToScreen(view.convert(view.bounds, to: nil))
   }
 
   private func screenPoint(for event: NSEvent) -> CGPoint {
@@ -487,7 +479,10 @@ private final class TerminalSidebarHoverCardPresenter {
         height: max(120, visibleFrame.height - 16)
       )
     )
-    guard let sourceFrame = screenFrame(of: sourceView), cardSize.width > 0, cardSize.height > 0
+    guard
+      let sourceFrame = TerminalSidebarHoverCardGeometry.screenFrame(of: sourceView),
+      cardSize.width > 0,
+      cardSize.height > 0
     else { return nil }
     let frame = TerminalSidebarHoverCardGeometry.frame(
       sourceFrame: sourceFrame,
@@ -584,11 +579,6 @@ private final class TerminalSidebarHoverCardPresenter {
     window.ignoresMouseEvents = false
     parentWindow = nil
   }
-
-  private func screenFrame(of view: NSView) -> CGRect? {
-    guard let window = view.window, !view.bounds.isEmpty else { return nil }
-    return window.convertToScreen(view.convert(view.bounds, to: nil))
-  }
 }
 
 @MainActor
@@ -621,9 +611,10 @@ struct TerminalSidebarHoverCardView: View {
   @MainActor
   init(content: TerminalSidebarHoverCardContent) {
     tabTitle = content.tabTitle
-    agentName = content.agentName
+    agentName = content.response.agent.displayName
     let response =
-      (try? AttributedString(markdown: content.response)) ?? AttributedString(content.response)
+      (try? AttributedString(markdown: content.response.text))
+      ?? AttributedString(content.response.text)
     self.response = response
     responseHeight = TerminalSidebarHoverCardMetrics.responseHeight(for: response)
   }

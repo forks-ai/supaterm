@@ -9,8 +9,10 @@ struct TerminalSidebarHoverCardTests {
   func shortResponseUsesItsContentHeight() {
     let content = TerminalSidebarHoverCardContent(
       tabTitle: "Ready",
-      agentName: "Agent",
-      response: "Hello, khoi."
+      response: TerminalHostState.TabAgentResponse(
+        agent: AgentDetectionAgentIdentity(id: "agent", displayName: "Agent"),
+        text: "Hello, khoi."
+      )
     )
     let controller = NSHostingController(
       rootView: TerminalSidebarHoverCardView(content: content)
