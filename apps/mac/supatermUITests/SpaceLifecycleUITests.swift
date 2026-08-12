@@ -88,10 +88,9 @@ final class SpaceLifecycleUITests: SupatermUITestCase {
 
   @MainActor
   private func saveSpaceEditor() async throws {
+    let editor = try require(element(SupatermUITestIdentifier.Accessibility.dialogSurface))
     try require(app.buttons[SupatermUITestIdentifier.Accessibility.dialogConfirm]).click()
-    let didDismissEditor = await wait {
-      !self.app.textFields[SupatermUITestIdentifier.Accessibility.dialogSpaceName].exists
-    }
+    let didDismissEditor = await wait(for: editor) { !$0.exists }
     XCTAssertTrue(didDismissEditor)
   }
 }

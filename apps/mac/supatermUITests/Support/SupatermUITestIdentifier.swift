@@ -12,6 +12,7 @@ enum SupatermUITestIdentifier {
     static let sidebarSpaceDotPrefix = "sidebar.space-dot."
     static let paletteInput = "palette.input"
     static let paletteResultRow = "palette.result-row"
+    static let dialogSurface = "dialog.surface"
     static let dialogConfirm = "dialog.confirm"
     static let dialogCancel = "dialog.cancel"
     static let dialogSpaceName = "dialog.space-name"
