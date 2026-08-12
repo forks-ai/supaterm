@@ -312,8 +312,10 @@ final class TerminalWindowController: NSWindowController {
     switch launch {
     case .newShell(_, let startupCommand):
       terminal.ensureInitialTab(focusing: false, startupCommand: startupCommand)
-    case .restoredShell:
-      terminal.ensureInitialTab(focusing: false, startupCommand: nil)
+    case .restoredShell(let session):
+      if !terminal.restore(from: session) {
+        terminal.ensureInitialTab(focusing: false, startupCommand: nil)
+      }
     case .restore(let session):
       _ = terminal.restore(from: session)
     case .tabTransferDestination:

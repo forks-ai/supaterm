@@ -2,6 +2,7 @@ import AppKit
 import ComposableArchitecture
 import Foundation
 import Observation
+import SupaTheme
 import Synchronization
 import Testing
 
@@ -130,18 +131,46 @@ struct TerminalWindowControllerTests {
         width: 1_100,
         height: 740
       )
-      let spaceID = TerminalSpaceCatalog.default.defaultSelectedSpaceID
+      let spaces = [TerminalSpaceItem(name: "Displayed"), TerminalSpaceItem(name: "Hidden")]
+      @Shared(.terminalSpaceCatalog) var spaceCatalog = TerminalSpaceCatalog.default
+      $spaceCatalog.withLock {
+        $0 = TerminalSpaceCatalog(defaultSelectedSpaceID: spaces[0].id, spaces: spaces)
+      }
+      let spaceID = spaces[0].id
+      let hiddenSpaceID = spaces[1].id
+      let groupID = TerminalTabGroupID()
       let session = TerminalWindowSession(
         displayedSpaceID: spaceID,
         spaces: [
           TerminalSpaceSession(
             spaceID: spaceID,
             selectedTabID: nil,
+            nodes: [
+              TerminalTabNodeSession(
+                item: .group(groupID),
+                parent: .root(isPinned: false),
+                order: 0
+              )
+            ],
+            groups: [
+              TerminalTabGroupSession(
+                id: groupID,
+                title: "Saved",
+                color: .blue,
+                lifetime: .durable
+              )
+            ],
+            collapsedGroupIDs: [groupID],
+            tabs: []
+          ),
+          TerminalSpaceSession(
+            spaceID: hiddenSpaceID,
+            selectedTabID: nil,
             nodes: [],
             groups: [],
             collapsedGroupIDs: [],
             tabs: []
-          )
+          ),
         ],
         frame: TerminalWindowFrame(frame),
         sidebarWidth: 336
@@ -162,6 +191,8 @@ struct TerminalWindowControllerTests {
 
       #expect(controller.window?.frame == frame.constrained(to: visibleFrame))
       #expect(controller.terminal.visibleTabs.count == 1)
+      #expect(controller.terminal.spaceManager.rootItems(in: spaceID).first?.id == .group(groupID))
+      #expect(controller.terminal.spaceManager.instance(for: hiddenSpaceID) != nil)
       #expect(controller.store.terminal.sidebarWidth == 336)
     }
   }
