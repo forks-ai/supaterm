@@ -111,7 +111,7 @@ final class DialogsLifecycleUITests: SupatermUITestCase {
   }
 
   @MainActor
-  func testReactivatingAfterClosingLastWindowOpensTerminalWindow() async throws {
+  func testReactivatingAfterClosingLastWindowKeepsAppWindowless() async throws {
     let window = mainWindow
 
     try clickMenuItem(.closeWindow)
@@ -131,8 +131,8 @@ final class DialogsLifecycleUITests: SupatermUITestCase {
     app.activate()
     XCTAssertTrue(app.wait(for: .runningForeground, timeout: 5))
 
-    _ = mainWindow
-    XCTAssertTrue(app.textViews.firstMatch.waitForExistence(timeout: 30))
+    XCTAssertEqual(app.windows.count, 0)
+    XCTAssertEqual(app.textViews.count, 0)
   }
 
   @MainActor
