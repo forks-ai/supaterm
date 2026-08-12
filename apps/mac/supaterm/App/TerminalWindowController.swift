@@ -5,14 +5,12 @@ import SwiftUI
 
 enum TerminalWindowLaunch: Equatable {
   case newShell(spaceID: TerminalSpaceID?, startupCommand: SupatermTerminalStartup?)
-  case restoredShell(TerminalWindowSession)
   case restore(TerminalWindowSession)
   case tabTransferDestination(spaceID: TerminalSpaceID)
 
   var windowSession: TerminalWindowSession? {
     switch self {
     case .newShell, .tabTransferDestination: nil
-    case .restoredShell(let session): session
     case .restore(let session): session
     }
   }
@@ -20,7 +18,7 @@ enum TerminalWindowLaunch: Equatable {
   var spaceID: TerminalSpaceID? {
     switch self {
     case .newShell(let spaceID, _): spaceID
-    case .restoredShell(let session), .restore(let session): session.displayedSpaceID
+    case .restore(let session): session.displayedSpaceID
     case .tabTransferDestination(let spaceID): spaceID
     }
   }
@@ -312,12 +310,10 @@ final class TerminalWindowController: NSWindowController {
     switch launch {
     case .newShell(_, let startupCommand):
       terminal.ensureInitialTab(focusing: false, startupCommand: startupCommand)
-    case .restoredShell(let session):
-      if !terminal.restore(from: session) {
+    case .restore(let session):
+      if !terminal.restore(from: session), session.surfaceIDs.isEmpty {
         terminal.ensureInitialTab(focusing: false, startupCommand: nil)
       }
-    case .restore(let session):
-      _ = terminal.restore(from: session)
     case .tabTransferDestination:
       break
     }

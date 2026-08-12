@@ -194,8 +194,8 @@ struct AppDelegateTests {
 
     #expect(
       requests == [
-        .restoredShell(first),
-        .restoredShell(second),
+        .restore(first),
+        .restore(second),
       ]
     )
   }

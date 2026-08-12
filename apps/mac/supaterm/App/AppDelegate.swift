@@ -663,32 +663,21 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
     lastAppLaunchedDate: Date?,
     cliPath: String?
   ) -> [TerminalWindowLaunch] {
-    guard restoreTerminalLayoutEnabled else {
-      return [
-        .newShell(
-          spaceID: nil,
-          startupCommand: lastAppLaunchedDate == nil ? onboardingStartup(cliPath: cliPath) : nil
-        )
-      ]
-    }
-
-    let windows = sessionCatalog.pruned(
-      validSpaceIDs: validSpaceIDs,
-      allowsExistingSessions: allowsExistingSessions
-    ).windows
-    if !windows.isEmpty {
-      return windows.map { window in
-        window.surfaceIDs.isEmpty
-          ? .restoredShell(window)
-          : .restore(window)
+    if restoreTerminalLayoutEnabled {
+      let windows = sessionCatalog.pruned(
+        validSpaceIDs: validSpaceIDs,
+        allowsExistingSessions: allowsExistingSessions
+      ).windows
+      if !windows.isEmpty {
+        return windows.map(TerminalWindowLaunch.restore)
       }
-    }
-    if !allowsExistingSessions,
-      sessionCatalog.pruned(validSpaceIDs: validSpaceIDs).windows.contains(
-        where: \.containsExistingSession
-      )
-    {
-      return []
+      if !allowsExistingSessions,
+        sessionCatalog.pruned(validSpaceIDs: validSpaceIDs).windows.contains(
+          where: \.containsExistingSession
+        )
+      {
+        return []
+      }
     }
     return [
       .newShell(

@@ -902,10 +902,8 @@ nonisolated struct TerminalPaneSplitSession: Equatable, Codable, Sendable {
           right: right
         )
       )
-    case (.some(let left), .none):
-      return left
-    case (.none, .some(let right)):
-      return right
+    case (.some(let node), .none), (.none, .some(let node)):
+      return node
     case (.none, .none):
       return nil
     }

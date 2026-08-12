@@ -178,7 +178,7 @@ struct TerminalWindowControllerTests {
       let controller = TerminalWindowController(
         runtime: GhosttyRuntime(applicationIsActive: { false }),
         registry: TerminalWindowRegistry(zmxClient: .noop),
-        launch: .restoredShell(session),
+        launch: .restore(session),
         zmxClient: .noop,
         zmxSessionsEnabled: false
       )
