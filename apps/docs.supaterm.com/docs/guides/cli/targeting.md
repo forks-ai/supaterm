@@ -58,11 +58,11 @@ sp ls --json
 Creation commands return typed IDs:
 
 ```bash
-sp tab new --json -- git status
+sp tab new --json
 sp pane split --json right
 ```
 
-Space creation returns `spaceID` under `target`. Tab and pane creation return their typed IDs at the top level. Pass the relevant UUID to later commands.
+Space creation returns `spaceID` under `target`. Tab and pane creation return their typed IDs at the top level. Pass the relevant UUID to later commands. The tab and pane above start login shells, so both IDs remain live for follow-up commands.
 
 ## Target creation with `--in`
 

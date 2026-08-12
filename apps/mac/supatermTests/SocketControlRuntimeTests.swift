@@ -228,6 +228,22 @@ struct SocketControlRuntimeTests {
   }
 
   @Test
+  func requestReaderRejectsLinesOverLimit() throws {
+    var sockets = [Int32](repeating: -1, count: 2)
+    try #require(Darwin.socketpair(AF_UNIX, SOCK_STREAM, 0, &sockets) == 0)
+    defer {
+      Darwin.close(sockets[0])
+      Darwin.close(sockets[1])
+    }
+
+    try writeData(Data("123456789\n".utf8), to: sockets[0])
+
+    #expect(
+      SocketControlRuntime.readRequestLine(from: sockets[1], maximumBytes: 8) == nil
+    )
+  }
+
+  @Test
   func unrepliedRequestExpiresAndClosesClientSocket() async throws {
     let rootURL = try makeTemporaryDirectory()
     defer { try? FileManager.default.removeItem(at: rootURL) }
@@ -513,6 +529,10 @@ private func writeRequest(
   to socketDescriptor: Int32
 ) throws {
   let data = try JSONEncoder().encode(request) + Data([0x0A])
+  try writeData(data, to: socketDescriptor)
+}
+
+private func writeData(_ data: Data, to socketDescriptor: Int32) throws {
   try data.withUnsafeBytes { buffer in
     guard let baseAddress = buffer.baseAddress else { return }
     var offset = 0

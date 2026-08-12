@@ -9,13 +9,13 @@ import Testing
 @MainActor
 struct GhosttySurfaceViewEnvironmentTests {
   @Test
-  func surfaceCreationUsesAccountShellAndKeepsArgumentsOutOfItsEnvironment() throws {
+  func directStartupUsesExactArgumentsAndCallerPath() throws {
     initializeGhosttyForTests()
     let secret = "startup-secret-\(UUID().uuidString.lowercased())"
     var command: String?
     var initialInput: String?
+    var arguments: [String] = []
     var environment: [String: String] = [:]
-    var payloadArguments: [String]?
 
     _ = GhosttySurfaceView(
       runtime: try makeGhosttyRuntime("command = /usr/bin/false"),
@@ -23,11 +23,19 @@ struct GhosttySurfaceViewEnvironmentTests {
       workingDirectory: nil,
       shellPath: "/bin/bash",
       cliPath: "/usr/bin/true",
-      startupCommand: .arguments(["tool", secret]),
+      startupCommand: .exec(
+        ["tool", "", "two words", "line one\nline two", "$HOME; exit", secret],
+        searchPath: "/caller/bin:/usr/bin"
+      ),
       context: GHOSTTY_SURFACE_CONTEXT_TAB,
       surfaceFactory: { _, config in
         command = config.pointee.command.map(String.init(cString:))
         initialInput = config.pointee.initial_input.map(String.init(cString:))
+        if let commandArguments = config.pointee.command_argv {
+          arguments = (0..<config.pointee.command_argv_count).compactMap { index in
+            commandArguments[index].map(String.init(cString:))
+          }
+        }
         if let variables = config.pointee.env_vars {
           for index in 0..<config.pointee.env_var_count {
             let variable = variables[index]
@@ -36,32 +44,19 @@ struct GhosttySurfaceViewEnvironmentTests {
             }
           }
         }
-        if let initialInput {
-          let launcherURL = URL(fileURLWithPath: initialInput.trimmingCharacters(in: .newlines))
-          let payloadURL = launcherURL.deletingLastPathComponent()
-            .appendingPathComponent("arguments.json")
-          payloadArguments = try? JSONDecoder().decode(
-            [String].self,
-            from: Data(contentsOf: payloadURL)
-          )
-        }
         return nil
       }
     )
 
-    #expect(command == "/bin/bash")
-    #expect(initialInput?.hasPrefix("/private/tmp/supaterm-startup-") == true)
-    #expect(payloadArguments == ["tool", secret])
+    #expect(command == nil)
+    #expect(initialInput == nil)
+    #expect(arguments == ["tool", "", "two words", "line one\nline two", "$HOME; exit", secret])
+    #expect(environment["PATH"] == "/usr/bin:/caller/bin")
     #expect(!environment.values.contains { $0.contains(secret) })
-    if let initialInput {
-      let directoryPath = URL(fileURLWithPath: initialInput.trimmingCharacters(in: .newlines))
-        .deletingLastPathComponent().path
-      #expect(!FileManager.default.fileExists(atPath: directoryPath))
-    }
   }
 
   @Test
-  func integratedShellsDeferStartupInputUntilTheirPromptIsReady() throws {
+  func shellStartupWaitsForIntegratedShellPrompt() throws {
     initializeGhosttyForTests()
     let runtime = try makeGhosttyRuntime("")
     #expect(runtime.defersInitialInputUntilShellReady(shellPath: "/bin/zsh"))
@@ -70,19 +65,51 @@ struct GhosttySurfaceViewEnvironmentTests {
 
     let launch = GhosttySurfaceLaunch(
       shellPath: "/bin/zsh",
-      cliPath: "/usr/bin/true",
-      startup: .arguments(["tool"]),
+      startup: .shell("echo ready"),
       defersInputUntilShellReady: true
     )
     var config = ghostty_surface_config_new()
-    launch.apply(to: &config)
+    launch.withConfiguration(&config) { config in
+      #expect(config.command.map(String.init(cString:)) == "/bin/zsh")
+      #expect(config.command_argv == nil)
+      #expect(config.command_argv_count == 0)
+      #expect(config.initial_input == nil)
+    }
     #expect(config.initial_input == nil)
-    #expect(
-      launch.takeDeferredInput()?
-        .hasPrefix("/private/tmp/supaterm-startup-") == true
-    )
+    #expect(launch.takeDeferredInput() == "echo ready\n")
     #expect(launch.takeDeferredInput() == nil)
-    launch.cancel()
+  }
+
+  @Test
+  func shellStartupPreservesExistingTrailingNewline() {
+    let launch = GhosttySurfaceLaunch(
+      shellPath: "/bin/zsh",
+      startup: .shell("echo ready\n"),
+      defersInputUntilShellReady: true
+    )
+
+    #expect(launch.takeDeferredInput() == "echo ready\n")
+    #expect(launch.takeDeferredInput() == nil)
+  }
+
+  @Test
+  func directArgumentPointersStayValidForTheSurfaceCreationCall() {
+    let arguments = ["tool", "", "two words", "line one\nline two", "$HOME; exit", "東京"]
+    let launch = GhosttySurfaceLaunch(
+      shellPath: "/bin/zsh",
+      startup: .exec(arguments, searchPath: nil)
+    )
+    var config = ghostty_surface_config_new()
+    var receivedArguments: [String] = []
+
+    launch.withConfiguration(&config) { config in
+      guard let commandArguments = config.command_argv else { return }
+      receivedArguments = (0..<config.command_argv_count).compactMap { index in
+        commandArguments[index].map(String.init(cString:))
+      }
+    }
+
+    #expect(receivedArguments == arguments)
   }
 
   @Test
@@ -94,7 +121,36 @@ struct GhosttySurfaceViewEnvironmentTests {
   }
 
   @Test
-  func missingCLIShowsStartupPreparationFailure() throws {
+  func directStartupDoesNotRequireTheBundledCLI() throws {
+    initializeGhosttyForTests()
+    var createdSurface = false
+    var arguments: [String] = []
+
+    _ = GhosttySurfaceView(
+      runtime: try makeGhosttyRuntime(""),
+      tabID: UUID(),
+      workingDirectory: nil,
+      shellPath: "/bin/zsh",
+      cliPath: nil,
+      startupCommand: .exec(["pwd"], searchPath: "/usr/bin:/bin"),
+      context: GHOSTTY_SURFACE_CONTEXT_TAB,
+      surfaceFactory: { _, config in
+        createdSurface = true
+        if let commandArguments = config.pointee.command_argv {
+          arguments = (0..<config.pointee.command_argv_count).compactMap { index in
+            commandArguments[index].map(String.init(cString:))
+          }
+        }
+        return nil
+      }
+    )
+
+    #expect(createdSurface)
+    #expect(arguments == ["pwd"])
+  }
+
+  @Test
+  func invalidStartupDoesNotCreateASurface() throws {
     initializeGhosttyForTests()
     var createdSurface = false
 
@@ -104,7 +160,7 @@ struct GhosttySurfaceViewEnvironmentTests {
       workingDirectory: nil,
       shellPath: "/bin/zsh",
       cliPath: nil,
-      startupCommand: .arguments(["pwd"]),
+      startupCommand: .exec([], searchPath: nil),
       context: GHOSTTY_SURFACE_CONTEXT_TAB,
       surfaceFactory: { _, _ in
         createdSurface = true
@@ -113,7 +169,7 @@ struct GhosttySurfaceViewEnvironmentTests {
     )
 
     #expect(!createdSurface)
-    #expect(surfaceView.bridge.state.failure == .startupPreparationFailed)
+    #expect(surfaceView.bridge.state.failure == .startupConfigurationFailed)
   }
 
   @Test
@@ -158,6 +214,16 @@ struct GhosttySurfaceViewEnvironmentTests {
         "/Applications/Supaterm.app/Contents/MacOS",
         currentPath: "/usr/local/bin:/Applications/Supaterm.app/Contents/MacOS:/usr/bin"
       ) == "/Applications/Supaterm.app/Contents/MacOS:/usr/local/bin:/usr/bin"
+    )
+  }
+
+  @Test
+  func prependedPathPreservesEmptyComponents() {
+    #expect(
+      GhosttySurfaceView.prependedPath(
+        "/Applications/Supaterm.app/Contents/MacOS",
+        currentPath: ":/usr/bin::/Applications/Supaterm.app/Contents/MacOS:"
+      ) == "/Applications/Supaterm.app/Contents/MacOS::/usr/bin::"
     )
   }
 

@@ -38,11 +38,9 @@ sp tab pin
 sp tab next
 ```
 
-A new tab with no command starts a local login shell. **New Supaterm Tab Here** starts one in the chosen folder.
+A new tab with no command starts the account login shell. **New Supaterm Tab Here** starts one in the chosen folder.
 
-The first argument after `--` names an executable, and Supaterm preserves every argument exactly. When the executable exits, the tab returns to its login shell. Use `--script` for builtins, aliases, or raw shell code; the tab also returns to the shell when the script ends.
-
-Shell startup files must not read from the terminal before the first prompt. Such a read takes the queued command.
+Arguments after `--` launch an executable directly with the caller's `PATH` and preserve every argument exactly. This skips shell startup files, and the tab closes when the executable exits. Use `--script` for builtins, aliases, or raw shell code. Supaterm starts the account login shell and enters the script visibly. The same shell remains after the script ends.
 
 ## Panes
 
@@ -53,9 +51,9 @@ sp pane split right
 sp pane split down --cwd ~/code/project -- npm test
 ```
 
-A split with no command starts a local login shell.
+A split with no command starts the account login shell.
 
-As with tabs, trailing executable arguments after `--` stay exact, while `--script` takes builtins, aliases, or raw shell code. The pane returns to its login shell after either form finishes.
+Panes use the same launch modes as tabs. Arguments after `--` run directly with exact arguments and close the pane on exit. `--script` enters visible text in the account login shell and returns to that same shell when the script ends.
 
 Use the **Splits** menu or command palette to focus and resize panes. `Command-Shift-Return` zooms the selected pane without changing the split tree.
 

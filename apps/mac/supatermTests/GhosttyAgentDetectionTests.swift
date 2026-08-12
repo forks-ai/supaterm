@@ -235,7 +235,7 @@ private final class GhosttyAgentDetectionFixture {
       tabID: UUID(),
       workingDirectory: nil,
       shellPath: "/bin/sh",
-      startupCommand: .script(command),
+      startupCommand: .exec(["/bin/sh", "-c", command], searchPath: "/usr/bin:/bin"),
       context: GHOSTTY_SURFACE_CONTEXT_TAB,
       zmxSessionsEnabled: false
     )

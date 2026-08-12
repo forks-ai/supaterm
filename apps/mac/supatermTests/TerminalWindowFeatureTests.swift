@@ -1171,7 +1171,7 @@ struct TerminalWindowFeatureTests {
     #expect(
       requests == [
         TerminalCreatePaneRequest(
-          startupCommand: .arguments(["codex", "fork", "session-1"]),
+          startupCommand: .shell("codex fork session-1"),
           cwd: "/tmp/agent-workspace/",
           direction: .down,
           focus: true,

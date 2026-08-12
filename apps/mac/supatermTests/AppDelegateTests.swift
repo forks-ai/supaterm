@@ -205,7 +205,9 @@ struct AppDelegateTests {
       requests == [
         AppDelegate.LaunchWindowRequest(
           session: nil,
-          startupCommand: .arguments(["sp", "onboard", "--socket", socketPath]),
+          startupCommand: .shell(
+            "sp onboard --socket \(SupatermShellCommand.escapedToken(socketPath))"
+          ),
         )
       ]
     )

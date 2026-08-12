@@ -27,4 +27,6 @@ Pi sessions cannot currently be forked from the agent panel. The copy-session-ID
 
 Choose **Fork session right** from the agent panel to create a side-by-side pane. Hold Option to change the action to **Fork session below**. The new pane starts in the root agent's reported workspace directory when available.
 
+The fork starts the account login shell and enters the agent's native fork command visibly. When the forked agent exits, the pane returns to that same shell.
+
 Forking depends on the agent's native session data. It is different from terminal [session persistence](/guides/terminal-workflow/persistence), which keeps the existing process alive across an app restart.

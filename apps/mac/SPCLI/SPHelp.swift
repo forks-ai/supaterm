@@ -3,10 +3,13 @@ import SupatermCLIShared
 
 enum SPHelp {
   private static let terminalStartupDiscussion = """
-    Arguments after `--` remain exact. The first must name an executable.
-    When it exits, the tab or pane returns to its login shell.
+    With no command, the tab or pane starts the account login shell.
 
-    Use `--script` for builtins, aliases, or raw shell code. The shell remains open after the script ends.
+    Arguments after `--` remain exact. The first must name an executable.
+    Supaterm uses the caller's PATH, skips shell startup, and closes the tab or pane when the process exits.
+
+    Use `--script` for builtins, aliases, or raw shell code.
+    Supaterm enters it in the account login shell, which remains open after the script ends.
 
     Shell startup files must not read from the terminal before the first prompt. Such a read takes the queued command.
     """

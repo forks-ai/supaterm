@@ -29,13 +29,15 @@ This command reads local icon declarations first, then common icon paths. It nee
 ```bash
 space_id="$(sp space new --json --focus Work | jq -r '.target.spaceID')"
 sp group new Development --in "$space_id" --color blue
-tab="$(sp tab new --json --in "$space_id" --focus --cwd ~/code/project -- git status)"
+tab="$(sp tab new --json --in "$space_id" --focus --cwd ~/code/project --script 'git status')"
 sp tab move "$(printf '%s' "$tab" | jq -r '.tabID')" --group Development
 pane_id="$(printf '%s' "$tab" | jq -r '.paneID')"
 sp pane split --in "$pane_id" right -- npm test
 ```
 
 Inside Supaterm, unscoped commands use the caller pane's original context. Changing UI focus does not change that context, so chained commands should retain IDs and pass explicit [targets](/guides/cli/targeting). These examples use `jq` to extract typed IDs from JSON output.
+
+`--script` starts the account login shell, enters visible text, and returns to that same shell when the script ends. This keeps the tab alive for the commands that use its IDs. Arguments after `--` instead launch a process directly with exact arguments and the caller's `PATH`, skip shell startup, and close the tab or pane when the process exits.
 
 ## Control a pane
 

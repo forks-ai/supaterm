@@ -48,6 +48,7 @@ actor SocketControlRuntime {
   nonisolated static let shared = SocketControlRuntime(
     endpointProvider: SupatermProcessSocketEndpoint.current
   )
+  nonisolated static let maximumRequestBytes = 16 * 1_024 * 1_024
 
   private let clientReadTimeout: TimeInterval
   private let endpointProvider: @Sendable () -> SupatermSocketEndpoint?
@@ -277,7 +278,7 @@ actor SocketControlRuntime {
           socklen_t(MemoryLayout<timeval>.size)
         )
 
-        let requestLine = Self.readLine(from: clientSocket)
+        let requestLine = Self.readRequestLine(from: clientSocket)
         await runtime.handleRequestLine(requestLine, clientSocket: clientSocket)
       }
     }
@@ -420,7 +421,11 @@ actor SocketControlRuntime {
     fflush(stderr)
   }
 
-  private nonisolated static func readLine(from socket: Int32) -> String? {
+  nonisolated static func readRequestLine(
+    from socket: Int32,
+    maximumBytes: Int = maximumRequestBytes
+  ) -> String? {
+    guard maximumBytes >= 0 else { return nil }
     var data = Data()
     var buffer = [UInt8](repeating: 0, count: 1024)
 
@@ -429,11 +434,14 @@ actor SocketControlRuntime {
       guard bytesRead >= 0 else { return nil }
       guard bytesRead > 0 else { break }
 
-      data.append(buffer, count: bytesRead)
-      if let newlineIndex = data.firstIndex(of: 0x0A) {
-        data = Data(data[..<newlineIndex])
-        break
-      }
+      let newlineIndex = buffer[..<bytesRead].firstIndex(of: 0x0A)
+      let bytesToAppend = newlineIndex ?? bytesRead
+      guard
+        data.count <= maximumBytes,
+        bytesToAppend <= maximumBytes - data.count
+      else { return nil }
+      data.append(buffer, count: bytesToAppend)
+      if newlineIndex != nil { break }
     }
 
     guard !data.isEmpty else { return nil }

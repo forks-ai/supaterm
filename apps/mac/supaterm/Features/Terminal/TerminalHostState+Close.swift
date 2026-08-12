@@ -235,15 +235,7 @@ extension TerminalHostState {
         "sessionPresent=\(sessionIDs?.contains(sessionID) == true)",
       ]
     )
-    guard let sessionIDs else {
-      guard !didRetry else {
-        requestCloseSurface(
-          surfaceID,
-          needsConfirmation: false,
-          source: source
-        )
-        return
-      }
+    if !didRetry, sessionIDs == nil || sessionIDs?.contains(sessionID) == true {
       let zmxClient = zmxClient
       Task { @MainActor [weak self, zmxClient] in
         try? await Task.sleep(for: .milliseconds(150))
@@ -257,6 +249,14 @@ extension TerminalHostState {
           didRetry: true
         )
       }
+      return
+    }
+    guard let sessionIDs else {
+      requestCloseSurface(
+        surfaceID,
+        needsConfirmation: false,
+        source: source
+      )
       return
     }
     guard sessionIDs.contains(sessionID), reattachZmxSurface(surfaceID, source: source) else {

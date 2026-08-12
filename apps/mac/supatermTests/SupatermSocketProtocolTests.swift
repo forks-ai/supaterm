@@ -850,7 +850,7 @@ struct SupatermSocketProtocolTests {
   func newTabRequestAndResponseRoundTripThroughTypedHelpers() throws {
     let spaceID = UUID(uuidString: "A6E57B1B-0A61-4F72-BD52-B26DC5D3C497")!
     let requestPayload = SupatermNewTabRequest(
-      startupCommand: .arguments(["pwd"]),
+      startupCommand: .exec(["pwd"], searchPath: "/usr/bin:/bin"),
       cwd: "/tmp/example",
       focus: false,
       target: .space(spaceID)
@@ -880,7 +880,7 @@ struct SupatermSocketProtocolTests {
   func newPaneRequestAndResponseRoundTripThroughTypedHelpers() throws {
     let paneID = UUID(uuidString: "2B8B3A57-D7F8-4EF7-930F-46B1F7281B2A")!
     let requestPayload = SupatermNewPaneRequest(
-      startupCommand: .arguments(["pwd"]),
+      startupCommand: .exec(["pwd"], searchPath: "/usr/bin:/bin"),
       cwd: "/tmp/example",
       direction: .down,
       focus: false,

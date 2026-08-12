@@ -64,7 +64,7 @@ extension SP {
     @Option(name: .customLong("script"), help: "Raw code for the new tab's login shell to run.")
     var script: String?
 
-    @Argument(help: "Exact executable and arguments to run when the new tab opens.")
+    @Argument(help: "Exact executable and arguments to launch directly in the new tab.")
     var input: [String] = []
 
     mutating func run() throws {
@@ -139,7 +139,7 @@ extension SP {
     @Option(name: .customLong("script"), help: "Raw code for the new pane's login shell to run.")
     var script: String?
 
-    @Argument(help: "Exact executable and arguments to run when the new pane opens.")
+    @Argument(help: "Exact executable and arguments to launch directly in the new pane.")
     var input: [String] = []
 
     mutating func run() throws {

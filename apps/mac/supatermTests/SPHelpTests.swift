@@ -178,17 +178,24 @@ struct SPHelpTests {
   @Test
   func newTabAndNotifyHelpMentionSelectorTargets() {
     let newTabHelp = SP.helpMessage(for: SP.NewTab.self, columns: 100)
+    let normalizedNewTabHelp = newTabHelp.split(whereSeparator: \Character.isWhitespace)
+      .joined(separator: " ")
     let notifyHelp = SP.helpMessage(for: SP.Notify.self, columns: 100)
 
-    #expect(newTabHelp.contains("space selector or UUID"))
-    #expect(newTabHelp.contains("Arguments after `--` remain exact. The first must name an executable."))
-    #expect(newTabHelp.contains("When it exits"))
-    #expect(newTabHelp.contains("Use `--script` for builtins, aliases, or raw shell code."))
-    #expect(newTabHelp.contains("Shell startup files must not read from the terminal before the first prompt."))
-    #expect(newTabHelp.contains("sp tab new --script 'echo hi; pwd'"))
-    #expect(newTabHelp.contains("sp tab new --group Build"))
-    #expect(newTabHelp.contains("sp tab new --root"))
-    #expect(newTabHelp.contains("sp tab new --in <space-uuid>"))
+    #expect(normalizedNewTabHelp.contains("space selector or UUID"))
+    #expect(
+      normalizedNewTabHelp.contains(
+        "Arguments after `--` remain exact. The first must name an executable."
+      )
+    )
+    #expect(normalizedNewTabHelp.contains("closes the tab or pane when the process exits"))
+    #expect(normalizedNewTabHelp.contains("Use `--script` for builtins, aliases, or raw shell code."))
+    #expect(normalizedNewTabHelp.contains("enters it in the account login shell"))
+    #expect(normalizedNewTabHelp.contains("remains open after the script ends"))
+    #expect(normalizedNewTabHelp.contains("sp tab new --script 'echo hi; pwd'"))
+    #expect(normalizedNewTabHelp.contains("sp tab new --group Build"))
+    #expect(normalizedNewTabHelp.contains("sp tab new --root"))
+    #expect(normalizedNewTabHelp.contains("sp tab new --in <space-uuid>"))
     #expect(notifyHelp.contains("space/tab/pane"))
     #expect(notifyHelp.contains("sp pane notify <pane-uuid>"))
   }

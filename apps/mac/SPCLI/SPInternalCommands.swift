@@ -15,7 +15,6 @@ extension SP {
       shouldDisplay: false,
       subcommands: [
         Ping.self,
-        Launch.self,
         Agent.self,
         AgentSettings.self,
         Development.self,
@@ -58,33 +57,6 @@ extension SP {
     }
   }
 
-  struct Launch: ParsableCommand {
-    static let configuration = CommandConfiguration(
-      commandName: "launch",
-      shouldDisplay: false
-    )
-
-    @Argument
-    var payloadPath: String
-
-    mutating func run() throws {
-      let environment = ProcessInfo.processInfo.environment
-      let arguments = try Self.arguments(payloadPath: payloadPath)
-      try SPStartupLauncher.run(
-        arguments: arguments,
-        environment: environment
-      )
-    }
-
-    static func arguments(payloadPath: String) throws -> [String] {
-      do {
-        return try SupatermTerminalStartup.consumeArguments(payloadPath: payloadPath)
-      } catch {
-        throw ValidationError("Invalid startup arguments.")
-      }
-    }
-  }
-
   struct Development: ParsableCommand {
     static let configuration = CommandConfiguration(
       commandName: "dev",
@@ -96,25 +68,6 @@ extension SP {
     mutating func run() throws {
       print(Self.helpMessage())
     }
-  }
-}
-
-enum SPStartupLauncher {
-  static func run(
-    arguments: [String],
-    environment: [String: String]
-  ) throws -> Never {
-    let command = arguments[0]
-    guard let executablePath = SPExecutable.resolve(command, searchPath: environment["PATH"])
-    else {
-      throw ValidationError("Unable to find executable \(command) on PATH.")
-    }
-    try SPProcess.replaceCurrent(
-      executablePath: executablePath,
-      arguments: arguments,
-      environment: environment,
-      failureDescription: "Failed to launch startup command"
-    )
   }
 }
 

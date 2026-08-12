@@ -8,13 +8,19 @@ import Testing
 struct SPCommandRuntimeTests {
   @Test
   func terminalStartupPreservesTokens() throws {
-    #expect(try terminalStartup(script: nil, tokens: []) == nil)
+    let environment = ["PATH": "/test/bin"]
+
+    #expect(try terminalStartup(script: nil, tokens: [], environment: environment) == nil)
     #expect(
       try terminalStartup(
         script: nil,
-        tokens: ["echo", "", "hello world", "bang!", "$(touch nope)"]
+        tokens: ["echo", "", "hello world", "bang!", "$(touch nope)"],
+        environment: environment
       )
-        == .arguments(["echo", "", "hello world", "bang!", "$(touch nope)"])
+        == .exec(
+          ["echo", "", "hello world", "bang!", "$(touch nope)"],
+          searchPath: "/test/bin"
+        )
     )
   }
 
@@ -27,10 +33,14 @@ struct SPCommandRuntimeTests {
 
   @Test
   func terminalStartupKeepsScriptsAndArgumentsDistinct() throws {
-    #expect(try terminalStartup(script: "echo 1\necho 2", tokens: []) == .script("echo 1\necho 2"))
+    #expect(try terminalStartup(script: "echo 1\necho 2", tokens: []) == .shell("echo 1\necho 2"))
     #expect(
-      try terminalStartup(script: nil, tokens: ["echo", "hello world"])
-        == .arguments(["echo", "hello world"])
+      try terminalStartup(
+        script: nil,
+        tokens: ["echo", "hello world"],
+        environment: ["PATH": "/test/bin"]
+      )
+        == .exec(["echo", "hello world"], searchPath: "/test/bin")
     )
 
     do {

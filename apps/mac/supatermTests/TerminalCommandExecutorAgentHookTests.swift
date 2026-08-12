@@ -2530,7 +2530,7 @@ struct TerminalCommandExecutorAgentHookTests {
           workingDirectoryPath: "\(CodexHookFixtures.cwd)/"
         )
     )
-    #expect(session.forkStartupCommand == .arguments(["codex", "fork", "child-session"]))
+    #expect(session.forkStartupCommand == .shell("codex fork child-session"))
   }
   @Test
   func codexTranscriptlessSessionCannotReplaceForegroundSession() throws {

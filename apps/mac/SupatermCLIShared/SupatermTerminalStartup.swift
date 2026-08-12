@@ -1,97 +1,36 @@
-import Darwin
 import Foundation
 
 public enum SupatermTerminalStartup: Equatable, Sendable, Codable {
-  case arguments([String])
-  case script(String)
+  case exec([String], searchPath: String?)
+  case shell(String)
+
+  private static let maximumArgumentCount = 4_096
+  private static let maximumStartupBytes = 8 * 1_024 * 1_024
 
   public var isValid: Bool {
     switch self {
-    case .arguments(let arguments):
+    case .exec(let arguments, let searchPath):
       Self.validArguments(arguments)
-    case .script(let script):
-      !script.isEmpty && !script.unicodeScalars.contains(where: { $0.value == 0 })
+        && arguments.count <= Self.maximumArgumentCount
+        && Self.fits(arguments, followedBy: searchPath, within: Self.maximumStartupBytes)
+        && searchPath?.unicodeScalars.contains(where: { $0.value == 0 }) != true
+    case .shell(let command):
+      !command.isEmpty
+        && command.utf8.count <= Self.maximumStartupBytes
+        && !command.unicodeScalars.contains(where: { $0.value == 0 })
     }
   }
 
-  static let maximumArgumentsPayloadSize = 8 * 1_024 * 1_024
-  private static let transportDirectoryPrefix = "supaterm-startup-"
-  private static let argumentsFileName = "arguments.json"
-
-  private enum CodingKeys: String, CodingKey {
-    case kind
-    case value
-  }
-
-  private enum Kind: String, Codable {
-    case arguments
-    case script
-  }
-
-  public init(from decoder: Decoder) throws {
-    let container = try decoder.container(keyedBy: CodingKeys.self)
-    switch try container.decode(Kind.self, forKey: .kind) {
-    case .arguments:
-      self = .arguments(try container.decode([String].self, forKey: .value))
-    case .script:
-      self = .script(try container.decode(String.self, forKey: .value))
-    }
-  }
-
-  public func encode(to encoder: Encoder) throws {
-    var container = encoder.container(keyedBy: CodingKeys.self)
+  public var searchPath: String? {
     switch self {
-    case .arguments(let arguments):
-      try container.encode(Kind.arguments, forKey: .kind)
-      try container.encode(arguments, forKey: .value)
-    case .script(let script):
-      try container.encode(Kind.script, forKey: .kind)
-      try container.encode(script, forKey: .value)
+    case .exec(_, let searchPath):
+      searchPath
+    case .shell:
+      nil
     }
   }
 
-  public func prepare(
-    cliPath: String?,
-    shellPath: String = SupatermShellCommand.loginShellPath(),
-    temporaryDirectory: URL = URL(fileURLWithPath: "/private/tmp", isDirectory: true)
-  ) throws -> SupatermPreparedTerminalStartup {
-    guard isValid else {
-      throw SupatermTerminalStartupError.invalidArguments
-    }
-    switch self {
-    case .arguments(let arguments):
-      return try Self.prepareArguments(
-        arguments,
-        cliPath: cliPath,
-        temporaryDirectory: temporaryDirectory
-      )
-    case .script(let script):
-      return try Self.prepareScript(
-        script,
-        shellPath: shellPath,
-        temporaryDirectory: temporaryDirectory
-      )
-    }
-  }
-
-  public static func consumeArguments(payloadPath: String) throws -> [String] {
-    guard
-      let payloadURL = validatedPayloadURL(payloadPath),
-      let data = readAndRemovePayload(payloadURL)
-    else {
-      throw SupatermTerminalStartupError.invalidArguments
-    }
-    defer { _ = rmdir(payloadURL.deletingLastPathComponent().path) }
-    guard
-      let arguments = try? JSONDecoder().decode([String].self, from: data),
-      validArguments(arguments)
-    else {
-      throw SupatermTerminalStartupError.invalidArguments
-    }
-    return arguments
-  }
-
-  static func validArguments(_ arguments: [String]) -> Bool {
+  private static func validArguments(_ arguments: [String]) -> Bool {
     guard
       let command = arguments.first,
       !command.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
@@ -103,355 +42,57 @@ public enum SupatermTerminalStartup: Equatable, Sendable, Codable {
     }
   }
 
-  private static func prepareArguments(
-    _ arguments: [String],
-    cliPath: String?,
-    temporaryDirectory: URL
-  ) throws -> SupatermPreparedTerminalStartup {
-    guard let cliPath, Self.isExecutableFile(atPath: cliPath) else {
-      throw SupatermTerminalStartupError.invalidCLIPath
+  private static func fits(
+    _ values: [String],
+    followedBy trailingValue: String?,
+    within limit: Int
+  ) -> Bool {
+    var remaining = limit
+    for value in values {
+      let count = value.utf8.count
+      guard count < remaining else { return false }
+      remaining -= count + 1
     }
-    let argumentsData = try JSONEncoder().encode(arguments)
-    guard argumentsData.count <= maximumArgumentsPayloadSize else {
-      throw SupatermTerminalStartupError.invalidArguments
+    if let trailingValue {
+      guard trailingValue.utf8.count < remaining else { return false }
     }
-    return try withTransportDirectory(in: temporaryDirectory) { transport in
-      let directoryURL = transport.directoryURL
-      let argumentsURL = directoryURL.appendingPathComponent(argumentsFileName, isDirectory: false)
-      let launcherURL = directoryURL.appendingPathComponent("launch", isDirectory: false)
-      let initialInput = launcherURL.path + "\n"
-      try validateInitialInput(initialInput, path: launcherURL.path)
-      try Self.write(
-        argumentsData,
-        to: argumentsURL,
-        permissions: 0o600
+    return true
+  }
+
+  private enum CodingKeys: String, CodingKey {
+    case kind
+    case value
+    case searchPath
+  }
+
+  private enum Kind: String, Codable {
+    case exec
+    case shell
+  }
+
+  public init(from decoder: Decoder) throws {
+    let container = try decoder.container(keyedBy: CodingKeys.self)
+    switch try container.decode(Kind.self, forKey: .kind) {
+    case .exec:
+      self = .exec(
+        try container.decode([String].self, forKey: .value),
+        searchPath: try container.decodeIfPresent(String.self, forKey: .searchPath)
       )
-      let script = Self.launcherScript(
-        cliPath: cliPath,
-        argumentsPath: argumentsURL.path,
-        launcherPath: launcherURL.path
-      )
-      try Self.write(Data(script.utf8), to: launcherURL, permissions: 0o700)
-      return SupatermPreparedTerminalStartup(
-        initialInput: initialInput,
-        cleanupToken: transport.cleanupToken
-      )
+    case .shell:
+      self = .shell(try container.decode(String.self, forKey: .value))
     }
   }
 
-  private static func prepareScript(
-    _ script: String,
-    shellPath: String,
-    temporaryDirectory: URL
-  ) throws -> SupatermPreparedTerminalStartup {
-    guard isExecutableFile(atPath: shellPath) else {
-      throw SupatermTerminalStartupError.invalidArguments
-    }
-    let shellName = URL(fileURLWithPath: shellPath).lastPathComponent.lowercased()
-    return try withTransportDirectory(in: temporaryDirectory) { transport in
-      let directoryURL = transport.directoryURL
-      let scriptURL = directoryURL.appendingPathComponent(
-        scriptFileName(shellName: shellName),
-        isDirectory: false
-      )
-      let initialInput = sourceCommand(scriptPath: scriptURL.path, shellName: shellName) + "\n"
-      try validateInitialInput(initialInput, path: scriptURL.path)
-      let contents = """
-        /bin/rm -f -- \(scriptURL.path)
-        /bin/rmdir \(directoryURL.path)
-        \(script)
-        """
-      try write(Data(contents.utf8), to: scriptURL, permissions: 0o600)
-      return SupatermPreparedTerminalStartup(
-        initialInput: initialInput,
-        cleanupToken: transport.cleanupToken
-      )
+  public func encode(to encoder: Encoder) throws {
+    var container = encoder.container(keyedBy: CodingKeys.self)
+    switch self {
+    case .exec(let arguments, let searchPath):
+      try container.encode(Kind.exec, forKey: .kind)
+      try container.encode(arguments, forKey: .value)
+      try container.encodeIfPresent(searchPath, forKey: .searchPath)
+    case .shell(let command):
+      try container.encode(Kind.shell, forKey: .kind)
+      try container.encode(command, forKey: .value)
     }
   }
-
-  private static func withTransportDirectory<Result>(
-    in temporaryDirectory: URL,
-    _ operation: (TransportDirectory) throws -> Result
-  ) throws -> Result {
-    let transport = try makeTransportDirectory(in: temporaryDirectory)
-    do {
-      return try operation(transport)
-    } catch {
-      transport.cleanupToken.cleanup()
-      throw error
-    }
-  }
-
-  private static func validateInitialInput(_ initialInput: String, path: String) throws {
-    guard isShellSafePath(path), initialInput.utf8.count < 1_024 else {
-      throw SupatermTerminalStartupError.invalidTemporaryDirectory
-    }
-  }
-
-  private static func makeTransportDirectory(in temporaryDirectory: URL) throws -> TransportDirectory {
-    let directoryURL = temporaryDirectory.appendingPathComponent(
-      "\(transportDirectoryPrefix)\(getpid())-\(UUID().uuidString.lowercased())",
-      isDirectory: true
-    )
-    guard mkdir(directoryURL.path, 0o700) == 0 else { throw Self.currentPOSIXError() }
-    var info = stat()
-    guard
-      lstat(directoryURL.path, &info) == 0,
-      info.st_uid == getuid(),
-      info.st_mode & S_IFMT == S_IFDIR,
-      info.st_mode & 0o777 == 0o700
-    else {
-      _ = rmdir(directoryURL.path)
-      throw SupatermTerminalStartupError.invalidTemporaryDirectory
-    }
-    return TransportDirectory(
-      directoryURL: directoryURL,
-      cleanupToken: SupatermTerminalStartupCleanup(
-        directoryURL: directoryURL,
-        device: info.st_dev,
-        inode: info.st_ino
-      )
-    )
-  }
-
-  public static func reapStaleTransports(
-    temporaryDirectory: URL = URL(fileURLWithPath: "/private/tmp", isDirectory: true)
-  ) {
-    guard
-      let urls = try? FileManager.default.contentsOfDirectory(
-        at: temporaryDirectory,
-        includingPropertiesForKeys: nil,
-        options: [.skipsHiddenFiles]
-      )
-    else {
-      return
-    }
-    for url in urls {
-      guard let ownerProcessID = transportOwnerProcessID(url.lastPathComponent) else { continue }
-      guard ownerProcessID != getpid(), kill(ownerProcessID, 0) == -1, errno == ESRCH else {
-        continue
-      }
-      var info = stat()
-      guard
-        lstat(url.path, &info) == 0,
-        info.st_uid == getuid(),
-        info.st_mode & S_IFMT == S_IFDIR,
-        info.st_mode & 0o777 == 0o700
-      else {
-        continue
-      }
-      try? FileManager.default.removeItem(at: url)
-    }
-  }
-
-  private static func launcherScript(
-    cliPath: String,
-    argumentsPath: String,
-    launcherPath: String
-  ) -> String {
-    let cli = SupatermShellCommand.escapedToken(cliPath)
-    let arguments = SupatermShellCommand.escapedToken(argumentsPath)
-    let launcher = SupatermShellCommand.escapedToken(launcherPath)
-    return """
-      #!/bin/sh
-      /bin/rm -f -- \(launcher)
-      exec \(cli) internal launch \(arguments)
-      """
-  }
-
-  private static func scriptFileName(shellName: String) -> String {
-    switch shellName {
-    case "nu", "nushell":
-      return "script.nu"
-    default:
-      return "script"
-    }
-  }
-
-  private static func sourceCommand(scriptPath: String, shellName: String) -> String {
-    switch shellName {
-    case "csh", "tcsh", "fish", "nu", "nushell":
-      return "source \(scriptPath)"
-    case "elvish":
-      return "eval (slurp <\(scriptPath))"
-    default:
-      return ". \(scriptPath)"
-    }
-  }
-
-  private static func isExecutableFile(atPath path: String) -> Bool {
-    guard path.hasPrefix("/") else { return false }
-    var isDirectory = ObjCBool(false)
-    return FileManager.default.fileExists(atPath: path, isDirectory: &isDirectory)
-      && !isDirectory.boolValue
-      && FileManager.default.isExecutableFile(atPath: path)
-  }
-
-  private static func write(_ data: Data, to url: URL, permissions: mode_t) throws {
-    let descriptor = open(
-      url.path,
-      O_WRONLY | O_CREAT | O_EXCL | O_NOFOLLOW | O_CLOEXEC,
-      permissions
-    )
-    guard descriptor >= 0 else { throw currentPOSIXError() }
-    defer { close(descriptor) }
-    guard fchmod(descriptor, permissions) == 0 else { throw currentPOSIXError() }
-    try data.withUnsafeBytes { bytes in
-      guard let baseAddress = bytes.baseAddress else { return }
-      var written = 0
-      while written < bytes.count {
-        let result = Darwin.write(
-          descriptor,
-          baseAddress.advanced(by: written),
-          bytes.count - written
-        )
-        if result > 0 {
-          written += result
-        } else if result == -1, errno == EINTR {
-          continue
-        } else {
-          throw currentPOSIXError()
-        }
-      }
-    }
-  }
-
-  private static func currentPOSIXError() -> POSIXError {
-    POSIXError(POSIXErrorCode(rawValue: errno) ?? .EIO)
-  }
-
-  private static func isShellSafePath(_ path: String) -> Bool {
-    let characters = CharacterSet(
-      charactersIn: "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789/._-"
-    )
-    return path.unicodeScalars.allSatisfy(characters.contains)
-  }
-
-  private static func transportOwnerProcessID(_ name: String) -> pid_t? {
-    guard name.hasPrefix(transportDirectoryPrefix) else { return nil }
-    let value = name.dropFirst(transportDirectoryPrefix.count)
-    guard let separator = value.firstIndex(of: "-") else { return nil }
-    guard
-      let processID = pid_t(value[..<separator]),
-      UUID(uuidString: String(value[value.index(after: separator)...])) != nil
-    else {
-      return nil
-    }
-    return processID
-  }
-
-  private static func validatedPayloadURL(_ path: String) -> URL? {
-    guard path.hasPrefix("/") else { return nil }
-    let url = URL(fileURLWithPath: path, isDirectory: false).standardized
-    guard url.path == path, url.lastPathComponent == argumentsFileName else { return nil }
-    let directoryURL = url.deletingLastPathComponent()
-    guard
-      transportOwnerProcessID(directoryURL.lastPathComponent) != nil,
-      secureFile(atPath: directoryURL.path, type: S_IFDIR, permissions: 0o700)
-    else {
-      return nil
-    }
-    return url
-  }
-
-  private static func readAndRemovePayload(_ url: URL) -> Data? {
-    let descriptor = open(url.path, O_RDONLY | O_NOFOLLOW | O_CLOEXEC)
-    guard descriptor >= 0 else { return nil }
-    defer { close(descriptor) }
-    guard flock(descriptor, LOCK_EX | LOCK_NB) == 0 else { return nil }
-    defer { _ = flock(descriptor, LOCK_UN) }
-    var openedInfo = stat()
-    guard
-      fstat(descriptor, &openedInfo) == 0,
-      openedInfo.st_uid == getuid(),
-      openedInfo.st_mode & S_IFMT == S_IFREG,
-      openedInfo.st_mode & 0o777 == 0o600,
-      openedInfo.st_nlink == 1,
-      openedInfo.st_size >= 0,
-      openedInfo.st_size <= maximumArgumentsPayloadSize
-    else {
-      return nil
-    }
-    var linkedInfo = stat()
-    guard
-      lstat(url.path, &linkedInfo) == 0,
-      linkedInfo.st_dev == openedInfo.st_dev,
-      linkedInfo.st_ino == openedInfo.st_ino,
-      unlink(url.path) == 0
-    else {
-      return nil
-    }
-    return read(descriptor: descriptor, expectedSize: Int(openedInfo.st_size))
-  }
-
-  private static func read(descriptor: Int32, expectedSize: Int) -> Data? {
-    var data = Data()
-    data.reserveCapacity(expectedSize)
-    var buffer = [UInt8](repeating: 0, count: 64 * 1_024)
-    while true {
-      let remaining = maximumArgumentsPayloadSize + 1 - data.count
-      guard remaining > 0 else { return nil }
-      let count = buffer.withUnsafeMutableBytes { bytes in
-        Darwin.read(descriptor, bytes.baseAddress, min(bytes.count, remaining))
-      }
-      if count > 0 {
-        data.append(contentsOf: buffer.prefix(count))
-        guard data.count <= maximumArgumentsPayloadSize else { return nil }
-      } else if count == 0 {
-        return data
-      } else if errno != EINTR {
-        return nil
-      }
-    }
-  }
-
-  private static func secureFile(atPath path: String, type: mode_t, permissions: mode_t) -> Bool {
-    var info = stat()
-    guard lstat(path, &info) == 0 else { return false }
-    return info.st_uid == getuid()
-      && info.st_mode & S_IFMT == type
-      && info.st_mode & 0o777 == permissions
-  }
-
-  private struct TransportDirectory {
-    let directoryURL: URL
-    let cleanupToken: SupatermTerminalStartupCleanup
-  }
-}
-
-public struct SupatermPreparedTerminalStartup: Sendable {
-  public let initialInput: String
-  public let cleanupToken: SupatermTerminalStartupCleanup
-}
-
-public struct SupatermTerminalStartupCleanup: Sendable {
-  private let directoryURL: URL
-  private let device: dev_t
-  private let inode: ino_t
-
-  fileprivate init(directoryURL: URL, device: dev_t, inode: ino_t) {
-    self.directoryURL = directoryURL
-    self.device = device
-    self.inode = inode
-  }
-
-  public func cleanup() {
-    var info = stat()
-    guard
-      lstat(directoryURL.path, &info) == 0,
-      info.st_uid == getuid(),
-      info.st_mode & S_IFMT == S_IFDIR,
-      info.st_dev == device,
-      info.st_ino == inode
-    else {
-      return
-    }
-    try? FileManager.default.removeItem(at: directoryURL)
-  }
-}
-
-enum SupatermTerminalStartupError: Error {
-  case invalidArguments
-  case invalidCLIPath
-  case invalidTemporaryDirectory
 }

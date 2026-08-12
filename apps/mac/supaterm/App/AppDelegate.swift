@@ -73,11 +73,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
 
   private static var onboardingStartup: SupatermTerminalStartup? {
     guard let socketPath = SupatermProcessSocketEndpoint.current()?.path else { return nil }
-    return .arguments(["sp", "onboard", "--socket", socketPath])
+    return .shell(
+      ["sp", "onboard", "--socket", socketPath]
+        .map(SupatermShellCommand.escapedToken)
+        .joined(separator: " ")
+    )
   }
 
   override init() {
-    SupatermTerminalStartup.reapStaleTransports()
     AppPostHog.setup()
     let ghosttyRuntime = GhosttyRuntime()
     @Shared(.supatermSettings) var launchSupatermSettings = .default

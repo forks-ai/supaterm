@@ -5,10 +5,16 @@ import Testing
 extension SupatermE2ESuite {
   @Suite struct StartupCommandSafetyTests {
     @Test(.timeLimit(.minutes(5)))
-    func trailingCommandsPreserveArgumentsAndReturnToTheirShell() async throws {
+    func trailingCommandsPreserveArgumentsAndCloseOnExit() async throws {
       try await withTestSpace { app, space in
-        let runner = startupSPRunner(app, tabID: space.tab.tabID, paneID: space.tab.paneID)
         let recorder = try makeArgumentRecorder(in: space.directory)
+        var environment = app.cliEnvironment(
+          context: app.context(tabID: space.tab.tabID, paneID: space.tab.paneID)
+        )
+        environment["PATH"] = [space.directory.path, environment["PATH"]]
+          .compactMap { $0 }
+          .joined(separator: ":")
+        let runner = SPBinaryRunner(executable: app.spExecutable, environment: environment)
 
         let tab = commandArtifacts(named: "tab", in: space)
         let tabResult = try decodeSPJSON(
@@ -18,8 +24,7 @@ extension SupatermE2ESuite {
               [
                 "tab", "new", "--socket", app.socketPath, "--json", "--focus",
                 "--cwd", space.directory.path, "--in", space.spaceID.uuidString, "--",
-                recorder.path, tab.arguments.path, tab.parentProcessID.path,
-                tab.parentCommand.path,
+                recorder.lastPathComponent, tab.arguments.path,
               ] + tab.expectedArguments,
               cwd: space.directory
             )
@@ -30,6 +35,9 @@ extension SupatermE2ESuite {
           paneID: tabResult.paneID,
           artifacts: tab
         )
+        try await app.waitUntil("the direct command tab is removed") {
+          try app.debugTab(tabResult.tabID) == nil
+        }
 
         let pane = commandArtifacts(named: "pane", in: space)
         let paneResult = try decodeSPJSON(
@@ -38,9 +46,8 @@ extension SupatermE2ESuite {
             try runner.run(
               [
                 "pane", "split", "right", "--socket", app.socketPath, "--json",
-                "--in", tabResult.paneID.uuidString, "--cwd", space.directory.path,
-                "--layout", "keep", "--", recorder.path, pane.arguments.path,
-                pane.parentProcessID.path, pane.parentCommand.path,
+                "--in", space.tab.paneID.uuidString, "--cwd", space.directory.path,
+                "--layout", "keep", "--", recorder.lastPathComponent, pane.arguments.path,
               ] + pane.expectedArguments,
               cwd: space.directory
             )
@@ -51,6 +58,9 @@ extension SupatermE2ESuite {
           paneID: paneResult.paneID,
           artifacts: pane
         )
+        try await app.waitUntil("the direct command pane is removed") {
+          try app.debugPane(paneResult.paneID) == nil
+        }
       }
     }
 
@@ -58,8 +68,19 @@ extension SupatermE2ESuite {
     func scriptsRemainShellTextForTabsAndPanes() async throws {
       try await withTestSpace { app, space in
         let runner = startupSPRunner(app, tabID: space.tab.tabID, paneID: space.tab.paneID)
+        let shellProcessIDRecorder = try makeShellProcessIDRecorder(in: space.directory)
         let tabOutput = space.directory.appendingPathComponent("tab-script.txt")
-        let tabScript = shellTextScript(output: tabOutput, token: "tab-\(space.token)")
+        let tabShellProcess = ShellProcessArtifacts(
+          recorder: shellProcessIDRecorder,
+          startup: space.directory.appendingPathComponent("tab-script-shell-pid.txt"),
+          followUp: space.directory.appendingPathComponent("tab-script-follow-up-shell-pid.txt")
+        )
+        let tabToken = "tab-\(space.token)"
+        let tabScript = shellTextScript(
+          output: tabOutput,
+          shellProcess: tabShellProcess,
+          token: tabToken
+        )
         let tabResult = try decodeSPJSON(
           SupatermNewTabResult.self,
           from: try requireSuccessfulSPResult(
@@ -77,16 +98,31 @@ extension SupatermE2ESuite {
           app: app,
           paneID: tabResult.paneID,
           output: tabOutput,
-          token: "tab-\(space.token)"
+          token: tabToken
+        )
+        try await app.waitForCapture(
+          SupatermPaneTargetRequest(paneID: tabResult.paneID),
+          contains: tabToken
         )
         try await verifyScriptShell(
           app: app,
           paneID: tabResult.paneID,
+          shellProcess: tabShellProcess,
           marker: space.directory.appendingPathComponent("tab-script-follow-up.txt")
         )
 
         let paneOutput = space.directory.appendingPathComponent("pane-script.txt")
-        let paneScript = shellTextScript(output: paneOutput, token: "pane-\(space.token)")
+        let paneShellProcess = ShellProcessArtifacts(
+          recorder: shellProcessIDRecorder,
+          startup: space.directory.appendingPathComponent("pane-script-shell-pid.txt"),
+          followUp: space.directory.appendingPathComponent("pane-script-follow-up-shell-pid.txt")
+        )
+        let paneToken = "pane-\(space.token)"
+        let paneScript = shellTextScript(
+          output: paneOutput,
+          shellProcess: paneShellProcess,
+          token: paneToken
+        )
         let paneResult = try decodeSPJSON(
           SupatermNewPaneResult.self,
           from: try requireSuccessfulSPResult(
@@ -104,11 +140,16 @@ extension SupatermE2ESuite {
           app: app,
           paneID: paneResult.paneID,
           output: paneOutput,
-          token: "pane-\(space.token)"
+          token: paneToken
+        )
+        try await app.waitForCapture(
+          SupatermPaneTargetRequest(paneID: paneResult.paneID),
+          contains: paneToken
         )
         try await verifyScriptShell(
           app: app,
           paneID: paneResult.paneID,
+          shellProcess: paneShellProcess,
           marker: space.directory.appendingPathComponent("pane-script-follow-up.txt")
         )
       }
@@ -150,14 +191,14 @@ private func startupSPRunner(
 
 private struct CommandSafetyArtifacts {
   let arguments: URL
-  let parentProcessID: URL
-  let parentCommand: URL
-  let followUpParentProcessID: URL
-  let followUpMarker: URL
-  let followUpEnvironment: URL
   let injectionTargets: [URL]
-  let secret: String
   let expectedArguments: [String]
+}
+
+private struct ShellProcessArtifacts {
+  let recorder: URL
+  let startup: URL
+  let followUp: URL
 }
 
 private func commandArtifacts(named name: String, in space: TestSpace) -> CommandSafetyArtifacts {
@@ -169,13 +210,7 @@ private func commandArtifacts(named name: String, in space: TestSpace) -> Comman
   let secret = "startup-secret-\(name)-\(space.token)"
   return CommandSafetyArtifacts(
     arguments: space.directory.appendingPathComponent("\(name)-arguments.bin"),
-    parentProcessID: space.directory.appendingPathComponent("\(name)-parent-pid.txt"),
-    parentCommand: space.directory.appendingPathComponent("\(name)-parent-command.txt"),
-    followUpParentProcessID: space.directory.appendingPathComponent("\(name)-follow-up-parent-pid.txt"),
-    followUpMarker: space.directory.appendingPathComponent("\(name)-follow-up.txt"),
-    followUpEnvironment: space.directory.appendingPathComponent("\(name)-follow-up-environment.txt"),
     injectionTargets: injectionTargets,
-    secret: secret,
     expectedArguments: [
       "",
       "plain",
@@ -204,11 +239,7 @@ private func makeArgumentRecorder(in directory: URL) throws -> URL {
   let contents = """
     #!/bin/sh
     output=$1
-    parent=$2
-    parent_command=$3
-    shift 3
-    /usr/bin/printf '%s' "$PPID" > "$parent"
-    /bin/ps -p "$PPID" -o command= > "$parent_command"
+    shift
     {
       /usr/bin/printf '%s\\0' "$#"
       for argument in "$@"; do
@@ -240,44 +271,9 @@ private func verifyCommandLaunch(
   }
   #expect(try recordedArguments(from: artifacts.arguments) == artifacts.expectedArguments)
 
-  let marker = "follow-up-\(paneID.uuidString.lowercased())"
-  let recorder = try makeFollowUpRecorder(for: artifacts.followUpMarker)
-  let probe = try shellNeutralCommand([
-    recorder.path,
-    artifacts.followUpParentProcessID.path,
-    marker,
-    artifacts.followUpMarker.path,
-    artifacts.followUpEnvironment.path,
-  ])
-  try app.type("\(probe)\n", into: pane)
-  try await app.waitUntil("the startup shell runs a follow-up command") {
-    (try? String(contentsOf: artifacts.followUpMarker, encoding: .utf8)) == marker
-  }
-
-  let startupParent = try String(contentsOf: artifacts.parentProcessID, encoding: .utf8)
-  let startupParentCommand = try String(contentsOf: artifacts.parentCommand, encoding: .utf8)
-    .trimmingCharacters(in: .whitespacesAndNewlines)
-  let followUpParent = try String(contentsOf: artifacts.followUpParentProcessID, encoding: .utf8)
-  let followUpEnvironment = try String(contentsOf: artifacts.followUpEnvironment, encoding: .utf8)
-  #expect(startupParent.isEmpty == false)
-  #expect(startupParentCommand == "-\(SupatermShellCommand.loginShellPath())")
-  #expect(followUpParent == startupParent)
-  #expect(!followUpEnvironment.contains(artifacts.secret))
   for target in artifacts.injectionTargets {
     #expect(FileManager.default.fileExists(atPath: target.path) == false)
   }
-  try await app.waitUntil("the startup transport is removed") {
-    try startupTransportDirectories(processIdentifier: app.processIdentifier).isEmpty
-  }
-}
-
-private func startupTransportDirectories(processIdentifier: pid_t) throws -> [URL] {
-  let prefix = "supaterm-startup-\(processIdentifier)-"
-  return try FileManager.default.contentsOfDirectory(
-    at: URL(fileURLWithPath: "/private/tmp", isDirectory: true),
-    includingPropertiesForKeys: nil,
-    options: [.skipsHiddenFiles]
-  ).filter { $0.lastPathComponent.hasPrefix(prefix) }
 }
 
 private func recordedArguments(from url: URL) throws -> [String] {
@@ -305,9 +301,14 @@ private func recordedArguments(from url: URL) throws -> [String] {
   return arguments
 }
 
-private func shellTextScript(output: URL, token: String) -> String {
+private func shellTextScript(
+  output: URL,
+  shellProcess: ShellProcessArtifacts,
+  token: String
+) -> String {
   let longToken = shellTextToken(token)
-  return "/usr/bin/printf '%s\\n' '\(longToken)-first' > '\(output.path)' && "
+  return shellProcessIDCommand(recorder: shellProcess.recorder, output: shellProcess.startup) + " && "
+    + "/usr/bin/printf '%s\\n' '\(longToken)-first' > '\(output.path)' && "
     + "/usr/bin/printf '%s\\n' '\(token)-second' >> '\(output.path)'"
 }
 
@@ -337,11 +338,17 @@ private func waitForScriptOutput(
 private func verifyScriptShell(
   app: SupatermE2EApp,
   paneID: UUID,
+  shellProcess: ShellProcessArtifacts,
   marker: URL
 ) async throws {
   let pane = SupatermPaneTargetRequest(paneID: paneID)
   let expected = "script-follow-up-\(paneID.uuidString.lowercased())"
-  let command = try makeMarkerCommand(value: expected, marker: marker)
+  let markerCommand = try makeMarkerCommand(value: expected, marker: marker)
+  let command =
+    shellProcessIDCommand(
+      recorder: shellProcess.recorder,
+      output: shellProcess.followUp
+    ) + " && " + markerCommand
   do {
     try app.type("\(command)\n", into: pane)
     try await app.waitUntil("the login shell accepts input after the script") {
@@ -351,18 +358,27 @@ private func verifyScriptShell(
     let capture = (try? app.capture(pane, scope: .scrollback)) ?? "unavailable"
     throw SupatermE2EError("\(error)\n--- script follow-up ---\n\(capture)")
   }
+
+  let startupProcessID = try String(contentsOf: shellProcess.startup, encoding: .utf8)
+  let followUpProcessID = try String(contentsOf: shellProcess.followUp, encoding: .utf8)
+  #expect(startupProcessID.isEmpty == false)
+  #expect(followUpProcessID == startupProcessID)
 }
 
-private func makeFollowUpRecorder(for marker: URL) throws -> URL {
-  let recorder = marker.deletingPathExtension().appendingPathExtension("sh")
+private func makeShellProcessIDRecorder(in directory: URL) throws -> URL {
+  let recorder = directory.appendingPathComponent("record-shell-process-id.sh")
   try """
   #!/bin/sh
   /usr/bin/printf '%s' "$PPID" > "$1"
-  /usr/bin/env > "$4"
-  /usr/bin/printf '%s' "$2" > "$3"
   """.write(to: recorder, atomically: true, encoding: .utf8)
   try FileManager.default.setAttributes([.posixPermissions: 0o700], ofItemAtPath: recorder.path)
   return recorder
+}
+
+private func shellProcessIDCommand(recorder: URL, output: URL) -> String {
+  [recorder.path, output.path]
+    .map(SupatermShellCommand.escapedToken)
+    .joined(separator: " ")
 }
 
 private func makeMarkerCommand(value: String, marker: URL) throws -> String {

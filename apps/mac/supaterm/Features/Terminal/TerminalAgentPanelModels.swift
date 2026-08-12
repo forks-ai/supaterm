@@ -87,7 +87,10 @@ nonisolated struct PaneAgentPanelSession: Equatable, Sendable {
       return nil
     }
     let sessionID = sessionID.trimmingCharacters(in: .whitespacesAndNewlines)
-    guard !sessionID.isEmpty else {
+    guard
+      !sessionID.isEmpty,
+      sessionID.unicodeScalars.allSatisfy(Self.sessionIDCharacters.contains)
+    else {
       return nil
     }
     return Self(
@@ -98,7 +101,7 @@ nonisolated struct PaneAgentPanelSession: Equatable, Sendable {
   }
 
   var forkStartupCommand: SupatermTerminalStartup {
-    .arguments(forkArguments)
+    .shell(forkArguments.joined(separator: " "))
   }
 
   private var forkArguments: [String] {
@@ -111,6 +114,10 @@ nonisolated struct PaneAgentPanelSession: Equatable, Sendable {
       preconditionFailure("Unsupported agent")
     }
   }
+
+  private static let sessionIDCharacters = CharacterSet(
+    charactersIn: "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-_"
+  )
 }
 
 nonisolated struct PaneAgentProgressRow: Codable, Equatable, Identifiable, Sendable {

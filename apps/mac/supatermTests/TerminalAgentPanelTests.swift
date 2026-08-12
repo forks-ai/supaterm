@@ -364,20 +364,62 @@ struct TerminalAgentPanelTests {
   }
 
   @Test
-  func panelSessionBuildsForkStartupCommands() throws {
-    let codex = try #require(PaneAgentPanelSession.supported(agent: .codex, sessionID: "session 1"))
-    let claude = try #require(PaneAgentPanelSession.supported(agent: .claude, sessionID: "session-1"))
+  func panelSessionBuildsVisibleForkShellCommands() throws {
+    let codex = try #require(
+      PaneAgentPanelSession.supported(
+        agent: .codex,
+        sessionID: "019c7714-3b77-74d1-9866-e1f484aae2ab"
+      )
+    )
+    let claude = try #require(
+      PaneAgentPanelSession.supported(agent: .claude, sessionID: "session_1")
+    )
 
     #expect(
       codex.forkStartupCommand
-        == .arguments(["codex", "fork", "session 1"])
+        == .shell("codex fork 019c7714-3b77-74d1-9866-e1f484aae2ab")
     )
     #expect(
       claude.forkStartupCommand
-        == .arguments(["claude", "--fork-session", "--resume", "session-1"])
+        == .shell("claude --fork-session --resume session_1")
     )
     #expect(PaneAgentPanelSession.supported(agent: .pi, sessionID: "session-1") == nil)
-    #expect(PaneAgentPanelSession.supported(agent: .codex, sessionID: " ") == nil)
+  }
+
+  @Test
+  func panelSessionTrimsSafeSessionIdentifiers() throws {
+    let session = try #require(
+      PaneAgentPanelSession.supported(
+        agent: .codex,
+        sessionID: " \n\tsession-1 \r"
+      )
+    )
+
+    #expect(session.sessionID == "session-1")
+    #expect(session.forkStartupCommand == .shell("codex fork session-1"))
+  }
+
+  @Test
+  func panelSessionRejectsUnsafeSessionIdentifiers() {
+    for sessionID in [
+      "",
+      " \n\t",
+      "session 1",
+      "session\n1",
+      "session'1",
+      "session\"1",
+      "$HOME",
+      "`id`",
+      "session;exit",
+      "session|id",
+      "session&exit",
+      "$(id)",
+      "session>file",
+      "session<file",
+    ] {
+      #expect(PaneAgentPanelSession.supported(agent: .codex, sessionID: sessionID) == nil)
+      #expect(PaneAgentPanelSession.supported(agent: .claude, sessionID: sessionID) == nil)
+    }
   }
 
   @Test

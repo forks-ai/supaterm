@@ -12,7 +12,7 @@ workspace="$HOME/code/project"
 
 space_id="$(sp space new --json Project | jq -r '.target.spaceID')"
 sp group new Development --in "$space_id" --color blue
-tab="$(sp tab new --json --in "$space_id" --focus --cwd "$workspace" -- npm run dev)"
+tab="$(sp tab new --json --in "$space_id" --focus --cwd "$workspace" --script 'npm run dev')"
 sp tab move "$(printf '%s' "$tab" | jq -r '.tabID')" --group Development
 pane_id="$(printf '%s' "$tab" | jq -r '.paneID')"
 sp pane split --in "$pane_id" --no-focus right --cwd "$workspace" -- npm test -- --watch
@@ -20,26 +20,24 @@ sp pane split --in "$pane_id" --no-focus right --cwd "$workspace" -- npm test --
 
 A new space always becomes the one its window displays. `--focus` changes the app's visible selection for tabs and panes. The shell that launched these commands keeps its original ambient IDs, so every later creation targets the captured result explicitly.
 
-Pass an executable and its arguments after `--`. Supaterm preserves each argument exactly. When the executable exits, the tab or pane returns to its login shell.
+Pass an executable and its arguments after `--` to launch it directly. Supaterm resolves the executable with the caller's `PATH`, preserves each argument exactly, skips shell startup files, and closes the tab or pane when the executable exits.
 
-Use `--script` for builtins, aliases, or raw code that the login shell should parse. The shell remains open after the script ends:
+Omit both forms to start the account login shell. Use `--script` for builtins, aliases, or raw code that the shell should parse. Supaterm enters the text visibly and returns to the same shell after the script ends:
 
 ```bash
 sp tab new --script 'printf "ready\n"; pwd'
 ```
 
-Shell startup files must not read from the terminal before the first prompt. Such a read takes the queued command.
-
 ## Retain a pane ID
 
 ```bash
-creation="$(sp tab new --json --no-focus --cwd "$PWD" -- npm test)"
+creation="$(sp tab new --json --no-focus --cwd "$PWD" --script 'npm test')"
 pane_id="$(printf '%s' "$creation" | jq -r '.paneID')"
 
 sp pane capture --scope scrollback --lines 160 "$pane_id"
 ```
 
-Keep the returned UUID instead of rediscovering the pane by title or position.
+The script form keeps the login shell alive after the test finishes, so the returned UUID remains usable for capture. Keep that UUID instead of rediscovering the pane by title or position.
 
 ## Launch a coding agent with a multiline prompt
 
@@ -58,7 +56,7 @@ creation="$(
 pane_id="$(printf '%s' "$creation" | jq -r '.paneID')"
 ```
 
-The first `--` ends `sp` options. The second ends agent options so prompt text remains a prompt.
+The first `--` ends `sp` options. The second ends agent options so prompt text remains a prompt. Supaterm launches the agent directly without shell startup and closes the tab when the agent exits.
 
 For a follow-up, submit a complete file through paste-aware transport:
 

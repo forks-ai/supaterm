@@ -182,14 +182,14 @@ final class GhosttySurfaceView: NSView, Identifiable {
   ) -> String {
     let trimmedDirectory = directory.trimmingCharacters(in: .whitespacesAndNewlines)
     guard !trimmedDirectory.isEmpty else {
-      return currentPath?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+      return currentPath ?? ""
     }
 
     var components =
       currentPath?
-      .split(separator: ":")
+      .split(separator: ":", omittingEmptySubsequences: false)
       .map { String($0) }
-      .filter { !$0.isEmpty && $0 != trimmedDirectory } ?? []
+      .filter { $0 != trimmedDirectory } ?? []
     components.insert(trimmedDirectory, at: 0)
     return components.joined(separator: ":")
   }
@@ -203,6 +203,7 @@ final class GhosttySurfaceView: NSView, Identifiable {
     tabID: UUID,
     socketPath: String?,
     cliPath: String?,
+    startupSearchPath: String? = nil,
     processEnvironment: [String: String] = ProcessInfo.processInfo.environment,
     zmxSessionsEnabled: Bool = true
   ) -> [SupatermCLIEnvironmentVariable] {
@@ -256,7 +257,7 @@ final class GhosttySurfaceView: NSView, Identifiable {
     }
     let path = prependedPath(
       cliDirectory(cliPath) ?? "",
-      currentPath: processEnvironment["PATH"]
+      currentPath: startupSearchPath ?? processEnvironment["PATH"]
     )
     if !path.isEmpty {
       environmentVariables.append(
@@ -308,6 +309,7 @@ final class GhosttySurfaceView: NSView, Identifiable {
         tabID: tabID,
         socketPath: SupatermProcessSocketEndpoint.current()?.path,
         cliPath: cliPath,
+        startupSearchPath: startupCommand?.searchPath,
         zmxSessionsEnabled: zmxSessionsEnabled
       )
     self.commandWrapper = commandWrapper
@@ -331,7 +333,6 @@ final class GhosttySurfaceView: NSView, Identifiable {
     }
     launch = GhosttySurfaceLaunch(
       shellPath: shellPath,
-      cliPath: cliPath,
       startup: startupCommand,
       defersInputUntilShellReady: runtime.defersInitialInputUntilShellReady(
         shellPath: shellPath
@@ -344,8 +345,8 @@ final class GhosttySurfaceView: NSView, Identifiable {
       self?.promptSurfaceTitle()
     }
     bridge.updateSurfaceConfig(runtime.surfaceConfig())
-    if launch.preparationFailed {
-      bridge.state.failure = .startupPreparationFailed
+    if startupCommand?.isValid == false {
+      bridge.state.failure = .startupConfigurationFailed
     } else {
       createSurface(using: surfaceFactory)
       if let surface {
@@ -380,7 +381,6 @@ final class GhosttySurfaceView: NSView, Identifiable {
   }
 
   func closeSurface() {
-    launch.cancel()
     accessibilitySelectionTask?.cancel()
     accessibilitySelectionTask = nil
     clearNotificationObservers()
@@ -1300,7 +1300,6 @@ final class GhosttySurfaceView: NSView, Identifiable {
 
   private func createSurface(using surfaceFactory: SurfaceFactory) {
     guard let app = runtime.app else {
-      launch.finishSurfaceCreation(created: false)
       bridge.state.failure = .surfaceCreationFailed
       return
     }
@@ -1314,18 +1313,18 @@ final class GhosttySurfaceView: NSView, Identifiable {
     config.scale_factor = backingScaleFactor()
     config.font_size = fontSize
     config.working_directory = workingDirectoryCString.map { UnsafePointer($0) }
-    launch.apply(to: &config)
     config.context = context
     Self.withEnvironmentVariables(environmentVariables) { envVars, count in
       config.env_vars = envVars
       config.env_var_count = count
-      Self.withCStringArray(commandWrapper) { wrapper, wrapperCount in
+      GhosttySurfaceLaunch.withCStringArray(commandWrapper) { wrapper, wrapperCount in
         config.command_wrapper = wrapper
         config.command_wrapper_count = wrapperCount
-        surface = surfaceFactory(app, &config)
+        surface = launch.withConfiguration(&config) { config in
+          surfaceFactory(app, &config)
+        }
       }
     }
-    launch.finishSurfaceCreation(created: surface != nil)
     bridge.surface = surface
     guard surface != nil else {
       bridge.state.failure = .surfaceCreationFailed
@@ -1362,28 +1361,6 @@ final class GhosttySurfaceView: NSView, Identifiable {
     }
 
     return envVars.withUnsafeMutableBufferPointer { buffer in
-      body(buffer.baseAddress, buffer.count)
-    }
-  }
-
-  private static func withCStringArray<Result>(
-    _ values: [String],
-    _ body: (UnsafePointer<UnsafePointer<CChar>?>?, Int) -> Result
-  ) -> Result {
-    guard !values.isEmpty else {
-      return body(nil, 0)
-    }
-
-    let cStrings: [UnsafePointer<CChar>?] = values.map { value in
-      UnsafePointer(value.withCString { strdup($0)! })
-    }
-    defer {
-      for cString in cStrings {
-        free(UnsafeMutablePointer(mutating: cString))
-      }
-    }
-
-    return cStrings.withUnsafeBufferPointer { buffer in
       body(buffer.baseAddress, buffer.count)
     }
   }

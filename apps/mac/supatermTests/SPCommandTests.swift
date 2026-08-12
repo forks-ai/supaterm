@@ -835,18 +835,27 @@ struct SPCommandTests {
 
   @Test
   func terminalStartupPreservesScriptText() throws {
-    #expect(try terminalStartup(script: "echo 1\necho 2", tokens: []) == .script("echo 1\necho 2"))
+    #expect(try terminalStartup(script: "echo 1\necho 2", tokens: []) == .shell("echo 1\necho 2"))
     #expect(
-      try terminalStartup(script: "echo 1\necho 2\n", tokens: []) == .script("echo 1\necho 2\n")
+      try terminalStartup(script: "echo 1\necho 2\n", tokens: []) == .shell("echo 1\necho 2\n")
     )
   }
 
   @Test
   func terminalStartupPreservesArgumentCommands() throws {
-    #expect(try terminalStartup(script: nil, tokens: ["pwd"]) == .arguments(["pwd"]))
+    let environment = ["PATH": "/test/bin"]
+
     #expect(
-      try terminalStartup(script: nil, tokens: ["echo", "hello world"])
-        == .arguments(["echo", "hello world"])
+      try terminalStartup(script: nil, tokens: ["pwd"], environment: environment)
+        == .exec(["pwd"], searchPath: "/test/bin")
+    )
+    #expect(
+      try terminalStartup(
+        script: nil,
+        tokens: ["echo", "hello world"],
+        environment: environment
+      )
+        == .exec(["echo", "hello world"], searchPath: "/test/bin")
     )
   }
 

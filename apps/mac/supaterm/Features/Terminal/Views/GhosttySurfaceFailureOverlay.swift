@@ -57,11 +57,11 @@ struct GhosttySurfaceFailureOverlay: View {
         title: "Terminal failed to start",
         message: "The terminal surface could not be created. Open a new pane to try again."
       )
-    case .startupPreparationFailed:
+    case .startupConfigurationFailed:
       Presentation(
-        accessibilityIdentifier: "terminal-startup-preparation-failed",
+        accessibilityIdentifier: "terminal-startup-configuration-failed",
         title: "Command failed to start",
-        message: "Supaterm could not prepare the command. Open a new pane to try again."
+        message: "The command is invalid. Open a new pane to try again."
       )
     }
   }

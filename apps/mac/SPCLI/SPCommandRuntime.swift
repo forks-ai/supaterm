@@ -163,7 +163,11 @@ func treeSnapshot(_ client: SPSocketClient) throws -> SupatermTreeSnapshot {
   return try response.decodeResult(SupatermTreeSnapshot.self)
 }
 
-func terminalStartup(script: String?, tokens: [String]) throws -> SupatermTerminalStartup? {
+func terminalStartup(
+  script: String?,
+  tokens: [String],
+  environment: [String: String] = ProcessInfo.processInfo.environment
+) throws -> SupatermTerminalStartup? {
   if let script {
     guard tokens.isEmpty else {
       throw ValidationError("--script cannot be used with a trailing command.")
@@ -171,10 +175,10 @@ func terminalStartup(script: String?, tokens: [String]) throws -> SupatermTermin
     guard !script.isEmpty else {
       throw ValidationError("--script must not be empty.")
     }
-    return .script(script)
+    return .shell(script)
   }
   if !tokens.isEmpty {
-    let startup = SupatermTerminalStartup.arguments(tokens)
+    let startup = SupatermTerminalStartup.exec(tokens, searchPath: environment["PATH"])
     guard startup.isValid else {
       throw ValidationError("Trailing command must start with an executable.")
     }
