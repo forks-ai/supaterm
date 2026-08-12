@@ -24,7 +24,7 @@ extension TerminalHostState {
         statusActivity: nil,
         statusActivityIsFocused: false,
         detailActivity: nil,
-        hoverMarkdown: nil
+        latestResponse: nil
       )
     }
 
@@ -53,9 +53,12 @@ extension TerminalHostState {
       let rhsPriority = Self.agentActivityPriority($1.activity.phase)
       return lhsPriority == rhsPriority ? $0.revision < $1.revision : lhsPriority < rhsPriority
     }?.activity
-    let hoverMarkdown = focusedInstances.max { $0.revision < $1.revision }.flatMap {
-      Self.codexHoverMarkdown($0.nativePresentation?.hoverMessages ?? [])
-    }
+    let latestResponse = focusedInstances.compactMap { instance in
+      Self.latestAgentResponse(
+        agent: instance.activity.identity,
+        messages: instance.nativePresentation?.hoverMessages ?? []
+      ).map { (revision: instance.revision, response: $0) }
+    }.max { $0.revision < $1.revision }?.response
 
     let statusActivityIsFocused =
       statusInstance.flatMap { instance in
@@ -73,16 +76,12 @@ extension TerminalHostState {
       statusActivity: statusInstance?.activity,
       statusActivityIsFocused: statusActivityIsFocused,
       detailActivity: detailActivity,
-      hoverMarkdown: hoverMarkdown
+      latestResponse: latestResponse
     )
   }
 
   func agentActivity(for tabID: TerminalTabID) -> AgentActivity? {
     tabAgentPresentation(for: tabID).statusActivity
-  }
-
-  func codexHoverMarkdown(for tabID: TerminalTabID) -> String? {
-    tabAgentPresentation(for: tabID).hoverMarkdown
   }
 
   func agentPanelPresentations(for tabID: TerminalTabID) -> [UUID: PaneAgentPanelPresentation] {
@@ -620,9 +619,16 @@ extension TerminalHostState {
     )?.workingDirectoryPath
   }
 
-  static func codexHoverMarkdown(_ messages: [String]) -> String? {
-    guard !messages.isEmpty else { return nil }
-    return messages.joined(separator: "\n\n")
+  private static func latestAgentResponse(
+    agent: AgentDetectionAgentIdentity,
+    messages: [String]
+  ) -> TabAgentResponse? {
+    guard
+      let text = messages.reversed().lazy
+        .map({ $0.trimmingCharacters(in: .whitespacesAndNewlines) })
+        .first(where: { !$0.isEmpty })
+    else { return nil }
+    return TabAgentResponse(agent: agent, text: text)
   }
 
   func storePaneAgentMetadata(_ metadata: PaneAgentMetadata, for surfaceID: UUID) {

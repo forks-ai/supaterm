@@ -52,7 +52,7 @@ final class TerminalSidebarRevealCoordinator {
   }
 
   func releaseRetention() {
-    guard isVisible, !isPointerInside() else { return }
+    guard isVisible, !isPointerInside(), !isRetained() else { return }
     setVisible(false)
   }
 

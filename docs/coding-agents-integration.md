@@ -218,7 +218,7 @@ The app binds Codex sessions to pane surfaces and turns Codex hook events into t
 - While a Codex turn is running, Supaterm tails the Codex rollout file from `transcript_path`.
 - `event_msg` lines drive lifecycle, and non-final `agent_message` events can update live activity detail.
 - `response_item` lines only update live activity detail for non-final assistant messages.
-- While Codex is `running`, the sidebar tab row shows the tab-level running badge without inline activity text. Notification bodies remain available from the row hover popover.
+- While Codex is `running`, the sidebar tab row shows the tab-level running badge without inline activity text. Hovering the row shows the latest assistant response from the focused pane when the native session has one.
 
 ## Pi
 

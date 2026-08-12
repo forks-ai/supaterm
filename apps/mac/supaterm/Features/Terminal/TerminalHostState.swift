@@ -234,7 +234,12 @@ final class TerminalHostState {
     let statusActivity: AgentActivity?
     let statusActivityIsFocused: Bool
     let detailActivity: AgentActivity?
-    let hoverMarkdown: String?
+    let latestResponse: TabAgentResponse?
+  }
+
+  struct TabAgentResponse: Equatable, Sendable {
+    let agent: AgentDetectionAgentIdentity
+    let text: String
   }
 
   struct AgentStateInstance: Equatable, Sendable {

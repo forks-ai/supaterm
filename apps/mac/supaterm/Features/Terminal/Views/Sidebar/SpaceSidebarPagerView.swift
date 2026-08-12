@@ -97,6 +97,7 @@ struct SpaceSidebarPagerView: View {
   }
 
   private func track(_ position: SpaceSwipeController.PagingPosition) {
+    sidebarControllerCache.dismissHoverCards()
     let fraction = position.fractionalIndex
     let indices = spannedIndices(from: fraction, to: fraction)
     if mountedIndices != indices {
@@ -106,6 +107,7 @@ struct SpaceSidebarPagerView: View {
   }
 
   private func animate(from origin: Int, to destination: Int) {
+    sidebarControllerCache.dismissHoverCards()
     let start = position ?? Double(origin)
     let target = Double(destination)
     mount(spannedIndices(from: start, to: target))

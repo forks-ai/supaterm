@@ -6,9 +6,11 @@ import SwiftUI
 @MainActor
 final class TerminalSidebarControllerCache {
   private var controllersBySpaceID: [TerminalSpaceID: TerminalSidebarListController] = [:]
+  private var reportedHoverCardPresentation = false
   private let tabDragRegistry: TerminalTabDragRegistry
   private let windowControllerID: UUID
   private let captureRequest: () -> TerminalWindowCaptureRequest?
+  var hoverCardPresentationChanged: ((Bool) -> Void)?
 
   init(
     windowControllerID: UUID,
@@ -24,6 +26,10 @@ final class TerminalSidebarControllerCache {
     controllersBySpaceID.count
   }
 
+  var isHoverCardPresented: Bool {
+    controllersBySpaceID.values.contains(where: \.isHoverCardPresented)
+  }
+
   func controller(for spaceID: TerminalSpaceID) -> TerminalSidebarListController {
     if let controller = controllersBySpaceID[spaceID] {
       return controller
@@ -33,13 +39,33 @@ final class TerminalSidebarControllerCache {
       tabDragRegistry: tabDragRegistry,
       captureRequest: captureRequest
     )
+    controller.hoverCardPresentationChanged = { [weak self] in
+      self?.reportHoverCardPresentation()
+    }
     controllersBySpaceID[spaceID] = controller
     return controller
   }
 
   func retain(_ spaceIDs: [TerminalSpaceID]) {
     let retained = Set(spaceIDs)
+    for (spaceID, controller) in controllersBySpaceID where !retained.contains(spaceID) {
+      controller.dismissHoverCard()
+    }
     controllersBySpaceID = controllersBySpaceID.filter { retained.contains($0.key) }
+    reportHoverCardPresentation()
+  }
+
+  func dismissHoverCards() {
+    for controller in controllersBySpaceID.values {
+      controller.dismissHoverCard()
+    }
+  }
+
+  private func reportHoverCardPresentation() {
+    let isPresented = isHoverCardPresented
+    guard isPresented != reportedHoverCardPresentation else { return }
+    reportedHoverCardPresentation = isPresented
+    hoverCardPresentationChanged?(isPresented)
   }
 }
 
@@ -83,6 +109,7 @@ final class TerminalSidebarListController: NSViewController, NSCollectionViewDel
   let groupHoverState = TerminalSidebarGroupHoverState()
   let groupHeaderHoverState = TerminalSidebarGroupHoverState()
   let tabSelectionState = TerminalSidebarTabSelectionState()
+  var hoverCardPresentationChanged: (() -> Void)?
   var performDrop: ((TerminalSidebarDropCommand) -> TerminalSidebarDropReceipt?)? {
     get { dragController.performDrop }
     set { dragController.performDrop = newValue }
@@ -115,6 +142,13 @@ final class TerminalSidebarListController: NSViewController, NSCollectionViewDel
   private let tabDragRegistry: TerminalTabDragRegistry
   private let windowControllerID: UUID
   private let captureRequest: () -> TerminalWindowCaptureRequest?
+  private lazy var hoverCardController = TerminalSidebarHoverCardController(
+    sourceAtPoint: { [weak self] point in self?.hoverCardSource(at: point) },
+    sourceForTab: { [weak self] tabID in self?.hoverCardSource(for: tabID) },
+    content: { [weak self] tabID in self?.hoverCardContent(for: tabID) },
+    allowsPresentation: { [weak self] in self?.allowsHoverCardPresentation == true },
+    reduceMotion: { [weak self] in self?.motionPolicy.reduceMotion == true }
+  )
 
   private lazy var collapseAnimator = TerminalSidebarCollapseAnimator(
     collectionView: collectionView,
@@ -156,6 +190,7 @@ final class TerminalSidebarListController: NSViewController, NSCollectionViewDel
       indexPath: { [weak self] in self?.dataSource?.indexPath(for: $0) },
       invalidateLayout: { [weak self] in self?.invalidateLayout() },
       rebindRows: { [weak self] in self?.refreshVisibleRows(ids: $0) },
+      didBegin: { [weak self] in self?.hoverCardController.dismiss() },
       didFinish: { [weak self] in self?.consumePendingUpdate() },
       completeDropHandoff: { [weak self] requirement, completion in
         self?.completeDropHandoff(requirement, completion: completion)
@@ -182,7 +217,18 @@ final class TerminalSidebarListController: NSViewController, NSCollectionViewDel
 
   override func loadView() {
     view = NSView()
+    hoverCardController.presentationChanged = { [weak self] in
+      self?.hoverCardPresentationChanged?()
+    }
     configureHierarchy()
+  }
+
+  var isHoverCardPresented: Bool {
+    hoverCardController.isPresented
+  }
+
+  func dismissHoverCard() {
+    hoverCardController.dismiss()
   }
 
   override func viewDidLayout() {
@@ -200,6 +246,7 @@ final class TerminalSidebarListController: NSViewController, NSCollectionViewDel
   ) {
     self.rows = rows
     self.context = context
+    hoverCardController.refresh()
     dragController.pinnedControl.update(context: context)
     fixedHoveredGroupID = context.fixedHoveredGroupID
     updateMotionPolicy(reduceMotion: reduceMotion)
@@ -278,6 +325,11 @@ final class TerminalSidebarListController: NSViewController, NSCollectionViewDel
     collectionView.addSubview(selectionGlowView, positioned: .below, relativeTo: nil)
     collectionView.onPointerMoved = { [weak self] point in
       self?.updateGroupHover(at: point)
+      self?.hoverCardController.pointerMoved(to: point)
+    }
+    collectionView.onWindowChanged = { [weak self] window in
+      guard window == nil else { return }
+      self?.hoverCardController.dismiss()
     }
     dataSource = NSCollectionViewDiffableDataSource(collectionView: collectionView) {
       [weak self] collectionView, indexPath, entryID in
@@ -649,6 +701,47 @@ final class TerminalSidebarListController: NSViewController, NSCollectionViewDel
     setHoveredGroupID(groupID)
   }
 
+  private var allowsHoverCardPresentation: Bool {
+    view.window?.isKeyWindow == true && !dragController.isActive && pendingDropHandoff == nil
+  }
+
+  private func hoverCardSource(
+    at point: CGPoint
+  ) -> TerminalSidebarHoverCardController.Source? {
+    guard let indexPath = collectionView.indexPathForItem(at: point),
+      let entryID = dataSource.itemIdentifier(for: indexPath),
+      case .tab(let tabID) = entryID,
+      let item = collectionView.item(at: indexPath) as? TerminalSidebarCollectionItem,
+      item.entryID == entryID
+    else { return nil }
+    return TerminalSidebarHoverCardController.Source(tabID: tabID, view: item.view)
+  }
+
+  private func hoverCardSource(
+    for tabID: TerminalTabID
+  ) -> TerminalSidebarHoverCardController.Source? {
+    let entryID = TerminalSidebarEntryID.tab(tabID)
+    guard let indexPath = dataSource.indexPath(for: entryID),
+      let item = collectionView.item(at: indexPath) as? TerminalSidebarCollectionItem,
+      item.entryID == entryID,
+      !item.view.isHidden,
+      item.view.window != nil
+    else { return nil }
+    return TerminalSidebarHoverCardController.Source(tabID: tabID, view: item.view)
+  }
+
+  private func hoverCardContent(for tabID: TerminalTabID) -> TerminalSidebarHoverCardContent? {
+    guard let context,
+      case .tab(let presentation) = rows[.tab(tabID)],
+      let response = context.terminal.tabAgentPresentation(for: tabID).latestResponse
+    else { return nil }
+    return TerminalSidebarHoverCardContent(
+      tabTitle: presentation.tab.title,
+      agentName: response.agent.displayName,
+      response: response.text
+    )
+  }
+
   private func setHoveredGroupID(_ groupID: TerminalTabGroupID?) {
     guard groupHoverState.groupID != groupID else { return }
     let previous = groupHoverState.groupID
@@ -709,6 +802,7 @@ final class TerminalSidebarListController: NSViewController, NSCollectionViewDel
   }
 
   @objc private func liveScrollDidStart() {
+    hoverCardController.dismiss()
     dragController.setLiveScrolling(true)
   }
 
@@ -718,6 +812,7 @@ final class TerminalSidebarListController: NSViewController, NSCollectionViewDel
 
   @objc private func scrollViewDidScroll() {
     guard !isLayingOut else { return }
+    hoverCardController.dismiss()
     view.needsLayout = true
     view.layoutSubtreeIfNeeded()
   }

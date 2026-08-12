@@ -335,6 +335,7 @@ final class TerminalSidebarCollectionView: NSCollectionView {
   var onDraggingSessionMoved: ((NSPoint) -> Void)?
   var onDraggingSessionEnded: ((NSPoint, NSDragOperation) -> Void)?
   var onPointerMoved: ((CGPoint?) -> Void)?
+  var onWindowChanged: ((NSWindow?) -> Void)?
 
   var pointerLocation: CGPoint? {
     guard let window, window.isKeyWindow else { return nil }
@@ -348,6 +349,11 @@ final class TerminalSidebarCollectionView: NSCollectionView {
 
   @available(*, unavailable)
   required init?(coder: NSCoder) { fatalError("init(coder:) is unavailable") }
+
+  override func viewDidMoveToWindow() {
+    super.viewDidMoveToWindow()
+    onWindowChanged?(window)
+  }
 
   override func updateTrackingAreas() {
     super.updateTrackingAreas()

@@ -15,7 +15,7 @@ The tab row reflects the foreground agent session in that pane:
 
 Native hooks supply the full lifecycle and remain authoritative. Without them, fallback detection can show basic temporary activity for a recognized foreground agent. Fallback state is read-only and creates no notifications or session actions.
 
-Unread badges and notification previews remain available after activity ends. Hover a tab row to inspect the latest notification without switching tabs.
+Unread badges and notification previews remain available after activity ends. Hover a tab row to read the latest agent response from its focused pane without switching tabs. Tabs with no response do not show a hover card.
 
 ## Agent panel
 

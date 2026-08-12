@@ -60,4 +60,25 @@ struct TerminalSidebarRevealCoordinatorTests {
 
     #expect(!coordinator.isVisible)
   }
+
+  @Test
+  func releaseRetentionWaitsForEveryRetentionSource() async {
+    let clock = TestClock()
+    var isRetained = true
+    let coordinator = TerminalSidebarRevealCoordinator {
+      try await clock.sleep(for: $0)
+    }
+    coordinator.isPointerInside = { true }
+    coordinator.isRetained = { isRetained }
+    coordinator.handle(.entered)
+    await advanceClock(clock, by: TerminalSidebarRevealMetrics.stoppedDuration)
+    coordinator.isPointerInside = { false }
+
+    coordinator.releaseRetention()
+    #expect(coordinator.isVisible)
+
+    isRetained = false
+    coordinator.releaseRetention()
+    #expect(!coordinator.isVisible)
+  }
 }

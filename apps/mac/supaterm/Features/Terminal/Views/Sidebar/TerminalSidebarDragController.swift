@@ -22,6 +22,7 @@ final class TerminalSidebarDragController {
     let indexPath: (TerminalSidebarEntryID) -> IndexPath?
     let invalidateLayout: () -> Void
     let rebindRows: (Set<TerminalSidebarEntryID>) -> Void
+    let didBegin: () -> Void
     let didFinish: () -> Void
     let completeDropHandoff:
       (
@@ -449,6 +450,7 @@ final class TerminalSidebarDragController {
       coordinator: TerminalSidebarDragCoordinator(payload: payload),
       target: nil
     )
+    host.didBegin()
     content.swipe?.isRowDragActive = true
     let screenPoint = screenPoint(for: event)
     let presentationState = nativeDragSession.move(to: screenPoint)

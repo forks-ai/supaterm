@@ -1101,7 +1101,7 @@ struct TerminalCommandExecutorAgentHookTests {
     )
 
     #expect(harness.host.agentActivity(for: harness.tabID) == .codex(.running))
-    #expect(harness.host.codexHoverMarkdown(for: harness.tabID) == nil)
+    #expect(harness.host.tabAgentPresentation(for: harness.tabID).latestResponse?.text == nil)
     #expect(
       harness.host.agentPanelPresentation(for: harness.context.surfaceID)?.progressRows.isEmpty
         == true
@@ -1691,7 +1691,7 @@ struct TerminalCommandExecutorAgentHookTests {
     let didUpdateDetail = await waitUntil {
       harness.host.agentActivity(for: harness.tabID)
         == .codex(.running, detail: "Updating the registry and sidebar")
-        && harness.host.codexHoverMarkdown(for: harness.tabID)
+        && harness.host.tabAgentPresentation(for: harness.tabID).latestResponse?.text
           == "Updating the registry and sidebar"
     }
     #expect(didUpdateDetail)
@@ -1707,7 +1707,7 @@ struct TerminalCommandExecutorAgentHookTests {
 
     let didLoadFinalAnswer = await waitUntil {
       harness.host.agentActivity(for: harness.tabID) == .codex(.running)
-        && harness.host.codexHoverMarkdown(for: harness.tabID)
+        && harness.host.tabAgentPresentation(for: harness.tabID).latestResponse?.text
           == "Final answer should stay out of the running subtitle"
     }
     #expect(didLoadFinalAnswer)
@@ -2033,7 +2033,8 @@ struct TerminalCommandExecutorAgentHookTests {
     let didLoadDetail = await waitUntil {
       harness.host.agentActivity(for: harness.tabID)
         == .codex(.running, detail: "Tracking before command finished")
-        && harness.host.codexHoverMarkdown(for: harness.tabID) == "Tracking before command finished"
+        && harness.host.tabAgentPresentation(for: harness.tabID).latestResponse?.text
+          == "Tracking before command finished"
     }
     #expect(didLoadDetail)
 
@@ -2041,7 +2042,7 @@ struct TerminalCommandExecutorAgentHookTests {
     surface.bridge.onCommandFinished?()
 
     #expect(harness.host.agentActivity(for: harness.tabID) == nil)
-    #expect(harness.host.codexHoverMarkdown(for: harness.tabID) == nil)
+    #expect(harness.host.tabAgentPresentation(for: harness.tabID).latestResponse?.text == nil)
     #expect(!harness.host.hasAgentSession(agent: .codex, sessionID: CodexHookFixtures.sessionID))
 
     try CodexTranscriptFixtures.append(
@@ -2051,7 +2052,7 @@ struct TerminalCommandExecutorAgentHookTests {
     await advanceClock(clock)
 
     #expect(harness.host.agentActivity(for: harness.tabID) == nil)
-    #expect(harness.host.codexHoverMarkdown(for: harness.tabID) == nil)
+    #expect(harness.host.tabAgentPresentation(for: harness.tabID).latestResponse?.text == nil)
   }
   @Test
   func codexUserPromptSubmitStartsTurn() throws {
@@ -2187,11 +2188,8 @@ struct TerminalCommandExecutorAgentHookTests {
     await advanceClock(clock)
 
     let didAccumulateMessages = await waitUntil {
-      harness.host.codexHoverMarkdown(for: harness.tabID) == """
-        Inspecting the transcript path
-
-        Updating the registry and sidebar
-        """
+      harness.host.tabAgentPresentation(for: harness.tabID).latestResponse?.text
+        == "Updating the registry and sidebar"
     }
     #expect(didAccumulateMessages)
   }
@@ -2225,7 +2223,7 @@ struct TerminalCommandExecutorAgentHookTests {
     let didLoadLongMessage = await waitUntil {
       harness.host.agentActivity(for: harness.tabID)
         == .codex(.running, detail: truncatedMessage)
-        && harness.host.codexHoverMarkdown(for: harness.tabID) == longMessage
+        && harness.host.tabAgentPresentation(for: harness.tabID).latestResponse?.text == longMessage
     }
     #expect(didLoadLongMessage)
   }
@@ -2484,7 +2482,7 @@ struct TerminalCommandExecutorAgentHookTests {
     #expect(harness.host.unreadNotificationCount(for: harness.tabID) == 1)
     #expect(harness.host.unreadNotifiedSurfaceIDs(in: harness.tabID) == Set([harness.context.surfaceID]))
     #expect(harness.host.latestNotificationText(for: harness.tabID) == "Done.")
-    #expect(harness.host.codexHoverMarkdown(for: harness.tabID) == "Done.")
+    #expect(harness.host.tabAgentPresentation(for: harness.tabID).latestResponse?.text == "Done.")
   }
   @Test
   func codexNewSamePaneSessionReplacesForkActionSource() throws {
@@ -2647,7 +2645,7 @@ struct TerminalCommandExecutorAgentHookTests {
     #expect(harness.host.unreadNotificationCount(for: harness.tabID) == 1)
     #expect(harness.host.unreadNotifiedSurfaceIDs(in: harness.tabID) == Set([harness.context.surfaceID]))
     #expect(harness.host.latestNotificationText(for: harness.tabID) == "Child done.")
-    #expect(harness.host.codexHoverMarkdown(for: harness.tabID) == "Child done.")
+    #expect(harness.host.tabAgentPresentation(for: harness.tabID).latestResponse?.text == "Child done.")
   }
   @Test
   func codexStopAfterCommandFinishedDoesNotRoute() throws {
@@ -2678,7 +2676,7 @@ struct TerminalCommandExecutorAgentHookTests {
     #expect(result.desktopNotification == nil)
     #expect(harness.host.unreadNotificationCount(for: harness.tabID) == 0)
     #expect(harness.host.latestNotificationText(for: harness.tabID) == nil)
-    #expect(harness.host.codexHoverMarkdown(for: harness.tabID) == nil)
+    #expect(harness.host.tabAgentPresentation(for: harness.tabID).latestResponse?.text == nil)
   }
   @Test
   func codexCommandFinishedClearsBackgroundSessionRouting() throws {
@@ -2796,11 +2794,8 @@ struct TerminalCommandExecutorAgentHookTests {
     await advanceClock(clock)
 
     let didLoadHistory = await waitUntil {
-      harness.host.codexHoverMarkdown(for: harness.tabID) == """
-        Inspecting the transcript path
-
-        Updating the registry and sidebar
-        """
+      harness.host.tabAgentPresentation(for: harness.tabID).latestResponse?.text
+        == "Updating the registry and sidebar"
     }
     #expect(didLoadHistory)
 
@@ -2808,7 +2803,7 @@ struct TerminalCommandExecutorAgentHookTests {
       CodexHookFixtures.request(CodexHookFixtures.stop, context: harness.context)
     )
 
-    #expect(harness.host.codexHoverMarkdown(for: harness.tabID) == "Done.")
+    #expect(harness.host.tabAgentPresentation(for: harness.tabID).latestResponse?.text == "Done.")
   }
   @Test
   func codexStopClearsNativePlanImmediately() throws {
@@ -3070,6 +3065,6 @@ struct TerminalCommandExecutorAgentHookTests {
     #expect(harness.host.unreadNotificationCount(for: harness.tabID) == 0)
     #expect(harness.host.unreadNotifiedSurfaceIDs(in: harness.tabID).isEmpty)
     #expect(harness.host.latestNotificationText(for: harness.tabID) == nil)
-    #expect(harness.host.codexHoverMarkdown(for: harness.tabID) == nil)
+    #expect(harness.host.tabAgentPresentation(for: harness.tabID).latestResponse?.text == nil)
   }
 }

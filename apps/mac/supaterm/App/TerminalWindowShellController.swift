@@ -346,11 +346,17 @@ final class TerminalWindowShellController: NSViewController {
     }
   }
 
-  private(set) lazy var sidebarControllerCache = TerminalSidebarControllerCache(
-    windowControllerID: windowControllerID,
-    tabDragRegistry: tabDragRegistry,
-    captureRequest: { [weak self] in self?.tabDragCaptureRequest() }
-  )
+  private(set) lazy var sidebarControllerCache: TerminalSidebarControllerCache = {
+    let cache = TerminalSidebarControllerCache(
+      windowControllerID: windowControllerID,
+      tabDragRegistry: tabDragRegistry,
+      captureRequest: { [weak self] in self?.tabDragCaptureRequest() }
+    )
+    cache.hoverCardPresentationChanged = { [weak self] isPresented in
+      self?.hoverCardPresentationChanged(isPresented)
+    }
+    return cache
+  }()
   let state = TerminalWindowShellState()
   private let sidebarResizeView = SidebarResizeInteractionNSView()
   var onSidebarResizeInput: ((TerminalSidebarResizeInput) -> Void)? {
@@ -416,7 +422,8 @@ final class TerminalWindowShellController: NSViewController {
       self?.isRevealPointerInside == true
     }
     revealCoordinator.isRetained = { [weak self] in
-      self?.isSpacePaging() == true
+      guard let self else { return false }
+      return isSpacePaging() || sidebarControllerCache.isHoverCardPresented
     }
     revealCoordinator.onVisibilityChange = { [weak self] in
       self?.applyRevealVisibilityChange()
@@ -687,6 +694,11 @@ final class TerminalWindowShellController: NSViewController {
       ? .immediate
       : .floating
     applyLayout(motion: motion)
+  }
+
+  private func hoverCardPresentationChanged(_ isPresented: Bool) {
+    guard !isPresented else { return }
+    revealCoordinator.releaseRetention()
   }
 
   private func draggingUpdated(_ info: any NSDraggingInfo) -> NSDragOperation {
