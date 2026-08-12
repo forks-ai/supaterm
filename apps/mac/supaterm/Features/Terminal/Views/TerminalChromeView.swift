@@ -33,19 +33,6 @@ enum TerminalCoordinateSpace {
   static let floatingSidebar = "TerminalFloatingSidebar"
 }
 
-private struct TerminalPaneSurfaceModifier: ViewModifier {
-  let stroke: Color
-
-  func body(content: Content) -> some View {
-    content
-      .clipShape(TerminalChromeMetrics.paneShape)
-      .overlay {
-        TerminalChromeMetrics.paneShape
-          .stroke(stroke, lineWidth: 1)
-      }
-  }
-}
-
 struct TerminalSidebarSurfaceShell<Content: View>: View {
   let palette: Palette
   let isFloating: Bool
@@ -97,11 +84,7 @@ struct TerminalSidebarSurfaceShell<Content: View>: View {
 extension View {
   func terminalDetailPaneChrome(palette: Palette) -> some View {
     self
-      .modifier(
-        TerminalPaneSurfaceModifier(
-          stroke: palette.colorScheme == .dark ? palette.detailStroke : .clear
-        )
-      )
+      .clipShape(TerminalChromeMetrics.paneShape)
       .shadow(color: palette.detailShadow, radius: 2, x: 0, y: 1)
       .padding(TerminalChromeMetrics.paneInset)
   }
