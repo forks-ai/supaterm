@@ -1,6 +1,13 @@
 import Foundation
 import SupatermCLIShared
 
+nonisolated enum TerminalAgentChildKind: String, Codable, Equatable, Sendable {
+  case subagent
+  case teammate
+  case unknown
+  case workflow
+}
+
 nonisolated struct TerminalAgentEvent: Equatable, Sendable {
   enum Origin: Equatable, Sendable {
     case native
@@ -47,12 +54,14 @@ nonisolated struct TerminalAgentEvent: Equatable, Sendable {
     case sessionResumed(transcriptPath: String?)
     case sessionStarted(transcriptPath: String?)
     case subagentDescribed(
+      kind: TerminalAgentChildKind? = nil,
       nickname: String?,
       task: String?,
       transcriptPath: String? = nil,
       usage: TerminalAgentChildUsage? = nil
     )
     case subagentStarted(
+      kind: TerminalAgentChildKind = .subagent,
       nickname: String?,
       role: String?,
       task: String? = nil,
@@ -60,7 +69,11 @@ nonisolated struct TerminalAgentEvent: Equatable, Sendable {
       usage: TerminalAgentChildUsage? = nil
     )
     case subagentStopped(usage: TerminalAgentChildUsage? = nil)
-    case subagentsReconciled(liveSubagentIDs: Set<String>, hasRunningWorkflow: Bool)
+    case subagentsReconciled(
+      liveSubagentIDs: Set<String>,
+      hasActiveTeammate: Bool,
+      hasActiveWorkflow: Bool
+    )
     case turnCompleted(message: String?)
     case turnContinuesInBackground
     case turnRunning(detail: String?)

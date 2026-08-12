@@ -139,6 +139,7 @@ struct TerminalAgentPanelTests {
 
   private func child(
     subagentID: String = "child-1",
+    kind: TerminalAgentChildKind = .subagent,
     nickname: String? = nil,
     role: String? = nil,
     transcriptPath: String? = nil,
@@ -152,6 +153,7 @@ struct TerminalAgentPanelTests {
         sessionID: "session-1",
         turnID: "turn-1"
       ),
+      kind: kind,
       nickname: nickname,
       role: role,
       transcriptPath: transcriptPath,
@@ -169,6 +171,7 @@ struct TerminalAgentPanelTests {
   ) -> TerminalAgentActiveChild {
     child(
       subagentID: subagentID,
+      kind: .workflow,
       nickname: "codex-balancer-research",
       role: "workflow-subagent",
       transcriptPath:

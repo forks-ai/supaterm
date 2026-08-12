@@ -2,11 +2,24 @@ import Foundation
 
 public enum SupatermClaudeHookSettings {
   public static let command = SupatermManagedHookCommand.receiveHookCommand(for: .claude)
+  public static let actionableNotificationTypes: Set<String> = [
+    "elicitation_dialog",
+    "idle_prompt",
+    "permission_prompt",
+  ]
+  public static let backgroundNotificationTypes: Set<String> = [
+    "agent_completed",
+    "agent_needs_input",
+    "worker_permission_prompt",
+  ]
 
   public static func jsonString() throws -> String {
     let encoder = JSONEncoder()
     encoder.outputFormatting = [.sortedKeys]
-    return String(decoding: try encoder.encode(Settings()), as: UTF8.self)
+    guard let json = String(bytes: try encoder.encode(Settings()), encoding: .utf8) else {
+      throw SupatermClaudeHookSettingsError.invalidConfiguration
+    }
+    return json
   }
 
   public static func hookGroupsByEvent() throws -> [String: [JSONValue]] {
@@ -28,52 +41,79 @@ public enum SupatermClaudeHookSettings {
   }
 
   private struct Settings: Encodable {
-    let hooks: [String: [HookGroup]] = [
+    let hooks: [String: [ClaudeHookGroup]] = [
       "Notification": [
-        .init(
-          matcher: "permission_prompt|idle_prompt|elicitation_dialog",
-          hooks: [.init(command: command, timeout: 10)]
+        ClaudeHookGroup(
+          matcher: Self.notificationMatcher,
+          hooks: [ClaudeCommandHook(command: command, timeout: 10)]
         )
       ],
-      "PostToolUse": [.init(matcher: "", hooks: [.init(command: command, timeout: 5, isAsync: true)])],
-      "PreToolUse": [.init(matcher: "", hooks: [.init(command: command, timeout: 5, isAsync: true)])],
-      "SessionEnd": [.init(matcher: "", hooks: [.init(command: command, timeout: 1)])],
-      "SessionStart": [.init(matcher: "", hooks: [.init(command: command, timeout: 10)])],
-      "Stop": [.init(hooks: [.init(command: command, timeout: 10)])],
-      "SubagentStart": [.init(hooks: [.init(command: command, timeout: 10)])],
-      "SubagentStop": [.init(hooks: [.init(command: command, timeout: 10)])],
-      "UserPromptSubmit": [.init(hooks: [.init(command: command, timeout: 10)])],
+      "PostToolUse": [
+        ClaudeHookGroup(
+          matcher: "",
+          hooks: [ClaudeCommandHook(command: command, timeout: 5, isAsync: true)]
+        )
+      ],
+      "PreToolUse": [
+        ClaudeHookGroup(
+          matcher: "",
+          hooks: [ClaudeCommandHook(command: command, timeout: 5, isAsync: true)]
+        )
+      ],
+      "SessionEnd": [
+        ClaudeHookGroup(matcher: "", hooks: [ClaudeCommandHook(command: command, timeout: 1)])
+      ],
+      "SessionStart": [
+        ClaudeHookGroup(matcher: "", hooks: [ClaudeCommandHook(command: command, timeout: 10)])
+      ],
+      "Stop": [ClaudeHookGroup(hooks: [ClaudeCommandHook(command: command, timeout: 10)])],
+      "SubagentStart": [
+        ClaudeHookGroup(hooks: [ClaudeCommandHook(command: command, timeout: 10)])
+      ],
+      "SubagentStop": [
+        ClaudeHookGroup(hooks: [ClaudeCommandHook(command: command, timeout: 10)])
+      ],
+      "UserPromptSubmit": [
+        ClaudeHookGroup(hooks: [ClaudeCommandHook(command: command, timeout: 10)])
+      ],
     ]
+
+    private static let notificationMatcher =
+      actionableNotificationTypes
+      .union(backgroundNotificationTypes)
+      .sorted()
+      .joined(separator: "|")
   }
 
-  private struct HookGroup: Encodable {
-    let matcher: String?
-    let hooks: [CommandHook]
+}
 
-    init(matcher: String? = nil, hooks: [CommandHook]) {
-      self.matcher = matcher
-      self.hooks = hooks
-    }
+private struct ClaudeHookGroup: Encodable {
+  let matcher: String?
+  let hooks: [ClaudeCommandHook]
+
+  init(matcher: String? = nil, hooks: [ClaudeCommandHook]) {
+    self.matcher = matcher
+    self.hooks = hooks
+  }
+}
+
+private struct ClaudeCommandHook: Encodable {
+  let type = "command"
+  let command: String
+  let timeout: Int
+  let isAsync: Bool?
+
+  init(command: String, timeout: Int, isAsync: Bool? = nil) {
+    self.command = command
+    self.timeout = timeout
+    self.isAsync = isAsync
   }
 
-  private struct CommandHook: Encodable {
-    let type = "command"
-    let command: String
-    let timeout: Int
-    let isAsync: Bool?
-
-    init(command: String, timeout: Int, isAsync: Bool? = nil) {
-      self.command = command
-      self.timeout = timeout
-      self.isAsync = isAsync
-    }
-
-    enum CodingKeys: String, CodingKey {
-      case type
-      case command
-      case timeout
-      case isAsync = "async"
-    }
+  enum CodingKeys: String, CodingKey {
+    case type
+    case command
+    case timeout
+    case isAsync = "async"
   }
 }
 

@@ -346,6 +346,46 @@ struct TerminalCommandExecutorAgentHookTests {
     )
     #expect(result.desktopNotification == nil)
     #expect(harness.host.unreadNotificationCount(for: harness.tabID) == 0)
+
+    harness.host.handleDesktopNotification(
+      body: "Claude is waiting for your input",
+      surfaceID: harness.context.surfaceID,
+      title: "Claude Code"
+    )
+
+    #expect(harness.host.unreadNotificationCount(for: harness.tabID) == 0)
+    #expect(harness.host.latestNotificationText(for: harness.tabID) == nil)
+  }
+
+  @Test
+  func claudeBackgroundNotificationSuppressesItsTerminalAlert() throws {
+    let harness = try makeClaudeHookHarness(windowActivity: .inactive)
+    let message = "thermo-risk needs permission for Bash"
+
+    _ = try harness.commandExecutor.handleAgentHook(
+      ClaudeHookFixtures.request(ClaudeHookFixtures.sessionStart, context: harness.context)
+    )
+    let result = try harness.commandExecutor.handleAgentHook(
+      SupatermAgentHookRequest(
+        agent: .claude,
+        context: harness.context,
+        event: SupatermAgentHookEvent(
+          hookEventName: .notification,
+          message: message,
+          notificationType: "worker_permission_prompt",
+          sessionID: ClaudeHookFixtures.sessionID
+        )
+      )
+    )
+
+    #expect(result.desktopNotification == nil)
+    harness.host.handleDesktopNotification(
+      body: message,
+      surfaceID: harness.context.surfaceID,
+      title: "Claude Code"
+    )
+    #expect(harness.host.unreadNotificationCount(for: harness.tabID) == 0)
+    #expect(harness.host.latestNotificationText(for: harness.tabID) == nil)
   }
   @Test
   func claudeChildTaskArrivesWithSpawnMetadataAndSurvivesLaterTurns() throws {
@@ -484,6 +524,278 @@ struct TerminalCommandExecutorAgentHookTests {
     #expect(
       harness.host.agentPanelPresentation(for: harness.context.surfaceID)?.activeChildren.isEmpty
         == true
+    )
+  }
+
+  @Test
+  func claudeChildAttentionDoesNotCreatePaneAlert() throws {
+    let harness = try makeClaudeHookHarness(windowActivity: .inactive)
+    func childEvent(_ hookEventName: SupatermAgentHookEventName) -> SupatermAgentHookEvent {
+      SupatermAgentHookEvent(
+        agentType: "general-purpose",
+        hookEventName: hookEventName,
+        message: hookEventName == .notification ? "Child needs permission" : nil,
+        notificationType: hookEventName == .notification ? "permission_prompt" : nil,
+        sessionID: ClaudeHookFixtures.sessionID,
+        agentID: "child-1"
+      )
+    }
+
+    _ = try harness.commandExecutor.handleAgentHook(
+      ClaudeHookFixtures.request(ClaudeHookFixtures.sessionStart, context: harness.context)
+    )
+    _ = try harness.commandExecutor.handleAgentHook(
+      ClaudeHookFixtures.request(ClaudeHookFixtures.userPromptSubmit, context: harness.context)
+    )
+    _ = try harness.commandExecutor.handleAgentHook(
+      SupatermAgentHookRequest(
+        agent: .claude,
+        context: harness.context,
+        event: childEvent(.subagentStart)
+      )
+    )
+    let result = try harness.commandExecutor.handleAgentHook(
+      SupatermAgentHookRequest(
+        agent: .claude,
+        context: harness.context,
+        event: childEvent(.notification)
+      )
+    )
+
+    let child = try #require(
+      harness.host.agentPanelPresentation(for: harness.context.surfaceID)?.activeChildren.first
+    )
+    #expect(child.phase == .needsInput)
+    #expect(result.desktopNotification == nil)
+
+    harness.host.handleDesktopNotification(
+      body: "Child needs permission",
+      surfaceID: harness.context.surfaceID,
+      title: "Claude Code"
+    )
+    #expect(harness.host.unreadNotificationCount(for: harness.tabID) == 0)
+    #expect(harness.host.latestNotificationText(for: harness.tabID) == nil)
+  }
+
+  @Test
+  func claudeMissingChildNotificationSuppressesItsTerminalAlert() throws {
+    let harness = try makeClaudeHookHarness(windowActivity: .inactive)
+
+    _ = try harness.commandExecutor.handleAgentHook(
+      ClaudeHookFixtures.request(ClaudeHookFixtures.sessionStart, context: harness.context)
+    )
+    let result = try harness.commandExecutor.handleAgentHook(
+      SupatermAgentHookRequest(
+        agent: .claude,
+        context: harness.context,
+        event: SupatermAgentHookEvent(
+          agentType: "general-purpose",
+          hookEventName: .notification,
+          message: "Child needs permission",
+          notificationType: "permission_prompt",
+          sessionID: ClaudeHookFixtures.sessionID,
+          agentID: "child-missed"
+        )
+      )
+    )
+
+    #expect(result.desktopNotification == nil)
+    harness.host.handleDesktopNotification(
+      body: "Child needs permission",
+      surfaceID: harness.context.surfaceID,
+      title: "Claude Code"
+    )
+    #expect(harness.host.unreadNotificationCount(for: harness.tabID) == 0)
+    #expect(harness.host.latestNotificationText(for: harness.tabID) == nil)
+  }
+
+  @Test
+  func claudeBackgroundNotificationUsesContextWithoutSessionState() throws {
+    let harness = try makeClaudeHookHarness(windowActivity: .inactive)
+    let message = "thermo-risk needs permission for Bash"
+
+    let result = try harness.commandExecutor.handleAgentHook(
+      SupatermAgentHookRequest(
+        agent: .claude,
+        context: harness.context,
+        event: SupatermAgentHookEvent(
+          hookEventName: .notification,
+          message: message,
+          notificationType: "worker_permission_prompt",
+          sessionID: ClaudeHookFixtures.sessionID
+        )
+      )
+    )
+
+    #expect(result.desktopNotification == nil)
+    harness.host.handleDesktopNotification(
+      body: message,
+      surfaceID: harness.context.surfaceID,
+      title: "Claude Code"
+    )
+    #expect(harness.host.unreadNotificationCount(for: harness.tabID) == 0)
+    #expect(harness.host.latestNotificationText(for: harness.tabID) == nil)
+  }
+
+  @Test
+  func claudeRootStopKeepsActiveTeammateUntilItsStopHook() throws {
+    let transcript = try ClaudeProgressFixtures.makeTranscript()
+    defer { try? FileManager.default.removeItem(at: transcript.deletingLastPathComponent()) }
+    try ClaudeProgressFixtures.writeSubagentMetadata(
+      agentID: "athermo-risk-1",
+      name: "thermo-risk",
+      description: "Review the branch",
+      taskKind: "in_process_teammate",
+      forTranscriptAt: transcript
+    )
+    let harness = try makeClaudeHookHarness()
+    func event(
+      _ hookEventName: SupatermAgentHookEventName,
+      payload: JSONObject = [:]
+    ) throws -> SupatermAgentHookEvent {
+      var payload = payload
+      payload["hook_event_name"] = .string(hookEventName.rawValue)
+      payload["session_id"] = .string(ClaudeHookFixtures.sessionID)
+      payload["transcript_path"] = .string(transcript.path)
+      return try JSONDecoder().decode(
+        SupatermAgentHookEvent.self,
+        from: JSONEncoder().encode(JSONValue.object(payload))
+      )
+    }
+    let teammatePayload: JSONObject = [
+      "agent_id": .string("athermo-risk-1"),
+      "agent_type": .string("thermo-risk"),
+    ]
+
+    _ = try harness.commandExecutor.handleAgentHook(
+      SupatermAgentHookRequest(
+        agent: .claude,
+        context: harness.context,
+        event: event(.sessionStart)
+      )
+    )
+    _ = try harness.commandExecutor.handleAgentHook(
+      SupatermAgentHookRequest(
+        agent: .claude,
+        context: harness.context,
+        event: event(.subagentStart, payload: teammatePayload)
+      )
+    )
+    _ = try harness.commandExecutor.handleAgentHook(
+      SupatermAgentHookRequest(
+        agent: .claude,
+        context: harness.context,
+        event: event(
+          .stop,
+          payload: [
+            "background_tasks": .array([
+              .object([
+                "id": .string("t9n6bx4k2"),
+                "type": .string("teammate"),
+                "status": .string("running"),
+                "description": .string("Review the branch"),
+              ])
+            ]),
+            "session_crons": .array([]),
+          ]
+        )
+      )
+    )
+
+    let child = try #require(
+      harness.host.agentPanelPresentation(for: harness.context.surfaceID)?.activeChildren.first
+    )
+    #expect(child.kind == .teammate)
+    #expect(child.nickname == "thermo-risk")
+
+    _ = try harness.commandExecutor.handleAgentHook(
+      SupatermAgentHookRequest(
+        agent: .claude,
+        context: harness.context,
+        event: event(.subagentStop, payload: teammatePayload)
+      )
+    )
+
+    #expect(
+      harness.host.agentPanelPresentation(for: harness.context.surfaceID)?.activeChildren.isEmpty
+        == true
+    )
+  }
+
+  @Test
+  func claudeStopKeepsUnclassifiedChildUntilTeammateMetadataLands() throws {
+    let transcript = try ClaudeProgressFixtures.makeTranscript()
+    defer { try? FileManager.default.removeItem(at: transcript.deletingLastPathComponent()) }
+    let harness = try makeClaudeHookHarness()
+    func childEvent(_ hookEventName: SupatermAgentHookEventName) -> SupatermAgentHookEvent {
+      SupatermAgentHookEvent(
+        agentType: "thermo-risk",
+        hookEventName: hookEventName,
+        sessionID: ClaudeHookFixtures.sessionID,
+        toolName: hookEventName == .preToolUse ? "Bash" : nil,
+        transcriptPath: transcript.path,
+        agentID: "athermo-risk-1"
+      )
+    }
+    let stop = try JSONDecoder().decode(
+      SupatermAgentHookEvent.self,
+      from: try JSONEncoder().encode(
+        JSONValue.object([
+          "hook_event_name": .string(SupatermAgentHookEventName.stop.rawValue),
+          "session_id": .string(ClaudeHookFixtures.sessionID),
+          "transcript_path": .string(transcript.path),
+          "background_tasks": .array([
+            .object([
+              "id": .string("t9n6bx4k2"),
+              "type": .string("teammate"),
+              "status": .string("running"),
+            ])
+          ]),
+          "session_crons": .array([]),
+        ])
+      )
+    )
+
+    _ = try harness.commandExecutor.handleAgentHook(
+      ClaudeHookFixtures.request(ClaudeHookFixtures.sessionStart, context: harness.context)
+    )
+    _ = try harness.commandExecutor.handleAgentHook(
+      SupatermAgentHookRequest(
+        agent: .claude,
+        context: harness.context,
+        event: childEvent(.subagentStart)
+      )
+    )
+    #expect(
+      harness.host.agentPanelPresentation(for: harness.context.surfaceID)?
+        .activeChildren.first?.kind == .unknown
+    )
+
+    _ = try harness.commandExecutor.handleAgentHook(
+      SupatermAgentHookRequest(agent: .claude, context: harness.context, event: stop)
+    )
+    #expect(
+      harness.host.agentPanelPresentation(for: harness.context.surfaceID)?
+        .activeChildren.first?.kind == .unknown
+    )
+
+    try ClaudeProgressFixtures.writeSubagentMetadata(
+      agentID: "athermo-risk-1",
+      name: "thermo-risk",
+      taskKind: "in_process_teammate",
+      forTranscriptAt: transcript
+    )
+    _ = try harness.commandExecutor.handleAgentHook(
+      SupatermAgentHookRequest(
+        agent: .claude,
+        context: harness.context,
+        event: childEvent(.preToolUse)
+      )
+    )
+
+    #expect(
+      harness.host.agentPanelPresentation(for: harness.context.surfaceID)?
+        .activeChildren.first?.kind == .teammate
     )
   }
 

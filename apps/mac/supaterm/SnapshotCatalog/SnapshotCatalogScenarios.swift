@@ -268,6 +268,7 @@ extension SnapshotCatalog {
         sessionID: "session-26-0701",
         turnID: "turn-4"
       ),
+      kind: .workflow,
       nickname: "codex-balancer-research",
       role: "workflow-subagent",
       transcriptPath:

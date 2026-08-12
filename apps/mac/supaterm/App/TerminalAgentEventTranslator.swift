@@ -38,12 +38,6 @@ nonisolated enum TerminalAgentEventTranslator {
     return translated
   }
 
-  private static let actionableClaudeNotifications: Set<String> = [
-    "elicitation_dialog",
-    "idle_prompt",
-    "permission_prompt",
-  ]
-
   private static func subagentStartedAction(
     for request: SupatermAgentHookRequest
   ) -> TerminalAgentEvent.Action {
@@ -51,6 +45,7 @@ nonisolated enum TerminalAgentEventTranslator {
     guard request.agent == .codex else {
       let metadata = claudeSubagentMetadata(for: request)
       return .subagentStarted(
+        kind: childKind(role: role, metadata: metadata),
         nickname: metadata?.nickname,
         role: role,
         task: metadata?.task,
@@ -64,6 +59,7 @@ nonisolated enum TerminalAgentEventTranslator {
       sessionID: request.event.sessionID
     )
     return .subagentStarted(
+      kind: .subagent,
       nickname: nickname,
       role: role?.lowercased() == "default" ? nil : role,
       transcriptPath: request.event.transcriptPath
@@ -78,7 +74,7 @@ nonisolated enum TerminalAgentEventTranslator {
     switch request.event.hookEventName {
     case .notification:
       guard let type = request.event.notificationType,
-        actionableClaudeNotifications.contains(type)
+        SupatermClaudeHookSettings.actionableNotificationTypes.contains(type)
       else {
         return []
       }
@@ -120,7 +116,7 @@ nonisolated enum TerminalAgentEventTranslator {
       else {
         return [event(request, scope: scope, action: stopAction)]
       }
-      let liveSubagentIDs = runningClaudeTasks(tasks, ofType: "subagent")
+      let liveSubagentIDs = activeClaudeTasks(tasks, ofType: "subagent")
         .compactMap { $0["id"]?.stringValue }
       return [
         event(
@@ -128,7 +124,8 @@ nonisolated enum TerminalAgentEventTranslator {
           scope: scope,
           action: .subagentsReconciled(
             liveSubagentIDs: Set(liveSubagentIDs),
-            hasRunningWorkflow: !runningClaudeTasks(tasks, ofType: "workflow").isEmpty
+            hasActiveTeammate: !activeClaudeTasks(tasks, ofType: "teammate").isEmpty,
+            hasActiveWorkflow: !activeClaudeTasks(tasks, ofType: "workflow").isEmpty
           )
         ),
         event(request, scope: scope, action: stopAction),
@@ -141,14 +138,15 @@ nonisolated enum TerminalAgentEventTranslator {
     return [event(request, scope: scope, action: action)]
   }
 
-  private static func runningClaudeTasks(
+  private static func activeClaudeTasks(
     _ tasks: [JSONValue],
     ofType type: String
   ) -> [JSONObject] {
     tasks.compactMap { task in
       guard let task = task.objectValue,
         task["type"]?.stringValue == type,
-        task["status"]?.stringValue == "running"
+        let status = task["status"]?.stringValue,
+        status == "running" || status == "pending"
       else {
         return nil
       }
@@ -163,7 +161,8 @@ nonisolated enum TerminalAgentEventTranslator {
       return true
     }
     return event.payload["background_tasks"]?.arrayValue?.contains {
-      $0.objectValue?["status"]?.stringValue == "running"
+      guard let status = $0.objectValue?["status"]?.stringValue else { return false }
+      return status == "running" || status == "pending"
     } == true
   }
 
@@ -179,6 +178,7 @@ nonisolated enum TerminalAgentEventTranslator {
         request,
         scope: scope,
         action: .subagentDescribed(
+          kind: childKind(role: normalized(request.event.agentType), metadata: metadata),
           nickname: metadata.nickname,
           task: metadata.task,
           transcriptPath: metadata.transcriptPath,
@@ -196,6 +196,19 @@ nonisolated enum TerminalAgentEventTranslator {
       transcriptPath: request.event.transcriptPath,
       agentID: request.event.agentID
     )
+  }
+
+  private static func childKind(
+    role: String?,
+    metadata: ClaudeSubagentMetadataParser.Metadata?
+  ) -> TerminalAgentChildKind {
+    if let metadata {
+      return metadata.kind
+    }
+    if role?.lowercased() == "workflow-subagent" {
+      return .workflow
+    }
+    return .unknown
   }
 
   private static func subagentActivityEvents(

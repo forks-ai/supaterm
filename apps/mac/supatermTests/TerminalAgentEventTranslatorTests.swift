@@ -214,7 +214,7 @@ struct TerminalAgentEventTranslatorTests {
   }
 
   @Test
-  func claudeStopReconcilesChildrenAgainstBackgroundTasks() throws {
+  func claudeStopReconcilesEveryActiveBackgroundTaskKind() throws {
     let request = try request(
       agent: .claude,
       json: #"""
@@ -224,7 +224,10 @@ struct TerminalAgentEventTranslatorTests {
           "last_assistant_message": "Spawned.",
           "background_tasks": [
             { "id": "child-live", "type": "subagent", "status": "running" },
+            { "id": "child-pending", "type": "subagent", "status": "pending" },
             { "id": "child-done", "type": "subagent", "status": "completed" },
+            { "id": "teammate-task", "type": "teammate", "status": "running" },
+            { "id": "workflow-task", "type": "workflow", "status": "pending" },
             { "id": "task-1", "type": "shell", "status": "running" }
           ],
           "session_crons": []
@@ -234,14 +237,18 @@ struct TerminalAgentEventTranslatorTests {
 
     #expect(
       TerminalAgentEventTranslator.events(for: request).map(\.action) == [
-        .subagentsReconciled(liveSubagentIDs: ["child-live"], hasRunningWorkflow: false),
+        .subagentsReconciled(
+          liveSubagentIDs: ["child-live", "child-pending"],
+          hasActiveTeammate: true,
+          hasActiveWorkflow: true
+        ),
         .turnContinuesInBackground,
       ]
     )
   }
 
   @Test
-  func claudeStopReportsOnlyRunningWorkflows() throws {
+  func claudeStopReportsActiveWorkflows() throws {
     let request = try request(
       agent: .claude,
       json: #"""
@@ -265,7 +272,11 @@ struct TerminalAgentEventTranslatorTests {
 
     #expect(
       TerminalAgentEventTranslator.events(for: request).map(\.action) == [
-        .subagentsReconciled(liveSubagentIDs: [], hasRunningWorkflow: true),
+        .subagentsReconciled(
+          liveSubagentIDs: [],
+          hasActiveTeammate: false,
+          hasActiveWorkflow: true
+        ),
         .turnContinuesInBackground,
       ]
     )
@@ -290,7 +301,11 @@ struct TerminalAgentEventTranslatorTests {
 
     #expect(
       TerminalAgentEventTranslator.events(for: request).map(\.action) == [
-        .subagentsReconciled(liveSubagentIDs: [], hasRunningWorkflow: false),
+        .subagentsReconciled(
+          liveSubagentIDs: [],
+          hasActiveTeammate: false,
+          hasActiveWorkflow: false
+        ),
         .turnCompleted(message: "Done."),
       ]
     )
@@ -327,7 +342,11 @@ struct TerminalAgentEventTranslatorTests {
 
     #expect(
       TerminalAgentEventTranslator.events(for: request).map(\.action) == [
-        .subagentsReconciled(liveSubagentIDs: [], hasRunningWorkflow: false),
+        .subagentsReconciled(
+          liveSubagentIDs: [],
+          hasActiveTeammate: false,
+          hasActiveWorkflow: false
+        ),
         .turnCompleted(message: "Done"),
       ]
     )
@@ -490,7 +509,7 @@ struct TerminalAgentEventTranslatorTests {
 
     #expect(
       TerminalAgentEventTranslator.events(for: request).map(\.action) == [
-        .subagentStarted(nickname: nil, role: "explore-sidebar")
+        .subagentStarted(kind: .unknown, nickname: nil, role: "explore-sidebar")
       ]
     )
   }
@@ -529,6 +548,41 @@ struct TerminalAgentEventTranslatorTests {
   }
 
   @Test
+  func claudeTeammateStartReadsTaskKind() throws {
+    let transcript = try ClaudeProgressFixtures.makeTranscript()
+    defer { try? FileManager.default.removeItem(at: transcript.deletingLastPathComponent()) }
+    try ClaudeProgressFixtures.writeSubagentMetadata(
+      agentID: "athermo-risk-1",
+      name: "thermo-risk",
+      description: "Review the branch",
+      taskKind: "in_process_teammate",
+      forTranscriptAt: transcript
+    )
+    let request = SupatermAgentHookRequest(
+      agent: .claude,
+      event: SupatermAgentHookEvent(
+        agentType: "thermo-risk",
+        hookEventName: .subagentStart,
+        sessionID: "session-1",
+        transcriptPath: transcript.path,
+        agentID: "athermo-risk-1"
+      )
+    )
+
+    #expect(
+      TerminalAgentEventTranslator.events(for: request).map(\.action) == [
+        .subagentStarted(
+          kind: .teammate,
+          nickname: "thermo-risk",
+          role: "thermo-risk",
+          task: "Review the branch",
+          transcriptPath: subagentTranscriptPath(for: transcript, agentID: "athermo-risk-1")
+        )
+      ]
+    )
+  }
+
+  @Test
   func claudeWorkflowSubagentStartReadsSpawnPrompt() throws {
     let transcript = try ClaudeProgressFixtures.makeTranscript()
     defer { try? FileManager.default.removeItem(at: transcript.deletingLastPathComponent()) }
@@ -553,6 +607,7 @@ struct TerminalAgentEventTranslatorTests {
     #expect(
       TerminalAgentEventTranslator.events(for: request).map(\.action) == [
         .subagentStarted(
+          kind: .workflow,
           nickname: "dia-color-recovery",
           role: "workflow-subagent",
           task: "Recover the color palettes Dia ships for Profile custom colors.",
@@ -590,6 +645,7 @@ struct TerminalAgentEventTranslatorTests {
     #expect(
       TerminalAgentEventTranslator.events(for: request).map(\.action) == [
         .subagentStarted(
+          kind: .workflow,
           nickname: nil,
           role: "workflow-subagent",
           task: "Recover the color palettes Dia ships.",
@@ -635,6 +691,7 @@ struct TerminalAgentEventTranslatorTests {
     #expect(
       TerminalAgentEventTranslator.events(for: request).map(\.action) == [
         .subagentStarted(
+          kind: .workflow,
           nickname: nil,
           role: "workflow-subagent",
           task: "Your research angle: rules_js",
@@ -685,6 +742,7 @@ struct TerminalAgentEventTranslatorTests {
     #expect(
       TerminalAgentEventTranslator.events(for: start("child-1")).map(\.action) == [
         .subagentStarted(
+          kind: .workflow,
           nickname: nil,
           role: "workflow-subagent",
           task: "\(preamble) \(sharedWithTheHalfWrittenChild)",
@@ -707,6 +765,7 @@ struct TerminalAgentEventTranslatorTests {
     #expect(
       TerminalAgentEventTranslator.events(for: start("child-2")).map(\.action) == [
         .subagentStarted(
+          kind: .workflow,
           nickname: nil,
           role: "workflow-subagent",
           task: "Your research angle: ci-caching",
@@ -759,6 +818,7 @@ struct TerminalAgentEventTranslatorTests {
     #expect(
       TerminalAgentEventTranslator.events(for: request).map(\.action) == [
         .subagentStarted(
+          kind: .workflow,
           nickname: nil,
           role: "workflow-subagent",
           task: "\(preamble) \(sharedWithTheUnreadableChild)",
@@ -813,6 +873,7 @@ struct TerminalAgentEventTranslatorTests {
     #expect(
       TerminalAgentEventTranslator.events(for: start("child-3")).map(\.action) == [
         .subagentStarted(
+          kind: .workflow,
           nickname: nil,
           role: "workflow-subagent",
           task: "\(preamble) Your research angle: ci-caching",
@@ -851,6 +912,7 @@ struct TerminalAgentEventTranslatorTests {
     #expect(
       TerminalAgentEventTranslator.events(for: request).map(\.action) == [
         .subagentStarted(
+          kind: .workflow,
           nickname: nil,
           role: "workflow-subagent",
           task: "\(preamble) Your research angle: rules_js",
@@ -873,6 +935,7 @@ struct TerminalAgentEventTranslatorTests {
     #expect(
       TerminalAgentEventTranslator.events(for: request).map(\.action) == [
         .subagentStarted(
+          kind: .workflow,
           nickname: nil,
           role: "workflow-subagent",
           task: "Your research angle: rules_js",
@@ -1016,6 +1079,7 @@ struct TerminalAgentEventTranslatorTests {
     #expect(
       actions == [
         .subagentDescribed(
+          kind: .workflow,
           nickname: nil,
           task: String(prompt.trimmingCharacters(in: .whitespaces).prefix(140)) + "…",
           transcriptPath: subagentTranscriptPath(
@@ -1135,6 +1199,7 @@ struct TerminalAgentEventTranslatorTests {
     #expect(
       TerminalAgentEventTranslator.events(for: request).map(\.action) == [
         .subagentDescribed(
+          kind: .subagent,
           nickname: nil,
           task: "GOO-4560 board API table",
           transcriptPath: subagentTranscriptPath(for: transcript, agentID: "child-1")

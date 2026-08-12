@@ -79,6 +79,7 @@ nonisolated struct TerminalAgentActiveChild: Codable, Equatable, Identifiable, S
   }
 
   let id: Identity
+  let kind: TerminalAgentChildKind
   let nickname: String?
   let role: String?
   let transcriptPath: String?
@@ -90,6 +91,7 @@ nonisolated struct TerminalAgentActiveChild: Codable, Equatable, Identifiable, S
 
   init(
     id: Identity,
+    kind: TerminalAgentChildKind = .subagent,
     nickname: String?,
     role: String?,
     transcriptPath: String? = nil,
@@ -100,6 +102,7 @@ nonisolated struct TerminalAgentActiveChild: Codable, Equatable, Identifiable, S
     usage: TerminalAgentChildUsage? = nil
   ) {
     self.id = id
+    self.kind = kind
     self.nickname = nickname
     self.role = role
     self.transcriptPath = transcriptPath
@@ -115,7 +118,7 @@ nonisolated struct TerminalAgentActiveChild: Codable, Equatable, Identifiable, S
   var turnID: String? { id.turnID }
   var displayDetail: String? { detail ?? task }
 
-  var runsInWorkflow: Bool { role == Self.workflowRole }
+  var runsInWorkflow: Bool { kind == .workflow }
 
   var transcriptDirectoryPath: String? {
     transcriptPath.map {
@@ -125,8 +128,6 @@ nonisolated struct TerminalAgentActiveChild: Codable, Equatable, Identifiable, S
         .path
     }
   }
-
-  private static let workflowRole = "workflow-subagent"
 }
 
 nonisolated struct TerminalAgentStatePresentation: Equatable, Sendable {
@@ -409,12 +410,17 @@ nonisolated struct TerminalAgentStateStore {
       )
     case .attentionResolved(let requestID):
       resolveAttention(requestID: requestID, turnID: event.scope.turnID, state: &state)
-    case .subagentsReconciled(let liveSubagentIDs, let hasRunningWorkflow):
-      state.activeChildren = state.activeChildren.filter { _, child in
-        child.runsInWorkflow
-          ? hasRunningWorkflow
-          : liveSubagentIDs.contains(child.subagentID)
-      }
+    case .subagentsReconciled(
+      let liveSubagentIDs,
+      let hasActiveTeammate,
+      let hasActiveWorkflow
+    ):
+      state.activeChildren = reconciledChildren(
+        state.activeChildren,
+        liveSubagentIDs: liveSubagentIDs,
+        hasActiveTeammate: hasActiveTeammate,
+        hasActiveWorkflow: hasActiveWorkflow
+      )
     case .hoverMessagesUpdated(let messages):
       updateHoverMessages(messages, turnID: event.scope.turnID, state: &state)
     case .progressUpdated(let rows, let source):
@@ -424,18 +430,35 @@ nonisolated struct TerminalAgentStateStore {
     }
   }
 
+  private func reconciledChildren(
+    _ children: [TerminalAgentActiveChild.Identity: TerminalAgentActiveChild],
+    liveSubagentIDs: Set<String>,
+    hasActiveTeammate: Bool,
+    hasActiveWorkflow: Bool
+  ) -> [TerminalAgentActiveChild.Identity: TerminalAgentActiveChild] {
+    children.filter { _, child in
+      switch child.kind {
+      case .subagent: liveSubagentIDs.contains(child.subagentID)
+      case .teammate: hasActiveTeammate
+      case .unknown: liveSubagentIDs.contains(child.subagentID) || hasActiveTeammate
+      case .workflow: hasActiveWorkflow
+      }
+    }
+  }
+
   private func applyChild(
     _ event: TerminalAgentEvent,
     to state: inout SessionState
   ) {
     guard let childKey = Self.childKey(for: event) else { return }
     switch event.action {
-    case .subagentStarted(let nickname, let role, let task, let transcriptPath, let usage):
+    case .subagentStarted(let kind, let nickname, let role, let task, let transcriptPath, let usage):
       state.activeChildren = state.activeChildren.filter {
         $0.key.subagentID != childKey.subagentID || $0.key == childKey
       }
       if let child = state.activeChildren[childKey] {
         let updated = child.updating(
+          kind: kind,
           nickname: nickname,
           role: role,
           task: task,
@@ -447,6 +470,7 @@ nonisolated struct TerminalAgentStateStore {
       } else {
         state.activeChildren[childKey] = TerminalAgentActiveChild(
           id: childKey,
+          kind: kind,
           nickname: nickname,
           role: role,
           transcriptPath: transcriptPath,
@@ -456,9 +480,10 @@ nonisolated struct TerminalAgentStateStore {
           usage: usage
         )
       }
-    case .subagentDescribed(let nickname, let task, let transcriptPath, let usage):
+    case .subagentDescribed(let kind, let nickname, let task, let transcriptPath, let usage):
       guard let child = state.activeChildren[childKey] else { return }
       state.activeChildren[childKey] = child.updating(
+        kind: kind,
         nickname: nickname,
         task: task,
         transcriptPath: transcriptPath,
@@ -945,6 +970,7 @@ nonisolated struct TerminalAgentStateStore {
 
 extension TerminalAgentActiveChild {
   fileprivate nonisolated func updating(
+    kind: TerminalAgentChildKind? = nil,
     nickname: String?,
     role: String? = nil,
     task: String?,
@@ -953,6 +979,7 @@ extension TerminalAgentActiveChild {
   ) -> Self {
     Self(
       id: id,
+      kind: kind ?? self.kind,
       nickname: nickname ?? self.nickname,
       role: role ?? self.role,
       transcriptPath: transcriptPath ?? self.transcriptPath,
@@ -972,6 +999,7 @@ extension TerminalAgentActiveChild {
   ) -> Self {
     Self(
       id: id,
+      kind: kind,
       nickname: nickname,
       role: role,
       transcriptPath: transcriptPath,

@@ -34,18 +34,40 @@ extension TerminalCommandExecutor {
 
   func handleAgentHook(_ request: SupatermAgentHookRequest) throws -> TerminalAgentHookResult {
     pruneDeadAgentProcesses()
-    let events = TerminalAgentEventTranslator.events(for: request)
-    guard !events.isEmpty,
-      let terminal = agentTerminal(for: request),
+    guard let terminal = agentTerminal(for: request),
       shouldHandleAgentHook(request, in: terminal)
     else {
       return TerminalAgentHookResult(desktopNotification: nil)
+    }
+    if suppressesClaudeBackgroundNotification(request) {
+      recordTerminalNotificationSuppression(
+        for: request,
+        semantic: request.event.notificationType == "agent_completed" ? .completion : .attention,
+        in: terminal
+      )
+      return TerminalAgentHookResult(desktopNotification: nil)
+    }
+    let events = TerminalAgentEventTranslator.events(for: request)
+    guard !events.isEmpty else {
+      return TerminalAgentHookResult(desktopNotification: nil)
+    }
+    let childNotificationSemantic = childTerminalNotificationSemantic(
+      for: request,
+      events: events
+    )
+    if let childNotificationSemantic {
+      recordTerminalNotificationSuppression(
+        for: request,
+        semantic: childNotificationSemantic,
+        in: terminal
+      )
     }
     if request.agent == .claude,
       request.event.notificationType == "idle_prompt",
       let sessionID = request.event.sessionID,
       terminal.agentSessionHasBackgroundWork(agent: .claude, sessionID: sessionID)
     {
+      recordTerminalNotificationSuppression(for: request, semantic: .attention, in: terminal)
       return TerminalAgentHookResult(desktopNotification: nil)
     }
     let suppressesCompletionNotification =
@@ -239,6 +261,7 @@ extension TerminalCommandExecutor {
     request: SupatermAgentHookRequest,
     suppressesCompletion: Bool
   ) -> AgentHookNotification? {
+    guard event.scope.subagentID == nil else { return nil }
     let body: String?
     let semantic: TerminalHostState.NotificationSemantic
     let subtitle: String
@@ -247,7 +270,7 @@ extension TerminalCommandExecutor {
       body = message ?? request.event.notificationMessage()
       semantic = .attention
       subtitle = request.event.title ?? "Attention"
-    case .turnCompleted where suppressesCompletion || event.scope.subagentID != nil:
+    case .turnCompleted where suppressesCompletion:
       return nil
     case .turnCompleted(let message):
       body = message
@@ -258,6 +281,46 @@ extension TerminalCommandExecutor {
     }
     guard let body = normalizedTerminalAgentDetail(body) else { return nil }
     return AgentHookNotification(body: body, semantic: semantic, subtitle: subtitle)
+  }
+
+  private func suppressesClaudeBackgroundNotification(
+    _ request: SupatermAgentHookRequest
+  ) -> Bool {
+    request.agent == .claude
+      && request.event.notificationType.map(
+        SupatermClaudeHookSettings.backgroundNotificationTypes.contains
+      ) == true
+  }
+
+  private func recordTerminalNotificationSuppression(
+    for request: SupatermAgentHookRequest,
+    semantic: TerminalHostState.NotificationSemantic,
+    in terminal: TerminalHostState
+  ) {
+    guard
+      let sessionID = request.event.sessionID,
+      let surfaceID = request.context?.surfaceID
+        ?? terminal.agentStateSurfaceID(agent: request.agent, sessionID: sessionID)
+    else {
+      return
+    }
+    terminal.recordTerminalNotificationSuppression(
+      body: request.event.notificationMessage() ?? "",
+      semantic: semantic,
+      surfaceID: surfaceID,
+      title: request.event.title ?? request.agent.notificationTitle
+    )
+  }
+
+  private func childTerminalNotificationSemantic(
+    for request: SupatermAgentHookRequest,
+    events: [TerminalAgentEvent]
+  ) -> TerminalHostState.NotificationSemantic? {
+    guard events.contains(where: { $0.scope.subagentID != nil }) else { return nil }
+    return switch request.event.hookEventName {
+    case .notification: .attention
+    default: nil
+    }
   }
 
   private func updateMonitoring(
@@ -343,7 +406,7 @@ extension TerminalCommandExecutor {
     guard scope.subagentID != nil else { return request.event.transcriptPath }
     guard request.agent == .codex else { return nil }
     for event in events {
-      if case .subagentStarted(_, _, _, let transcriptPath, _) = event.action {
+      if case .subagentStarted(_, _, _, _, let transcriptPath, _) = event.action {
         return transcriptPath
       }
     }

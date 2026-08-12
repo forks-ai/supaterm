@@ -38,7 +38,7 @@ struct SupatermClaudeHookSettingsTests {
     #expect(try commandHook(in: hooks, event: "UserPromptSubmit")["timeout"] as? Int == 10)
     #expect(
       try group(in: hooks, event: "Notification")["matcher"] as? String
-        == "permission_prompt|idle_prompt|elicitation_dialog"
+        == "agent_completed|agent_needs_input|elicitation_dialog|idle_prompt|permission_prompt|worker_permission_prompt"
     )
     #expect(
       try commandHook(in: hooks, event: "Notification")["command"] as? String == SupatermClaudeHookSettings.command)

@@ -18,7 +18,7 @@ struct TerminalSessionCatalogTests {
 
   @Test
   func catalogRejectsUnsupportedAndPreviousVersions() {
-    for version in [8, 9, 999] {
+    for version in [8, 9, 10, 999] {
       let data = Data("{\"version\":\(version),\"windows\":[]}".utf8)
       #expect(throws: DecodingError.self) {
         try JSONDecoder().decode(TerminalSessionCatalog.self, from: data)
@@ -69,7 +69,7 @@ struct TerminalSessionCatalogTests {
     )
     let json = try #require(String(bytes: data, encoding: .utf8))
 
-    #expect(json.contains(#""version":10"#))
+    #expect(json.contains(#""version":11"#))
     #expect(json.contains(#""displayedSpaceID":"#))
     #expect(json.contains(#""spaces":[{"#))
     #expect(json.contains(#""sidebarWidth":304"#))
@@ -388,7 +388,7 @@ struct TerminalSessionCatalogTests {
     let decoded = try JSONDecoder().decode(TerminalSessionCatalog.self, from: data)
 
     #expect(decoded == catalog)
-    #expect(json.contains(#""version":10"#))
+    #expect(json.contains(#""version":11"#))
     #expect(json.contains(#""nodes""#))
     #expect(json.contains(#""parent":{"id":"CCCCCCCC-CCCC-CCCC-CCCC-CCCCCCCCCCCC","kind":"group"}"#))
     #expect(json.contains(#""collapsedGroupIDs":["CCCCCCCC-CCCC-CCCC-CCCC-CCCCCCCCCCCC"]"#))
@@ -402,7 +402,7 @@ struct TerminalSessionCatalogTests {
   @Test
   func agentRecordRoundTripsCanonicalState() throws {
     let record = TerminalPaneAgentRecord(
-      agent: .codex,
+      agent: .claude,
       sessionID: "session-1",
       processes: [
         TerminalAgentProcessIdentity(processID: 123, startTimeMicroseconds: 456)
@@ -425,6 +425,7 @@ struct TerminalSessionCatalogTests {
             sessionID: "session-1",
             turnID: "turn-1"
           ),
+          kind: .teammate,
           nickname: "Mendel",
           role: "reviewer",
           transcriptPath: "/tmp/child.jsonl",

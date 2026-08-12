@@ -461,7 +461,7 @@ extension TerminalAgentStateStoreTests {
         sessionID: "session-1",
         subagentID: "child-2",
         context: context,
-        action: .subagentStarted(nickname: nil, role: "workflow-subagent")
+        action: .subagentStarted(kind: .workflow, nickname: nil, role: "workflow-subagent")
       )
     )
 
@@ -570,7 +570,11 @@ extension TerminalAgentStateStoreTests {
         agent: .claude,
         sessionID: "session-1",
         context: context,
-        action: .subagentsReconciled(liveSubagentIDs: ["child-live"], hasRunningWorkflow: false)
+        action: .subagentsReconciled(
+          liveSubagentIDs: ["child-live"],
+          hasActiveTeammate: false,
+          hasActiveWorkflow: false
+        )
       )
     )
 
@@ -594,8 +598,8 @@ extension TerminalAgentStateStoreTests {
       )
     )
     for child in [
-      (subagentID: "workflow-child", role: "workflow-subagent"),
-      (subagentID: "plain-child", role: "general-purpose"),
+      (subagentID: "workflow-child", kind: TerminalAgentChildKind.workflow, role: "workflow-subagent"),
+      (subagentID: "plain-child", kind: TerminalAgentChildKind.subagent, role: "general-purpose"),
     ] {
       store.apply(
         event(
@@ -603,7 +607,11 @@ extension TerminalAgentStateStoreTests {
           sessionID: "session-1",
           subagentID: child.subagentID,
           context: context,
-          action: .subagentStarted(nickname: "codex-balancer-research", role: child.role)
+          action: .subagentStarted(
+            kind: child.kind,
+            nickname: "codex-balancer-research",
+            role: child.role
+          )
         )
       )
     }
@@ -613,7 +621,11 @@ extension TerminalAgentStateStoreTests {
         agent: .claude,
         sessionID: "session-1",
         context: context,
-        action: .subagentsReconciled(liveSubagentIDs: [], hasRunningWorkflow: true)
+        action: .subagentsReconciled(
+          liveSubagentIDs: [],
+          hasActiveTeammate: false,
+          hasActiveWorkflow: true
+        )
       )
     )
 
@@ -627,7 +639,72 @@ extension TerminalAgentStateStoreTests {
         agent: .claude,
         sessionID: "session-1",
         context: context,
-        action: .subagentsReconciled(liveSubagentIDs: [], hasRunningWorkflow: false)
+        action: .subagentsReconciled(
+          liveSubagentIDs: [],
+          hasActiveTeammate: false,
+          hasActiveWorkflow: false
+        )
+      )
+    )
+
+    #expect(store.presentation(for: surfaceID, agent: .claude)?.activeChildren.isEmpty == true)
+  }
+
+  @Test
+  func reconciliationKeepsTeammatesOnlyWhileATeammateRuns() throws {
+    let surfaceID = UUID()
+    let context = SupatermCLIContext(surfaceID: surfaceID, tabID: UUID())
+    var store = TerminalAgentStateStore()
+
+    store.apply(
+      event(
+        agent: .claude,
+        sessionID: "session-1",
+        context: context,
+        action: .sessionStarted(transcriptPath: nil)
+      )
+    )
+    store.apply(
+      event(
+        agent: .claude,
+        sessionID: "session-1",
+        subagentID: "athermo-risk-1",
+        context: context,
+        action: .subagentStarted(
+          kind: .teammate,
+          nickname: "thermo-risk",
+          role: "thermo-risk"
+        )
+      )
+    )
+    store.apply(
+      event(
+        agent: .claude,
+        sessionID: "session-1",
+        context: context,
+        action: .subagentsReconciled(
+          liveSubagentIDs: [],
+          hasActiveTeammate: true,
+          hasActiveWorkflow: false
+        )
+      )
+    )
+
+    #expect(
+      store.presentation(for: surfaceID, agent: .claude)?
+        .activeChildren.map(\.subagentID) == ["athermo-risk-1"]
+    )
+
+    store.apply(
+      event(
+        agent: .claude,
+        sessionID: "session-1",
+        context: context,
+        action: .subagentsReconciled(
+          liveSubagentIDs: [],
+          hasActiveTeammate: false,
+          hasActiveWorkflow: false
+        )
       )
     )
 
@@ -677,7 +754,11 @@ extension TerminalAgentStateStoreTests {
       event(
         agent: .claude,
         sessionID: "session-1",
-        action: .subagentsReconciled(liveSubagentIDs: [], hasRunningWorkflow: false)
+        action: .subagentsReconciled(
+          liveSubagentIDs: [],
+          hasActiveTeammate: false,
+          hasActiveWorkflow: false
+        )
       )
     )
 

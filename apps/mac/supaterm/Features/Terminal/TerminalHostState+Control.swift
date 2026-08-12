@@ -416,6 +416,21 @@ extension TerminalHostState {
     try notify(request, origin: .structuredAgent(semantic))
   }
 
+  func recordTerminalNotificationSuppression(
+    body: String,
+    semantic: NotificationSemantic,
+    surfaceID: UUID,
+    title: String
+  ) {
+    updateRecentStructuredNotificationIfNeeded(
+      body: body,
+      createdAt: Date(),
+      origin: .structuredAgent(semantic),
+      surfaceID: surfaceID,
+      title: title
+    )
+  }
+
   func focusPane(_ target: TerminalPaneTarget) throws -> SupatermFocusPaneResult {
     let resolvedTarget = try resolvePaneTarget(target)
     switchSpace(to: resolvedTarget.spaceID)

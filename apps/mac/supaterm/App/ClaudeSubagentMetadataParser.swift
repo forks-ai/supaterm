@@ -4,6 +4,7 @@ import Synchronization
 
 nonisolated enum ClaudeSubagentMetadataParser {
   struct Metadata: Equatable {
+    let kind: TerminalAgentChildKind
     let nickname: String?
     let task: String?
     let transcriptPath: String
@@ -37,6 +38,10 @@ nonisolated enum ClaudeSubagentMetadataParser {
       AgentProgressParsing.normalizedTitle(object["description"]?.stringValue)
       ?? spawnPromptTask(reading?.spawnPrompt, in: location.runDirectory)
     return Metadata(
+      kind:
+        object["taskKind"]?.stringValue == "in_process_teammate"
+        ? .teammate
+        : location.runDirectory == nil ? .subagent : .workflow,
       nickname: nickname,
       task: task,
       transcriptPath: childTranscript.path,
