@@ -71,4 +71,327 @@ struct TerminalSidebarHoverCardTests {
     #expect(!corridor.contains(CGPoint(x: 50, y: 100)))
     #expect(!corridor.contains(CGPoint(x: 400, y: 400)))
   }
+
+  @Test
+  func corridorUsesExactSourceAndTwoPointCardExpansion() {
+    let corridor = TerminalSidebarHoverCorridor(
+      sourceFrame: CGRect(x: 100, y: 200, width: 180, height: 40),
+      cardFrame: CGRect(x: 284, y: 130, width: 320, height: 180)
+    )
+
+    #expect(corridor.contains(CGPoint(x: 100, y: 220)))
+    #expect(!corridor.contains(CGPoint(x: 99.9, y: 220)))
+    #expect(corridor.contains(CGPoint(x: 606, y: 220)))
+    #expect(!corridor.contains(CGPoint(x: 606.1, y: 220)))
+  }
+
+  @Test
+  func corridorIncludesNumericallyCollinearSlopedEdge() {
+    let corridor = TerminalSidebarHoverCorridor(
+      sourceFrame: CGRect(x: 0, y: 0, width: 100, height: 40),
+      cardFrame: CGRect(x: 104, y: 100, width: 100, height: 40)
+    )
+
+    #expect(corridor.contains(CGPoint(x: 50.9999999999, y: 91)))
+  }
+
+  @Test
+  func hoverHitTestingRejectsPointOutsideVisibleViewport() {
+    let visibleRect = CGRect(x: 0, y: 200, width: 240, height: 300)
+
+    #expect(
+      TerminalSidebarHoverCardGeometry.isPointVisible(
+        CGPoint(x: 120, y: 250),
+        visibleRect: visibleRect
+      )
+    )
+    #expect(
+      !TerminalSidebarHoverCardGeometry.isPointVisible(
+        CGPoint(x: 120, y: 100),
+        visibleRect: visibleRect
+      )
+    )
+  }
+
+  @Test
+  func directionTrackerKeepsHullWhenProjectedRayHitsCard() {
+    let corridor = TerminalSidebarHoverCorridor(
+      sourceFrame: CGRect(x: 0, y: 0, width: 100, height: 40),
+      cardFrame: CGRect(x: 104, y: -50, width: 100, height: 140)
+    )
+    var tracker = TerminalSidebarHoverDirectionTracker()
+
+    let first = tracker.permitsHull(at: CGPoint(x: 101, y: 20), corridor: corridor)
+    let second = tracker.permitsHull(at: CGPoint(x: 109, y: 20), corridor: corridor)
+    let third = tracker.permitsHull(at: CGPoint(x: 109, y: 30), corridor: corridor)
+    #expect(first)
+    #expect(second)
+    #expect(third)
+  }
+
+  @Test
+  func directionTrackerDisablesHullAfterProjectedRayMissesCard() {
+    let corridor = TerminalSidebarHoverCorridor(
+      sourceFrame: CGRect(x: 0, y: 0, width: 100, height: 40),
+      cardFrame: CGRect(x: 104, y: -50, width: 100, height: 140)
+    )
+    var tracker = TerminalSidebarHoverDirectionTracker()
+
+    let first = tracker.permitsHull(at: CGPoint(x: 101, y: 45), corridor: corridor)
+    let second = tracker.permitsHull(at: CGPoint(x: 101, y: 53), corridor: corridor)
+    let third = tracker.permitsHull(at: CGPoint(x: 110, y: 40), corridor: corridor)
+    #expect(first)
+    #expect(!second)
+    #expect(!third)
+    tracker.reset()
+    let reset = tracker.permitsHull(at: CGPoint(x: 101, y: 45), corridor: corridor)
+    #expect(reset)
+  }
+
+  @Test
+  func directionTrackerResetsInsideSource() {
+    let corridor = TerminalSidebarHoverCorridor(
+      sourceFrame: CGRect(x: 0, y: 0, width: 100, height: 40),
+      cardFrame: CGRect(x: 104, y: -50, width: 100, height: 140)
+    )
+    var tracker = TerminalSidebarHoverDirectionTracker()
+
+    let first = tracker.permitsHull(at: CGPoint(x: 101, y: 45), corridor: corridor)
+    let second = tracker.permitsHull(at: CGPoint(x: 101, y: 53), corridor: corridor)
+    let source = tracker.permitsHull(at: CGPoint(x: 90, y: 20), corridor: corridor)
+    let newStart = tracker.permitsHull(at: CGPoint(x: 101, y: 20), corridor: corridor)
+    let belowThreshold = tracker.permitsHull(at: CGPoint(x: 108.9, y: 20), corridor: corridor)
+    #expect(first)
+    #expect(!second)
+    #expect(source)
+    #expect(newStart)
+    #expect(belowThreshold)
+  }
+
+  @Test
+  func directionTrackerResetsOnSourceMaximumEdge() {
+    let corridor = TerminalSidebarHoverCorridor(
+      sourceFrame: CGRect(x: 0, y: 0, width: 100, height: 40),
+      cardFrame: CGRect(x: 104, y: -50, width: 100, height: 140)
+    )
+    var tracker = TerminalSidebarHoverDirectionTracker()
+
+    let first = tracker.permitsHull(at: CGPoint(x: 101, y: 45), corridor: corridor)
+    let decidedAway = tracker.permitsHull(at: CGPoint(x: 101, y: 53), corridor: corridor)
+    let maximumEdge = tracker.permitsHull(at: CGPoint(x: 100, y: 40), corridor: corridor)
+    let newStart = tracker.permitsHull(at: CGPoint(x: 101, y: 20), corridor: corridor)
+
+    #expect(first)
+    #expect(!decidedAway)
+    #expect(maximumEdge)
+    #expect(newStart)
+  }
+
+  @Test
+  func hoverTimingsMatchInteractionContract() {
+    #expect(TerminalSidebarHoverTiming.stopped == .milliseconds(80))
+    #expect(TerminalSidebarHoverTiming.coldPresentation == .milliseconds(500))
+    #expect(TerminalSidebarHoverTiming.dismiss == .milliseconds(100))
+  }
+
+  @Test
+  func coldHoverStartsOnlyAfterPointerStops() {
+    let tabID = TerminalTabID()
+
+    #expect(
+      TerminalSidebarHoverInteraction.moved(
+        phase: .idle,
+        eligibleTabID: tabID,
+        insideSafeHull: false
+      ) == .none
+    )
+    #expect(
+      TerminalSidebarHoverInteraction.stopped(
+        phase: .idle,
+        eligibleTabID: tabID,
+        insideSafeHull: false,
+        canReuseCard: false
+      ) == .startCold(tabID)
+    )
+  }
+
+  @Test
+  func pendingTargetDoesNotRestartUntilItChanges() {
+    let first = TerminalTabID()
+    let second = TerminalTabID()
+    let phase = TerminalSidebarHoverCardPhase.pending(first, 1)
+
+    #expect(
+      TerminalSidebarHoverInteraction.moved(
+        phase: phase,
+        eligibleTabID: first,
+        insideSafeHull: false
+      ) == .none
+    )
+    #expect(
+      TerminalSidebarHoverInteraction.moved(
+        phase: phase,
+        eligibleTabID: second,
+        insideSafeHull: false
+      ) == .replacePending(second)
+    )
+    #expect(
+      TerminalSidebarHoverInteraction.stopped(
+        phase: .pending(second, 2),
+        eligibleTabID: second,
+        insideSafeHull: false,
+        canReuseCard: false
+      ) == .present(second)
+    )
+  }
+
+  @Test
+  func presentedCardRetargetsOutsideHullAndWaitsInsideHull() {
+    let first = TerminalTabID()
+    let second = TerminalTabID()
+    let phase = TerminalSidebarHoverCardPhase.presented(first)
+
+    #expect(
+      TerminalSidebarHoverInteraction.moved(
+        phase: phase,
+        eligibleTabID: second,
+        insideSafeHull: false
+      ) == .update(second)
+    )
+    #expect(
+      TerminalSidebarHoverInteraction.moved(
+        phase: phase,
+        eligibleTabID: second,
+        insideSafeHull: true
+      ) == .cancelDismiss
+    )
+    #expect(
+      TerminalSidebarHoverInteraction.stopped(
+        phase: phase,
+        eligibleTabID: second,
+        insideSafeHull: true,
+        canReuseCard: false
+      ) == .delayUpdate(second)
+    )
+    #expect(
+      TerminalSidebarHoverInteraction.stopped(
+        phase: phase,
+        eligibleTabID: second,
+        insideSafeHull: false,
+        canReuseCard: false
+      ) == .update(second)
+    )
+  }
+
+  @Test
+  func visibleCardWinsOverUnderlyingRowHit() {
+    let underlyingTabID = TerminalTabID()
+    let point = CGPoint(x: 120, y: 220)
+
+    #expect(
+      TerminalSidebarHoverInteraction.eligibleTabID(
+        pointedTabID: underlyingTabID,
+        screenPoint: point,
+        cardFrame: CGRect(x: 100, y: 200, width: 320, height: 180)
+      ) == nil
+    )
+    #expect(
+      TerminalSidebarHoverInteraction.stopped(
+        phase: .presented(TerminalTabID()),
+        eligibleTabID: nil,
+        insideSafeHull: true,
+        canReuseCard: false
+      ) == .cancelDismiss
+    )
+    #expect(
+      TerminalSidebarHoverInteraction.eligibleTabID(
+        pointedTabID: underlyingTabID,
+        screenPoint: CGPoint(x: 420, y: 380),
+        cardFrame: CGRect(x: 100, y: 200, width: 320, height: 180)
+      ) == nil
+    )
+  }
+
+  @Test
+  func idleStopReusesVisibleCardWindow() {
+    let tabID = TerminalTabID()
+
+    #expect(
+      TerminalSidebarHoverInteraction.stopped(
+        phase: .idle,
+        eligibleTabID: tabID,
+        insideSafeHull: false,
+        canReuseCard: true
+      ) == .reuse(tabID)
+    )
+  }
+
+  @Test
+  func outsideMovementRearmsDismissAndOutsideStopDismisses() {
+    let phase = TerminalSidebarHoverCardPhase.presented(TerminalTabID())
+
+    #expect(
+      TerminalSidebarHoverInteraction.moved(
+        phase: phase,
+        eligibleTabID: nil,
+        insideSafeHull: false
+      ) == .rearmDismiss
+    )
+    #expect(
+      TerminalSidebarHoverInteraction.stopped(
+        phase: phase,
+        eligibleTabID: nil,
+        insideSafeHull: false,
+        canReuseCard: false
+      ) == .dismiss
+    )
+  }
+
+  @Test
+  func pendingMouseDownSuppressesPointedRowAndDismisses() {
+    let pendingTabID = TerminalTabID()
+    let pointedTabID = TerminalTabID()
+
+    #expect(
+      TerminalSidebarHoverInputInteraction.mouseDown(
+        phase: .pending(pendingTabID, 1),
+        pointedTabID: pointedTabID,
+        isInsideCard: true
+      ) == .dismiss(suppressedTabID: pointedTabID)
+    )
+  }
+
+  @Test
+  func presentedCardAcceptsMouseDownInsideCard() {
+    #expect(
+      TerminalSidebarHoverInputInteraction.mouseDown(
+        phase: .presented(TerminalTabID()),
+        pointedTabID: nil,
+        isInsideCard: true
+      ) == .keep
+    )
+  }
+
+  @Test
+  func taskTokenRejectsWorkAfterInvalidation() {
+    var token = TerminalSidebarHoverTaskToken()
+    let stale = token.current
+
+    token.invalidate()
+
+    #expect(!token.matches(stale))
+    #expect(token.matches(token.current))
+  }
+
+  @Test
+  func taskTokenRejectsEarlierSameTargetReschedule() {
+    var token = TerminalSidebarHoverTaskToken()
+    token.invalidate()
+    let first = token.current
+    token.invalidate()
+    let second = token.current
+
+    #expect(!token.matches(first))
+    #expect(token.matches(second))
+  }
 }

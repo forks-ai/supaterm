@@ -27,122 +27,6 @@ enum TerminalSidebarHoverCardMetrics {
   }
 }
 
-enum TerminalSidebarHoverCardPhase: Equatable {
-  case idle
-  case pending(TerminalTabID, UInt64)
-  case presented(TerminalTabID)
-
-  var tabID: TerminalTabID? {
-    switch self {
-    case .idle:
-      nil
-    case .pending(let tabID, _), .presented(let tabID):
-      tabID
-    }
-  }
-
-  var isPresented: Bool {
-    switch self {
-    case .presented:
-      true
-    case .idle, .pending:
-      false
-    }
-  }
-}
-
-struct TerminalSidebarHoverCardGeometry: Equatable {
-  static let gap: CGFloat = 4
-  static let screenInset: CGFloat = 8
-
-  static func frame(
-    sourceFrame: CGRect,
-    cardSize: CGSize,
-    visibleFrame: CGRect
-  ) -> CGRect {
-    let bounds = visibleFrame.insetBy(dx: screenInset, dy: screenInset)
-    let maxX = max(bounds.minX, bounds.maxX - cardSize.width)
-    let maxY = max(bounds.minY, bounds.maxY - cardSize.height)
-    let origin = CGPoint(
-      x: min(max(sourceFrame.maxX + gap, bounds.minX), maxX),
-      y: min(max(sourceFrame.midY - cardSize.height / 2, bounds.minY), maxY)
-    )
-    return CGRect(origin: origin, size: cardSize)
-  }
-
-  @MainActor
-  static func screenFrame(of view: NSView) -> CGRect? {
-    guard let window = view.window, !view.bounds.isEmpty else { return nil }
-    return window.convertToScreen(view.convert(view.bounds, to: nil))
-  }
-}
-
-struct TerminalSidebarHoverCorridor: Equatable {
-  private let points: [CGPoint]
-
-  init(sourceFrame: CGRect, cardFrame: CGRect) {
-    points = Self.convexHull(
-      Self.corners(of: sourceFrame.insetBy(dx: -2, dy: -2))
-        + Self.corners(of: cardFrame.insetBy(dx: -2, dy: -2))
-    )
-  }
-
-  func contains(_ point: CGPoint) -> Bool {
-    guard points.count >= 3 else { return false }
-    var sign: CGFloat?
-    for index in points.indices {
-      let start = points[index]
-      let end = points[points.index(after: index) == points.endIndex ? points.startIndex : points.index(after: index)]
-      let cross = Self.cross(start, end, point)
-      guard abs(cross) > .ulpOfOne else { continue }
-      let currentSign: CGFloat = cross > 0 ? 1 : -1
-      if let sign, sign != currentSign { return false }
-      sign = currentSign
-    }
-    return true
-  }
-
-  private static func corners(of rect: CGRect) -> [CGPoint] {
-    [
-      CGPoint(x: rect.minX, y: rect.minY),
-      CGPoint(x: rect.maxX, y: rect.minY),
-      CGPoint(x: rect.maxX, y: rect.maxY),
-      CGPoint(x: rect.minX, y: rect.maxY),
-    ]
-  }
-
-  private static func convexHull(_ points: [CGPoint]) -> [CGPoint] {
-    let sorted = points.sorted {
-      $0.x == $1.x ? $0.y < $1.y : $0.x < $1.x
-    }
-    guard sorted.count > 2 else { return sorted }
-    var lower: [CGPoint] = []
-    for point in sorted {
-      while lower.count >= 2,
-        cross(lower[lower.count - 2], lower[lower.count - 1], point) <= 0
-      {
-        lower.removeLast()
-      }
-      lower.append(point)
-    }
-    var upper: [CGPoint] = []
-    for point in sorted.reversed() {
-      while upper.count >= 2,
-        cross(upper[upper.count - 2], upper[upper.count - 1], point) <= 0
-      {
-        upper.removeLast()
-      }
-      upper.append(point)
-    }
-    return Array(lower.dropLast() + upper.dropLast())
-  }
-
-  private static func cross(_ origin: CGPoint, _ first: CGPoint, _ second: CGPoint) -> CGFloat {
-    (first.x - origin.x) * (second.y - origin.y)
-      - (first.y - origin.y) * (second.x - origin.x)
-  }
-}
-
 @MainActor
 final class TerminalSidebarHoverCardController {
   struct Source {
@@ -159,10 +43,18 @@ final class TerminalSidebarHoverCardController {
   private let reduceMotion: () -> Bool
   private let presenter = TerminalSidebarHoverCardPresenter()
   private var generation: UInt64 = 0
-  private var pendingTask: Task<Void, Never>?
-  private var eventMonitor: Any?
+  private var coldPresentationTask: Task<Void, Never>?
+  private var stoppedTask: Task<Void, Never>?
+  private var dismissTask: Task<Void, Never>?
+  private var delayedUpdateTask: Task<Void, Never>?
+  private var stoppedToken = TerminalSidebarHoverTaskToken()
+  private var dismissToken = TerminalSidebarHoverTaskToken()
+  private var delayedUpdateToken = TerminalSidebarHoverTaskToken()
+  private var inputMonitor: Any?
+  private var movementMonitor: Any?
   private var observers: [NSObjectProtocol] = []
   private var suppressedTabID: TerminalTabID?
+  private var directionTracker = TerminalSidebarHoverDirectionTracker()
 
   init(
     tabAtPoint: @escaping (CGPoint) -> TerminalTabID?,
@@ -179,8 +71,11 @@ final class TerminalSidebarHoverCardController {
   }
 
   isolated deinit {
-    pendingTask?.cancel()
-    removeEventMonitor()
+    cancelColdPresentation()
+    cancelStopped()
+    cancelDismiss()
+    cancelDelayedUpdate()
+    removeEventMonitors()
     removeObservers()
   }
 
@@ -188,19 +83,38 @@ final class TerminalSidebarHoverCardController {
     phase.isPresented
   }
 
-  func pointerMoved(to point: CGPoint?) {
+  func pointerMoved() {
+    guard !phase.isPresented else { return }
+    installInputMonitor()
+    moved(to: NSEvent.mouseLocation)
+  }
+
+  func pointerExited() {
+    if phase.isPresented {
+      moved(to: NSEvent.mouseLocation)
+    } else {
+      pointerMoved()
+    }
+  }
+
+  private func moved(to screenPoint: CGPoint) {
     guard allowsPresentation() else {
       dismiss()
       return
     }
-    if let point, let tabID = tabAtPoint(point), content(tabID) != nil {
-      guard tabID != suppressedTabID else { return }
-      suppressedTabID = nil
-      hover(tabID)
-      return
+    scheduleStopped()
+    if phase.isPresented {
+      cancelDelayedUpdate()
     }
-    suppressedTabID = nil
-    trackPointer(at: NSEvent.mouseLocation)
+    let eligibleTabID = eligibleTabID(at: screenPoint)
+    let insideSafeHull = phase.tabID.map { isInsideSafeHull(screenPoint, for: $0) } ?? false
+    apply(
+      TerminalSidebarHoverInteraction.moved(
+        phase: phase,
+        eligibleTabID: eligibleTabID,
+        insideSafeHull: insideSafeHull
+      )
+    )
   }
 
   func refresh() {
@@ -222,21 +136,29 @@ final class TerminalSidebarHoverCardController {
         dismiss()
         return
       }
-      presenter.update(
-        content,
-        sourceView: source.view,
-        reduceMotion: reduceMotion()
-      )
+      guard
+        presenter.update(
+          content,
+          sourceView: source.view,
+          reduceMotion: reduceMotion()
+        )
+      else {
+        dismiss()
+        return
+      }
     }
   }
 
   func dismiss() {
     let wasPresented = phase.isPresented
     generation &+= 1
-    pendingTask?.cancel()
-    pendingTask = nil
+    cancelColdPresentation()
+    cancelStopped()
+    cancelDismiss()
+    cancelDelayedUpdate()
+    directionTracker.reset()
     phase = .idle
-    removeEventMonitor()
+    removeEventMonitors()
     removeObservers()
     presenter.dismiss(reduceMotion: reduceMotion())
     if wasPresented {
@@ -244,18 +166,18 @@ final class TerminalSidebarHoverCardController {
     }
   }
 
-  private func hover(_ tabID: TerminalTabID) {
-    guard phase.tabID != tabID else { return }
-    schedulePresentation(for: tabID)
+  private func beginPending(_ tabID: TerminalTabID) {
+    cancelColdPresentation()
+    generation &+= 1
+    phase = .pending(tabID, generation)
   }
 
-  private func schedulePresentation(for tabID: TerminalTabID) {
-    dismiss()
+  private func schedulePresentation(for tabID: TerminalTabID, after delay: Duration) {
+    cancelColdPresentation()
     let generation = generation
-    phase = .pending(tabID, generation)
-    pendingTask = Task { [weak self] in
+    coldPresentationTask = Task { [weak self] in
       do {
-        try await Task.sleep(for: .milliseconds(250))
+        try await Task.sleep(for: delay)
       } catch {
         return
       }
@@ -265,8 +187,8 @@ final class TerminalSidebarHoverCardController {
   }
 
   private func present(tabID: TerminalTabID, generation: UInt64) {
-    guard phase == .pending(tabID, generation), allowsPresentation(),
-      let source = sourceForTab(tabID),
+    guard phase == .pending(tabID, generation) else { return }
+    guard allowsPresentation(), let source = sourceForTab(tabID),
       let sourceWindow = source.view.window,
       sourceWindow.isKeyWindow,
       let content = observedContent(for: tabID)
@@ -284,9 +206,11 @@ final class TerminalSidebarHoverCardController {
       dismiss()
       return
     }
-    pendingTask = nil
+    coldPresentationTask = nil
     phase = .presented(tabID)
-    installEventMonitor()
+    directionTracker.reset()
+    installInputMonitor()
+    installMovementMonitor()
     observe(sourceWindow)
     presentationChanged?()
   }
@@ -301,56 +225,215 @@ final class TerminalSidebarHoverCardController {
     }
   }
 
-  private func trackPointer(at screenPoint: CGPoint) {
-    guard case .presented(let tabID) = phase else {
-      dismiss()
-      return
-    }
-    guard
-      let source = sourceForTab(tabID),
+  private func isInsideSafeHull(_ screenPoint: CGPoint, for tabID: TerminalTabID) -> Bool {
+    guard let source = sourceForTab(tabID),
       let sourceFrame = TerminalSidebarHoverCardGeometry.screenFrame(of: source.view),
       let cardFrame = presenter.frame
+    else { return false }
+    if sourceFrame.containsClosed(screenPoint) {
+      directionTracker.reset()
+      return true
+    }
+    if cardFrame.containsClosed(screenPoint) { return true }
+    let corridor = TerminalSidebarHoverCorridor(sourceFrame: sourceFrame, cardFrame: cardFrame)
+    let permitsHull = directionTracker.permitsHull(at: screenPoint, corridor: corridor)
+    return corridor.contains(screenPoint) && permitsHull
+  }
+
+  private func updatePresentedCard(to tabID: TerminalTabID) {
+    guard allowsPresentation(), let source = sourceForTab(tabID),
+      let content = observedContent(for: tabID)
     else {
       dismiss()
       return
     }
-    if sourceFrame.contains(screenPoint) || cardFrame.contains(screenPoint) {
-      phase = .presented(tabID)
+    cancelDismiss()
+    cancelDelayedUpdate()
+    guard presenter.update(content, sourceView: source.view, reduceMotion: reduceMotion()) else {
+      dismiss()
       return
     }
-    if TerminalSidebarHoverCorridor(sourceFrame: sourceFrame, cardFrame: cardFrame)
-      .contains(screenPoint)
-    {
-      return
-    }
-    dismiss()
+    phase = .presented(tabID)
+    directionTracker.reset()
   }
 
-  private func installEventMonitor() {
-    guard eventMonitor == nil else { return }
-    eventMonitor = NSEvent.addLocalMonitorForEvents(
-      matching: [
-        .mouseMoved, .leftMouseDragged, .rightMouseDragged, .otherMouseDragged,
-        .leftMouseDown, .rightMouseDown, .otherMouseDown, .keyDown,
-      ]
+  private func scheduleStopped() {
+    cancelStopped()
+    let token = stoppedToken.current
+    stoppedTask = Task { [weak self] in
+      do {
+        try await Task.sleep(for: TerminalSidebarHoverTiming.stopped)
+      } catch {
+        return
+      }
+      guard let self, stoppedToken.matches(token) else { return }
+      stoppedTask = nil
+      pointerStopped(at: NSEvent.mouseLocation)
+    }
+  }
+
+  private func pointerStopped(at screenPoint: CGPoint) {
+    let tabID = eligibleTabID(at: screenPoint)
+    let insideSafeHull = phase.tabID.map { isInsideSafeHull(screenPoint, for: $0) } ?? false
+    apply(
+      TerminalSidebarHoverInteraction.stopped(
+        phase: phase,
+        eligibleTabID: tabID,
+        insideSafeHull: insideSafeHull,
+        canReuseCard: presenter.frame != nil
+      )
+    )
+  }
+
+  private func apply(_ intent: TerminalSidebarHoverIntent) {
+    switch intent {
+    case .none:
+      return
+    case .replacePending(let tabID):
+      beginPending(tabID)
+    case .cancelPending:
+      cancelPendingPresentation()
+    case .cancelDismiss:
+      cancelDismiss()
+    case .rearmDismiss:
+      scheduleDismiss()
+    case .startCold(let tabID):
+      beginPending(tabID)
+      schedulePresentation(for: tabID, after: TerminalSidebarHoverTiming.coldPresentation)
+    case .reuse(let tabID):
+      reusePresentedCard(tabID)
+    case .present(let tabID):
+      cancelColdPresentation()
+      if phase.tabID != tabID { beginPending(tabID) }
+      present(tabID: tabID, generation: generation)
+    case .update(let tabID):
+      updatePresentedCard(to: tabID)
+    case .delayUpdate(let tabID):
+      schedulePresentedUpdate(to: tabID)
+    case .dismiss:
+      dismiss()
+    }
+  }
+
+  private func scheduleDismiss() {
+    guard case .presented = phase else { return }
+    cancelDismiss()
+    let token = dismissToken.current
+    let phase = phase
+    dismissTask = Task { [weak self] in
+      do {
+        try await Task.sleep(for: TerminalSidebarHoverTiming.dismiss)
+      } catch {
+        return
+      }
+      guard let self, dismissToken.matches(token), self.phase == phase else { return }
+      dismissTask = nil
+      dismiss()
+    }
+  }
+
+  private func reusePresentedCard(_ tabID: TerminalTabID) {
+    guard allowsPresentation(), let source = sourceForTab(tabID),
+      let sourceWindow = source.view.window, sourceWindow.isKeyWindow,
+      let content = observedContent(for: tabID),
+      presenter.update(content, sourceView: source.view, reduceMotion: reduceMotion())
+    else {
+      dismiss()
+      return
+    }
+    phase = .presented(tabID)
+    directionTracker.reset()
+    installInputMonitor()
+    installMovementMonitor()
+    observe(sourceWindow)
+    presentationChanged?()
+  }
+
+  private func schedulePresentedUpdate(to tabID: TerminalTabID) {
+    guard case .presented = phase else { return }
+    cancelDelayedUpdate()
+    let token = delayedUpdateToken.current
+    let phase = phase
+    delayedUpdateTask = Task { [weak self] in
+      do {
+        try await Task.sleep(for: TerminalSidebarHoverTiming.coldPresentation)
+      } catch {
+        return
+      }
+      guard let self, delayedUpdateToken.matches(token), self.phase == phase else { return }
+      delayedUpdateTask = nil
+      updatePresentedCard(to: tabID)
+    }
+  }
+
+  private func cancelPendingPresentation() {
+    guard case .pending = phase else { return }
+    generation &+= 1
+    cancelColdPresentation()
+    phase = .idle
+  }
+
+  private func cancelColdPresentation() {
+    coldPresentationTask?.cancel()
+    coldPresentationTask = nil
+  }
+
+  private func cancelStopped() {
+    stoppedToken.invalidate()
+    stoppedTask?.cancel()
+    stoppedTask = nil
+  }
+
+  private func cancelDismiss() {
+    dismissToken.invalidate()
+    dismissTask?.cancel()
+    dismissTask = nil
+  }
+
+  private func cancelDelayedUpdate() {
+    delayedUpdateToken.invalidate()
+    delayedUpdateTask?.cancel()
+    delayedUpdateTask = nil
+  }
+
+  private func installInputMonitor() {
+    guard inputMonitor == nil else { return }
+    inputMonitor = NSEvent.addLocalMonitorForEvents(
+      matching: [.leftMouseDown, .rightMouseDown, .otherMouseDown, .keyDown]
     ) { [weak self] event in
       MainActor.assumeIsolated {
-        self?.handle(event)
+        self?.handleInput(event)
       }
       return event
     }
   }
 
-  private func handle(_ event: NSEvent) {
+  private func installMovementMonitor() {
+    guard movementMonitor == nil else { return }
+    movementMonitor = NSEvent.addLocalMonitorForEvents(
+      matching: [.mouseMoved, .leftMouseDragged, .rightMouseDragged, .otherMouseDragged]
+    ) { [weak self] event in
+      MainActor.assumeIsolated {
+        self?.moved(to: NSEvent.mouseLocation)
+      }
+      return event
+    }
+  }
+
+  private func handleInput(_ event: NSEvent) {
     switch event.type {
-    case .mouseMoved, .leftMouseDragged, .rightMouseDragged, .otherMouseDragged:
-      trackPointer(at: screenPoint(for: event))
     case .leftMouseDown, .rightMouseDown, .otherMouseDown:
-      let point = screenPoint(for: event)
-      guard presenter.frame?.contains(point) == true else {
-        suppressSource(at: point)
-        dismiss()
+      let screenPoint = NSEvent.mouseLocation
+      switch TerminalSidebarHoverInputInteraction.mouseDown(
+        phase: phase,
+        pointedTabID: tabAtPoint(screenPoint),
+        isInsideCard: presenter.frame?.containsClosed(screenPoint) == true
+      ) {
+      case .keep:
         return
+      case .dismiss(let suppressedTabID):
+        self.suppressedTabID = suppressedTabID
+        dismiss()
       }
     case .keyDown:
       dismiss()
@@ -359,11 +442,21 @@ final class TerminalSidebarHoverCardController {
     }
   }
 
-  private func suppressSource(at screenPoint: CGPoint) {
-    guard let tabID = phase.tabID, let source = sourceForTab(tabID),
-      TerminalSidebarHoverCardGeometry.screenFrame(of: source.view)?.contains(screenPoint) == true
-    else { return }
-    suppressedTabID = tabID
+  private func eligibleTabID(at screenPoint: CGPoint) -> TerminalTabID? {
+    let pointedTabID = tabAtPoint(screenPoint)
+    if pointedTabID != suppressedTabID {
+      suppressedTabID = nil
+    }
+    guard
+      let pointedTabID = TerminalSidebarHoverInteraction.eligibleTabID(
+        pointedTabID: pointedTabID,
+        screenPoint: screenPoint,
+        cardFrame: presenter.frame
+      ), pointedTabID != suppressedTabID, content(pointedTabID) != nil
+    else {
+      return nil
+    }
+    return pointedTabID
   }
 
   private func observe(_ sourceWindow: NSWindow) {
@@ -394,10 +487,15 @@ final class TerminalSidebarHoverCardController {
     ]
   }
 
-  private func removeEventMonitor() {
-    guard let eventMonitor else { return }
-    NSEvent.removeMonitor(eventMonitor)
-    self.eventMonitor = nil
+  private func removeEventMonitors() {
+    if let inputMonitor {
+      NSEvent.removeMonitor(inputMonitor)
+      self.inputMonitor = nil
+    }
+    if let movementMonitor {
+      NSEvent.removeMonitor(movementMonitor)
+      self.movementMonitor = nil
+    }
   }
 
   private func removeObservers() {
@@ -405,11 +503,6 @@ final class TerminalSidebarHoverCardController {
       NotificationCenter.default.removeObserver(observer)
     }
     observers.removeAll()
-  }
-
-  private func screenPoint(for event: NSEvent) -> CGPoint {
-    guard let window = event.window else { return NSEvent.mouseLocation }
-    return window.convertToScreen(CGRect(origin: event.locationInWindow, size: .zero)).origin
   }
 }
 
@@ -441,13 +534,13 @@ private final class TerminalSidebarHoverCardPresenter {
     _ content: TerminalSidebarHoverCardContent,
     sourceView: NSView,
     reduceMotion: Bool
-  ) {
-    _ = apply(
+  ) -> Bool {
+    apply(
       content,
       sourceView: sourceView,
       reduceMotion: reduceMotion,
       animated: false
-    )
+    ) != nil
   }
 
   private func apply(

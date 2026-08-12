@@ -335,12 +335,14 @@ final class TerminalSidebarCollectionView: NSCollectionView {
   var onDraggingSessionMoved: ((NSPoint) -> Void)?
   var onDraggingSessionEnded: ((NSPoint, NSDragOperation) -> Void)?
   var onPointerMoved: ((CGPoint?) -> Void)?
+  var onPointerExited: (() -> Void)?
   var onWindowChanged: ((NSWindow?) -> Void)?
 
   var pointerLocation: CGPoint? {
     guard let window, window.isKeyWindow else { return nil }
     let point = convert(window.mouseLocationOutsideOfEventStream, from: nil)
-    return visibleRect.contains(point) ? point : nil
+    return TerminalSidebarHoverCardGeometry.isPointVisible(point, visibleRect: visibleRect)
+      ? point : nil
   }
 
   override init(frame frameRect: NSRect) {
@@ -369,17 +371,17 @@ final class TerminalSidebarCollectionView: NSCollectionView {
   }
 
   override func mouseEntered(with event: NSEvent) {
-    updatePointer(with: event)
+    updatePointer()
     super.mouseEntered(with: event)
   }
 
   override func mouseMoved(with event: NSEvent) {
-    updatePointer(with: event)
+    updatePointer()
     super.mouseMoved(with: event)
   }
 
   override func mouseExited(with event: NSEvent) {
-    onPointerMoved?(nil)
+    onPointerExited?()
     super.mouseExited(with: event)
   }
 
@@ -410,8 +412,8 @@ final class TerminalSidebarCollectionView: NSCollectionView {
     trackingRowPointer?.finishTracking()
   }
 
-  private func updatePointer(with event: NSEvent) {
-    onPointerMoved?(convert(event.locationInWindow, from: nil))
+  private func updatePointer() {
+    onPointerMoved?(pointerLocation)
   }
 
   override func draggingEntered(_ sender: any NSDraggingInfo) -> NSDragOperation {

@@ -143,7 +143,18 @@ final class TerminalSidebarListController: NSViewController, NSCollectionViewDel
   private let windowControllerID: UUID
   private let captureRequest: () -> TerminalWindowCaptureRequest?
   private lazy var hoverCardController = TerminalSidebarHoverCardController(
-    tabAtPoint: { [weak self] point in self?.hoveredTabID(at: point) },
+    tabAtPoint: { [weak self] screenPoint in
+      guard let self, let window = collectionView.window else { return nil }
+      let windowPoint = window.convertFromScreen(CGRect(origin: screenPoint, size: .zero)).origin
+      let point = collectionView.convert(windowPoint, from: nil)
+      guard
+        TerminalSidebarHoverCardGeometry.isPointVisible(
+          point,
+          visibleRect: collectionView.visibleRect
+        )
+      else { return nil }
+      return hoveredTabID(at: point)
+    },
     sourceForTab: { [weak self] tabID in self?.hoverCardSource(for: tabID) },
     content: { [weak self] tabID in self?.hoverCardContent(for: tabID) },
     allowsPresentation: { [weak self] in self?.allowsHoverCardPresentation == true },
@@ -325,7 +336,11 @@ final class TerminalSidebarListController: NSViewController, NSCollectionViewDel
     collectionView.addSubview(selectionGlowView, positioned: .below, relativeTo: nil)
     collectionView.onPointerMoved = { [weak self] point in
       self?.updateGroupHover(at: point)
-      self?.hoverCardController.pointerMoved(to: point)
+      self?.hoverCardController.pointerMoved()
+    }
+    collectionView.onPointerExited = { [weak self] in
+      self?.updateGroupHover(at: nil)
+      self?.hoverCardController.pointerExited()
     }
     collectionView.onWindowChanged = { [weak self] window in
       guard window == nil else { return }
