@@ -93,7 +93,7 @@ struct GhosttySurfaceViewEnvironmentTests {
   }
 
   @Test
-  func shellWithoutPromptReadinessUsesPrivateOneShotInput() throws {
+  func shellWithoutPromptReadinessDisplaysAndSourcesPrivateOneShotInput() throws {
     let temporaryDirectory = FileManager.default.temporaryDirectory.appendingPathComponent(
       "supaterm-shell-transport-tests-\(UUID().uuidString.lowercased())",
       isDirectory: true
@@ -130,6 +130,21 @@ struct GhosttySurfaceViewEnvironmentTests {
     #expect(initialInput?.contains(script) == false)
     #expect(try String(contentsOf: scriptURL, encoding: .utf8).hasSuffix(script))
     #expect(attributes[FileAttributeKey.posixPermissions] as? Int == 0o600)
+
+    let process = Process()
+    let output = Pipe()
+    process.executableURL = URL(fileURLWithPath: "/bin/bash")
+    process.arguments = ["-c", try #require(initialInput)]
+    process.standardOutput = output
+    try process.run()
+    process.waitUntilExit()
+
+    let displayedText = try #require(
+      String(bytes: output.fileHandleForReading.readDataToEndOfFile(), encoding: .utf8)
+    )
+    #expect(process.terminationStatus == 0)
+    #expect(displayedText.contains(script))
+    #expect(!FileManager.default.fileExists(atPath: scriptURL.path))
   }
 
   @Test

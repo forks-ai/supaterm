@@ -165,6 +165,7 @@ private struct GhosttyShellStartupFile {
       try Self.write(
         Data(
           """
+          /usr/bin/tail -n +3 -- \(scriptPath)
           /bin/rm -f -- \(scriptPath)
           \(script)
           """.utf8
