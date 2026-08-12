@@ -3,9 +3,11 @@ import Sharing
 
 extension SharedKey where Self == FileStorageKey<TerminalSessionCatalog>.Default {
   static var terminalSessionCatalog: Self {
-    Self[
+    let url = TerminalSessionCatalog.defaultURL()
+    TerminalSessionCatalogMigration.migrateStoredCatalog(at: url)
+    return Self[
       .fileStorage(
-        TerminalSessionCatalog.defaultURL(),
+        url,
         decoder: JSONDecoder(),
         encoder: TerminalSessionCatalog.fileStorageEncoder()
       ),

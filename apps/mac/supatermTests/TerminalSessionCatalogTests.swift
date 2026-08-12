@@ -48,6 +48,98 @@ struct TerminalSessionCatalogTests {
   }
 
   @Test
+  func migratesVersion10AgentChildrenToVersion11() throws {
+    let process = TerminalAgentProcessIdentity(processID: 123, startTimeMicroseconds: 456)
+    let record = TerminalPaneAgentRecord(
+      agent: .claude,
+      sessionID: "session-1",
+      processes: [process],
+      activeChildren: [
+        TerminalAgentActiveChild(
+          id: TerminalAgentActiveChild.Identity(
+            subagentID: "subagent-1",
+            sessionID: "session-1",
+            turnID: "turn-1"
+          ),
+          kind: .subagent,
+          nickname: nil,
+          role: nil,
+          phase: .running,
+          detail: nil
+        ),
+        TerminalAgentActiveChild(
+          id: TerminalAgentActiveChild.Identity(
+            subagentID: "workflow-1",
+            sessionID: "session-1",
+            turnID: "turn-1"
+          ),
+          kind: .workflow,
+          nickname: nil,
+          role: "workflow-subagent",
+          phase: .running,
+          detail: nil
+        ),
+      ]
+    )
+    let spaceID = TerminalSpaceID()
+    let catalog = TerminalSessionCatalog(
+      windows: [
+        TerminalWindowSession(
+          displayedSpaceID: spaceID,
+          spaces: [
+            spaceSession(
+              spaceID: spaceID,
+              tab: tabSession(title: "Agents", agents: [record])
+            )
+          ]
+        )
+      ]
+    )
+
+    let version10Data = try version10Data(from: catalog)
+    let migratedData = try TerminalSessionCatalogMigration.migrate(version10Data)
+    let migrated = try JSONDecoder().decode(
+      TerminalSessionCatalog.self,
+      from: try #require(migratedData)
+    )
+    let root = try #require(migrated.windows.first?.spaces.first?.tabs.first?.root)
+    guard case .leaf(let leaf) = root else {
+      Issue.record("Expected one restored pane")
+      return
+    }
+    let children = try #require(leaf.agents.first?.activeChildren)
+
+    #expect(migrated.version == 11)
+    #expect(children.map(\.kind) == [.subagent, .workflow])
+  }
+
+  @Test
+  func migratesStoredVersion10CatalogAtomically() throws {
+    let directory = FileManager.default.temporaryDirectory
+      .appendingPathComponent(UUID().uuidString, isDirectory: true)
+    try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+    defer { try? FileManager.default.removeItem(at: directory) }
+    let url = directory.appendingPathComponent("session.json")
+    let spaceID = TerminalSpaceID()
+    let catalog = TerminalSessionCatalog(
+      windows: [
+        TerminalWindowSession(
+          displayedSpaceID: spaceID,
+          spaces: [spaceSession(spaceID: spaceID, tab: tabSession(title: "Saved"))]
+        )
+      ]
+    )
+    try version10Data(from: catalog).write(to: url)
+
+    #expect(TerminalSessionCatalogMigration.migrateStoredCatalog(at: url))
+    let migrated = try JSONDecoder().decode(
+      TerminalSessionCatalog.self,
+      from: Data(contentsOf: url)
+    )
+    #expect(migrated == catalog)
+  }
+
+  @Test
   func windowSessionCarriesEverySpaceInstance() throws {
     let displayedSpaceID = TerminalSpaceID()
     let hiddenSpaceID = TerminalSpaceID()
@@ -509,7 +601,8 @@ struct TerminalSessionCatalogTests {
   private func tabSession(
     id: TerminalTabID = TerminalTabID(),
     title: String,
-    surfaceID: UUID = UUID()
+    surfaceID: UUID = UUID(),
+    agents: [TerminalPaneAgentRecord] = []
   ) -> TerminalTabSession {
     TerminalTabSession(
       id: id,
@@ -518,9 +611,40 @@ struct TerminalSessionCatalogTests {
       root: .leaf(
         TerminalPaneLeafSession(
           id: surfaceID,
-          workingDirectoryPath: nil
+          workingDirectoryPath: nil,
+          agents: agents
         )
       )
     )
+  }
+
+  private func version10Data(from catalog: TerminalSessionCatalog) throws -> Data {
+    let data = try TerminalSessionCatalog.fileStorageEncoder().encode(catalog)
+    guard var root = try JSONSerialization.jsonObject(with: data) as? [String: Any] else {
+      throw TerminalSessionCatalogMigration.MigrationError.invalidRoot
+    }
+    root["version"] = 10
+    root = removingActiveChildKinds(from: root) as? [String: Any] ?? root
+    return try JSONSerialization.data(withJSONObject: root, options: [.sortedKeys])
+  }
+
+  private func removingActiveChildKinds(from value: Any) -> Any {
+    if var object = value as? [String: Any] {
+      for key in Array(object.keys) {
+        guard let nestedValue = object[key] else { continue }
+        object[key] = removingActiveChildKinds(from: nestedValue)
+      }
+      if var children = object["activeChildren"] as? [[String: Any]] {
+        for index in children.indices {
+          children[index].removeValue(forKey: "kind")
+        }
+        object["activeChildren"] = children
+      }
+      return object
+    }
+    if let values = value as? [Any] {
+      return values.map(removingActiveChildKinds)
+    }
+    return value
   }
 }
