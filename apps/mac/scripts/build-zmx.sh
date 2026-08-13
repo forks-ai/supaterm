@@ -12,35 +12,8 @@ zmx_local_cache_dir="${zmx_build_root}/.zig-cache"
 zmx_global_cache_dir="${zmx_build_root}/.zig-global-cache"
 zmx_fingerprint_path="${zmx_build_root}/fingerprint"
 zmx_binary_path="${zmx_build_root}/bin/zmx"
-
-validate_zmx_binary() {
-  local binary_path="$1"
-  local smoke_dir
-
-  smoke_dir="$(mktemp -d /tmp/zmx-smoke.XXXXXX)"
-  if ! "${binary_path}" version >/dev/null 2>&1; then
-    rm -rf "${smoke_dir}"
-    return 1
-  fi
-  if ! ZMX_DIR="${smoke_dir}" "${binary_path}" ls --short >/dev/null 2>&1; then
-    rm -rf "${smoke_dir}"
-    return 1
-  fi
-  rm -rf "${smoke_dir}"
-}
-
-print_fingerprint() {
-  (
-    cd "${zmx_dir}"
-    {
-      git rev-parse HEAD
-      git diff --no-ext-diff --no-color HEAD -- . | shasum -a 256
-      git ls-files --others --exclude-standard | LC_ALL=C sort | shasum -a 256
-      shasum -a 256 "${script_path}" | awk '{print $1}'
-      mise exec -- zig version
-    } | shasum -a 256 | awk '{print $1}'
-  )
-}
+zmx_target="aarch64-macos.26.0"
+zmx_macos_minimum="26.0"
 
 ensure_zmx_checkout() {
   if [ -f "${zmx_dir}/build.zig" ]; then
@@ -57,6 +30,48 @@ ensure_zmx_checkout() {
 }
 
 ensure_zmx_checkout
+
+zmx_revision="$(git -C "${zmx_dir}" rev-parse --short=12 HEAD)"
+zmx_version="0.7.0+supaterm.${zmx_revision}"
+
+validate_zmx_binary() {
+  local binary_path="$1"
+  local architectures
+  local minos
+  local smoke_dir
+  local valid=0
+  local version_output
+
+  smoke_dir="$(mktemp -d /tmp/zmx-smoke.XXXXXX)"
+  architectures="$(lipo -archs "${binary_path}" 2>/dev/null || true)"
+  minos="$(xcrun vtool -show-build "${binary_path}" 2>/dev/null | awk '$1 == "minos" { print $2 }' | sort -u)"
+  version_output="$(ZMX_DIR="${smoke_dir}" "${binary_path}" version 2>/dev/null || true)"
+  if [ "${architectures}" = "arm64" ] &&
+    [ "${minos}" = "${zmx_macos_minimum}" ] &&
+    grep -Fq "${zmx_version}" <<<"${version_output}" &&
+    ZMX_DIR="${smoke_dir}" "${binary_path}" ls --short >/dev/null 2>&1 &&
+    [ "$(stat -f '%Lp' "${smoke_dir}")" = "700" ] &&
+    [ "$(stat -f '%Lp' "${smoke_dir}/logs")" = "700" ] &&
+    [ "$(stat -f '%Lp' "${smoke_dir}/logs/zmx.log")" = "600" ]; then
+    valid=1
+  fi
+  find "${smoke_dir}" -depth -delete
+  [ "${valid}" -eq 1 ]
+}
+
+print_fingerprint() {
+  (
+    cd "${zmx_dir}"
+    {
+      git rev-parse HEAD
+      git diff --no-ext-diff --no-color HEAD -- . | shasum -a 256
+      git ls-files --others --exclude-standard | LC_ALL=C sort | shasum -a 256
+      shasum -a 256 "${script_path}" | awk '{print $1}'
+      mise exec -- zig version
+      printf '%s\n' "${zmx_target}" "${zmx_version}"
+    } | shasum -a 256 | awk '{print $1}'
+  )
+}
 
 if [ "${1:-}" = "--print-fingerprint" ]; then
   print_fingerprint
@@ -78,7 +93,7 @@ if [ -f "${zmx_fingerprint_path}" ] &&
 fi
 
 cd "${zmx_dir}"
-mise exec -- zig build -Doptimize=ReleaseSafe --prefix "${zmx_build_root}" --cache-dir "${zmx_local_cache_dir}" --global-cache-dir "${zmx_global_cache_dir}"
+mise exec -- zig build -Doptimize=ReleaseSafe -Dtarget="${zmx_target}" -Dversion="${zmx_version}" --prefix "${zmx_build_root}" --cache-dir "${zmx_local_cache_dir}" --global-cache-dir "${zmx_global_cache_dir}"
 
 if [ ! -x "${zmx_binary_path}" ]; then
   echo "error: zmx build produced no binary at ${zmx_binary_path}" >&2
