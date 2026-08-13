@@ -178,7 +178,7 @@ struct TerminalSpaceSwitcherLabel: View {
 
   var body: some View {
     Text(name)
-      .font(.system(size: 12, weight: .medium))
+      .font(.system(size: 12, weight: .bold))
       .lineLimit(1)
       .foregroundStyle(palette.spaceTitle)
       .padding(.horizontal, 8)
