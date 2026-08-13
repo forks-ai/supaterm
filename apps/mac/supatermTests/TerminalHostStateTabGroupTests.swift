@@ -219,18 +219,8 @@ struct TerminalHostStateTabGroupTests {
           at: .root(TerminalRootPlacement(isPinned: false, index: 1))
         )
       )
-      let confirmingTabIDs = Set([first])
       #expect(
-        TerminalHostState.anyTabNeedsCloseConfirmation(
-          host.spaceManager.tabCollection.tabIDs(in: groupID),
-          tabNeedsCloseConfirmation: confirmingTabIDs.contains
-        )
-      )
-      #expect(
-        host.resolvedCloseRequest(
-          for: .group(groupID),
-          needsConfirmationOverride: true
-        )
+        host.resolvedCloseRequest(for: .group(groupID))
           == .request(
             TerminalCloseRequest(target: .group(groupID), needsConfirmation: true)
           )
@@ -250,6 +240,28 @@ struct TerminalHostStateTabGroupTests {
       #expect(host.spaceManager.tab(for: second) == nil)
       #expect(host.spaceManager.tab(for: lateChild) == nil)
       #expect(host.spaceManager.tab(for: survivor) != nil)
+    }
+  }
+
+  @Test
+  func singleTabGroupDoesNotNeedConfirmationWithoutLiveProcess() throws {
+    try withDependencies {
+      $0.defaultFileStorage = .inMemory
+    } operation: {
+      let host = TerminalHostState(managesTerminalSurfaces: false)
+      let manager = host.spaceManager.tabCollection
+      let groupedTab = manager.createTab(title: "Grouped")
+      _ = manager.createTab(title: "Survivor")
+      let groupID = try #require(
+        host.createGroup(title: "Group", containing: [groupedTab])
+      ).groupID
+
+      #expect(
+        host.resolvedCloseRequest(for: .group(groupID))
+          == .request(
+            TerminalCloseRequest(target: .group(groupID), needsConfirmation: false)
+          )
+      )
     }
   }
 

@@ -404,17 +404,22 @@ extension TerminalHostState {
       guard let manager = spaceManager.instance(for: groupID)?.tabCollection else { return nil }
       let tabIDs = manager.tabIDs(in: groupID)
       guard !tabIDs.isEmpty else { return nil }
+      let groupNeedsCloseConfirmation = tabIDs.count > 1
+        || Self.anyTabNeedsCloseConfirmation(
+          tabIDs,
+          tabNeedsCloseConfirmation: tabNeedsCloseConfirmation
+        )
       if shouldCloseWindow(afterClosing: tabIDs) {
-        return .window(needsConfirmation: needsConfirmationOverride ?? windowNeedsCloseConfirmation())
+        return .window(
+          needsConfirmation: needsConfirmationOverride
+            ?? groupNeedsCloseConfirmation
+        )
       }
       return .request(
         TerminalCloseRequest(
           target: .group(groupID),
           needsConfirmation: needsConfirmationOverride
-            ?? Self.anyTabNeedsCloseConfirmation(
-              tabIDs,
-              tabNeedsCloseConfirmation: tabNeedsCloseConfirmation
-            )
+            ?? groupNeedsCloseConfirmation
         )
       )
     }
