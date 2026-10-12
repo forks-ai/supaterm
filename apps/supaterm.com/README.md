@@ -45,3 +45,5 @@ make web-deploy
 ```
 
 The first deploy creates the Worker and publishes a `workers.dev` URL. Attach `legacy.supaterm.com` as a custom domain in Cloudflare after that deploy succeeds.
+
+The root-domain compatibility Worker lives in `apps/supaterm-compat` and keeps old appcast and download URLs redirecting to the legacy host.

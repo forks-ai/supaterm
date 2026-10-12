@@ -39,20 +39,6 @@ afterEach(() => {
 });
 
 describe("worker", () => {
-  it("redirects old product URLs to the legacy host", async () => {
-    const assetsFetch = vi.fn();
-
-    const response = await worker.fetch(
-      new Request("https://supaterm.com/download/latest/appcast.xml?build=1"),
-      { ASSETS: { fetch: assetsFetch } as AssetBinding },
-    );
-
-    expect(assetsFetch).not.toHaveBeenCalled();
-    expect(response.status).toBe(308);
-    expect(response.headers.get("location")).toBe(
-      "https://legacy.supaterm.com/download/latest/appcast.xml?build=1",
-    );
-  });
   it("proxies latest release assets", async () => {
     const upstreamFetch = vi.fn().mockResolvedValue(
       new Response("stable", {
