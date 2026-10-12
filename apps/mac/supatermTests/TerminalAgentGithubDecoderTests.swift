@@ -41,10 +41,10 @@ extension TerminalAgentPanelTests {
                   "deletions": 2,
                   "state": "OPEN",
                   "isDraft": false,
-                  "url": "https://github.com/supabitapp/supaterm/pull/39",
+                  "url": "https://github.com/supabitapp/supaterm-legacy/pull/39",
                   "baseRefName": "main",
                   "headRepository": {
-                    "name": "supaterm",
+                    "name": "supaterm-legacy",
                     "owner": { "login": "supabitapp" }
                   },
                   "commits": {"nodes": []}
@@ -60,7 +60,7 @@ extension TerminalAgentPanelTests {
       remote: TerminalAgentGithubRemote(
         host: "github.com",
         owner: "supabitapp",
-        repo: "supaterm"
+        repo: "supaterm-legacy"
       )
     )
 
@@ -70,7 +70,7 @@ extension TerminalAgentPanelTests {
     #expect(statuses["feature/b"]?.title == "Create pull request")
     #expect(
       statuses["feature/b"]?.url?.absoluteString
-        == "https://github.com/supabitapp/supaterm/compare/feature/b?expand=1"
+        == "https://github.com/supabitapp/supaterm-legacy/compare/feature/b?expand=1"
     )
   }
 
@@ -130,10 +130,10 @@ extension TerminalAgentPanelTests {
                   "deletions": 29,
                   "state": "OPEN",
                   "isDraft": false,
-                  "url": "https://github.com/supabitapp/supaterm/pull/39",
+                  "url": "https://github.com/supabitapp/supaterm-legacy/pull/39",
                   "baseRefName": "main",
                   "headRepository": {
-                    "name": "supaterm",
+                    "name": "supaterm-legacy",
                     "owner": { "login": "supabitapp" }
                   },
                   "commits": {
@@ -214,10 +214,10 @@ extension TerminalAgentPanelTests {
                   "deletions": 3,
                   "state": "OPEN",
                   "isDraft": false,
-                  "url": "https://github.com/supabitapp/supaterm/pull/40",
+                  "url": "https://github.com/supabitapp/supaterm-legacy/pull/40",
                   "baseRefName": "main",
                   "headRepository": {
-                    "name": "supaterm",
+                    "name": "supaterm-legacy",
                     "owner": { "login": "supabitapp" }
                   },
                   "commits": {
@@ -316,10 +316,10 @@ extension TerminalAgentPanelTests {
                   "deletions": 3,
                   "state": "OPEN",
                   "isDraft": false,
-                  "url": "https://github.com/supabitapp/supaterm/pull/41",
+                  "url": "https://github.com/supabitapp/supaterm-legacy/pull/41",
                   "baseRefName": "main",
                   "headRepository": {
-                    "name": "supaterm",
+                    "name": "supaterm-legacy",
                     "owner": { "login": "supabitapp" }
                   },
                   "commits": {
@@ -336,8 +336,8 @@ extension TerminalAgentPanelTests {
                                   "name": "build",
                                   "status": "COMPLETED",
                                   "conclusion": "SUCCESS",
-                                  "detailsUrl": "https://github.com/supabitapp/supaterm/actions/runs/1/job/2",
-                                  "url": "https://github.com/supabitapp/supaterm/runs/2"
+                                  "detailsUrl": "https://github.com/supabitapp/supaterm-legacy/actions/runs/1/job/2",
+                                  "url": "https://github.com/supabitapp/supaterm-legacy/runs/2"
                                 },
                                 {
                                   "__typename": "StatusContext",
@@ -362,7 +362,7 @@ extension TerminalAgentPanelTests {
     )
     let items = try #require(status.checks?.items)
 
-    #expect(items[0].url?.absoluteString == "https://github.com/supabitapp/supaterm/actions/runs/1/job/2")
+    #expect(items[0].url?.absoluteString == "https://github.com/supabitapp/supaterm-legacy/actions/runs/1/job/2")
     #expect(items[1].url?.absoluteString == "https://ci.example.com/supaterm/41")
   }
 
@@ -445,10 +445,10 @@ extension TerminalAgentPanelTests {
                   "deletions": 29,
                   "state": "OPEN",
                   "isDraft": false,
-                  "url": "https://github.com/supabitapp/supaterm/pull/39",
+                  "url": "https://github.com/supabitapp/supaterm-legacy/pull/39",
                   "baseRefName": "main",
                   "headRepository": {
-                    "name": "supaterm",
+                    "name": "supaterm-legacy",
                     "owner": { "login": "supabitapp" }
                   },
                   "commits": {
@@ -489,7 +489,7 @@ extension TerminalAgentPanelTests {
     TerminalAgentGithubClient.decodePullRequestStatuses(
       json,
       aliasMap: ["branch0": "feature"],
-      remote: TerminalAgentGithubRemote(host: "github.com", owner: "supabitapp", repo: "supaterm")
+      remote: TerminalAgentGithubRemote(host: "github.com", owner: "supabitapp", repo: "supaterm-legacy")
     )["feature"] ?? .unavailable
   }
 
@@ -510,10 +510,10 @@ extension TerminalAgentPanelTests {
                   "deletions": 2,
                   "state": "\(state)",
                   "isDraft": \(isDraft),
-                  "url": "https://github.com/supabitapp/supaterm/pull/39",
+                  "url": "https://github.com/supabitapp/supaterm-legacy/pull/39",
                   "baseRefName": "main",
                   "headRepository": {
-                    "name": "supaterm",
+                    "name": "supaterm-legacy",
                     "owner": { "login": "supabitapp" }
                   },
                   "commits": {"nodes": []}
@@ -546,12 +546,12 @@ extension TerminalAgentPanelTests {
                   "deletions": 2,
                   "state": "OPEN",
                   "isDraft": false,
-                  "url": "https://github.com/supabitapp/supaterm/pull/39",
+                  "url": "https://github.com/supabitapp/supaterm-legacy/pull/39",
                   "baseRefName": "main",
                   "autoMergeRequest": \(autoMergeRequest),
                   "mergeQueueEntry": \(mergeQueueEntry),
                   "headRepository": {
-                    "name": "supaterm",
+                    "name": "supaterm-legacy",
                     "owner": { "login": "supabitapp" }
                   },
                   "commits": {"nodes": []}

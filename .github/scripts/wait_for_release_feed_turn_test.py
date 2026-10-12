@@ -70,10 +70,10 @@ class WorkflowRunsTest(unittest.TestCase):
     ]
 
     self.assertEqual(
-      workflow_runs("supabitapp/supaterm", "token"),
+      workflow_runs("supabitapp/supaterm-legacy", "token"),
       [*first_page, final_run],
     )
-    base = "https://api.github.com/repos/supabitapp/supaterm/actions/workflows"
+    base = "https://api.github.com/repos/supabitapp/supaterm-legacy/actions/workflows"
     self.assertEqual(
       request_json.call_args_list,
       [
@@ -94,7 +94,7 @@ class WorkflowRunsTest(unittest.TestCase):
     )
 
     with self.assertRaises(urllib.error.HTTPError):
-      workflow_runs("supabitapp/supaterm", "token")
+      workflow_runs("supabitapp/supaterm-legacy", "token")
 
 
 class WaitForTurnTest(unittest.TestCase):

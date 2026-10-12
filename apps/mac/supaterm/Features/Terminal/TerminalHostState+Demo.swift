@@ -151,7 +151,7 @@
           pullRequestStatus: PaneAgentPullRequestStatus(
             kind: .open,
             title: "PR #42 Agent panel state",
-            url: URL(string: "https://supaterm.com"),
+            url: URL(string: "https://legacy.supaterm.com"),
             addedLineCount: 120,
             removedLineCount: 18,
             checks: PaneAgentPullRequestChecks(

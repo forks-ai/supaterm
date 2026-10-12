@@ -1,6 +1,6 @@
 const githubOrigin = "https://github.com";
-const releaseBasePath = "/supabitapp/supaterm/releases/download/";
-const latestBasePath = "/supabitapp/supaterm/releases/latest/download/";
+const releaseBasePath = "/supabitapp/supaterm-legacy/releases/download/";
+const latestBasePath = "/supabitapp/supaterm-legacy/releases/latest/download/";
 const checksumAssetName = "checksums.json";
 const appcastAssetName = "appcast.xml";
 const volatileCacheControl = "public, max-age=300";

@@ -207,7 +207,7 @@ jobs:
           trap 'rm -rf "$STAGING"' EXIT
           cp apps/mac/build/supaterm.app.zip "$STAGING/"
           printf "%s" "$SPARKLE_PRIVATE_KEY" | tr -d '\r\n\t ' | apps/Tuist/.build/artifacts/sparkle/Sparkle/bin/generate_appcast \
-            --download-url-prefix "https://supaterm.com/download/tip/" \
+            --download-url-prefix "https://legacy.supaterm.com/download/tip/" \
             --maximum-versions 1 \
             --ed-key-file - "$STAGING"
           /usr/bin/python3 .github/scripts/merge_appcasts.py stamp \

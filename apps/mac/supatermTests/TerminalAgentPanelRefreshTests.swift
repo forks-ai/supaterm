@@ -321,7 +321,7 @@ extension TerminalAgentPanelTests {
         PaneAgentPullRequestStatus(
           kind: .open,
           title: "#9",
-          url: URL(string: "https://github.com/supabitapp/supaterm/pull/9"),
+          url: URL(string: "https://github.com/supabitapp/supaterm-legacy/pull/9"),
           addedLineCount: 34,
           removedLineCount: 5,
           checks: nil
@@ -336,7 +336,7 @@ extension TerminalAgentPanelTests {
           branchName: "feature/flicker",
           addedLineCount: 12,
           removedLineCount: 3,
-          remoteURL: "https://github.com/supabitapp/supaterm.git"
+          remoteURL: "https://github.com/supabitapp/supaterm-legacy.git"
         )
       }
       let githubClient = TerminalAgentGithubClient { _, branchName in

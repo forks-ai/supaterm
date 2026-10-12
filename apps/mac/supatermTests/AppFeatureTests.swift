@@ -27,7 +27,7 @@ struct AppFeatureTests {
       LicenseClient.Snapshot(entitlement: entitlement, hasLicenseKey: true)
     }
     let runtime = LicenseRuntime(client: client)
-    let downloadURL = URL(string: "https://supaterm.com/download/v26.3.0/supaterm.dmg")!
+    let downloadURL = URL(string: "https://legacy.supaterm.com/download/v26.3.0/supaterm.dmg")!
     let requestedDay = LockIsolated<LicenseDay?>(nil)
     let openedURL = LockIsolated<URL?>(nil)
     let store = TestStore(initialState: AppLicenseFeature.State(runtime: runtime)) {

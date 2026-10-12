@@ -360,7 +360,7 @@ let project = Project(
         "PostHogPersonProfiles": "$(POSTHOG_PERSON_PROFILES)",
         "SupatermDevelopmentBuild": "$(SUPATERM_DEVELOPMENT_BUILD)",
         "SupatermReleaseDate": "$(SUPATERM_RELEASE_DATE)",
-        "SUFeedURL": "https://supaterm.com/download/latest/appcast.xml",
+        "SUFeedURL": "https://legacy.supaterm.com/download/latest/appcast.xml",
         "SUPublicEDKey": "$(SPARKLE_PUBLIC_ED_KEY)",
         "SUEnableAutomaticChecks": true,
         "SUAutomaticallyUpdate": true,

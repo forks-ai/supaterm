@@ -141,7 +141,7 @@ install-tip: # Install tip build from github
 	echo "Closing running Supaterm..."; \
 	pkill -x supaterm 2>/dev/null || true; \
 	echo "Downloading tip release..."; \
-	curl -fsSL --show-error "https://github.com/supabitapp/supaterm/releases/download/tip/supaterm.dmg" -o "$$tmpdir/supaterm.dmg"; \
+	curl -fsSL --show-error "https://github.com/supabitapp/supaterm-legacy/releases/download/tip/supaterm.dmg" -o "$$tmpdir/supaterm.dmg"; \
 	echo "Mounting disk image..."; \
 	mount_dir="$$(hdiutil attach "$$tmpdir/supaterm.dmg" -nobrowse -plist | plutil -p - | awk -F '=> ' '/"mount-point"/ { gsub(/"/, "", $$2); print $$2; exit }')"; \
 	if [ -z "$$mount_dir" ]; then echo "Could not mount disk image"; exit 1; fi; \

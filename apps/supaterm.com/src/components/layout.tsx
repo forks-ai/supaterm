@@ -7,8 +7,8 @@ import { buttonVariants } from "@/components/ui/button";
 import { downloadHref } from "@/lib/downloads";
 import { cn } from "@/lib/utils";
 
-const githubHref = "https://github.com/supabitapp/supaterm";
-const releasesHref = "https://github.com/supabitapp/supaterm/releases";
+const githubHref = "https://github.com/supabitapp/supaterm-legacy";
+const releasesHref = "https://github.com/supabitapp/supaterm-legacy/releases";
 const docsHref = "https://docs.supaterm.com";
 
 const ctaIcons = {

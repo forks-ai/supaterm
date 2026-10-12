@@ -39,6 +39,20 @@ afterEach(() => {
 });
 
 describe("worker", () => {
+  it("redirects old product URLs to the legacy host", async () => {
+    const assetsFetch = vi.fn();
+
+    const response = await worker.fetch(
+      new Request("https://supaterm.com/download/latest/appcast.xml?build=1"),
+      { ASSETS: { fetch: assetsFetch } as AssetBinding },
+    );
+
+    expect(assetsFetch).not.toHaveBeenCalled();
+    expect(response.status).toBe(308);
+    expect(response.headers.get("location")).toBe(
+      "https://legacy.supaterm.com/download/latest/appcast.xml?build=1",
+    );
+  });
   it("proxies latest release assets", async () => {
     const upstreamFetch = vi.fn().mockResolvedValue(
       new Response("stable", {
@@ -50,7 +64,7 @@ describe("worker", () => {
     vi.stubGlobal("fetch", upstreamFetch);
 
     const response = await worker.fetch(
-      new Request("https://supaterm.com/download/latest/appcast.xml?build=1"),
+      new Request("https://legacy.supaterm.com/download/latest/appcast.xml?build=1"),
       { ASSETS: { fetch: assetsFetch } as AssetBinding },
     );
 
@@ -60,7 +74,7 @@ describe("worker", () => {
     const [target, init] = upstreamFetch.mock.calls[0] as [URL, RequestInit & { headers: Headers }];
 
     expect(target.toString()).toBe(
-      "https://github.com/supabitapp/supaterm/releases/latest/download/appcast.xml",
+      "https://github.com/supabitapp/supaterm-legacy/releases/latest/download/appcast.xml",
     );
     expect(init.method).toBe("GET");
     expect(init.headers.get("host")).toBeNull();
@@ -79,7 +93,7 @@ describe("worker", () => {
     vi.stubGlobal("fetch", upstreamFetch);
 
     const response = await worker.fetch(
-      new Request("https://supaterm.com/download/tip/appcast.xml?build=1"),
+      new Request("https://legacy.supaterm.com/download/tip/appcast.xml?build=1"),
       { ASSETS: { fetch: assetsFetch } as AssetBinding },
     );
 
@@ -89,7 +103,7 @@ describe("worker", () => {
     const [target, init] = upstreamFetch.mock.calls[0] as [URL, RequestInit & { headers: Headers }];
 
     expect(target.toString()).toBe(
-      "https://github.com/supabitapp/supaterm/releases/latest/download/appcast.xml",
+      "https://github.com/supabitapp/supaterm-legacy/releases/latest/download/appcast.xml",
     );
     expect(init.method).toBe("GET");
     expect(init.headers.get("host")).toBeNull();
@@ -107,7 +121,7 @@ describe("worker", () => {
     vi.stubGlobal("fetch", upstreamFetch);
 
     const response = await worker.fetch(
-      new Request("https://supaterm.com/download/tip/supaterm.dmg?build=1"),
+      new Request("https://legacy.supaterm.com/download/tip/supaterm.dmg?build=1"),
       { ASSETS: { fetch: vi.fn() } as AssetBinding },
     );
 
@@ -116,7 +130,7 @@ describe("worker", () => {
     const [target, init] = upstreamFetch.mock.calls[0] as [URL, RequestInit & { headers: Headers }];
 
     expect(target.toString()).toBe(
-      "https://github.com/supabitapp/supaterm/releases/download/tip/supaterm.dmg",
+      "https://github.com/supabitapp/supaterm-legacy/releases/download/tip/supaterm.dmg",
     );
     expect(init.method).toBe("GET");
     expect(init.headers.get("host")).toBeNull();
@@ -136,7 +150,8 @@ describe("worker", () => {
       expect(headers.get("cookie")).toBeNull();
 
       if (
-        url === "https://github.com/supabitapp/supaterm/releases/download/v26.0.0/checksums.json"
+        url ===
+        "https://github.com/supabitapp/supaterm-legacy/releases/download/v26.0.0/checksums.json"
       ) {
         return Response.json({
           assets: {
@@ -149,7 +164,7 @@ describe("worker", () => {
       }
 
       expect(url).toBe(
-        "https://github.com/supabitapp/supaterm/releases/download/v26.0.0/supaterm.dmg",
+        "https://github.com/supabitapp/supaterm-legacy/releases/download/v26.0.0/supaterm.dmg",
       );
       return new Response(body, { headers: { etag: '"dmg"' } });
     });
@@ -157,7 +172,7 @@ describe("worker", () => {
     vi.stubGlobal("fetch", upstreamFetch);
 
     const first = await worker.fetch(
-      new Request("https://supaterm.com/download/v26.0.0/supaterm.dmg?build=1", {
+      new Request("https://legacy.supaterm.com/download/v26.0.0/supaterm.dmg?build=1", {
         headers: {
           Authorization: "Bearer secret",
           Cookie: "session=secret",
@@ -175,7 +190,9 @@ describe("worker", () => {
     upstreamFetch.mockClear();
 
     const second = await worker.fetch(
-      new Request("https://supaterm.com/download/v26.0.0/supaterm.dmg?source=website&build=2"),
+      new Request(
+        "https://legacy.supaterm.com/download/v26.0.0/supaterm.dmg?source=website&build=2",
+      ),
       { ASSETS: { fetch: vi.fn() } as AssetBinding },
     );
 
@@ -187,10 +204,10 @@ describe("worker", () => {
     expect(store.size).toBe(1);
     expect(cache.put).toHaveBeenCalledTimes(1);
     expect(cache.put.mock.calls[0]?.[0].url).toBe(
-      "https://supaterm.com/download/v26.0.0/supaterm.dmg",
+      "https://legacy.supaterm.com/download/v26.0.0/supaterm.dmg",
     );
     expect(cache.match.mock.calls[1]?.[0].url).toBe(
-      "https://supaterm.com/download/v26.0.0/supaterm.dmg",
+      "https://legacy.supaterm.com/download/v26.0.0/supaterm.dmg",
     );
   });
 
@@ -199,7 +216,7 @@ describe("worker", () => {
     vi.stubGlobal("fetch", upstreamFetch);
 
     await worker.fetch(
-      new Request("https://supaterm.com/download/latest/appcast.xml", {
+      new Request("https://legacy.supaterm.com/download/latest/appcast.xml", {
         headers: {
           Accept: "application/octet-stream",
           Authorization: "Bearer secret",
@@ -253,12 +270,15 @@ describe("worker", () => {
 
     vi.stubGlobal("fetch", upstreamFetch);
 
-    await worker.fetch(new Request("https://supaterm.com/download/tip/supaterm.dmg?build=1"), {
-      ASSETS: { fetch: vi.fn() } as AssetBinding,
-    });
+    await worker.fetch(
+      new Request("https://legacy.supaterm.com/download/tip/supaterm.dmg?build=1"),
+      {
+        ASSETS: { fetch: vi.fn() } as AssetBinding,
+      },
+    );
 
     const response = await worker.fetch(
-      new Request("https://supaterm.com/download/tip/supaterm.dmg?build=1"),
+      new Request("https://legacy.supaterm.com/download/tip/supaterm.dmg?build=1"),
       { ASSETS: { fetch: vi.fn() } as AssetBinding },
     );
 
@@ -286,7 +306,7 @@ describe("worker", () => {
     vi.stubGlobal("fetch", upstreamFetch);
 
     const response = await worker.fetch(
-      new Request("https://supaterm.com/download/v26.0.0/supaterm.dmg"),
+      new Request("https://legacy.supaterm.com/download/v26.0.0/supaterm.dmg"),
       { ASSETS: { fetch: vi.fn() } as AssetBinding },
     );
 
@@ -309,7 +329,7 @@ describe("worker", () => {
     vi.stubGlobal("fetch", upstreamFetch);
 
     const response = await worker.fetch(
-      new Request("https://supaterm.com/download/v26.0.0/supaterm.dmg"),
+      new Request("https://legacy.supaterm.com/download/v26.0.0/supaterm.dmg"),
       { ASSETS: { fetch: vi.fn() } as AssetBinding },
     );
 
@@ -326,7 +346,7 @@ describe("worker", () => {
     vi.stubGlobal("fetch", upstreamFetch);
 
     const response = await worker.fetch(
-      new Request("https://supaterm.com/download/v26.0.0/supaterm.dmg", {
+      new Request("https://legacy.supaterm.com/download/v26.0.0/supaterm.dmg", {
         headers: { Range: "bytes=0-4" },
       }),
       { ASSETS: { fetch: vi.fn() } as AssetBinding },
@@ -335,7 +355,7 @@ describe("worker", () => {
     expect(upstreamFetch).toHaveBeenCalledTimes(1);
     const [target, init] = upstreamFetch.mock.calls[0] as [URL, RequestInit & { headers: Headers }];
     expect(target.toString()).toBe(
-      "https://github.com/supabitapp/supaterm/releases/download/v26.0.0/supaterm.dmg",
+      "https://github.com/supabitapp/supaterm-legacy/releases/download/v26.0.0/supaterm.dmg",
     );
     expect(init.headers.get("range")).toBe("bytes=0-4");
     expect(response.headers.get("cache-control")).toBe("no-store");
@@ -349,14 +369,14 @@ describe("worker", () => {
     vi.stubGlobal("fetch", upstreamFetch);
 
     const response = await worker.fetch(
-      new Request("https://supaterm.com/download/v26.0.0/supaterm.dmg", { method: "HEAD" }),
+      new Request("https://legacy.supaterm.com/download/v26.0.0/supaterm.dmg", { method: "HEAD" }),
       { ASSETS: { fetch: vi.fn() } as AssetBinding },
     );
 
     expect(upstreamFetch).toHaveBeenCalledTimes(1);
     const [target, init] = upstreamFetch.mock.calls[0] as [URL, RequestInit & { headers: Headers }];
     expect(target.toString()).toBe(
-      "https://github.com/supabitapp/supaterm/releases/download/v26.0.0/supaterm.dmg",
+      "https://github.com/supabitapp/supaterm-legacy/releases/download/v26.0.0/supaterm.dmg",
     );
     expect(init.method).toBe("HEAD");
     expect(response.headers.get("cache-control")).toBe("no-store");
@@ -368,7 +388,7 @@ describe("worker", () => {
     vi.stubGlobal("fetch", upstreamFetch);
 
     const response = await worker.fetch(
-      new Request("https://supaterm.com/download/tip/supaterm.dmg", { method: "POST" }),
+      new Request("https://legacy.supaterm.com/download/tip/supaterm.dmg", { method: "POST" }),
       {
         ASSETS: { fetch: vi.fn() } as AssetBinding,
       },
@@ -382,7 +402,7 @@ describe("worker", () => {
   it("falls back to static assets for non-download routes", async () => {
     const assetsFetch = vi.fn().mockResolvedValue(new Response("site"));
 
-    const response = await worker.fetch(new Request("https://supaterm.com/"), {
+    const response = await worker.fetch(new Request("https://legacy.supaterm.com/"), {
       ASSETS: { fetch: assetsFetch } as AssetBinding,
     });
 
@@ -405,14 +425,14 @@ describe("worker", () => {
       .mockResolvedValueOnce(new Response("missing", { status: 404 }))
       .mockResolvedValueOnce(new Response("index"));
 
-    const response = await worker.fetch(new Request("https://supaterm.com/changelog"), {
+    const response = await worker.fetch(new Request("https://legacy.supaterm.com/changelog"), {
       ASSETS: { fetch: assetsFetch } as AssetBinding,
     });
 
     expect(assetsFetch).toHaveBeenCalledTimes(2);
     const fallbackRequest = assetsFetch.mock.calls[1]?.[0];
     expect(fallbackRequest).toBeInstanceOf(Request);
-    expect((fallbackRequest as Request).url).toBe("https://supaterm.com/index.html");
+    expect((fallbackRequest as Request).url).toBe("https://legacy.supaterm.com/index.html");
     await expect(response.text()).resolves.toBe("index");
   });
 
@@ -423,7 +443,7 @@ describe("worker", () => {
       '<meta name="description" content="The terminal with skills" />',
       '<meta property="og:title" content="Supaterm - The terminal with skills" />',
       '<meta property="og:description" content="Fast native terminal for you and your agents." />',
-      '<meta property="og:url" content="https://supaterm.com" />',
+      '<meta property="og:url" content="https://legacy.supaterm.com" />',
       '<meta name="twitter:title" content="Supaterm" />',
       '<meta name="twitter:description" content="The terminal with skills" />',
       "</head><body></body></html>",
@@ -434,7 +454,7 @@ describe("worker", () => {
       .mockResolvedValueOnce(new Response("missing", { status: 404 }))
       .mockResolvedValueOnce(new Response(shellHtml, { headers: { "content-type": "text/html" } }));
 
-    const response = await worker.fetch(new Request("https://supaterm.com/changelog"), {
+    const response = await worker.fetch(new Request("https://legacy.supaterm.com/changelog"), {
       ASSETS: { fetch: assetsFetch } as AssetBinding,
     });
 
@@ -442,7 +462,7 @@ describe("worker", () => {
     expect(html).toContain("<title>Supaterm - What's New</title>");
     expect(html).toContain('og:title" content="Supaterm - What\'s New"');
     expect(html).toContain('og:description" content="See what\'s new in Supaterm');
-    expect(html).toContain('og:url" content="https://supaterm.com/changelog"');
+    expect(html).toContain('og:url" content="https://legacy.supaterm.com/changelog"');
     expect(html).toContain('twitter:title" content="Supaterm - What\'s New"');
     expect(html).toContain('twitter:description" content="See what\'s new in Supaterm');
     expect(html).not.toContain("The terminal with skills");
@@ -451,7 +471,7 @@ describe("worker", () => {
   it("does not serve the SPA shell for missing routes with file extensions", async () => {
     const assetsFetch = vi.fn().mockResolvedValue(new Response("missing", { status: 404 }));
 
-    const response = await worker.fetch(new Request("https://supaterm.com/missing.dmg"), {
+    const response = await worker.fetch(new Request("https://legacy.supaterm.com/missing.dmg"), {
       ASSETS: { fetch: assetsFetch } as AssetBinding,
     });
 
@@ -468,7 +488,7 @@ describe("worker", () => {
     );
 
     const response = await worker.fetch(
-      new Request("https://supaterm.com/assets/demo.mp4", {
+      new Request("https://legacy.supaterm.com/assets/demo.mp4", {
         headers: { Range: "bytes=2-5" },
       }),
       {
@@ -491,9 +511,12 @@ describe("worker", () => {
       }),
     );
 
-    const response = await worker.fetch(new Request("https://supaterm.com/assets/demo.mp4"), {
-      ASSETS: { fetch: assetsFetch } as AssetBinding,
-    });
+    const response = await worker.fetch(
+      new Request("https://legacy.supaterm.com/assets/demo.mp4"),
+      {
+        ASSETS: { fetch: assetsFetch } as AssetBinding,
+      },
+    );
 
     expect(assetsFetch).toHaveBeenCalledTimes(1);
     expect(response.status).toBe(200);
@@ -509,7 +532,7 @@ describe("worker", () => {
     );
 
     const response = await worker.fetch(
-      new Request("https://supaterm.com/assets/demo.mp4", {
+      new Request("https://legacy.supaterm.com/assets/demo.mp4", {
         headers: { Range: "bytes=8-9" },
       }),
       {
@@ -526,9 +549,12 @@ describe("worker", () => {
     const upstreamFetch = vi.fn();
     vi.stubGlobal("fetch", upstreamFetch);
 
-    const response = await worker.fetch(new Request("https://supaterm.com/download/latest/"), {
-      ASSETS: { fetch: vi.fn() } as AssetBinding,
-    });
+    const response = await worker.fetch(
+      new Request("https://legacy.supaterm.com/download/latest/"),
+      {
+        ASSETS: { fetch: vi.fn() } as AssetBinding,
+      },
+    );
 
     expect(upstreamFetch).not.toHaveBeenCalled();
     expect(response.status).toBe(404);

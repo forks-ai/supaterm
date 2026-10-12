@@ -206,7 +206,7 @@ extension SnapshotCatalog {
       "clipboard-write",
       title: "Clipboard write",
       request: .kittyWrite,
-      preview: "https://github.com/supabitapp/supaterm/pull/252",
+      preview: "https://github.com/supabitapp/supaterm-legacy/pull/252",
       canRemember: true
     ),
     clipboardScenario(
@@ -239,7 +239,7 @@ extension SnapshotCatalog {
     ownershipEndedScenario(
       "update-ownership-ended-with-download",
       title: "Updates entitlement ended with included release",
-      latestIncludedReleaseURL: URL(string: "https://supaterm.com/download/26.8.0")
+      latestIncludedReleaseURL: URL(string: "https://legacy.supaterm.com/download/26.8.0")
     ),
   ]
 

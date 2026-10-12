@@ -1,7 +1,7 @@
 # Supaterm
 A terminal for ur coding agents.
 
-![](https://supaterm.com/og.png)
+![](https://legacy.supaterm.com/og.png)
 
 ## Development
 

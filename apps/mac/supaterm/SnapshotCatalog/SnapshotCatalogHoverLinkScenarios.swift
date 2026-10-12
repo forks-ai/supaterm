@@ -17,9 +17,9 @@ extension SnapshotCatalog {
 private struct HoverLinkSnapshotFixture: View {
   let appearance: SnapshotAppearance
 
-  private let link = "https://supaterm.com/docs/links"
+  private let link = "https://legacy.supaterm.com/docs/links"
   private let longLink =
-    "https://supaterm.com/docs/terminal/hovered-link-feedback?window=alpha&pane=right"
+    "https://legacy.supaterm.com/docs/terminal/hovered-link-feedback?window=alpha&pane=right"
 
   private var palette: Palette {
     Palette(colorScheme: appearance.colorScheme)

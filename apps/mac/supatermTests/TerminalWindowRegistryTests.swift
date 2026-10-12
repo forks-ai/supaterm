@@ -1284,7 +1284,7 @@ struct TerminalWindowRegistryTests {
         )
       )
       let pullRequestURL = try #require(
-        URL(string: "https://github.com/supabitapp/supaterm/pull/170")
+        URL(string: "https://github.com/supabitapp/supaterm-legacy/pull/170")
       )
       #expect(
         host.storeAgentPanelBranchDetails(

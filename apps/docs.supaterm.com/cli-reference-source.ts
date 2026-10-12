@@ -19,7 +19,7 @@ const prepareEntry = (entry: SourceEntry, repositoryRef: string): SourceEntry =>
       text: body,
     },
     data: { ...entry.data, title },
-    editUrl: `https://github.com/supabitapp/supaterm/edit/${repositoryRef}/integrations/supaterm/skill-data/core/references/${entry.ref}`,
+    editUrl: `https://github.com/supabitapp/supaterm-legacy/edit/${repositoryRef}/integrations/supaterm/skill-data/core/references/${entry.ref}`,
     raw: `---\ntitle: ${JSON.stringify(title)}\n---\n\n${body}`,
   };
 };
