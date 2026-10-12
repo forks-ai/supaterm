@@ -57,6 +57,7 @@ class AffectedProjectsTests(unittest.TestCase):
       "apps/mac/README.md": set(),
       "apps/docs.supaterm.com/content/guide.md": {"docs"},
       "apps/supaterm.com/src/app.ts": {"web"},
+      "apps/supaterm-compat/worker.ts": {"web"},
       "apps/mac/supaterm/App.swift": {"mac"},
       "apps/mac/supaterm/Resources/AgentDetection/rules.json": {"mac"},
       "apps/ios/SupatermApp.swift": {"ios"},

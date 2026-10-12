@@ -98,19 +98,6 @@ const methodNotAllowed = () =>
 const notFound = () => new Response("Not Found", { status: 404 });
 
 const getAssets = (env: Env) => env.ASSETS;
-const legacyHost = "legacy.supaterm.com";
-const compatibilityHosts = new Set(["supaterm.com", "www.supaterm.com"]);
-
-const redirectCompatibilityRequest = (request: Request) => {
-  const url = new URL(request.url);
-  if (!compatibilityHosts.has(url.hostname)) {
-    return null;
-  }
-
-  const target = new URL(url);
-  target.hostname = legacyHost;
-  return Response.redirect(target, 308);
-};
 const isVideoAsset = (pathname: string) => pathname.endsWith(".mp4");
 
 const withResponseHeaders = (response: Response, additions: Record<string, string>) => {
@@ -396,11 +383,6 @@ export default {
   async fetch(request: Request, env: Env) {
     const url = new URL(request.url);
     const pathname = url.pathname;
-    const compatibilityRedirect = redirectCompatibilityRequest(request);
-
-    if (compatibilityRedirect) {
-      return compatibilityRedirect;
-    }
 
     if (isDownloadPath(pathname)) {
       return proxyDownloadAsset(request);

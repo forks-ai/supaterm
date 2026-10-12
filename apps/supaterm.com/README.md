@@ -32,7 +32,7 @@ make web-worker-dev
 
 ## Deploy
 
-GitHub Actions deploys this app with Wrangler. The repo requires these secrets:
+GitHub Actions deploys the compatibility Worker first and this app second so the exclusive root-domain custom domains transfer in one ordered job. The repo requires these secrets:
 
 - `CLOUDFLARE_ACCOUNT_ID`
 - `CLOUDFLARE_API_TOKEN`
@@ -45,3 +45,5 @@ make web-deploy
 ```
 
 The first deploy creates the Worker and publishes a `workers.dev` URL. Attach `legacy.supaterm.com` as a custom domain in Cloudflare after that deploy succeeds.
+
+The root-domain compatibility Worker lives in `apps/supaterm-compat` and keeps old appcast and download URLs redirecting to the legacy host.
