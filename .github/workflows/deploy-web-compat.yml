@@ -1,0 +1,42 @@
+name: deploy-web-compat
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "apps/supaterm-compat/**"
+      - ".github/workflows/deploy-web-compat.yml"
+  pull_request:
+    branches:
+      - main
+    paths:
+      - "apps/supaterm-compat/**"
+      - ".github/workflows/deploy-web-compat.yml"
+  workflow_dispatch: {}
+
+concurrency:
+  group: deploy-web-compat-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  compat:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30af803
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38
+        with:
+          node-version: 24
+      - name: Test compatibility Worker
+        working-directory: apps/supaterm-compat
+        run: node --experimental-strip-types worker.test.ts
+      - name: Deploy compatibility Worker
+        if: github.event_name == 'workflow_dispatch' || github.event_name == 'push'
+        uses: cloudflare/wrangler-action@ebbaa1584979971c8614a24965b4405ff95890e0
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          workingDirectory: apps/supaterm-compat
+          command: deploy
