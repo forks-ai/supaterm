@@ -1,7 +1,7 @@
 import ProjectDescription
 
 let tuist = Tuist(
-  fullHandle: "supabitapp/supaterm-legacy",
+  fullHandle: "supabitapp/supaterm",
   inspectOptions: .options(
     redundantDependencies: .redundantDependencies(
       ignoreTagsMatching: [
