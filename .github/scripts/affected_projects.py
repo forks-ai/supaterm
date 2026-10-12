@@ -89,7 +89,7 @@ MAC_PATHS = PathSet(
 )
 WEB_PATHS = PathSet(
   files=frozenset({".github/workflows/deploy-web.yml"}),
-  directories=("apps/supaterm.com",),
+  directories=("apps/supaterm-compat", "apps/supaterm.com"),
 )
 PROJECT_PATHS = {
   "docs": (GLOBAL_PATHS, DOCS_PATHS),

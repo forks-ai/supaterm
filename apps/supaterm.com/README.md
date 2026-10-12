@@ -32,7 +32,7 @@ make web-worker-dev
 
 ## Deploy
 
-GitHub Actions deploys this app with Wrangler. The repo requires these secrets:
+GitHub Actions deploys the compatibility Worker first and this app second so the exclusive root-domain custom domains transfer in one ordered job. The repo requires these secrets:
 
 - `CLOUDFLARE_ACCOUNT_ID`
 - `CLOUDFLARE_API_TOKEN`
