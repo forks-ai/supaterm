@@ -8,6 +8,7 @@ on:
       - "apps/supaterm.com/**"
       - "apps/supaterm-compat/**"
       - ".github/workflows/deploy-web.yml"
+      - ".github/workflows/deploy-web-compat.yml"
       - "Makefile"
       - "mise.toml"
   pull_request:
@@ -17,6 +18,7 @@ on:
       - "apps/supaterm.com/**"
       - "apps/supaterm-compat/**"
       - ".github/workflows/deploy-web.yml"
+      - ".github/workflows/deploy-web-compat.yml"
       - "Makefile"
       - "mise.toml"
   workflow_dispatch: {}
@@ -55,20 +57,9 @@ jobs:
       - run: make web-install
       - run: make web-check
       - run: make web-test
-      - name: Test compatibility Worker
-        working-directory: apps/supaterm-compat
-        run: node --experimental-strip-types worker.test.ts
       - name: Audit production dependencies
         run: cd apps/supaterm.com && pnpm audit --prod --audit-level high
       - run: make web-build
-      - name: Deploy compatibility Worker
-        if: github.event_name == 'workflow_dispatch' || github.event_name == 'push'
-        uses: cloudflare/wrangler-action@ebbaa1584979971c8614a24965b4405ff95890e0
-        with:
-          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          workingDirectory: apps/supaterm-compat
-          command: deploy
       - name: Deploy Worker
         if: github.event_name == 'workflow_dispatch' || github.event_name == 'push'
         uses: cloudflare/wrangler-action@ebbaa1584979971c8614a24965b4405ff95890e0
