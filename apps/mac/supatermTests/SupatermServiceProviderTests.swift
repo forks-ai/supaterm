@@ -24,7 +24,7 @@ struct SupatermServiceProviderTests {
   @Test
   func urlTextDoesNotProduceDirectoryPath() {
     let pasteboard = makePasteboard()
-    #expect(pasteboard.setString("https://supaterm.com/docs", forType: .URL))
+    #expect(pasteboard.setString("https://legacy.supaterm.com/docs", forType: .URL))
 
     #expect(SupatermServiceProvider.directoryPaths(from: pasteboard).isEmpty)
   }

@@ -15,7 +15,7 @@ Open Supaterm from Applications after the installation completes.
 
 ## Disk image
 
-1. [Download the latest Supaterm disk image](https://supaterm.com/download/latest/supaterm.dmg).
+1. [Download the latest Supaterm disk image](https://legacy.supaterm.com/download/latest/supaterm.dmg).
 2. Open the disk image and move Supaterm to Applications.
 3. Launch Supaterm.
 

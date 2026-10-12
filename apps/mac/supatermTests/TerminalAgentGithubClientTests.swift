@@ -41,19 +41,19 @@ extension TerminalAgentPanelTests {
   @Test
   func githubRemoteParserHandlesCommonRemoteURLs() throws {
     #expect(
-      TerminalAgentGithubRemote(remoteURL: "git@github.com:supabitapp/supaterm.git")
-        == TerminalAgentGithubRemote(host: "github.com", owner: "supabitapp", repo: "supaterm")
+      TerminalAgentGithubRemote(remoteURL: "git@github.com:supabitapp/supaterm-legacy.git")
+        == TerminalAgentGithubRemote(host: "github.com", owner: "supabitapp", repo: "supaterm-legacy")
     )
     #expect(
-      TerminalAgentGithubRemote(remoteURL: "https://github.com/supabitapp/supaterm.git")
-        == TerminalAgentGithubRemote(host: "github.com", owner: "supabitapp", repo: "supaterm")
+      TerminalAgentGithubRemote(remoteURL: "https://github.com/supabitapp/supaterm-legacy.git")
+        == TerminalAgentGithubRemote(host: "github.com", owner: "supabitapp", repo: "supaterm-legacy")
     )
     #expect(
-      TerminalAgentGithubRemote(remoteURL: "ssh://git@github.example.com/supabitapp/supaterm.git")
+      TerminalAgentGithubRemote(remoteURL: "ssh://git@github.example.com/supabitapp/supaterm-legacy.git")
         == TerminalAgentGithubRemote(
           host: "github.example.com",
           owner: "supabitapp",
-          repo: "supaterm"
+          repo: "supaterm-legacy"
         )
     )
   }
@@ -87,14 +87,14 @@ extension TerminalAgentPanelTests {
     let status = await client.pullRequestStatus(
       repoRoot: URL(fileURLWithPath: "/tmp/repo", isDirectory: true),
       branchName: "khoi/agent-panel",
-      remote: TerminalAgentGithubRemote(remoteURL: "git@github.com:supabitapp/supaterm.git")
+      remote: TerminalAgentGithubRemote(remoteURL: "git@github.com:supabitapp/supaterm-legacy.git")
     )
 
     #expect(status.kind == .none)
     #expect(status.title == "Create pull request")
     #expect(
       status.url?.absoluteString
-        == "https://github.com/supabitapp/supaterm/compare/khoi/agent-panel?expand=1"
+        == "https://github.com/supabitapp/supaterm-legacy/compare/khoi/agent-panel?expand=1"
     )
   }
 
@@ -111,12 +111,12 @@ extension TerminalAgentPanelTests {
     async let first = client.pullRequestStatus(
       repoRoot: repoRoot,
       branchName: "khoi/agent-panel",
-      remote: TerminalAgentGithubRemote(remoteURL: "https://github.com/supabitapp/supaterm.git")
+      remote: TerminalAgentGithubRemote(remoteURL: "https://github.com/supabitapp/supaterm-legacy.git")
     )
     async let second = client.pullRequestStatus(
       repoRoot: repoRoot,
       branchName: "khoi/agent-panel",
-      remote: TerminalAgentGithubRemote(remoteURL: "https://github.com/supabitapp/supaterm.git")
+      remote: TerminalAgentGithubRemote(remoteURL: "https://github.com/supabitapp/supaterm-legacy.git")
     )
 
     #expect(await first.kind == .open)
@@ -130,7 +130,7 @@ extension TerminalAgentPanelTests {
     let fresh = await client.pullRequestStatus(
       repoRoot: repoRoot,
       branchName: "khoi/agent-panel",
-      remote: TerminalAgentGithubRemote(remoteURL: "https://github.com/supabitapp/supaterm.git")
+      remote: TerminalAgentGithubRemote(remoteURL: "https://github.com/supabitapp/supaterm-legacy.git")
     )
 
     #expect(fresh.kind == .open)
@@ -156,17 +156,17 @@ extension TerminalAgentPanelTests {
     async let first = client.pullRequestStatus(
       repoRoot: repoRoot,
       branchName: "feature/a",
-      remote: TerminalAgentGithubRemote(remoteURL: "https://github.com/supabitapp/supaterm.git")
+      remote: TerminalAgentGithubRemote(remoteURL: "https://github.com/supabitapp/supaterm-legacy.git")
     )
     async let second = client.pullRequestStatus(
       repoRoot: repoRoot,
       branchName: "feature/b",
-      remote: TerminalAgentGithubRemote(remoteURL: "https://github.com/supabitapp/supaterm.git")
+      remote: TerminalAgentGithubRemote(remoteURL: "https://github.com/supabitapp/supaterm-legacy.git")
     )
     async let third = client.pullRequestStatus(
       repoRoot: repoRoot,
       branchName: "feature/c",
-      remote: TerminalAgentGithubRemote(remoteURL: "https://github.com/supabitapp/supaterm.git")
+      remote: TerminalAgentGithubRemote(remoteURL: "https://github.com/supabitapp/supaterm-legacy.git")
     )
 
     #expect(await first.title == "#101")
@@ -196,32 +196,32 @@ extension TerminalAgentPanelTests {
     async let first = client.pullRequestStatus(
       repoRoot: repoRoot,
       branchName: branches[0],
-      remote: TerminalAgentGithubRemote(remoteURL: "https://github.com/supabitapp/supaterm.git")
+      remote: TerminalAgentGithubRemote(remoteURL: "https://github.com/supabitapp/supaterm-legacy.git")
     )
     async let second = client.pullRequestStatus(
       repoRoot: repoRoot,
       branchName: branches[1],
-      remote: TerminalAgentGithubRemote(remoteURL: "https://github.com/supabitapp/supaterm.git")
+      remote: TerminalAgentGithubRemote(remoteURL: "https://github.com/supabitapp/supaterm-legacy.git")
     )
     async let third = client.pullRequestStatus(
       repoRoot: repoRoot,
       branchName: branches[2],
-      remote: TerminalAgentGithubRemote(remoteURL: "https://github.com/supabitapp/supaterm.git")
+      remote: TerminalAgentGithubRemote(remoteURL: "https://github.com/supabitapp/supaterm-legacy.git")
     )
     async let fourth = client.pullRequestStatus(
       repoRoot: repoRoot,
       branchName: branches[3],
-      remote: TerminalAgentGithubRemote(remoteURL: "https://github.com/supabitapp/supaterm.git")
+      remote: TerminalAgentGithubRemote(remoteURL: "https://github.com/supabitapp/supaterm-legacy.git")
     )
     async let fifth = client.pullRequestStatus(
       repoRoot: repoRoot,
       branchName: branches[4],
-      remote: TerminalAgentGithubRemote(remoteURL: "https://github.com/supabitapp/supaterm.git")
+      remote: TerminalAgentGithubRemote(remoteURL: "https://github.com/supabitapp/supaterm-legacy.git")
     )
     async let sixth = client.pullRequestStatus(
       repoRoot: repoRoot,
       branchName: branches[5],
-      remote: TerminalAgentGithubRemote(remoteURL: "https://github.com/supabitapp/supaterm.git")
+      remote: TerminalAgentGithubRemote(remoteURL: "https://github.com/supabitapp/supaterm-legacy.git")
     )
 
     _ = await (first, second, third, fourth, fifth, sixth)
@@ -248,12 +248,12 @@ extension TerminalAgentPanelTests {
     async let first = client.pullRequestStatus(
       repoRoot: repoRoot,
       branchName: "feature/a",
-      remote: TerminalAgentGithubRemote(remoteURL: "https://github.com/supabitapp/supaterm.git")
+      remote: TerminalAgentGithubRemote(remoteURL: "https://github.com/supabitapp/supaterm-legacy.git")
     )
     async let second = client.pullRequestStatus(
       repoRoot: repoRoot,
       branchName: "feature/b",
-      remote: TerminalAgentGithubRemote(remoteURL: "https://github.example.com/supabitapp/supaterm.git")
+      remote: TerminalAgentGithubRemote(remoteURL: "https://github.example.com/supabitapp/supaterm-legacy.git")
     )
 
     #expect(await first.title == "#101")
@@ -274,14 +274,14 @@ extension TerminalAgentPanelTests {
     let status = await client.pullRequestStatus(
       repoRoot: URL(fileURLWithPath: "/tmp/repo", isDirectory: true),
       branchName: "feature/missing",
-      remote: TerminalAgentGithubRemote(remoteURL: "https://github.com/supabitapp/supaterm.git")
+      remote: TerminalAgentGithubRemote(remoteURL: "https://github.com/supabitapp/supaterm-legacy.git")
     )
 
     #expect(status.kind == .none)
     #expect(status.title == "Create pull request")
     #expect(
       status.url?.absoluteString
-        == "https://github.com/supabitapp/supaterm/compare/feature/missing?expand=1"
+        == "https://github.com/supabitapp/supaterm-legacy/compare/feature/missing?expand=1"
     )
   }
 
@@ -300,7 +300,7 @@ extension TerminalAgentPanelTests {
     let status = await client.pullRequestStatus(
       repoRoot: URL(fileURLWithPath: "/tmp/repo", isDirectory: true),
       branchName: "feature/retry",
-      remote: TerminalAgentGithubRemote(remoteURL: "https://github.com/supabitapp/supaterm.git")
+      remote: TerminalAgentGithubRemote(remoteURL: "https://github.com/supabitapp/supaterm-legacy.git")
     )
 
     #expect(status.title == "#104")
@@ -431,10 +431,10 @@ private actor GithubPullRequestCommandRecorder {
       "deletions": 3,
       "state": "OPEN",
       "isDraft": false,
-      "url": "https://github.com/supabitapp/supaterm/pull/\(number)",
+      "url": "https://github.com/supabitapp/supaterm-legacy/pull/\(number)",
       "baseRefName": "main",
       "headRepository": {
-        "name": "supaterm",
+        "name": "supaterm-legacy",
         "owner": { "login": "supabitapp" }
       },
       "commits": {

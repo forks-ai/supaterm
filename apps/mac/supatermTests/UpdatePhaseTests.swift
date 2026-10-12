@@ -170,7 +170,7 @@ struct UpdatePhaseTests {
     let phase = UpdatePhase.ownershipEnded(
       UpdatePhase.OwnershipEnded(
         licenseID: "00112233445566778899aabbccddeeff",
-        latestIncludedReleaseURL: URL(string: "https://supaterm.com/download/2.zip"),
+        latestIncludedReleaseURL: URL(string: "https://legacy.supaterm.com/download/2.zip"),
         updatesThrough: try #require(LicenseDay("2026-08-21")),
         version: "6"
       )

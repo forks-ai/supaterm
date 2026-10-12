@@ -52,7 +52,7 @@ struct UpdateOwnershipTests {
       in: [try release(version: "2", day: "2026-08-21")]
     )
 
-    #expect(result == .install(URL(string: "https://supaterm.com/download/2.zip")!))
+    #expect(result == .install(URL(string: "https://legacy.supaterm.com/download/2.zip")!))
   }
 
   @Test
@@ -135,7 +135,7 @@ struct UpdateOwnershipTests {
 
     #expect(
       driver.bestValidUpdate(in: releases)
-        == .install(URL(string: "https://supaterm.com/download/3.zip")!)
+        == .install(URL(string: "https://legacy.supaterm.com/download/3.zip")!)
     )
   }
 
@@ -157,7 +157,7 @@ struct UpdateOwnershipTests {
       through: try #require(LicenseDay("2026-08-21"))
     )
 
-    #expect(result == URL(string: "https://supaterm.com/download/2.zip"))
+    #expect(result == URL(string: "https://legacy.supaterm.com/download/2.zip"))
   }
 
   @Test
@@ -179,7 +179,7 @@ struct UpdateOwnershipTests {
       driver.ownershipEnded(in: releases, releaseURL: { $0 })
         == UpdatePhase.OwnershipEnded(
           licenseID: "00112233445566778899aabbccddeeff",
-          latestIncludedReleaseURL: URL(string: "https://supaterm.com/download/2.zip"),
+          latestIncludedReleaseURL: URL(string: "https://legacy.supaterm.com/download/2.zip"),
           updatesThrough: try #require(LicenseDay("2026-08-21")),
           version: "6"
         )
@@ -188,7 +188,7 @@ struct UpdateOwnershipTests {
 
   @Test
   func windowlessOwnershipEndedUsesSharedActionsAndOpensLatestIncludedRelease() throws {
-    let downloadURL = try #require(URL(string: "https://supaterm.com/download/2.zip"))
+    let downloadURL = try #require(URL(string: "https://legacy.supaterm.com/download/2.zip"))
     var presentedPhase: UpdatePhase?
     var presentedActions: [UpdateActionPresentation] = []
     var openedURL: URL?
@@ -274,7 +274,7 @@ struct UpdateOwnershipTests {
     #expect(
       driver.bestValidUpdate(
         in: [try release(version: "3000001", day: "2026-08-21", channel: "tip")]
-      ) == .install(URL(string: "https://supaterm.com/download/3000001.zip")!)
+      ) == .install(URL(string: "https://legacy.supaterm.com/download/3000001.zip")!)
     )
   }
 
@@ -410,7 +410,7 @@ struct UpdateOwnershipTests {
       throw UpdateOwnershipTestError.invalidDay
     }
     return UpdateRelease(
-      value: URL(string: "https://supaterm.com/download/\(version).zip")!,
+      value: URL(string: "https://legacy.supaterm.com/download/\(version).zip")!,
       version: version,
       releaseDay: releaseDay,
       channel: channel

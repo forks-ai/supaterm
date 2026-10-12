@@ -42,12 +42,12 @@ export default defineConfig({
     featured: [
       {
         label: "Download Supaterm",
-        href: "https://supaterm.com/download/latest/supaterm.dmg",
+        href: "https://legacy.supaterm.com/download/latest/supaterm.dmg",
         icon: "download",
       },
       {
         label: "Changelog",
-        href: "https://supaterm.com/changelog",
+        href: "https://legacy.supaterm.com/changelog",
         icon: "history",
       },
     ],

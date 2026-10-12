@@ -18,7 +18,7 @@ const routeMeta: Record<string, Record<string, string>> = {
     description: "See what's new in Supaterm — latest features, improvements, and fixes.",
     "og:title": "Supaterm - What's New",
     "og:description": "See what's new in Supaterm — latest features, improvements, and fixes.",
-    "og:url": "https://supaterm.com/changelog",
+    "og:url": "https://legacy.supaterm.com/changelog",
     "twitter:title": "Supaterm - What's New",
     "twitter:description": "See what's new in Supaterm — latest features, improvements, and fixes.",
   },
@@ -27,21 +27,21 @@ const routeMeta: Record<string, Record<string, string>> = {
     description: "Terms for buying and using Supaterm.",
     "og:title": "Terms of service - Supaterm",
     "og:description": "Terms for buying and using Supaterm.",
-    "og:url": "https://supaterm.com/terms",
+    "og:url": "https://legacy.supaterm.com/terms",
   },
   "/privacy": {
     title: "Privacy policy - Supaterm",
     description: "How Supaterm handles personal data.",
     "og:title": "Privacy policy - Supaterm",
     "og:description": "How Supaterm handles personal data.",
-    "og:url": "https://supaterm.com/privacy",
+    "og:url": "https://legacy.supaterm.com/privacy",
   },
   "/refunds": {
     title: "Refund and cancellation policy - Supaterm",
     description: "Refund and cancellation terms for Supaterm licenses.",
     "og:title": "Refund and cancellation policy - Supaterm",
     "og:description": "Refund and cancellation terms for Supaterm licenses.",
-    "og:url": "https://supaterm.com/refunds",
+    "og:url": "https://legacy.supaterm.com/refunds",
   },
 };
 
@@ -98,6 +98,19 @@ const methodNotAllowed = () =>
 const notFound = () => new Response("Not Found", { status: 404 });
 
 const getAssets = (env: Env) => env.ASSETS;
+const legacyHost = "legacy.supaterm.com";
+const compatibilityHosts = new Set(["supaterm.com", "www.supaterm.com"]);
+
+const redirectCompatibilityRequest = (request: Request) => {
+  const url = new URL(request.url);
+  if (!compatibilityHosts.has(url.hostname)) {
+    return null;
+  }
+
+  const target = new URL(url);
+  target.hostname = legacyHost;
+  return Response.redirect(target, 308);
+};
 const isVideoAsset = (pathname: string) => pathname.endsWith(".mp4");
 
 const withResponseHeaders = (response: Response, additions: Record<string, string>) => {
@@ -381,7 +394,13 @@ const proxyDownloadAsset = async (request: Request) => {
 
 export default {
   async fetch(request: Request, env: Env) {
-    const pathname = new URL(request.url).pathname;
+    const url = new URL(request.url);
+    const pathname = url.pathname;
+    const compatibilityRedirect = redirectCompatibilityRequest(request);
+
+    if (compatibilityRedirect) {
+      return compatibilityRedirect;
+    }
 
     if (isDownloadPath(pathname)) {
       return proxyDownloadAsset(request);

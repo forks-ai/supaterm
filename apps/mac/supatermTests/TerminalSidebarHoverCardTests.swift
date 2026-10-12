@@ -40,7 +40,7 @@ struct TerminalSidebarHoverCardTests {
 
   @Test
   func pullRequestModelPreservesURL() throws {
-    let url = try #require(URL(string: "https://github.com/supabitapp/supaterm/pull/128"))
+    let url = try #require(URL(string: "https://github.com/supabitapp/supaterm-legacy/pull/128"))
     let status = PaneAgentPullRequestStatus(
       kind: .open,
       title: "#128",
@@ -57,7 +57,7 @@ struct TerminalSidebarHoverCardTests {
 
   @Test @MainActor
   func pullRequestActionOpensURL() throws {
-    let url = try #require(URL(string: "https://github.com/supabitapp/supaterm/pull/128"))
+    let url = try #require(URL(string: "https://github.com/supabitapp/supaterm-legacy/pull/128"))
     let pullRequest = TerminalTabAgentWorkspace.PullRequest(
       kind: .open,
       title: "#128",
@@ -163,7 +163,7 @@ struct TerminalSidebarHoverCardTests {
         pullRequest: TerminalTabAgentWorkspace.PullRequest(
           kind: .open,
           title: "#128",
-          url: URL(string: "https://github.com/supabitapp/supaterm/pull/128")
+          url: URL(string: "https://github.com/supabitapp/supaterm-legacy/pull/128")
         )
       ),
       response: nil

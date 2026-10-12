@@ -59,7 +59,7 @@ extension SnapshotCatalog {
               pullRequestStatus: PaneAgentPullRequestStatus(
                 kind: .open,
                 title: "PR #128",
-                url: URL(string: "https://github.com/supabitapp/supaterm/pull/128"),
+                url: URL(string: "https://github.com/supabitapp/supaterm-legacy/pull/128"),
                 addedLineCount: 1482,
                 removedLineCount: 28,
                 checks: PaneAgentPullRequestChecks(
@@ -72,7 +72,7 @@ extension SnapshotCatalog {
                       workflowName: "test",
                       startedAt: Date(timeIntervalSince1970: 1_786_000_000),
                       completedAt: Date(timeIntervalSince1970: 1_786_000_420),
-                      url: URL(string: "https://github.com/supabitapp/supaterm/actions")
+                      url: URL(string: "https://github.com/supabitapp/supaterm-legacy/actions")
                     ),
                     PaneAgentPullRequestCheck(name: "mac-test", state: .inProgress, workflowName: "test"),
                     PaneAgentPullRequestCheck(name: "inspect dependencies", status: .passing),
@@ -84,7 +84,7 @@ extension SnapshotCatalog {
             artifacts: [
               PaneAgentArtifact(
                 title: "Snapshot diff bundle",
-                url: URL(string: "https://supaterm.com/artifacts/snapshots")!
+                url: URL(string: "https://legacy.supaterm.com/artifacts/snapshots")!
               )
             ],
             session: PaneAgentPanelSession.supported(agent: .codex, sessionID: "session-26-0701")!
@@ -116,7 +116,7 @@ extension SnapshotCatalog {
               pullRequestStatus: PaneAgentPullRequestStatus(
                 kind: .open,
                 title: "#132",
-                url: URL(string: "https://github.com/supabitapp/supaterm/pull/132"),
+                url: URL(string: "https://github.com/supabitapp/supaterm-legacy/pull/132"),
                 addedLineCount: 42,
                 removedLineCount: 7,
                 checks: nil,
@@ -150,7 +150,7 @@ extension SnapshotCatalog {
               pullRequestStatus: PaneAgentPullRequestStatus(
                 kind: .merged,
                 title: "Merged PR #117",
-                url: URL(string: "https://github.com/supabitapp/supaterm/pull/117"),
+                url: URL(string: "https://github.com/supabitapp/supaterm-legacy/pull/117"),
                 addedLineCount: 82,
                 removedLineCount: 19,
                 checks: PaneAgentPullRequestChecks(

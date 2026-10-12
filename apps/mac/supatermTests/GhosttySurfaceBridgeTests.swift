@@ -12,12 +12,12 @@ import Testing
 struct GhosttySurfaceBridgeTests {
   @Test
   func openUrlRequestPreservesHTTPSURL() {
-    let request = withOpenURLAction(url: "https://supaterm.com/changelog") {
+    let request = withOpenURLAction(url: "https://legacy.supaterm.com/changelog") {
       ghosttyOpenURLRequest(from: $0.action.open_url)
     }
 
     #expect(request?.kind == .unknown)
-    #expect(request?.url.absoluteString == "https://supaterm.com/changelog")
+    #expect(request?.url.absoluteString == "https://legacy.supaterm.com/changelog")
     #expect(request?.url.isFileURL == false)
   }
 
@@ -48,14 +48,14 @@ struct GhosttySurfaceBridgeTests {
   @Test
   func openUrlRequestRecognizesOSC8Targets() {
     let request = withOpenURLAction(
-      url: "https://supaterm.com/docs",
+      url: "https://legacy.supaterm.com/docs",
       kind: GHOSTTY_ACTION_OPEN_URL_KIND_OSC8
     ) {
       ghosttyOpenURLRequest(from: $0.action.open_url)
     }
 
     #expect(request?.kind == .osc8)
-    #expect(request?.value == "https://supaterm.com/docs")
+    #expect(request?.value == "https://legacy.supaterm.com/docs")
   }
 
   @Test
@@ -358,9 +358,9 @@ struct GhosttySurfaceBridgeTests {
     }
 
     let target = ghostty_target_s(tag: GHOSTTY_TARGET_SURFACE, target: ghostty_target_u())
-    withOpenURLAction(url: "https://supaterm.com/docs") { action in
+    withOpenURLAction(url: "https://legacy.supaterm.com/docs") { action in
       #expect(bridge.handleAction(target: target, action: action))
-      #expect(openedURL?.absoluteString == "https://supaterm.com/docs")
+      #expect(openedURL?.absoluteString == "https://legacy.supaterm.com/docs")
     }
   }
 
@@ -372,9 +372,9 @@ struct GhosttySurfaceBridgeTests {
       return false
     }
 
-    withOpenURLAction(url: "https://supaterm.com/docs") { action in
+    withOpenURLAction(url: "https://legacy.supaterm.com/docs") { action in
       #expect(bridge.handleAction(target: ghosttySurfaceTarget(), action: action))
-      #expect(openedURL?.absoluteString == "https://supaterm.com/docs")
+      #expect(openedURL?.absoluteString == "https://legacy.supaterm.com/docs")
     }
   }
 
@@ -387,11 +387,11 @@ struct GhosttySurfaceBridgeTests {
     }
 
     withOpenURLAction(
-      url: "https://supaterm.com/docs",
+      url: "https://legacy.supaterm.com/docs",
       kind: GHOSTTY_ACTION_OPEN_URL_KIND_OSC8
     ) { action in
       #expect(bridge.handleAction(target: ghosttySurfaceTarget(), action: action))
-      #expect(openedURL?.absoluteString == "https://supaterm.com/docs")
+      #expect(openedURL?.absoluteString == "https://legacy.supaterm.com/docs")
     }
   }
 
@@ -584,9 +584,9 @@ struct GhosttySurfaceBridgeTests {
     let bridge = GhosttySurfaceBridge()
     let target = ghostty_target_s(tag: GHOSTTY_TARGET_SURFACE, target: ghostty_target_u())
 
-    withMouseOverLinkAction(url: "https://supaterm.com/docs") { action in
+    withMouseOverLinkAction(url: "https://legacy.supaterm.com/docs") { action in
       #expect(bridge.handleAction(target: target, action: action))
-      #expect(bridge.state.mouseOverLink == "https://supaterm.com/docs")
+      #expect(bridge.state.mouseOverLink == "https://legacy.supaterm.com/docs")
     }
 
     withMouseOverLinkAction(url: "") { action in
@@ -600,7 +600,7 @@ struct GhosttySurfaceBridgeTests {
     let bridge = GhosttySurfaceBridge()
     let target = ghostty_target_s(tag: GHOSTTY_TARGET_SURFACE, target: ghostty_target_u())
 
-    withMouseOverLinkAction(url: "https://supaterm.com/docs") { action in
+    withMouseOverLinkAction(url: "https://legacy.supaterm.com/docs") { action in
       _ = bridge.handleAction(target: target, action: action)
     }
 

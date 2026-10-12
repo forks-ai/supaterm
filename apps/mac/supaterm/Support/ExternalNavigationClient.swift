@@ -4,15 +4,15 @@ import Foundation
 
 public enum SupatermExternalURL {
   public static var releaseNotes: URL {
-    URL(string: "https://github.com/supabitapp/supaterm/releases/tag/v\(AppBuild.version)")!
+    URL(string: "https://github.com/supabitapp/supaterm-legacy/releases/tag/v\(AppBuild.version)")!
   }
 
   public static var submitGitHubIssue: URL {
-    URL(string: "https://github.com/supabitapp/supaterm/issues/new")!
+    URL(string: "https://github.com/supabitapp/supaterm-legacy/issues/new")!
   }
 
   public static var changelog: URL {
-    URL(string: "https://supaterm.com/changelog")!
+    URL(string: "https://legacy.supaterm.com/changelog")!
   }
 }
 

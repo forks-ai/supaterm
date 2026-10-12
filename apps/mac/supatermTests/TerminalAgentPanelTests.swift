@@ -36,7 +36,7 @@ struct TerminalAgentPanelTests {
           pullRequestStatus: PaneAgentPullRequestStatus(
             kind: .open,
             title: "#123",
-            url: URL(string: "https://github.com/supabitapp/supaterm/pull/123"),
+            url: URL(string: "https://github.com/supabitapp/supaterm-legacy/pull/123"),
             addedLineCount: nil,
             removedLineCount: nil,
             checks: nil
@@ -269,7 +269,7 @@ struct TerminalAgentPanelTests {
   @Test
   func mainBranchHidesEmptyPullRequestAction() {
     let createStatus = PaneAgentPullRequestStatus.createPullRequest(
-      url: URL(string: "https://github.com/supabitapp/supaterm/compare/main?expand=1")!
+      url: URL(string: "https://github.com/supabitapp/supaterm-legacy/compare/main?expand=1")!
     )
     let mainBranchDetails = PaneAgentBranchDetails(
       repositoryRootPath: "/repo",

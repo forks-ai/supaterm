@@ -33,7 +33,7 @@ struct AppBuildTests {
   func releaseNotesMatchMarketingVersion() {
     #expect(
       SupatermExternalURL.releaseNotes.absoluteString
-        == "https://github.com/supabitapp/supaterm/releases/tag/v\(AppBuild.version)"
+        == "https://github.com/supabitapp/supaterm-legacy/releases/tag/v\(AppBuild.version)"
     )
   }
 

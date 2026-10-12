@@ -15,9 +15,9 @@ final class HoverLinkUITests: SupatermUITestCase {
     )
     terminal.click()
 
-    let shortLink = "https://supaterm.com"
+    let shortLink = "https://legacy.supaterm.com"
     let longLink =
-      "https://supaterm.com/docs/terminal/hovered-link-feedback-for-split-pane-regression"
+      "https://legacy.supaterm.com/docs/terminal/hovered-link-feedback-for-split-pane-regression"
     app.typeText("clear; printf '\\033[H\(shortLink)\\033[999B\\r\(longLink)'; sleep 300")
     app.typeKey(.return, modifierFlags: [])
     let linkAppeared = await wait(for: terminal, timeout: .seconds(30)) {

@@ -44,4 +44,4 @@ make web-build
 make web-deploy
 ```
 
-The first deploy creates the Worker and publishes a `workers.dev` URL. Attach `supaterm.com` as a custom domain in Cloudflare after that deploy succeeds.
+The first deploy creates the Worker and publishes a `workers.dev` URL. Attach `legacy.supaterm.com` as a custom domain in Cloudflare after that deploy succeeds.
